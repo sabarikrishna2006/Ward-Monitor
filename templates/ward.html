@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Ward 4B{% endblock %}
+
+{% block content %}
+<div class="ward-layout">
+    <!-- Patient Acuity List (left ~70%) -->
+    <div class="patient-list" id="patient-list">
+        <div class="loading-placeholder">Loading patient data...</div>
+    </div>
+
+    <!-- Alerts Panel (right ~30%) -->
+    <div class="alerts-panel" id="alerts-panel">
+        <div class="alerts-panel-header">
+            <h2>🚨 Alerts</h2>
+            <span class="alert-total" id="alert-total">0 active</span>
+        </div>
+        <div class="alerts-list" id="alerts-list">
+            <div class="loading-placeholder">Loading alerts...</div>
+        </div>
+    </div>
+</div>
+
+<!-- Patient detail modal (inline expand) -->
+<div class="patient-detail-modal d-none" id="patient-detail-modal">
+    <div class="patient-detail-backdrop" onclick="closePatientDetail()"></div>
+    <div class="patient-detail-panel" id="patient-detail-panel">
+        <button class="detail-close" onclick="closePatientDetail()">&times;</button>
+        <div id="patient-detail-content">Loading...</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Initial load
+    fetchWardData();
+
+    // Auto-refresh every 30 seconds
+    setInterval(fetchWardData, 30000);
+</script>
+{% endblock %}

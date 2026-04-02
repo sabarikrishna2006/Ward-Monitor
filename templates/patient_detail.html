@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+{% block title %}{{ patient.name }}{% endblock %}
+{% block page_title %}<a href="/" class="text-decoration-none text-light">&larr;</a> {{ patient.name }} — Bed {{ patient.bed_number }}{% endblock %}
+
+{% block content %}
+<div class="patient-detail-page" id="patient-detail-page">
+    <div class="loading-placeholder" id="detail-loading">Loading patient data...</div>
+    <div id="detail-content" class="d-none">
+        <!-- Patient info header -->
+        <div class="detail-header" id="detail-header"></div>
+
+        <!-- NEWS2 Score -->
+        <div class="detail-section" id="detail-news2"></div>
+
+        <!-- Vitals Chart -->
+        <div class="detail-section">
+            <h3>📊 24-Hour Vital Signs</h3>
+            <div class="vitals-chart-container">
+                <canvas id="vitals-chart"></canvas>
+            </div>
+        </div>
+
+        <!-- Vitals Table -->
+        <div class="detail-section">
+            <h3>📋 Recent Vitals</h3>
+            <div class="table-responsive">
+                <table class="table table-dark table-sm vitals-table" id="vitals-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>HR</th>
+                            <th>RR</th>
+                            <th>SpO₂</th>
+                            <th>BP</th>
+                            <th>Temp</th>
+                            <th>Consciousness</th>
+                        </tr>
+                    </thead>
+                    <tbody id="vitals-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Labs -->
+        <div class="detail-section">
+            <h3>🧪 Lab Results</h3>
+            <div class="table-responsive">
+                <table class="table table-dark table-sm">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Test</th>
+                            <th>Value</th>
+                            <th>Unit</th>
+                        </tr>
+                    </thead>
+                    <tbody id="labs-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Medications -->
+        <div class="detail-section">
+            <h3>💊 Active Medications</h3>
+            <div id="meds-list"></div>
+        </div>
+
+        <!-- Alerts -->
+        <div class="detail-section">
+            <h3>🚨 Alert History</h3>
+            <div id="alerts-history"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script>
+    const SUBJECT_ID = {{ subject_id }};
+
+    fetch(`/api/patient/${SUBJECT_ID}`)
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('detail-loading').classList.add('d-none');
+            document.getElementById('detail-content').classList.remove('d-none');
+            renderPatientDetail(data);
+        });
+
+    function renderPatientDetail(data) {
+        const p = data.patient;
+        const news2 = data.news2;
+
+        // Header
+        document.getElementById('detail-header').innerHTML = `
+            <div class="detail-patient-info">
+                <div class="detail-bed risk-${news2.color}">BED ${p.bed_number}</div>
+                <div class="detail-name">${p.name} · ${p.age}${p.gender}</div>
+                <div class="detail-condition">${p.condition}</div>
+                <div class="detail-admit">Admitted: ${new Date(p.admit_date).toLocaleDateString()}</div>
+            </div>
+        `;
+
+        // NEWS2
+        const badgeClass = `risk-badge-${news2.color}`;
+        document.getElementById('detail-news2').innerHTML = `
+            <h3>NEWS2 Score</h3>
+            <div class="news2-detail">
+                <span class="news2-score-big ${badgeClass}">${news2.score}</span>
+                <span class="news2-level ${badgeClass}">${news2.risk_level} RISK</span>
+            </div>
+            <div class="news2-breakdown">
+                ${Object.entries(news2.breakdown).map(([k,v]) =>
+                    `<span class="breakdown-item ${v > 0 ? 'has-score' : ''}">${k.replace('_',' ')}: ${v}</span>`
+                ).join('')}
+            </div>
+            <div class="clinical-response">${news2.clinical_response}</div>
+        `;
+
+        // Vitals table (last 24)
+        const vitals = data.vitals_history.slice(-24).reverse();
+        document.getElementById('vitals-tbody').innerHTML = vitals.map(v => `
+            <tr>
+                <td>${new Date(v.timestamp).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</td>
+                <td class="${highlightVital(v.heart_rate, 50, 90, 110, 130)}">${Math.round(v.heart_rate)}</td>
+                <td class="${highlightVital(v.respiratory_rate, 12, 20, 24, 25)}">${Math.round(v.respiratory_rate)}</td>
+                <td class="${highlightVitalReverse(v.spo2, 96, 94, 92, 91)}">${Math.round(v.spo2)}%</td>
+                <td>${Math.round(v.sbp)}/${Math.round(v.dbp)}</td>
+                <td class="${highlightVital(v.temperature, 36.1, 38.0, 39.0, 39.1)}">${v.temperature.toFixed(1)}°</td>
+                <td>${v.consciousness || 'A'}</td>
+            </tr>
+        `).join('');
+
+        // Labs
+        document.getElementById('labs-tbody').innerHTML = data.labs.map(l => `
+            <tr>
+                <td>${new Date(l.timestamp).toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</td>
+                <td>${l.item_name}</td>
+                <td>${l.value}</td>
+                <td>${l.unit}</td>
+            </tr>
+        `).join('');
+
+        // Meds
+        document.getElementById('meds-list').innerHTML = data.meds.map(m => `
+            <div class="med-item">
+                <span class="med-name">${m.med_name}</span>
+                <span class="med-dose">${m.dose} ${m.frequency}</span>
+                <span class="med-since">since ${m.start_date}</span>
+            </div>
+        `).join('');
+
+        // Alerts
+        document.getElementById('alerts-history').innerHTML = data.alerts.length ?
+            data.alerts.map(a => `
+                <div class="alert-item-detail severity-${a.severity.toLowerCase()}">
+                    <span class="alert-sev">${a.severity}</span>
+                    <span class="alert-type">${a.alert_type}</span>
+                    <span class="alert-msg">${a.message}</span>
+                    ${a.action ? `<span class="alert-action">${a.action}</span>` : ''}
+                    <span class="alert-time">${new Date(a.timestamp).toLocaleString()}</span>
+                </div>
+            `).join('') : '<div class="text-muted">No alerts</div>';
+
+        // Vitals chart
+        if (typeof Chart !== 'undefined') {
+            renderVitalsChart(data.vitals_history);
+        }
+    }
+
+    function renderVitalsChart(history) {
+        const ctx = document.getElementById('vitals-chart').getContext('2d');
+        const labels = history.map(h => new Date(h.timestamp).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}));
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [
+                    { label: 'HR', data: history.map(h => h.heart_rate), borderColor: '#ef4444', borderWidth: 2, pointRadius: 0, tension: 0.3 },
+                    { label: 'RR', data: history.map(h => h.respiratory_rate), borderColor: '#f59e0b', borderWidth: 2, pointRadius: 0, tension: 0.3 },
+                    { label: 'SpO₂', data: history.map(h => h.spo2), borderColor: '#22c55e', borderWidth: 2, pointRadius: 0, tension: 0.3, yAxisID: 'y1' },
+                    { label: 'Temp', data: history.map(h => h.temperature), borderColor: '#8b5cf6', borderWidth: 2, pointRadius: 0, tension: 0.3, yAxisID: 'y2' },
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { ticks: { maxTicksLimit: 12, color: '#888' }, grid: { color: '#333' } },
+                    y: { position: 'left', title: { display: true, text: 'HR / RR', color: '#888' }, ticks: { color: '#888' }, grid: { color: '#333' } },
+                    y1: { position: 'right', title: { display: true, text: 'SpO₂ %', color: '#888' }, min: 85, max: 100, ticks: { color: '#888' }, grid: { display: false } },
+                    y2: { display: false, min: 35, max: 40 },
+                },
+                plugins: { legend: { labels: { color: '#ccc' } } }
+            }
+        });
+    }
+
+    function highlightVital(val, low, normal_high, warn_high, crit) {
+        if (val >= crit) return 'vital-critical';
+        if (val >= warn_high) return 'vital-warning';
+        if (val <= low - 5) return 'vital-critical';
+        if (val <= low) return 'vital-warning';
+        return '';
+    }
+
+    function highlightVitalReverse(val, good, warn1, warn2, crit) {
+        if (val <= crit) return 'vital-critical';
+        if (val <= warn2) return 'vital-warning';
+        return '';
+    }
+</script>
+{% endblock %}
