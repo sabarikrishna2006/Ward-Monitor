@@ -1,74 +1,79 @@
 {% extends "base.html" %}
 {% block title %}{{ patient.name }}{% endblock %}
-{% block page_title %}<a href="/" class="text-decoration-none text-light">&larr;</a> {{ patient.name }} — Bed {{ patient.bed_number }}{% endblock %}
+{% block page_title %}<a href="/" class="back-link" style="display:inline-flex;text-decoration:none;color:var(--text-secondary);font-size:14px">&larr; Ward</a> {{ patient.name }} — Bed {{ patient.bed_number }}{% endblock %}
 
 {% block content %}
 <div class="patient-detail-page" id="patient-detail-page">
-    <div class="loading-placeholder" id="detail-loading">Loading patient data...</div>
+    <div class="loading-placeholder" id="detail-loading">
+        <div class="loading-spinner"></div>
+        <div>Loading patient data...</div>
+    </div>
     <div id="detail-content" class="d-none">
         <!-- Patient info header -->
         <div class="detail-header" id="detail-header"></div>
 
-        <!-- NEWS2 Score -->
-        <div class="detail-section" id="detail-news2"></div>
+        <div class="detail-grid">
+            <!-- NEWS2 Score -->
+            <div class="detail-section" id="detail-news2"></div>
 
-        <!-- Vitals Chart -->
-        <div class="detail-section">
-            <h3>📊 24-Hour Vital Signs</h3>
-            <div class="vitals-chart-container">
-                <canvas id="vitals-chart"></canvas>
+            <!-- Vitals Chart -->
+            <div class="detail-section">
+                <h3><span class="section-icon vitals">📈</span> 24-Hour Vital Signs</h3>
+                <div class="vitals-chart-container">
+                    <canvas id="vitals-chart"></canvas>
+                </div>
             </div>
-        </div>
 
-        <!-- Vitals Table -->
-        <div class="detail-section">
-            <h3>📋 Recent Vitals</h3>
-            <div class="table-responsive">
-                <table class="table table-dark table-sm vitals-table" id="vitals-table">
-                    <thead>
-                        <tr>
-                            <th>Time</th>
-                            <th>HR</th>
-                            <th>RR</th>
-                            <th>SpO₂</th>
-                            <th>BP</th>
-                            <th>Temp</th>
-                            <th>Consciousness</th>
-                        </tr>
-                    </thead>
-                    <tbody id="vitals-tbody"></tbody>
-                </table>
+            <!-- Vitals Table -->
+            <div class="detail-section full-width">
+                <h3><span class="section-icon vitals">🩺</span> Recent Vitals</h3>
+                <div style="overflow-x:auto">
+                    <table class="table table-dark table-sm vitals-table" id="vitals-table">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>HR</th>
+                                <th>RR</th>
+                                <th>SpO₂</th>
+                                <th>BP</th>
+                                <th>Temp</th>
+                                <th>LOC</th>
+                            </tr>
+                        </thead>
+                        <tbody id="vitals-tbody"></tbody>
+                    </table>
+                </div>
             </div>
-        </div>
 
-        <!-- Labs -->
-        <div class="detail-section">
-            <h3>🧪 Lab Results</h3>
-            <div class="table-responsive">
-                <table class="table table-dark table-sm">
-                    <thead>
-                        <tr>
-                            <th>Time</th>
-                            <th>Test</th>
-                            <th>Value</th>
-                            <th>Unit</th>
-                        </tr>
-                    </thead>
-                    <tbody id="labs-tbody"></tbody>
-                </table>
+            <!-- Labs -->
+            <div class="detail-section">
+                <h3><span class="section-icon labs">🧪</span> Lab Results</h3>
+                <div style="overflow-x:auto">
+                    <table class="table table-dark table-sm vitals-table">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Test</th>
+                                <th>Value</th>
+                                <th>Unit</th>
+                            </tr>
+                        </thead>
+                        <tbody id="labs-tbody"></tbody>
+                    </table>
+                </div>
             </div>
-        </div>
 
-        <!-- Medications -->
-        <div class="detail-section">
-            <h3>💊 Active Medications</h3>
-            <div id="meds-list"></div>
-        </div>
+            <!-- Medications -->
+            <div class="detail-section">
+                <h3><span class="section-icon meds">💊</span> Active Medications</h3>
+                <div id="meds-list"></div>
+            </div>
 
-        <!-- Alerts -->
-        <div class="detail-section">
-            <h3>🚨 Alert History</h3>
-            <div id="alerts-history"></div>
+            <!-- Alerts -->
+            <div class="detail-section full-width">
+                <h3><span class="section-icon alerts">⚠</span> Alert History</h3>
+                <div id="alerts-history"></div>
+            </div>
         </div>
     </div>
 </div>
@@ -95,29 +100,29 @@
         document.getElementById('detail-header').innerHTML = `
             <div class="detail-patient-info">
                 <div class="detail-bed risk-${news2.color}">BED ${p.bed_number}</div>
-                <div class="detail-name">${p.name} · ${p.age}${p.gender}</div>
-                <div class="detail-condition">${p.condition}</div>
-                <div class="detail-admit">Admitted: ${new Date(p.admit_date).toLocaleDateString()}</div>
+                <div class="detail-name">${p.name}</div>
+                <div class="detail-condition">${p.age}${p.gender} · ${p.condition}</div>
+                <div class="detail-admit">Admitted: ${new Date(p.admit_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
             </div>
         `;
 
         // NEWS2
         const badgeClass = `risk-badge-${news2.color}`;
         document.getElementById('detail-news2').innerHTML = `
-            <h3>NEWS2 Score</h3>
+            <h3><span class="section-icon news2">📊</span> NEWS2 Score</h3>
             <div class="news2-detail">
                 <span class="news2-score-big ${badgeClass}">${news2.score}</span>
                 <span class="news2-level ${badgeClass}">${news2.risk_level} RISK</span>
             </div>
             <div class="news2-breakdown">
                 ${Object.entries(news2.breakdown).map(([k,v]) =>
-                    `<span class="breakdown-item ${v > 0 ? 'has-score' : ''}">${k.replace('_',' ')}: ${v}</span>`
+                    `<span class="breakdown-item ${v > 0 ? 'has-score' : ''}">${k.replace(/_/g,' ')}: <span class="score-val">${v}</span></span>`
                 ).join('')}
             </div>
             <div class="clinical-response">${news2.clinical_response}</div>
         `;
 
-        // Vitals table (last 24)
+        // Vitals table
         const vitals = data.vitals_history.slice(-24).reverse();
         document.getElementById('vitals-tbody').innerHTML = vitals.map(v => `
             <tr>
@@ -142,25 +147,26 @@
         `).join('');
 
         // Meds
-        document.getElementById('meds-list').innerHTML = data.meds.map(m => `
+        document.getElementById('meds-list').innerHTML = data.meds.length ? data.meds.map(m => `
             <div class="med-item">
+                <span class="med-pill"></span>
                 <span class="med-name">${m.med_name}</span>
                 <span class="med-dose">${m.dose} ${m.frequency}</span>
                 <span class="med-since">since ${m.start_date}</span>
             </div>
-        `).join('');
+        `).join('') : '<div style="color:var(--text-dim);font-size:12px">No active medications</div>';
 
         // Alerts
         document.getElementById('alerts-history').innerHTML = data.alerts.length ?
             data.alerts.map(a => `
                 <div class="alert-item-detail severity-${a.severity.toLowerCase()}">
-                    <span class="alert-sev">${a.severity}</span>
+                    <span class="alert-sev sev-${a.severity.toLowerCase()}">${a.severity}</span>
                     <span class="alert-type">${a.alert_type}</span>
                     <span class="alert-msg">${a.message}</span>
                     ${a.action ? `<span class="alert-action">${a.action}</span>` : ''}
                     <span class="alert-time">${new Date(a.timestamp).toLocaleString()}</span>
                 </div>
-            `).join('') : '<div class="text-muted">No alerts</div>';
+            `).join('') : '<div style="color:var(--text-dim);font-size:12px">No alerts recorded</div>';
 
         // Vitals chart
         if (typeof Chart !== 'undefined') {
@@ -171,27 +177,48 @@
     function renderVitalsChart(history) {
         const ctx = document.getElementById('vitals-chart').getContext('2d');
         const labels = history.map(h => new Date(h.timestamp).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}));
+
+        const hrGrad = ctx.createLinearGradient(0, 0, 0, 260);
+        hrGrad.addColorStop(0, 'rgba(239, 68, 68, 0.25)');
+        hrGrad.addColorStop(1, 'rgba(239, 68, 68, 0.0)');
+
+        const spo2Grad = ctx.createLinearGradient(0, 0, 0, 260);
+        spo2Grad.addColorStop(0, 'rgba(34, 197, 94, 0.20)');
+        spo2Grad.addColorStop(1, 'rgba(34, 197, 94, 0.0)');
+
         new Chart(ctx, {
             type: 'line',
             data: {
                 labels,
                 datasets: [
-                    { label: 'HR', data: history.map(h => h.heart_rate), borderColor: '#ef4444', borderWidth: 2, pointRadius: 0, tension: 0.3 },
-                    { label: 'RR', data: history.map(h => h.respiratory_rate), borderColor: '#f59e0b', borderWidth: 2, pointRadius: 0, tension: 0.3 },
-                    { label: 'SpO₂', data: history.map(h => h.spo2), borderColor: '#22c55e', borderWidth: 2, pointRadius: 0, tension: 0.3, yAxisID: 'y1' },
-                    { label: 'Temp', data: history.map(h => h.temperature), borderColor: '#8b5cf6', borderWidth: 2, pointRadius: 0, tension: 0.3, yAxisID: 'y2' },
+                    { label: 'HR', data: history.map(h => h.heart_rate), borderColor: '#ef4444', backgroundColor: hrGrad, borderWidth: 2, pointRadius: 0, tension: 0.4, fill: true },
+                    { label: 'RR', data: history.map(h => h.respiratory_rate), borderColor: '#f59e0b', borderWidth: 1.5, pointRadius: 0, tension: 0.4, fill: false },
+                    { label: 'SpO₂', data: history.map(h => h.spo2), borderColor: '#22c55e', backgroundColor: spo2Grad, borderWidth: 2, pointRadius: 0, tension: 0.4, yAxisID: 'y1', fill: true },
+                    { label: 'Temp', data: history.map(h => h.temperature), borderColor: '#8b5cf6', borderWidth: 1.5, pointRadius: 0, tension: 0.4, yAxisID: 'y2', fill: false },
                 ]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
                 scales: {
-                    x: { ticks: { maxTicksLimit: 12, color: '#888' }, grid: { color: '#333' } },
-                    y: { position: 'left', title: { display: true, text: 'HR / RR', color: '#888' }, ticks: { color: '#888' }, grid: { color: '#333' } },
-                    y1: { position: 'right', title: { display: true, text: 'SpO₂ %', color: '#888' }, min: 85, max: 100, ticks: { color: '#888' }, grid: { display: false } },
+                    x: { ticks: { maxTicksLimit: 12, color: '#5f6672', font: { family: 'JetBrains Mono', size: 9 } }, grid: { color: 'rgba(255,255,255,0.04)', drawBorder: false } },
+                    y: { position: 'left', title: { display: true, text: 'HR / RR', color: '#5f6672', font: { family: 'Inter', size: 10 } }, ticks: { color: '#5f6672', font: { family: 'JetBrains Mono', size: 9 } }, grid: { color: 'rgba(255,255,255,0.04)', drawBorder: false } },
+                    y1: { position: 'right', title: { display: true, text: 'SpO₂ %', color: '#5f6672', font: { family: 'Inter', size: 10 } }, min: 85, max: 100, ticks: { color: '#5f6672', font: { family: 'JetBrains Mono', size: 9 } }, grid: { display: false } },
                     y2: { display: false, min: 35, max: 40 },
                 },
-                plugins: { legend: { labels: { color: '#ccc' } } }
+                plugins: {
+                    legend: { labels: { color: '#9aa0a9', usePointStyle: true, pointStyle: 'line', padding: 16, font: { family: 'Inter', size: 11 } } },
+                    tooltip: {
+                        backgroundColor: 'rgba(15, 20, 25, 0.95)',
+                        borderColor: 'rgba(255,255,255,0.1)',
+                        borderWidth: 1,
+                        cornerRadius: 8,
+                        titleFont: { family: 'JetBrains Mono', size: 11 },
+                        bodyFont: { family: 'JetBrains Mono', size: 11 },
+                        padding: 10,
+                    }
+                }
             }
         });
     }

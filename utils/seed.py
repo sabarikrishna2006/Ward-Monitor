@@ -468,11 +468,11 @@ def seed_database(db_path):
                 'consciousness': row[5] or 'A', 'air_or_oxygen': row[6] or 'air',
             }
             result = calculate_news2(vitals)
-            flag = '🔴' if result['color'] == 'red' else '🟡' if result['color'] == 'amber' else '🟢'
+            flag = '[RED]' if result['color'] == 'red' else '[AMB]' if result['color'] == 'amber' else '[GRN]'
             print(f"    {flag} Bed {p['bed']:2d} {p['name']:15s} NEWS2={result['score']:2d} ({result['risk_level']})")
 
     conn.close()
-    print("\n✅ Database seeded successfully!")
+    print("\n[OK] Database seeded successfully!")
 
 
 if __name__ == '__main__':

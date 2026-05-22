@@ -1,43 +1,87 @@
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="dark">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Ward Monitor — Clinical Decision Support Dashboard for real-time patient monitoring, NEWS2 scoring, drug-lab interaction alerts, and sepsis/AKI detection.">
     <title>{% block title %}Ward Monitor{% endblock %} — CDS Dashboard</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Styles -->
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+
+    <!-- Favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect rx='20' width='100' height='100' fill='%233b82f6'/><text x='50' y='72' font-size='60' text-anchor='middle' fill='white'>+</text></svg>">
 </head>
 <body>
-    <div class="d-flex">
+    <div class="app-layout">
         <!-- Sidebar -->
-        <nav class="sidebar d-flex flex-column flex-shrink-0">
+        <nav class="sidebar" id="sidebar">
             <div class="sidebar-brand">
-                <span class="brand-icon">🏥</span>
+                <div class="brand-icon">
+                    <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                </div>
                 <span class="brand-text">Ward Monitor</span>
             </div>
+
             <div class="sidebar-section">
-                <div class="sidebar-label">WARD</div>
+                <div class="sidebar-label">Ward</div>
                 <div class="sidebar-value active-ward">4B — General Medicine</div>
             </div>
+
             <div class="sidebar-section">
-                <div class="sidebar-label">SHIFT</div>
+                <div class="sidebar-label">Shift</div>
                 <div class="sidebar-value" id="shift-info">Night Shift</div>
             </div>
+
             <div class="sidebar-section">
-                <div class="sidebar-label">TIME</div>
+                <div class="sidebar-label">Time</div>
                 <div class="sidebar-value sidebar-clock" id="clock">--:--:--</div>
             </div>
+
+            <div class="sidebar-divider"></div>
+
             <div class="sidebar-section">
-                <div class="sidebar-label">BEDS</div>
+                <div class="sidebar-label">Ward Acuity</div>
+                <div class="sidebar-acuity" id="sidebar-acuity">
+                    <div class="acuity-row">
+                        <span class="acuity-dot critical"></span>
+                        <span class="acuity-count" id="acuity-critical">—</span>
+                        <span class="acuity-label">Critical</span>
+                    </div>
+                    <div class="acuity-row">
+                        <span class="acuity-dot warning"></span>
+                        <span class="acuity-count" id="acuity-warning">—</span>
+                        <span class="acuity-label">Warning</span>
+                    </div>
+                    <div class="acuity-row">
+                        <span class="acuity-dot stable"></span>
+                        <span class="acuity-count" id="acuity-stable">—</span>
+                        <span class="acuity-label">Stable</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar-divider"></div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-label">Beds</div>
                 <div class="sidebar-value">12 beds active</div>
             </div>
-            <div class="mt-auto sidebar-section">
+
+            <div style="margin-top:auto"></div>
+
+            <div class="sidebar-section">
                 <div class="connection-status" id="connection-status">
                     <span class="status-dot connected"></span>
                     <span>Connected</span>
                 </div>
-                <div class="sidebar-label mt-2">LAST SYNC</div>
-                <div class="sidebar-value" id="last-sync">—</div>
+                <div class="sidebar-label" style="margin-top:8px">Last Sync</div>
+                <div class="sidebar-value" id="last-sync" style="font-family:'JetBrains Mono',monospace;font-size:11px">—</div>
             </div>
         </nav>
 
@@ -47,11 +91,12 @@
             <header class="top-bar">
                 <div class="top-bar-left">
                     <h1 class="top-bar-title">{% block page_title %}Ward 4B — General Medicine{% endblock %}</h1>
-                    <span class="top-bar-meta" id="top-bar-meta">· Night Shift · <span id="top-clock">--:--</span></span>
+                    <span class="top-bar-meta" id="top-bar-meta">· <span id="shift-label-top">Night Shift</span> · <span id="top-clock">--:--</span></span>
                 </div>
                 <div class="top-bar-right">
                     <div class="alert-count" id="alert-count">
-                        <span class="alert-badge" id="alert-badge">0</span> alerts
+                        <span class="alert-badge" id="alert-badge">0</span>
+                        <span>alerts active</span>
                     </div>
                 </div>
             </header>
@@ -60,7 +105,6 @@
         </main>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{{ url_for('static', filename='js/sparkline.js') }}"></script>
     <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
     {% block scripts %}{% endblock %}

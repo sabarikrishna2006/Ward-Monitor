@@ -4,33 +4,99 @@
 {% block content %}
 <div class="ward-layout">
     <!-- Patient Acuity List (left ~70%) -->
-    <div class="patient-list" id="patient-list">
-        <div class="loading-placeholder">Loading patient data...</div>
+    <div class="patient-list">
+        <!-- Summary Stats Bar -->
+        <div class="ward-summary" id="ward-summary">
+            <div class="summary-card">
+                <div class="summary-icon total">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                </div>
+                <div class="summary-data">
+                    <span class="summary-number" id="summary-total">12</span>
+                    <span class="summary-label">Total Patients</span>
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-icon critical">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                </div>
+                <div class="summary-data">
+                    <span class="summary-number critical" id="summary-critical">0</span>
+                    <span class="summary-label">Critical</span>
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-icon warning">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                </div>
+                <div class="summary-data">
+                    <span class="summary-number warning" id="summary-warning">0</span>
+                    <span class="summary-label">Warning</span>
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-icon stable">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                </div>
+                <div class="summary-data">
+                    <span class="summary-number stable" id="summary-stable">0</span>
+                    <span class="summary-label">Stable</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter Tabs -->
+        <div class="filter-bar" id="filter-bar">
+            <button class="filter-btn active" data-filter="all" id="filter-all" onclick="filterPatients('all')">All <span class="filter-count" id="fc-all">12</span></button>
+            <button class="filter-btn" data-filter="red" id="filter-red" onclick="filterPatients('red')">Critical <span class="filter-count" id="fc-red">0</span></button>
+            <button class="filter-btn" data-filter="amber" id="filter-amber" onclick="filterPatients('amber')">Warning <span class="filter-count" id="fc-amber">0</span></button>
+            <button class="filter-btn" data-filter="green" id="filter-green" onclick="filterPatients('green')">Stable <span class="filter-count" id="fc-green">0</span></button>
+        </div>
+
+        <!-- Patient Cards -->
+        <div class="patient-list-scroll" id="patient-list">
+            <div class="loading-placeholder">
+                <div class="loading-spinner"></div>
+                <div>Loading patient data...</div>
+            </div>
+        </div>
     </div>
 
     <!-- Alerts Panel (right ~30%) -->
     <div class="alerts-panel" id="alerts-panel">
         <div class="alerts-panel-header">
-            <h2>🚨 Alerts</h2>
+            <h2>
+                <span class="alerts-header-icon">⚠</span>
+                Alerts
+            </h2>
             <span class="alert-total" id="alert-total">0 active</span>
         </div>
         <div class="alerts-list" id="alerts-list">
-            <div class="loading-placeholder">Loading alerts...</div>
+            <div class="loading-placeholder">
+                <div class="loading-spinner"></div>
+                <div>Loading alerts...</div>
+            </div>
         </div>
     </div>
 </div>
 
-<!-- Patient detail modal (inline expand) -->
+<!-- Patient detail slide-over modal -->
 <div class="patient-detail-modal d-none" id="patient-detail-modal">
     <div class="patient-detail-backdrop" onclick="closePatientDetail()"></div>
     <div class="patient-detail-panel" id="patient-detail-panel">
-        <button class="detail-close" onclick="closePatientDetail()">&times;</button>
-        <div id="patient-detail-content">Loading...</div>
+        <button class="detail-close" onclick="closePatientDetail()" aria-label="Close">&times;</button>
+        <div id="patient-detail-content">
+            <div class="loading-placeholder">
+                <div class="loading-spinner"></div>
+                <div>Loading patient details...</div>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script>
     // Initial load
     fetchWardData();

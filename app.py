@@ -27,6 +27,6 @@ def create_app():
 
 if __name__ == '__main__':
     app = create_app()
-    print("\n🏥 Ward Monitor — Clinical Decision Support")
+    print("\n[+] Ward Monitor -- Clinical Decision Support")
     print("=" * 50)
     app.run(host='0.0.0.0', port=5001, debug=True, use_reloader=False)
