@@ -1,0 +1,46 @@
+@import "tailwindcss";
+
+@theme {
+  --color-obsidian: #0f172a;
+  --color-obsidianCard: #1e293b;
+  --color-criticalRed: #ef4444;
+  --color-warningAmber: #f59e0b;
+  --color-stableTeal: #0d9488;
+  --color-stableGreen: #84cc16;
+}
+
+@layer base {
+  body {
+    @apply bg-obsidian text-slate-200 antialiased;
+  }
+
+  /* Hide scrollbars */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+/* ── Critical row — border-only pulse, 3 s cycle ── */
+@keyframes critical-border-pulse {
+  0%, 100% {
+    box-shadow:
+      0 0  4px 1px rgba(239, 68, 68, 0.30),
+      inset 0 0  0px 0px rgba(239, 68, 68, 0);
+  }
+  50% {
+    box-shadow:
+      0 0 18px 4px rgba(239, 68, 68, 0.90),
+      inset 0 0  6px 0px rgba(239, 68, 68, 0.20);
+  }
+}
+
+.row-critical-blink {
+  animation: critical-border-pulse 3s ease-in-out infinite;
+  /* background stays static — only the border glow pulses */
+  background-color: rgba(239, 68, 68, 0.10) !important;
+  border: 1px solid #ef4444 !important;
+}
