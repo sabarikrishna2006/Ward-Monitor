@@ -14,7 +14,7 @@ export default function Dashboard() {
   const [selectedWard, setSelectedWard] = useState('All');
   const [isReplay, setIsReplay] = useState(false);
   const [showAddPatient, setShowAddPatient] = useState(false);
-  const [newPatient, setNewPatient] = useState({ name: '', age: 60, sex: 'M', ward: 'Ward 4B - Acute Care', room: '1', bed: '1', complaint: '', hr: 80, rr: 16, spo2: 98, sbp: 120, dbp: 80, temp: 37.0 });
+  const [newPatient, setNewPatient] = useState({ name: '', age: 60, sex: 'M', ward: 'Ward 4B - Acute Care', room: '1', bed: '1', complaint: '', hr: 80, rr: 16, spo2: 98, sbp: 120, dbp: 80, temp: 37.0, air_or_oxygen: 'Air', consciousness: 'A', hypercapnic_failure: 0 });
 
   // Real-time clock
   useEffect(() => {
@@ -123,11 +123,11 @@ export default function Dashboard() {
   const stablePatients = patients.filter(p => p.status === 'stable');
 
   // Column layout constants (must match between header and rows exactly)
-  const COL_BED = 'w-[60px] shrink-0';
-  const COL_PATIENT = 'w-[150px] shrink-0';
-  const COL_COMPLAINT = 'w-[120px] shrink-0';
-  const COL_VITALS = 'flex-1'; // takes all remaining space
-  const COL_SCORE = 'w-[130px] shrink-0';
+  const COL_BED       = 'w-[60px] shrink-0';
+  const COL_PATIENT   = 'w-[140px] shrink-0';
+  const COL_SCORE     = 'w-[130px] shrink-0'; // MOVED: now after patient
+  const COL_COMPLAINT = 'w-[190px] shrink-0'; // wider to fit brief flag
+  const COL_VITALS    = 'flex-1';
 
   return (
     <div className="flex flex-col h-screen bg-[#0b1120] text-slate-300 font-sans overflow-hidden">
@@ -150,7 +150,7 @@ export default function Dashboard() {
             <select 
               value={selectedWard}
               onChange={(e) => setSelectedWard(e.target.value)}
-              className="bg-transparent text-slate-400 font-semibold tracking-wider text-xs uppercase focus:outline-none appearance-none cursor-pointer hover:text-white transition-colors"
+              className="bg-[#0b1120] text-slate-300 font-semibold tracking-wider text-xs uppercase focus:outline-none cursor-pointer hover:text-white transition-colors border-0 [&>option]:bg-[#0b1120] [&>option]:text-slate-300"
             >
               <option value="All">All Wards</option>
               <option value="Ward 4B - Acute Care">Ward 4B — Acute Care / ICU</option>
@@ -299,9 +299,28 @@ export default function Dashboard() {
         {/* ── TABLE ── */}
         <main className="flex-1 overflow-hidden flex flex-col">
 
-          {/* ── COLUMN HEADER ── uses border-r on each col, exactly matching rows */}
-          <div
-            className="flex items-end shrink-0 bg-[#0b1120] border-b-2 border-slate-700 px-3"
+          {/* ── NEWS2 LEGEND ── */}
+          <div className="flex items-center space-x-5 px-4 py-2 shrink-0 bg-[#0b1120] border-b border-slate-800">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">NEWS2 Risk Levels:</span>
+            <div className="flex items-center space-x-1.5">
+              <span className="w-3 h-3 rounded-full bg-[#ef4444] shrink-0" />
+              <span className="text-sm font-semibold text-slate-200">≥ 7 (Critical — Emergent)</span>
+            </div>
+            <div className="flex items-center space-x-1.5">
+              <span className="w-3 h-3 rounded-full bg-[#f59e0b] shrink-0" />
+              <span className="text-sm font-semibold text-slate-200">5–6 (Medium — Urgent review)</span>
+            </div>
+            <div className="flex items-center space-x-1.5">
+              <span className="w-3 h-3 rounded-full bg-[#84cc16] shrink-0" />
+              <span className="text-sm font-semibold text-slate-200">0–4 (Low — Nurse assessment)</span>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-x-auto flex flex-col">
+            <div className="min-w-[900px] flex-1 flex flex-col">
+              {/* ── COLUMN HEADER ── uses border-r on each col, exactly matching rows */}
+              <div
+                className="flex items-end shrink-0 bg-[#0b1120] border-b-2 border-slate-700 px-3"
             style={{ paddingTop: '6px', paddingBottom: '0px' }}
           >
             {/* Bed */}
@@ -314,17 +333,22 @@ export default function Dashboard() {
               <span className="text-[10px] font-bold text-white uppercase tracking-wider pb-1 block">Patient / MRN</span>
             </div>
 
-            {/* Complaint */}
+            {/* Score — moved after patient */}
+            <div className={`${COL_SCORE} text-center border-r border-slate-700`}>
+              <span className="text-[10px] font-bold text-white uppercase tracking-wider pb-1 block">Score</span>
+            </div>
+
+            {/* Complaint + Flag */}
             <div className={`${COL_COMPLAINT} px-3 border-r border-slate-700`}>
-              <span className="text-[10px] font-bold text-white uppercase tracking-wider pb-1 block">Chief Complaint</span>
+              <span className="text-[10px] font-bold text-white uppercase tracking-wider pb-1 block">Complaint / Flag</span>
             </div>
 
             {/* Vitals — with title + sub-labels */}
-            <div className={`${COL_VITALS} flex flex-col px-1 border-r border-slate-700`}>
+            <div className={`${COL_VITALS} flex flex-col px-1`}>
               <div className="text-[10px] font-bold text-white uppercase tracking-wider pb-0.5 text-center">
                 Vital Signs Trajectories (Past 24 Hrs)
               </div>
-              {/* Individual vital labels — white, centred above each sparkline */}
+              {/* Individual vital labels */}
               <div className="flex w-full pb-1">
                 {['HR', 'RR', 'SpO2', 'BP', 'Temp'].map((v, i) => (
                   <div key={v} className={`flex-1 text-center text-[10px] font-bold text-white uppercase ${i < 4 ? 'border-r border-slate-700/50' : ''}`}>
@@ -333,15 +357,10 @@ export default function Dashboard() {
                 ))}
               </div>
             </div>
-
-            {/* Score */}
-            <div className={`${COL_SCORE} text-center`}>
-              <span className="text-[10px] font-bold text-white uppercase tracking-wider pb-1 block">Score</span>
-            </div>
           </div>
 
-          {/* ── ROWS ── separated, rounded, scrollbar hidden ── */}
-          <div className="flex-1 overflow-y-auto no-scrollbar px-3 py-2 space-y-2" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+          {/* ── ROWS ── */}
+          <div className="flex-1 overflow-y-auto px-3 py-2 space-y-2" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
             {sortedPatients.map((patient) => {
               const s = getStatusStyles(patient.status);
               return (
@@ -359,20 +378,41 @@ export default function Dashboard() {
                   </div>
 
                   {/* Patient info */}
-                  <div className={`${COL_PATIENT} flex flex-col justify-center py-3 px-3 border-r border-slate-700/40`}>
+                  <div className={`${COL_PATIENT} flex flex-col justify-center py-2 px-3 border-r border-slate-700/40`}>
                     <div className="font-bold text-white text-sm leading-tight truncate">{patient.name}</div>
                     <div className="text-[11px] text-slate-400 mt-0.5">{patient.id}</div>
                     <div className="text-[11px] text-slate-500">{patient.age}y {patient.sex}</div>
                   </div>
 
-                  {/* Chief complaint */}
-                  <div className={`${COL_COMPLAINT} flex items-center py-3 px-3 border-r border-slate-700/40`}>
-                    <span className="text-[11px] text-slate-300 font-medium leading-snug line-clamp-3">
-                      {patient.complaint}
-                    </span>
+                  {/* NEWS2 + ML Score — NOW SECOND COLUMN after patient */}
+                  <div className={`${COL_SCORE} flex items-center justify-center gap-1.5 border-r border-slate-700/40 px-1.5 py-3`}>
+                    <div className={`flex flex-col items-center justify-center rounded-lg border px-2 py-1.5 min-w-[38px] ${s.border} bg-slate-900/60`}>
+                      <span className={`text-[8px] font-black uppercase tracking-wider ${s.text}`}>NEWS2</span>
+                      <span className="text-2xl font-black text-white leading-none mt-0.5">{patient.news2}</span>
+                    </div>
+                    <div className={`flex flex-col items-center justify-center rounded-lg border px-2 py-1.5 min-w-[38px] ${s.border} bg-slate-900/60`}>
+                      <span className={`text-[8px] font-black uppercase tracking-wider ${s.text}`}>ML%</span>
+                      <span className="text-2xl font-black text-white leading-none mt-0.5">{patient.mlRisk}</span>
+                    </div>
                   </div>
 
-                  {/* 5 Vitals sparklines — large value+unit, clear gap, tall plot filling from bottom */}
+                  {/* Chief complaint + brief flag explanation */}
+                  <div className={`${COL_COMPLAINT} flex flex-col justify-start py-2 px-3 border-r border-slate-700/40`}>
+                    <span className="text-[11px] text-slate-200 font-semibold leading-snug line-clamp-2 mt-1">
+                      {patient.complaint}
+                    </span>
+                    {patient.briefFlag && (
+                      <span className={`text-[10px] font-medium leading-snug mt-1.5 line-clamp-2 ${
+                        patient.status === 'critical' ? 'text-[#ef4444]'
+                        : patient.status === 'warning' ? 'text-[#f59e0b]'
+                        : 'text-slate-400'
+                      }`}>
+                        ⚠ {patient.briefFlag}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* 5 Vitals sparklines */}
                   <div className={`${COL_VITALS} flex items-stretch py-1 px-1`}>
                     {[
                       { key: 'hr',   unit: 'bpm'  },
@@ -392,12 +432,12 @@ export default function Dashboard() {
                           key={key}
                           className={`flex-1 flex flex-col pt-1 ${i < 4 ? 'border-r border-slate-700/40' : ''} px-1`}
                         >
-                          {/* Numeric value + unit — large and clearly readable */}
+                          {/* Numeric value + unit */}
                           <div className="text-center leading-none mb-1.5">
                             <span className="text-sm font-black text-white">{displayVal}</span>
                             <span className="text-[10px] font-bold text-slate-400 ml-0.5">{unit}</span>
                           </div>
-                          {/* Sparkline — fills remaining height, anchored to bottom */}
+                          {/* Sparkline */}
                           <div style={{ flex: 1, minHeight: 0 }}>
                             <ResponsiveContainer width="100%" height="100%">
                               <AreaChart
@@ -415,6 +455,7 @@ export default function Dashboard() {
                                   isAnimationActive={false}
                                   dot={false}
                                   baseValue="dataMin"
+                                  connectNulls={true}
                                 />
                               </AreaChart>
                             </ResponsiveContainer>
@@ -424,20 +465,11 @@ export default function Dashboard() {
                     })}
                   </div>
 
-                  {/* NEWS2 + ML Score — boxed, prominent */}
-                  <div className={`${COL_SCORE} flex items-center justify-center gap-2 border-l border-slate-700/40 px-2 py-3`}>
-                    <div className={`flex flex-col items-center justify-center rounded-lg border px-2 py-1.5 min-w-[38px] ${s.border} bg-slate-900/60`}>
-                      <span className={`text-[8px] font-black uppercase tracking-wider ${s.text}`}>NEWS2</span>
-                      <span className="text-2xl font-black text-white leading-none mt-0.5">{patient.news2}</span>
-                    </div>
-                    <div className={`flex flex-col items-center justify-center rounded-lg border px-2 py-1.5 min-w-[38px] ${s.border} bg-slate-900/60`}>
-                      <span className={`text-[8px] font-black uppercase tracking-wider ${s.text}`}>ML</span>
-                      <span className="text-2xl font-black text-white leading-none mt-0.5">{patient.mlRisk}</span>
-                    </div>
-                  </div>
                 </div>
               );
             })}
+          </div>
+            </div>
           </div>
         </main>
 
@@ -453,7 +485,7 @@ export default function Dashboard() {
             ALERT SIDEBAR — fixed from page top
         ══════════════════════════════════════════════════════ */}
         <aside
-          className={`fixed inset-y-0 right-0 w-96 bg-[#0f172a] border-l border-slate-800 shadow-2xl transform transition-transform duration-300 ease-in-out z-50 flex flex-col ${showAlertPanel ? 'translate-x-0' : 'translate-x-full'}`}
+          className={`fixed inset-y-0 right-0 w-full sm:w-96 bg-[#0f172a] border-l border-slate-800 shadow-2xl transform transition-transform duration-300 ease-in-out z-50 flex flex-col ${showAlertPanel ? 'translate-x-0' : 'translate-x-full'}`}
         >
           <div className="p-4 border-b border-slate-800 flex justify-between items-center sticky top-0 bg-[#0b1120] z-10">
             <div className="flex items-center space-x-2">
@@ -559,7 +591,7 @@ export default function Dashboard() {
             PATIENT DETAIL DRAWER — fixed from page top, 75% width
         ══════════════════════════════════════════════════════ */}
         <aside
-          className={`fixed inset-y-0 right-0 w-3/4 bg-[#0b1120] border-l border-slate-700 shadow-[0_0_50px_rgba(0,0,0,0.6)] transform transition-transform duration-500 ease-in-out z-60 flex flex-col ${isDrawerOpen ? 'translate-x-0' : 'translate-x-full'}`}
+          className={`fixed inset-y-0 right-0 w-full lg:w-3/4 bg-[#0b1120] border-l border-slate-700 shadow-[0_0_50px_rgba(0,0,0,0.6)] transform transition-transform duration-500 ease-in-out z-60 flex flex-col ${isDrawerOpen ? 'translate-x-0' : 'translate-x-full'}`}
           style={{ zIndex: 60 }}
         >
           {selectedPatient && (() => {
@@ -585,20 +617,33 @@ export default function Dashboard() {
                 </div>
 
                 {/* Drawer Scrollable Content */}
-                <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-[#0b1120]">
+                <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-[#0b1120]" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
 
-                  {/* Deterioration Alert — side by side */}
-                  {(selectedPatient.status === 'critical' || selectedPatient.status === 'warning') && (
-                    <div className={`border-l-4 rounded-r-xl p-5 flex flex-col lg:flex-row gap-5 ${selectedPatient.status === 'critical' ? 'border-[#ef4444] bg-[#ef4444]/10' : 'border-[#f59e0b] bg-[#f59e0b]/10'}`}>
+                  {/* Clinical Alert section — ALL statuses, not just critical/warning */}
+                  <div className={`border-l-4 rounded-r-xl p-5 flex flex-col lg:flex-row gap-5 ${
+                    selectedPatient.status === 'critical' ? 'border-[#ef4444] bg-[#ef4444]/10'
+                    : selectedPatient.status === 'warning' ? 'border-[#f59e0b] bg-[#f59e0b]/10'
+                    : 'border-[#84cc16] bg-[#84cc16]/10'
+                  }`}>
 
                       {/* LEFT — ML explanation + actions */}
                       <div className="flex-1 space-y-3">
-                        <div className="flex items-center space-x-2 mb-1">
-                          <AlertTriangle className={`w-5 h-5 ${selectedPatient.status === 'critical' ? 'text-[#ef4444]' : 'text-[#f59e0b]'}`} />
-                          <h3 className={`text-lg font-bold ${selectedPatient.status === 'critical' ? 'text-[#ef4444]' : 'text-[#f59e0b]'}`}>
-                            {selectedPatient.status === 'critical' ? 'Critical Deterioration Alert' : 'Warning: Early Deterioration Detected'}
-                          </h3>
-                        </div>
+                      <div className="flex items-center space-x-2 mb-1">
+                        <AlertTriangle className={`w-5 h-5 ${
+                          selectedPatient.status === 'critical' ? 'text-[#ef4444]'
+                          : selectedPatient.status === 'warning' ? 'text-[#f59e0b]'
+                          : 'text-[#84cc16]'
+                        }`} />
+                        <h3 className={`text-lg font-bold ${
+                          selectedPatient.status === 'critical' ? 'text-[#ef4444]'
+                          : selectedPatient.status === 'warning' ? 'text-[#f59e0b]'
+                          : 'text-[#84cc16]'
+                        }`}>
+                          {selectedPatient.status === 'critical' ? 'Critical Deterioration Alert'
+                          : selectedPatient.status === 'warning' ? 'Warning: Early Deterioration Detected'
+                          : 'Status: Stable — Routine Monitoring'}
+                        </h3>
+                      </div>
 
                         <div className="bg-slate-900/60 p-4 rounded-lg border border-slate-700">
                           <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2 flex items-center">
@@ -654,8 +699,7 @@ export default function Dashboard() {
                           )}
                         </div>
                       </div>
-                    </div>
-                  )}
+                  </div>
 
                   {/* 24-Hour Vitals Graph */}
                   <div>
@@ -756,6 +800,31 @@ export default function Dashboard() {
                     </div>
                   </div>
 
+                  {/* Active Medications */}
+                  <div className="bg-[#0f172a] rounded-xl border border-slate-800 overflow-hidden">
+                    <div className="p-3 border-b border-slate-800 bg-slate-800/40 flex items-center">
+                      <span className="text-base mr-2">💊</span>
+                      <h3 className="text-sm font-bold text-white">Active Medications</h3>
+                      {selectedPatient.medications?.length > 0 && (
+                        <span className="ml-2 text-[10px] bg-blue-600/20 text-blue-400 border border-blue-500/30 px-2 py-0.5 rounded-full font-bold">
+                          {selectedPatient.medications.length}
+                        </span>
+                      )}
+                    </div>
+                    {selectedPatient.medications && selectedPatient.medications.length > 0 ? (
+                      <div className="divide-y divide-slate-800/60">
+                        {selectedPatient.medications.map((med, i) => (
+                          <div key={i} className="flex items-center justify-between px-4 py-2.5 hover:bg-slate-800/30 transition-colors">
+                            <span className="text-sm font-bold text-white">{med.name}</span>
+                            <span className="text-xs text-slate-400 font-medium">{med.dose} · {med.frequency}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="px-4 py-4 text-center text-xs text-slate-500 italic">No active medications recorded.</div>
+                    )}
+                  </div>
+
                 </div>
               </>
             );
@@ -827,6 +896,30 @@ export default function Dashboard() {
                   <div>
                     <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Temp (°C)</label>
                     <input type="number" step="0.1" value={newPatient.temp} onChange={e => setNewPatient({...newPatient, temp: parseFloat(e.target.value)})} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Air/Oxygen</label>
+                    <select value={newPatient.air_or_oxygen} onChange={e => setNewPatient({...newPatient, air_or_oxygen: e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm">
+                      <option value="Air">Air</option>
+                      <option value="Oxygen">Oxygen</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Consciousness</label>
+                    <select value={newPatient.consciousness} onChange={e => setNewPatient({...newPatient, consciousness: e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm">
+                      <option value="A">Alert (A)</option>
+                      <option value="C">Confusion (C)</option>
+                      <option value="V">Voice (V)</option>
+                      <option value="P">Pain (P)</option>
+                      <option value="U">Unresponsive (U)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Resp Failure</label>
+                    <select value={newPatient.hypercapnic_failure} onChange={e => setNewPatient({...newPatient, hypercapnic_failure: parseInt(e.target.value)})} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm">
+                      <option value={0}>No (Scale 1)</option>
+                      <option value={1}>Yes (Scale 2)</option>
+                    </select>
                   </div>
                 </div>
               </div>
