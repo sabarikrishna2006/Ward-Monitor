@@ -1,0 +1,51 @@
+rules:
+  - name: "Hyperkalemia risk with ACE inhibitors"
+    trigger:
+      lab: potassium
+      condition: "> 5.5"
+    medications:
+      - ace_inhibitors
+      - k_sparing_diuretics
+    severity: CRITICAL
+    message: "Potassium {lab_value} mmol/L with ACE inhibitor/K-sparing diuretic — hyperkalemia risk."
+    action: "Hold ACE inhibitor and K-sparing diuteic. Repeat K+ in 2h. Notify physician. Consider calcium gluconate if K+ > 6.0."
+
+  - name: "Lactic acidosis risk — eGFR low with metformin"
+    trigger:
+      lab: egfr
+      condition: "< 30"
+    medications:
+      - metformin
+    severity: CRITICAL
+    message: "eGFR {lab_value} mL/min with metformin active — lactic acidosis risk."
+    action: "Stop metformin immediately. Monitor bicarbonate and lactate. Notify physician."
+
+  - name: "AKI risk — rising creatinine with NSAID"
+    trigger:
+      lab: creatinine
+      condition: "> 1.5"
+    medications:
+      - nsaid
+      - ace_inhibitors
+    severity: WARNING
+    message: "Creatinine {lab_value} mg/dL with nephrotoxic medication — AKI risk."
+    action: "Review nephrotoxic medications. Increase monitoring frequency. Consider renal ultrasound."
+
+  - name: "Bleeding risk — elevated INR with anticoagulant"
+    trigger:
+      lab: inr
+      condition: "> 3.5"
+    medications:
+      - anticoagulants
+    severity: CRITICAL
+    message: "INR {lab_value} with anticoagulant active — major bleeding risk."
+    action: "Hold anticoagulant. Consider vitamin K. Monitor for bleeding signs. Notify physician urgently."
+
+  - name: "Lactate elevation — sepsis concern"
+    trigger:
+      lab: lactate
+      condition: "> 2.0"
+    medications: []
+    severity: WARNING
+    message: "Lactate {lab_value} mmol/L elevated — assess for sepsis."
+    action: "Assess qSOFA/SOFA criteria. Consider blood cultures and broad-spectrum antibiotics."

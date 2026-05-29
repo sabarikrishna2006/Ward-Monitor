@@ -3,6 +3,9 @@ import MainLayout from './layouts/MainLayout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import PatientDetail from './pages/PatientDetail';
+import Staff from './pages/Staff';
+import Reports from './pages/Reports';
+import Settings from './pages/Settings';
 
 function App() {
   return (
@@ -15,10 +18,9 @@ function App() {
           <Route path="ward" element={<Dashboard />} />
           <Route path="patient/:id" element={<PatientDetail />} />
           
-          {/* Placeholders for other routes */}
-          <Route path="staff" element={<div className="p-8 text-white">Staff Management (Coming Soon)</div>} />
-          <Route path="reports" element={<div className="p-8 text-white">Reports (Coming Soon)</div>} />
-          <Route path="settings" element={<div className="p-8 text-white">Settings (Coming Soon)</div>} />
+          <Route path="staff" element={<Staff />} />
+          <Route path="reports" element={<Reports />} />
+          <Route path="settings" element={<Settings />} />
           <Route path="help" element={<div className="p-8 text-white">Help & Documentation (Coming Soon)</div>} />
         </Route>
       </Routes>

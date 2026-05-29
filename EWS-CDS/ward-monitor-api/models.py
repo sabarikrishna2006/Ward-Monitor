@@ -10,6 +10,7 @@ class Patient(Base):
     name = Column(String)
     age = Column(Integer)
     sex = Column(String)
+    ward = Column(String, default="Ward 4B - Acute Care")
     room = Column(String)
     bed = Column(String)
     admitted = Column(String)
@@ -37,3 +38,12 @@ class LabEvent(Base):
     potassium = Column(Float)
     creatinine = Column(Float)
     lactate = Column(Float)
+
+class Medication(Base):
+    __tablename__ = "medications"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    subject_id = Column(Integer, ForeignKey("patients.subject_id"), index=True)
+    med_name = Column(String)
+    dose = Column(String)
+    frequency = Column(String)
