@@ -40,7 +40,5 @@
 
 .row-critical-blink {
   animation: critical-border-pulse 3s ease-in-out infinite;
-  /* background stays static — only the border glow pulses */
-  background-color: rgba(239, 68, 68, 0.10) !important;
   border: 1px solid #ef4444 !important;
 }

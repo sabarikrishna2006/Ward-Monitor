@@ -47,19 +47,19 @@ export default function Dashboard() {
     switch (status) {
       case 'critical':
         return {
-          rowBg: '',
-          rowStyle: {},  // animation (row-critical-blink) handles the background + glow
+          rowBg: 'bg-gradient-to-r from-[#ef4444]/25 via-[#ef4444]/5 to-transparent',
+          rowStyle: {},  // animation (row-critical-blink) handles the border pulse
           border: 'border border-[#ef4444]',
           solidBg: 'bg-[#ef4444]',
           text: 'text-[#ef4444]',
           hex: '#ef4444',
-          glow: '',  // glow handled by animation
+          glow: '',  
           separator: 'bg-[#ef4444]/40',
         };
       case 'warning':
         return {
-          rowBg: '',
-          rowStyle: { backgroundColor: 'rgba(245,158,11,0.10)' },
+          rowBg: 'bg-gradient-to-r from-[#f59e0b]/20 via-transparent to-transparent',
+          rowStyle: {},
           border: 'border border-[#f59e0b]',
           solidBg: 'bg-[#f59e0b]',
           text: 'text-[#f59e0b]',
@@ -69,8 +69,8 @@ export default function Dashboard() {
         };
       case 'stable':
         return {
-          rowBg: '',
-          rowStyle: { backgroundColor: 'rgba(132,204,22,0.08)' },
+          rowBg: 'bg-gradient-to-r from-[#84cc16]/10 via-transparent to-transparent',
+          rowStyle: {},
           border: 'border border-[#84cc16]/60',
           solidBg: 'bg-[#84cc16]',
           text: 'text-[#84cc16]',
@@ -367,7 +367,7 @@ export default function Dashboard() {
                 <div
                   key={patient.id}
                   onClick={() => handlePatientClick(patient)}
-                  className={`flex items-stretch cursor-pointer rounded-lg transition-all duration-150 hover:brightness-110 ${s.border} ${s.glow} ${patient.status === 'critical' ? 'row-critical-blink' : ''}`}
+                  className={`flex items-stretch cursor-pointer rounded-lg transition-all duration-150 hover:brightness-110 ${s.rowBg} ${s.border} ${s.glow} ${patient.status === 'critical' ? 'row-critical-blink' : ''}`}
                   style={{ minHeight: '96px', ...s.rowStyle }}
                 >
                   {/* Bed badge */}
