@@ -29,7 +29,8 @@ export default function Dashboard() {
 
   // Fetch data — extracted so we can call it on interval too
   const fetchData = useCallback(() => {
-    fetch(`http://localhost:8000/api/ward-data?ward=${selectedWard}&replay=${isReplay}`)
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    fetch(`${API_URL}/api/ward-data?ward=${selectedWard}&replay=${isReplay}`)
       .then(res => res.json())
       .then(data => setPatients(data.patients))
       .catch(err => console.error('Error fetching patient data:', err));
@@ -833,7 +834,8 @@ export default function Dashboard() {
                 <button onClick={() => setShowAddPatient(false)} className="px-4 py-2 rounded-lg text-sm font-bold text-slate-400 hover:text-white transition-colors">Cancel</button>
                 <button 
                   onClick={() => {
-                    fetch('http://localhost:8000/api/patients', {
+                    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+                    fetch(`${API_URL}/api/patients`, {
                       method: 'POST', headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify(newPatient)
                     }).then(() => { setShowAddPatient(false); fetchData(); });
