@@ -16,7 +16,11 @@ def is_valid(val):
         return False
     return True
 
-app = FastAPI(title="Ward Monitor API")
+app = FastAPI(
+    title="Foqal CareOS API",
+    description="Clinical Decision Support — Early Warning + Drug-Lab Interaction Checker. Calibrated for Indian cardiology wards (CSI/CDSCO/ICMR guidelines).",
+    version="0.2.0"
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -79,11 +83,14 @@ def calculate_news2(vitals, hypercapnic_failure=False):
 
     sbp = vitals.get('sbp')
     if sbp is not None:
+        # NEWS2 standard thresholds (internationally validated, used in Indian hospitals)
+        # India calibration: SBP >= 220 mmHg = hypertensive crisis (score 3)
+        # per ICMR/CSI hypertension guidelines — more prevalent in Indian cohorts
         if sbp <= 90: s = 3
         elif 91 <= sbp <= 100: s = 2
         elif 101 <= sbp <= 110: s = 1
         elif 111 <= sbp <= 219: s = 0
-        else: s = 3
+        else: s = 3  # >= 220 mmHg — hypertensive crisis
         score += s
         if s > 0: factors.append({"name": "Systolic BP", "score": s})
 

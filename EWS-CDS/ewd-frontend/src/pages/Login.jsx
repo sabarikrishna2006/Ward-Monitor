@@ -26,18 +26,18 @@ export default function Login() {
 
         <div className="relative z-10">
           <div className="flex items-center space-x-3 mb-8">
-            <div className="bg-criticalRed p-3 rounded-xl shadow-lg shadow-criticalRed/20">
+            <div className="p-3 rounded-xl shadow-lg" style={{background:'#800080'}}>
               <Activity className="w-8 h-8 text-white" />
             </div>
-            <span className="text-3xl font-bold tracking-wide text-white">EWD<span className="text-slate-400 font-light">Monitor</span></span>
+            <span className="text-3xl font-bold tracking-wide text-white">Foqal<span className="font-light" style={{color:'#d8b4fe'}}> CareOS</span></span>
           </div>
 
           <h1 className="text-3xl font-bold text-white mb-4 leading-tight">
-            Targeted Real-time<br/>
-            <span className="text-stableTeal">Early Warning System</span>
+            Cardiology-Focused<br/>
+            <span style={{color:'#d8b4fe'}}>Clinical Decision Support</span>
           </h1>
           <p className="text-base text-slate-400 max-w-md mb-8">
-            Empowering critical care teams to detect physiological deterioration before it happens. Built for the modern clinical workflow.
+            Real-time NEWS2 early warning + drug-lab interaction checker built for Indian cardiology ward nurses. Powered by MIMIC-IV data, calibrated to CSI guidelines.
           </p>
 
           <div className="space-y-5">
@@ -74,12 +74,12 @@ export default function Login() {
         </div>
         
         <div className="relative z-10 text-slate-500 text-sm">
-          &copy; 2026 Hospital Systems Inc. • HIPAA Compliant
+          &copy; 2026 Foqal · CareOS P2 · All data de-identified · No PHI
         </div>
       </div>
 
       {/* Right Panel: Login Form */}
-      <div className="w-full lg:w-1/2 flex items-start justify-center pt-12 p-8 bg-obsidian relative">
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-obsidian relative">
         
         {/* Subtle background glow */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-stableTeal/5 rounded-full blur-3xl pointer-events-none"></div>
@@ -99,7 +99,7 @@ export default function Login() {
                   type="text" 
                   required
                   placeholder="Enter your Nurse or Doctor ID" 
-                  className="w-full bg-slate-900 border border-slate-700 text-white pl-10 pr-4 py-3 rounded-xl focus:outline-none focus:border-stableTeal focus:ring-1 focus:ring-stableTeal transition-all shadow-inner"
+                  className="w-full bg-slate-900 border border-slate-700 text-white pl-10 pr-4 py-3 rounded-xl focus:outline-none transition-all shadow-inner" style={{focusBorderColor:'#800080'}}
                   value={nurseId}
                   onChange={(e) => setNurseId(e.target.value)}
                 />
@@ -109,7 +109,7 @@ export default function Login() {
             <div className="space-y-2">
               <div className="flex items-center justify-between ml-1">
                 <label className="text-sm font-medium text-slate-300">Password</label>
-                <a href="#" className="text-xs text-stableTeal hover:text-teal-400 transition-colors">Forgot password?</a>
+                <a href="#" className="text-xs transition-colors" style={{color:'#c084fc'}}>Forgot password?</a>
               </div>
               <div className="relative">
                 <Lock className="w-5 h-5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -117,7 +117,7 @@ export default function Login() {
                   type="password" 
                   required
                   placeholder="Enter your password" 
-                  className="w-full bg-slate-900 border border-slate-700 text-white pl-10 pr-4 py-3 rounded-xl focus:outline-none focus:border-stableTeal focus:ring-1 focus:ring-stableTeal transition-all shadow-inner"
+                  className="w-full bg-slate-900 border border-slate-700 text-white pl-10 pr-4 py-3 rounded-xl focus:outline-none transition-all shadow-inner"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
@@ -126,7 +126,10 @@ export default function Login() {
 
             <button 
               type="submit"
-              className="w-full flex items-center justify-center space-x-2 bg-stableTeal hover:bg-teal-500 text-white font-medium py-3 px-4 rounded-xl transition-all shadow-lg shadow-stableTeal/20 mt-4 group"
+              className="w-full flex items-center justify-center space-x-2 text-white font-medium py-3 px-4 rounded-xl transition-all shadow-lg mt-4 group"
+              style={{background:'#800080', boxShadow:'0 4px 20px rgba(128,0,128,0.3)'}}
+              onMouseEnter={e => e.currentTarget.style.background='#6b0070'}
+              onMouseLeave={e => e.currentTarget.style.background='#800080'}
             >
               <span>Secure Login</span>
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />

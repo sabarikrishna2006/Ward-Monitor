@@ -47,7 +47,7 @@ export default function Dashboard() {
     switch (status) {
       case 'critical':
         return {
-          rowBg: 'bg-gradient-to-r from-[#ef4444]/25 via-[#ef4444]/5 to-transparent',
+          rowBg: 'bg-[#ef4444]/15',
           rowStyle: {},  // animation (row-critical-blink) handles the border pulse
           border: 'border border-[#ef4444]',
           solidBg: 'bg-[#ef4444]',
@@ -58,7 +58,7 @@ export default function Dashboard() {
         };
       case 'warning':
         return {
-          rowBg: 'bg-gradient-to-r from-[#f59e0b]/20 via-transparent to-transparent',
+          rowBg: 'bg-[#f59e0b]/15',
           rowStyle: {},
           border: 'border border-[#f59e0b]',
           solidBg: 'bg-[#f59e0b]',
@@ -69,7 +69,7 @@ export default function Dashboard() {
         };
       case 'stable':
         return {
-          rowBg: 'bg-gradient-to-r from-[#84cc16]/10 via-transparent to-transparent',
+          rowBg: 'bg-[#84cc16]/10',
           rowStyle: {},
           border: 'border border-[#84cc16]/60',
           solidBg: 'bg-[#84cc16]',
@@ -138,11 +138,11 @@ export default function Dashboard() {
       <header className="h-14 flex items-center justify-between px-6 bg-[#0f172a] border-b border-slate-800 shrink-0 relative z-20">
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-2">
-            <div className="w-7 h-7 rounded bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-[0_0_12px_rgba(59,130,246,0.5)]">
+            <div className="w-7 h-7 rounded flex items-center justify-center shadow-lg" style={{background:'#800080'}}>
               <Activity className="text-white w-4 h-4" />
             </div>
             <h1 className="text-lg font-bold text-white tracking-wide">
-              EarlyWarning<span className="text-blue-400 font-medium">AI</span>
+              Foqal<span className="font-light" style={{color:'#d8b4fe'}}> CareOS</span>
             </h1>
           </div>
           <div className="h-5 w-px bg-slate-700" />
