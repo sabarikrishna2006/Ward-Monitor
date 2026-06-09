@@ -90,18 +90,31 @@ function logout() {
   APP.role = null; APP.user = null; APP.screen = null; APP.history = [];
   sessionStorage.removeItem('foqal_token');
   sessionStorage.removeItem('foqal_user');
-  document.body.classList.add('login-mode');
-  document.getElementById('app-shell').style.display  = 'none';
-  document.getElementById('login-wrap').style.display = '';
+  document.documentElement.removeAttribute('data-authed');
+
+  // Since Sabari's standalone login is completely removed, redirect to Ashmit's unified login
+  const fromServer = (location.port === '5175' || location.port === '80' || location.port === '');
+  if (fromServer) {
+    window.location.href = `http://${location.hostname}:5173/`;
+  } else {
+    document.body.innerHTML = '<div style="padding:40px;text-align:center;font-family:sans-serif">Logged out.<br><br><a href="http://localhost:5173/">Go to Unified Login</a></div>';
+  }
 }
 
 // Re-hydrate session on page refresh (if token still exists)
 (function() {
   const raw = sessionStorage.getItem('foqal_user');
-  if (!raw) return;
+  if (!raw) {
+    const fromServer = (location.port === '5175' || location.port === '80' || location.port === '');
+    if (fromServer) {
+      window.location.href = `http://${location.hostname}:5173/`;
+    }
+    return;
+  }
   try {
     const user = JSON.parse(raw);
-    document.getElementById('login-wrap').style.display = 'none';
+    const loginWrap = document.getElementById('login-wrap');
+    if (loginWrap) loginWrap.style.display = 'none';
     document.getElementById('app-shell').style.display  = '';
     document.body.classList.remove('login-mode');
     window.onFoqalLogin(user);
