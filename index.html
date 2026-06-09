@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>Foqal CareOS · Ward Monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<style>
+/* ── Override body for login centering ── */
+body.login-mode {
+  background: #f3f4f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+}
+/* ── LOGIN WRAPPER ── */
+.login-outer { width:100%; max-width:440px; padding:32px 20px; }
+/* ── LOGIN HEADER ── */
+.login-header { text-align:center; margin-bottom:28px; }
+.login-logo { font-size:28px; font-weight:900; color:var(--p); letter-spacing:-.5px; line-height:1; }
+.login-logo em { font-style:normal; font-weight:400; }
+.login-subtitle { font-size:12.5px; color:var(--muted); margin-top:6px; }
+/* ── LOGIN CARD ── */
+.login-card {
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:28px 28px 22px;
+  box-shadow:0 1px 3px rgba(0,0,0,.06),0 4px 12px rgba(0,0,0,.04);
+}
+/* ── CREDENTIAL HINT BADGES ── */
+.cred-hints { margin-top:20px; border-top:1px solid var(--border); padding-top:16px; }
+.cred-hints-title { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); margin-bottom:10px; }
+.cred-row {
+  display:flex; align-items:center; gap:10px;
+  padding:9px 12px; border-radius:7px;
+  border:1px solid var(--border); background:#fafafa;
+  margin-bottom:8px; cursor:pointer;
+  transition:border-color .12s,background .12s;
+}
+.cred-row:hover { border-color:var(--p); background:#fdf5ff; }
+.cred-badge {
+  font-size:10.5px; font-weight:700;
+  padding:3px 8px; border-radius:5px;
+  color:#fff; white-space:nowrap;
+}
+.cred-badge.ward   { background:#7c3aed; }
+.cred-badge.charge { background:#dc2626; }
+.cred-info { font-size:11.5px; color:var(--ink2); flex:1; }
+.cred-info b { color:var(--ink); }
+.cred-fill { font-size:10.5px; color:var(--p); font-weight:600; }
+/* ── ERROR BANNER ── */
+.err-banner {
+  display:none; margin-top:10px;
+  padding:9px 12px; background:#fef2f2;
+  border:1px solid #fca5a5; border-radius:6px;
+  font-size:12px; color:#dc2626; line-height:1.5;
+}
+/* ── SPINNER ── */
+.spinner {
+  display:inline-block; width:12px; height:12px;
+  border:2px solid rgba(255,255,255,.4); border-top-color:#fff;
+  border-radius:50%; animation:spin .6s linear infinite;
+  margin-right:6px; vertical-align:middle;
+}
+@keyframes spin { to { transform:rotate(360deg) } }
+</style>
+</head>
+<body class="login-mode">
+
+<!-- ═══ LOGIN PAGE ═══ -->
+<div id="login-wrap" class="login-outer">
+  <div class="login-header">
+    <div class="login-logo">Foqal <em>CareOS</em></div>
+    <div class="login-subtitle">Medanta &mdash; The Medicity &nbsp;&middot;&nbsp; Clinical Decision Support</div>
+  </div>
+
+  <div class="login-card">
+    <form id="login-form">
+      <div class="fg">
+        <label class="fl" for="login-empid">Employee ID or Username</label>
+        <input class="fi" id="login-empid" type="text" placeholder="rekha.devi or EMP-XXXX" autocomplete="username">
+      </div>
+      <div class="fg">
+        <label class="fl" for="login-pw">Password</label>
+        <input class="fi" id="login-pw" type="password" placeholder="&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;" autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn btn-pri" id="login-btn" style="width:100%;justify-content:center;margin-top:4px;padding:11px;">Sign In &rarr;</button>
+      <div class="err-banner" id="err-banner"></div>
+    </form>
+
+    <!-- Demo credential quick-fill -->
+    <div class="cred-hints">
+      <div class="cred-hints-title">Demo Users &mdash; click to autofill</div>
+      <div class="cred-row" onclick="fillCreds('rekha.devi','WardNurse@2026')">
+        <span class="cred-badge ward">Ward Nurse</span>
+        <div class="cred-info"><b>Nurse Rekha Devi</b> &nbsp;&middot;&nbsp; Ward 4B/4C &nbsp;&middot;&nbsp; Day Shift</div>
+        <span class="cred-fill">Fill &nearr;</span>
+      </div>
+      <div class="cred-row" onclick="fillCreds('leena.kurup','ChargeNurse@2026')">
+        <span class="cred-badge charge">Charge Nurse</span>
+        <div class="cred-info"><b>Sister Leena Kurup</b> &nbsp;&middot;&nbsp; Ward 4B/4C &nbsp;&middot;&nbsp; Day Shift</div>
+        <span class="cred-fill">Fill &nearr;</span>
+      </div>
+    </div>
+
+    <div style="margin-top:14px;text-align:center;font-size:11.5px;color:var(--muted)">
+      <span style="color:var(--p);cursor:pointer">Forgot password?</span>
+      <span style="margin:0 8px;color:var(--border)">&middot;</span>
+      <span style="color:var(--p);cursor:pointer">Contact IT Support</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ APP SHELL ═══ -->
+<div id="app-shell" style="display:none">
+  <div id="topbar-line"></div>
+
+  <header id="appbar">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div class="alogo">Foqal <em>CareOS</em></div>
+      <div id="hdr-role" class="role-chip"></div>
+    </div>
+    <div id="hdr-meta">
+      <span id="hdr-ward" class="muted small"></span>
+      <span class="bc-sep">&middot;</span>
+      <span id="hdr-user" class="small bold"></span>
+    </div>
+    <button class="btn btn-sec btn-sm" onclick="logout()" style="margin-left:auto">Sign Out</button>
+  </header>
+
+  <div id="layout">
+    <nav id="sidebar-wrap">
+      <div class="sb-header" id="sb-section-lbl"></div>
+      <div id="sidebar"></div>
+    </nav>
+    <div id="content">
+      <div id="main"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div id="modal-overlay" onclick="closeModal()">
+  <div id="modal-box" onclick="event.stopPropagation()"></div>
+</div>
+
+<script>
+  // ── RBAC User Table ──────────────────────────────────────────
+  const FOQAL_USERS = {
+    'rekha.devi': {
+      password: 'WardNurse@2026',
+      name: 'Nurse Rekha Devi',
+      role: 'nurse',
+      roleLabel: 'Bedside Nurse',
+      shift: 'Day Shift',
+      ward: 'Ward 4B/4C',
+      empId: 'EMP-0001'
+    },
+    'leena.kurup': {
+      password: 'ChargeNurse@2026',
+      name: 'Sister Leena Kurup',
+      role: 'charge',
+      roleLabel: 'Charge Nurse',
+      shift: 'Day Shift',
+      ward: 'Ward 4B/4C',
+      empId: 'EMP-0002'
+    }
+  };
+
+  function fillCreds(username, password) {
+    document.getElementById('login-empid').value = username;
+    document.getElementById('login-pw').value = password;
+    document.getElementById('err-banner').style.display = 'none';
+  }
+
+  function showLoginError(msg) {
+    const el = document.getElementById('err-banner');
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+
+  document.getElementById('login-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const empid = document.getElementById('login-empid').value.trim().toLowerCase();
+    const pw    = document.getElementById('login-pw').value;
+    const btn   = document.getElementById('login-btn');
+
+    document.getElementById('err-banner').style.display = 'none';
+
+    if (!empid) { showLoginError('Please enter your Employee ID or username.'); return; }
+    if (!pw)    { showLoginError('Please enter your password.'); return; }
+
+    const user = FOQAL_USERS[empid];
+    if (!user || user.password !== pw) {
+      showLoginError('Incorrect credentials. Please check your username and password.');
+      return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Signing in\u2026';
+
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.innerHTML = 'Sign In \u2192';
+
+      sessionStorage.setItem('foqal_token', 'local-' + user.role);
+      sessionStorage.setItem('foqal_user', JSON.stringify(user));
+
+      document.body.classList.remove('login-mode');
+      document.getElementById('login-wrap').style.display = 'none';
+      document.getElementById('app-shell').style.display  = '';
+
+      // Notify app.js to boot with this user
+      if (window.onFoqalLogin) window.onFoqalLogin(user);
+    }, 400);
+  });
+</script>
+
+<script src="app.js"></script>
+</body>
+</html>
