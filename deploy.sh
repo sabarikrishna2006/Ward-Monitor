@@ -45,6 +45,23 @@ cd "$REPO_DIR"
 
 # ── 3. Node modules ──────────────────────────────────────────
 echo "[3/5] Installing npm packages..."
+
+# Ensure Node/NVM is available
+if ! command -v npm &> /dev/null; then
+    echo "      npm not found. Attempting to load NVM..."
+    export NVM_DIR="$HOME/.nvm"
+    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+    
+    if ! command -v npm &> /dev/null; then
+        echo "      NVM not found. Installing Node.js via NVM..."
+        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+        export NVM_DIR="$HOME/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+        nvm install 20
+        nvm use 20
+    fi
+fi
+
 npm install --silent
 echo "      npm packages OK"
 
@@ -69,6 +86,8 @@ screen -dmS ward-api bash -c "
 # ── 5. Start frontend ─────────────────────────────────────────
 echo "[5b/5] Starting Vite frontend on port $FRONTEND_PORT..."
 screen -dmS ward-frontend bash -c "
+    export NVM_DIR=\"\$HOME/.nvm\"
+    [ -s \"\$NVM_DIR/nvm.sh\" ] && \. \"\$NVM_DIR/nvm.sh\"
     cd '$REPO_DIR'
     while true; do
         npm run dev -- --host 0.0.0.0 --port $FRONTEND_PORT
