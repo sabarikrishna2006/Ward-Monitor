@@ -1,7 +1,7 @@
 #!/bin/bash
 # ============================================================
 # Foqal CareOS — Ward Monitor (Sabari Project)
-# Deploy / restart script for the shared Linux server
+# Deploy / restart script for the Linux server
 # Run from the repo root: bash deploy.sh
 # ============================================================
 
@@ -10,17 +10,37 @@ set -e   # exit on any error
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 BACKEND_DIR="$REPO_DIR/backend"
 VENV_DIR="$REPO_DIR/.venv"
+LOG_DIR="$REPO_DIR/logs"
 
 FRONTEND_PORT=5175
 BACKEND_PORT=8003
+
+mkdir -p "$LOG_DIR"
 
 echo ""
 echo "==================================================="
 echo " Foqal CareOS · Ward Monitor  — Deploy"
 echo " Repo  : $REPO_DIR"
 echo " Ports : Frontend=$FRONTEND_PORT  Backend=$BACKEND_PORT"
+echo " Logs  : $LOG_DIR/"
 echo "==================================================="
 echo ""
+
+# ── 0. Ensure Node/NVM is available ─────────────────────────
+echo "[0/5] Checking for Node.js..."
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"   # load nvm if already installed
+
+if ! command -v npm &> /dev/null; then
+    echo "      npm not found — installing NVM + Node.js 20..."
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+    export NVM_DIR="$HOME/.nvm"
+    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+    nvm install 20
+    nvm use 20
+else
+    echo "      Node $(node -v) / npm $(npm -v)"
+fi
 
 # ── 1. Python virtualenv ─────────────────────────────────────
 echo "[1/5] Setting up Python virtualenv..."
@@ -45,23 +65,6 @@ cd "$REPO_DIR"
 
 # ── 3. Node modules ──────────────────────────────────────────
 echo "[3/5] Installing npm packages..."
-
-# Ensure Node/NVM is available
-if ! command -v npm &> /dev/null; then
-    echo "      npm not found. Attempting to load NVM..."
-    export NVM_DIR="$HOME/.nvm"
-    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-    
-    if ! command -v npm &> /dev/null; then
-        echo "      NVM not found. Installing Node.js via NVM..."
-        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-        export NVM_DIR="$HOME/.nvm"
-        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-        nvm install 20
-        nvm use 20
-    fi
-fi
-
 npm install --silent
 echo "      npm packages OK"
 
@@ -69,29 +72,43 @@ echo "      npm packages OK"
 echo "[4/5] Stopping old screen sessions (if any)..."
 screen -S ward-api      -X quit 2>/dev/null && echo "      Stopped ward-api" || true
 screen -S ward-frontend -X quit 2>/dev/null && echo "      Stopped ward-frontend" || true
-sleep 1
+sleep 2
 
-# ── 5. Start backend API ─────────────────────────────────────
+# ── 5a. Start FastAPI backend ─────────────────────────────────
 echo "[5a/5] Starting FastAPI backend on port $BACKEND_PORT..."
+echo "       Logs → $LOG_DIR/ward-api.log"
 screen -dmS ward-api bash -c "
     cd '$BACKEND_DIR'
     source '$VENV_DIR/bin/activate'
+    echo '[ward-api] Starting uvicorn on port $BACKEND_PORT...'
     while true; do
-        uvicorn main:app --host 0.0.0.0 --port $BACKEND_PORT
-        echo '[ward-api] crashed, restarting in 5s...'
+        uvicorn main:app --host 0.0.0.0 --port $BACKEND_PORT 2>&1 | tee -a '$LOG_DIR/ward-api.log'
+        echo '[ward-api] crashed — restarting in 5s...' | tee -a '$LOG_DIR/ward-api.log'
         sleep 5
     done
 "
 
-# ── 5. Start frontend ─────────────────────────────────────────
+# Wait 3 seconds and verify backend is actually listening
+sleep 3
+if curl -s "http://localhost:$BACKEND_PORT/docs" > /dev/null 2>&1; then
+    echo "      ✅ Backend is UP at http://localhost:$BACKEND_PORT"
+else
+    echo "      ⚠️  Backend may still be starting. Check logs: tail -f $LOG_DIR/ward-api.log"
+fi
+
+# ── 5b. Start Vite frontend ───────────────────────────────────
 echo "[5b/5] Starting Vite frontend on port $FRONTEND_PORT..."
+echo "       Proxy: /api → http://localhost:$BACKEND_PORT"
+echo "       Logs  → $LOG_DIR/ward-frontend.log"
 screen -dmS ward-frontend bash -c "
     export NVM_DIR=\"\$HOME/.nvm\"
     [ -s \"\$NVM_DIR/nvm.sh\" ] && \. \"\$NVM_DIR/nvm.sh\"
     cd '$REPO_DIR'
+    echo '[ward-frontend] Starting Vite on port $FRONTEND_PORT...'
     while true; do
-        npm run dev -- --host 0.0.0.0 --port $FRONTEND_PORT
-        echo '[ward-frontend] crashed, restarting in 5s...'
+        VITE_API_URL=http://localhost:$BACKEND_PORT \
+            npm run dev -- --host 0.0.0.0 --port $FRONTEND_PORT 2>&1 | tee -a '$LOG_DIR/ward-frontend.log'
+        echo '[ward-frontend] crashed — restarting in 5s...' | tee -a '$LOG_DIR/ward-frontend.log'
         sleep 5
     done
 "
@@ -100,12 +117,17 @@ echo ""
 echo "==================================================="
 echo " ✅ All services started!"
 echo ""
-echo " Frontend : http://72.60.102.196:$FRONTEND_PORT/"
-echo " Backend  : http://72.60.102.196:$BACKEND_PORT/docs"
+echo " Ward Monitor  : http://72.60.102.196:$FRONTEND_PORT/"
+echo " Backend Docs  : http://72.60.102.196:$BACKEND_PORT/docs"
 echo ""
-echo " To check running sessions:  screen -ls"
-echo " To attach to logs:          screen -r ward-api"
-echo "                             screen -r ward-frontend"
-echo " To stop everything:         screen -S ward-api -X quit"
-echo "                             screen -S ward-frontend -X quit"
+echo " Demo Logins:"
+echo "   Ward Nurse  : rekha.devi   / WardNurse@2026"
+echo "   Charge Nurse: leena.kurup  / ChargeNurse@2026"
+echo ""
+echo " Check running  : screen -ls"
+echo " Backend logs   : tail -f $LOG_DIR/ward-api.log"
+echo " Frontend logs  : tail -f $LOG_DIR/ward-frontend.log"
+echo " Attach backend : screen -r ward-api"
+echo " Attach frontend: screen -r ward-frontend"
+echo " Stop all       : screen -S ward-api -X quit; screen -S ward-frontend -X quit"
 echo "==================================================="
