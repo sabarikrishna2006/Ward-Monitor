@@ -54,6 +54,7 @@ echo "      Python deps OK"
 # ── 2. Build the SQLite demo database ────────────────────────
 echo "[2/5] Building demo database (SQLite)..."
 cd "$BACKEND_DIR"
+mkdir -p data
 if [ ! -f "data/ward_careos.db" ]; then
     python3 build_demo_db.py
     echo "      Database created at backend/data/ward_careos.db"
