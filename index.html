@@ -4,6 +4,45 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=1440">
 <title>Foqal CareOS · Ward Monitor</title>
+
+<!-- ── INSTANT SESSION BOOT: must run before body renders ──
+     When coming from Ashmit's login, sessionStorage already has foqal_user.
+     We write a CSS rule immediately so #login-wrap never flashes on screen. -->
+<script>
+  (function() {
+    try {
+      // 1. Cross-Origin SSO Handoff (from Ashmit's port 5173)
+      var params = new URLSearchParams(window.location.search);
+      var urlTok = params.get('foqal_token');
+      var urlUser = params.get('foqal_user');
+      if (urlTok && urlUser) {
+        sessionStorage.setItem('foqal_token', urlTok);
+        sessionStorage.setItem('foqal_user', urlUser);
+        // Clean URL immediately so token doesn't stay in address bar
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+
+      // 2. Standard Session Boot
+      var raw = sessionStorage.getItem('foqal_user');
+      var tok = sessionStorage.getItem('foqal_token');
+      if (raw && tok) {
+        var u = JSON.parse(raw);
+        if (u && u.role) {
+          // Mark body so CSS hides login immediately
+          document.documentElement.setAttribute('data-authed', '1');
+          // Store flag for app.js to read
+          window.__FOQAL_AUTOBOOT__ = u;
+        }
+      }
+    } catch(e) {}
+  })();
+<\/script>
+<style>
+  /* Hide login instantly when auto-authenticated (avoids any flash) */
+  html[data-authed='1'] #login-wrap { display: none !important; }
+  html[data-authed='1'] body { background: #fff !important; }
+</style>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -202,22 +241,25 @@ body.login-mode {
     }
 
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span>Signing in\u2026';
+    btn.innerHTML = '<span class="spinner"></span>Signing in…';
 
-    setTimeout(() => {
-      btn.disabled = false;
-      btn.innerHTML = 'Sign In \u2192';
+    // Use requestAnimationFrame to let spinner render, then immediately boot
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        btn.disabled = false;
+        btn.innerHTML = 'Sign In →';
 
-      sessionStorage.setItem('foqal_token', 'local-' + user.role);
-      sessionStorage.setItem('foqal_user', JSON.stringify(user));
+        sessionStorage.setItem('foqal_token', 'local-' + user.role);
+        sessionStorage.setItem('foqal_user', JSON.stringify(user));
 
-      document.body.classList.remove('login-mode');
-      document.getElementById('login-wrap').style.display = 'none';
-      document.getElementById('app-shell').style.display  = '';
+        document.body.classList.remove('login-mode');
+        document.getElementById('login-wrap').style.display = 'none';
+        document.getElementById('app-shell').style.display  = '';
 
-      // Notify app.js to boot with this user
-      if (window.onFoqalLogin) window.onFoqalLogin(user);
-    }, 400);
+        // Notify app.js to boot with this user
+        if (window.onFoqalLogin) window.onFoqalLogin(user);
+      });
+    });
   });
 </script>
 
