@@ -287,13 +287,17 @@ SCREENS.n1 = () => {
       
       // Calculate stale minutes for UI
       let staleText = 'Stale';
-      if (isStale && p.vitals && p.vitals.bp_time) {
-        try {
-          const t1 = new Date(p.vitals.bp_time);
-          const t2 = new Date();
-          const diffMins = Math.floor((t2 - t1) / 60000);
-          if (diffMins > 0) staleText = `Stale ${diffMins}m`;
-        } catch (e) {}
+      if (isStale) {
+        if (p.stale_mins) {
+          staleText = `Stale ${p.stale_mins}m`;
+        } else if (p.vitals && p.vitals.bp_time) {
+          try {
+            const t1 = new Date(p.vitals.bp_time);
+            const t2 = new Date();
+            const diffMins = Math.floor((t2 - t1) / 60000);
+            if (diffMins > 0) staleText = `Stale ${diffMins}m`;
+          } catch (e) {}
+        }
       }
       
       const statusLbl = isStale ? staleText : score >= 7 ? 'Escalate' : score >= 5 ? 'Monitor' : 'Stable';

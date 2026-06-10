@@ -248,7 +248,9 @@ def get_ward_data(ward: str = "All", replay: bool = False, db: Session = Depends
             latest_time = datetime.fromisoformat(latest_record_time_str)
         else:
             latest_time = datetime.strptime(latest_record_time_str, "%Y-%m-%d %H:%M:%S")
-        is_stale = (demo_now - latest_time).total_seconds() > (4 * 3600)
+        time_diff_secs = (demo_now - latest_time).total_seconds()
+        is_stale = time_diff_secs > (4 * 3600)
+        stale_mins = int(time_diff_secs // 60)
 
         news_data = calculate_news2(latest_vitals, getattr(p, 'hypercapnic_failure', 0) == 1)
         news2_score = news_data["total"]
@@ -464,6 +466,7 @@ def get_ward_data(ward: str = "All", replay: bool = False, db: Session = Depends
             "drugLabAlerts": drug_lab_alerts,
             "meds": med_names,
             "medications": medications,
+            "stale_mins": stale_mins
         })
         
     return {"patients": result, "ward": ward}
