@@ -71,6 +71,21 @@ function goBack() {
   if (prev) { APP.screen = prev; renderAll(); }
 }
 
+/* ─── ACTIONS ─── */
+window.ackPatient = function(event, patientId) {
+  event.stopPropagation();
+  // Find patient in n1 data
+  if (APP.data.n1 && APP.data.n1.patients) {
+    const p = APP.data.n1.patients.find(x => x.id == patientId);
+    if (p) {
+      p._acked = true;
+      renderAll();
+      // Here you would also send a request to the backend:
+      // fetch(\`/api/patients/\${patientId}/ack\`, { method: 'POST' });
+    }
+  }
+}
+
 /* ─── LOGIN ─── */
 /* Called by index.html after credentials are verified */
 window.onFoqalLogin = function(user) {
@@ -191,19 +206,17 @@ SCREENS.n1 = () => {
   APP.n1_filter = APP.n1_filter || 'all';
 
   patients.forEach(p => {
-    if (p.news2 >= 7) critCount++;
+    if (p.status === 'stale') staleCount++;
+    else if (p.news2 >= 7) critCount++;
     else if (p.news2 >= 5) medCount++;
     else lowCount++;
-    
-    // Naive stale check (older than 6 hrs or missing)
-    if (!p.vitals || !p.vitals.bp_time) staleCount++;
   });
 
   const filteredPatients = patients.filter(p => {
-    if (APP.n1_filter === 'critical') return p.news2 >= 7;
-    if (APP.n1_filter === 'medium') return p.news2 >= 5 && p.news2 < 7;
-    if (APP.n1_filter === 'low') return p.news2 < 5;
-    if (APP.n1_filter === 'stale') return !p.vitals || !p.vitals.bp_time;
+    if (APP.n1_filter === 'critical') return p.news2 >= 7 && p.status !== 'stale';
+    if (APP.n1_filter === 'medium') return p.news2 >= 5 && p.news2 < 7 && p.status !== 'stale';
+    if (APP.n1_filter === 'low') return p.news2 < 5 && p.status !== 'stale';
+    if (APP.n1_filter === 'stale') return p.status === 'stale';
     return true;
   });
 
@@ -240,19 +253,36 @@ SCREENS.n1 = () => {
 
 <div class="tw"><table>
   <thead><tr>
-    <th>Patient</th><th>Ward</th><th>SpO₂</th><th>RR</th><th>BP</th>
-    <th>HR</th><th>Temp</th><th>AVPU</th><th>NEWS2</th><th>Status</th><th>Actions</th>
+    <th>Patient</th><th>Ward</th><th>SpO₂ (%)</th><th>RR (/min)</th><th>BP (mmHg)</th>
+    <th>HR (bpm)</th><th>Temp (°C)</th><th>AVPU</th><th>NEWS2</th><th>Status</th><th>Actions</th>
   </tr></thead>
   <tbody>
     ${filteredPatients.map(p => {
+      const isStale = p.status === 'stale';
       const score = p.news2 || 0;
-      const rowClass = score >= 7 ? 'row-crit' : score >= 5 ? 'row-warn' : '';
-      const scoreClass = score >= 7 ? 'n2s hi' : score >= 5 ? 'n2s med' : 'n2s lo';
-      const statusBd = score >= 7 ? 'bd bd-t1' : score >= 5 ? 'bd bd-t2' : 'bd bd-t3';
-      const statusLbl = score >= 7 ? 'Escalate' : score >= 5 ? 'Monitor' : 'Stable';
+      
+      let rowClass = score >= 7 ? 'row-crit' : score >= 5 ? 'row-warn' : '';
+      if (isStale) rowClass = 'stale'; // defined in css for faded row
+      if (p._acked) rowClass += ' acked-row';
+
+      const scoreClass = isStale ? 'muted' : score >= 7 ? 'n2s hi' : score >= 5 ? 'n2s med' : 'n2s lo';
+      const statusBd = isStale ? 'bd bd-muted' : score >= 7 ? 'bd bd-t1' : score >= 5 ? 'bd bd-t2' : 'bd bd-t3';
+      
+      // Calculate stale minutes for UI
+      let staleText = 'Stale';
+      if (isStale && p.vitals && p.vitals.bp_time) {
+        try {
+          const t1 = new Date(p.vitals.bp_time);
+          const t2 = new Date();
+          const diffMins = Math.floor((t2 - t1) / 60000);
+          if (diffMins > 0) staleText = `Stale ${diffMins}m`;
+        } catch (e) {}
+      }
+      
+      const statusLbl = isStale ? staleText : score >= 7 ? 'Escalate' : score >= 5 ? 'Monitor' : 'Stable';
       
       const valCrit = (val, thres, op) => {
-        if (!val || val === '--') return '';
+        if (!val || val === '--' || isStale) return '';
         if (op === '<' && val < thres) return 'v-crit';
         if (op === '>' && val > thres) return 'v-crit';
         return '';
@@ -261,21 +291,36 @@ SCREENS.n1 = () => {
       const timeHtml = t => t ? `<br><span class="muted small">${t}</span>` : '';
       const bpVal = p.bp ? p.bp.split('/')[0] : '';
       
+      // If stale, show dashes instead of old values
+      const hr = isStale ? '-' : (p.hr || '-');
+      const rr = isStale ? '-' : (p.rr || '-');
+      const spo2 = isStale ? '-' : (p.spo2 || '-');
+      const bp = isStale ? '-' : (p.bp || '-');
+      const temp = isStale ? '-' : (p.temp || '-');
+      const avpu = isStale ? '-' : (p.avpu || 'A');
+      const s = isStale ? '-' : score;
+      
+      const ackBtn = p._acked ? '' : `<button class="btn btn-sec btn-xs" onclick="event.stopPropagation();ackPatient(event, ${p.id})">Ack</button>`;
+      
       return `
         <tr class="${rowClass}" onclick="nav('n1b', ${p.id})">
           <td><b>${p.name}</b><br><span class="pid">PT-${p.id}</span></td>
           <td>${p.ward.split(' ')[1] || p.ward}</td>
-          <td class="${valCrit(p.spo2, 92, '<')}">${p.spo2 || '-'}% ${timeHtml(p.spo2_time)}</td>
-          <td class="${valCrit(p.rr, 21, '>')}">${p.rr || '-'} /m ${timeHtml(p.rr_time)}</td>
-          <td class="${valCrit(bpVal, 90, '<')}">${p.bp || '-'} mmHg ${timeHtml(p.bp_time)}</td>
-          <td class="${valCrit(p.hr, 110, '>')}">${p.hr || '-'} bpm ${timeHtml(p.hr_time)}</td>
-          <td class="${valCrit(p.temp, 38.0, '>')}">${p.temp || '-'}°C ${timeHtml(p.temp_time)}</td>
-          <td>${p.avpu || 'A'} ${timeHtml(p.avpu_time)}</td>
-          <td><span class="${scoreClass}">${score}</span></td>
-          <td><span class="${statusBd}">${statusLbl}</span></td>
+          <td class="${valCrit(p.spo2, 92, '<')}">${spo2} ${timeHtml(p.spo2_time)}</td>
+          <td class="${valCrit(p.rr, 21, '>')}">${rr} ${timeHtml(p.rr_time)}</td>
+          <td class="${valCrit(bpVal, 90, '<')}">${bp} ${timeHtml(p.bp_time)}</td>
+          <td class="${valCrit(p.hr, 110, '>')}">${hr} ${timeHtml(p.hr_time)}</td>
+          <td class="${valCrit(p.temp, 38.0, '>')}">${temp} ${timeHtml(p.temp_time)}</td>
+          <td>${avpu} ${timeHtml(p.avpu_time)}</td>
+          <td><span class="${scoreClass}">${s}</span></td>
+          <td><span class="${statusBd}" style="${isStale?'color:var(--muted)':''}">${statusLbl.toUpperCase()}</span></td>
           <td>
-            ${score >= 5 ? `<button class="btn ${score >= 7 ? 'btn-danger' : 'btn-warn'} btn-xs" onclick="event.stopPropagation();nav('n2', ${p.id})">Escalate</button>` : ''}
-            <button class="btn btn-sec btn-xs" onclick="event.stopPropagation()">Ack</button>
+            ${isStale ? 
+              `<button class="btn btn-warn btn-xs" style="color:#000" onclick="event.stopPropagation();alert('Enter Vitals modal will open here')">Enter Vitals</button>` 
+            : 
+              `${score >= 5 ? `<button class="btn ${score >= 7 ? 'btn-danger' : 'btn-warn'} btn-xs" onclick="event.stopPropagation();nav('n2', ${p.id})">Escalate</button>` : ''}
+              ${ackBtn}`
+            }
           </td>
         </tr>
       `;
@@ -327,17 +372,19 @@ SCREENS.n1b = () => {
         <div class="tw" style="border:none"><table>
           <thead><tr><th>Time</th><th>SpO₂</th><th>RR</th><th>BP</th><th>HR</th><th>NEWS2</th></tr></thead>
           <tbody>
-            ${(p.trajectory || []).map(t => `
+            ${(p.recentVitals || []).map(t => {
+              const bpStr = t.sbp && t.dbp ? t.sbp + '/' + t.dbp : '--/--';
+              return `
               <tr>
                 <td class="muted">${t.time}</td>
-                <td>${t.spo2}%</td>
-                <td>${t.rr}</td>
-                <td>${t.bp}</td>
-                <td>${t.hr}</td>
-                <td>--</td>
+                <td class="${valCrit(t.spo2, 92, '<')}">${t.spo2}%</td>
+                <td class="${valCrit(t.rr, 21, '>')}">${t.rr}</td>
+                <td class="${valCrit(t.sbp, 90, '<')}">${bpStr}</td>
+                <td class="${valCrit(t.hr, 110, '>')}">${t.hr}</td>
+                <td class="${t.news2 >= 5 ? 'v-crit' : ''}">${t.news2}</td>
               </tr>
-            `).join('')}
-            ${(!p.trajectory || p.trajectory.length === 0) ? `<tr><td colspan="6" class="muted small text-center" style="padding: 20px">Trends dynamically loaded from timeseries...</td></tr>` : ''}
+            `}).join('')}
+            ${(!p.recentVitals || p.recentVitals.length === 0) ? `<tr><td colspan="6" class="muted small text-center" style="padding: 20px">No recent vitals recorded.</td></tr>` : ''}
           </tbody>
         </table></div>
       </div>
@@ -362,6 +409,43 @@ SCREENS.n1b = () => {
       <div style="margin-top:12px"><button class="btn btn-sec btn-sm" onclick="nav('n2')">Log in Escalation Form</button></div>
     </div>`;
 
+  const labsHtml = `
+    <div class="card">
+      <div class="card-title">Recent Lab Results</div>
+      <div class="tw" style="border:none"><table>
+        <thead><tr><th>Time</th><th>Test</th><th>Result</th><th>Unit</th></tr></thead>
+        <tbody>
+          ${(p.recentLabs || []).map(l => `
+            <tr>
+              <td class="muted">${l.time.split('T').join(' ').substring(0,16)}</td>
+              <td>${l.test}</td>
+              <td style="font-weight:bold">${l.value}</td>
+              <td class="muted">${l.unit}</td>
+            </tr>
+          `).join('')}
+          ${(!p.recentLabs || p.recentLabs.length === 0) ? `<tr><td colspan="4" class="muted small text-center" style="padding: 20px">No recent labs.</td></tr>` : ''}
+        </tbody>
+      </table></div>
+    </div>`;
+
+  const medsHtml = `
+    <div class="card">
+      <div class="card-title">Active Medications</div>
+      <div class="tw" style="border:none"><table>
+        <thead><tr><th>Medication</th><th>Dose</th><th>Frequency</th></tr></thead>
+        <tbody>
+          ${(p.medications || []).map(m => `
+            <tr>
+              <td><b>${m.name}</b></td>
+              <td>${m.dose}</td>
+              <td class="muted">${m.frequency}</td>
+            </tr>
+          `).join('')}
+          ${(!p.medications || p.medications.length === 0) ? `<tr><td colspan="3" class="muted small text-center" style="padding: 20px">No active medications.</td></tr>` : ''}
+        </tbody>
+      </table></div>
+    </div>`;
+
   return `
 <div class="bc"><span class="bc-link" onclick="nav('n1')">NEWS2 Dashboard</span><span class="bc-sep">/</span><span>Patient Detail</span></div>
 <div class="sh">
@@ -375,9 +459,11 @@ SCREENS.n1b = () => {
 <div class="tab-strip">
   <button class="tab-btn${APP.n1b_tab==='vitals'?' active':''}" onclick="APP.n1b_tab='vitals';renderAll()">Vital Signs</button>
   <button class="tab-btn${APP.n1b_tab==='drug-lab'?' active':''}" onclick="APP.n1b_tab='drug-lab';renderAll()">Drug-Lab Alerts</button>
+  <button class="tab-btn${APP.n1b_tab==='labs'?' active':''}" onclick="APP.n1b_tab='labs';renderAll()">Lab Results</button>
+  <button class="tab-btn${APP.n1b_tab==='meds'?' active':''}" onclick="APP.n1b_tab='meds';renderAll()">Medications</button>
 </div>
 
-${APP.n1b_tab === 'vitals' ? vitals : druglab}
+${APP.n1b_tab === 'vitals' ? vitals : APP.n1b_tab === 'drug-lab' ? druglab : APP.n1b_tab === 'labs' ? labsHtml : medsHtml}
 
 <div style="display:flex;gap:8px;margin-top:16px">
   <button class="btn btn-sec btn-sm" onclick="nav('n1')">← Back to Dashboard</button>
@@ -583,6 +669,7 @@ SCREENS.n5 = () => {
   <h1 class="sh-title">Escalation Queue</h1>
   <div class="sh-actions">
     <span class="muted small">${new Date().toLocaleString('en-IN', {day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'})}</span>
+    <button class="btn btn-warn btn-sm" style="color:#000" onclick="nav('dl1')">Drug-Lab Overview</button>
     <button class="btn btn-sec btn-sm" onclick="nav('n5b')">Threshold Config</button>
   </div>
 </div>
@@ -610,14 +697,13 @@ ${escalations.length === 0 ? emptyState : `
           <td>${e.attending || '--'}</td>
           <td><span class="bd bd-t2">Active</span></td>
           <td>
-            <button class="btn btn-sec btn-xs" onclick="openModal('reescalate')">Review</button>
+            <button class="btn btn-sec btn-xs" onclick="alert('Re-escalation to on-call doctor initiated.')">Re-escalate</button>
           </td>
         </tr>
       `;
     }).join('')}
   </tbody>
 </table></div>
-<div class="alert al-info">Charge Nurse has oversight of all ward escalations. Re-escalation routes to the on-call consultant or Code Blue team.</div>
 `}`;
 };
 

@@ -46,7 +46,7 @@ PATIENTS = [
     (10013, "Anand Gupta",       75, "M", "4C", "10", "DCM, Elderly, NYHA II, Digoxin on Low K+",               "warning_dl"),
     (10014, "Saritha Pillai",    45, "F", "4C", "12", "DCM, Young-Onset, Post-myocarditis, NYHA II",            "stable_watch"),
     (10015, "Nitin Shah",        66, "M", "4C", "14", "DCM with AF, Rate-controlled, NYHA II",                  "stable_low"),
-    (10016, "Asha Gupta",        70, "F", "4C", "16", "DCM, NYHA I, Post-discharge Monitoring",                 "stable_low"),
+    (10016, "Asha Gupta",        70, "F", "4C", "16", "DCM, NYHA I, Post-discharge Monitoring",                 "stale_vitals"),
 ]
 
 # ─── DCM Medications per clinical scenario ────────────────────────────────────
@@ -62,6 +62,7 @@ MEDS = {
     "stable_watch":    [("Carvedilol","12.5mg","BD"), ("Lisinopril","10mg","OD"),("Furosemide","40mg","OD"), ("Spironolactone","25mg","OD"), ("Atorvastatin","40mg","OD")],
     "stable_meds":     [("Bisoprolol","5mg","OD"),    ("Valsartan","80mg","OD"), ("Furosemide","20mg","OD"), ("Spironolactone","12.5mg","OD"),("Aspirin","75mg","OD"),    ("Rosuvastatin","20mg","OD")],
     "stable_low":      [("Carvedilol","6.25mg","BD"), ("Enalapril","2.5mg","OD"),("Furosemide","20mg","OD"), ("Spironolactone","25mg","OD"), ("Atorvastatin","20mg","OD")],
+    "stale_vitals":    [("Bisoprolol","5mg","OD"),    ("Aspirin","75mg","OD")],
 }
 
 # ─── Vitals profiles per scenario ─────────────────────────────────────────────
@@ -78,6 +79,7 @@ VITALS_PROFILE = {
     "stable_watch":    (88,  17, 95, 112, 72,  37.0, "A", "Air"),      # NEWS2 ~2
     "stable_meds":     (82,  16, 96, 118, 74,  36.9, "A", "Air"),      # NEWS2 ~1
     "stable_low":      (78,  15, 97, 122, 76,  36.8, "A", "Air"),      # NEWS2 ~0
+    "stale_vitals":    (75,  14, 98, 118, 75,  36.6, "A", "Air"),      # NEWS2 0, but stale
 }
 
 # ─── Lab profiles per scenario (designed to trigger drug-lab rules) ───────────
@@ -93,17 +95,22 @@ LAB_PROFILE = {
     "stable_watch":    {"potassium": 4.1, "creatinine": 1.1, "lactate": 1.2, "inr": None},
     "stable_meds":     {"potassium": 4.3, "creatinine": 0.9, "lactate": 1.0, "inr": None},
     "stable_low":      {"potassium": 4.2, "creatinine": 1.0, "lactate": 1.0, "inr": None},
+    "stale_vitals":    {"potassium": 4.0, "creatinine": 1.0, "lactate": 1.0, "inr": None},
 }
 
 
 def gen_vitals_trajectory(session, subject_id, profile_key):
     """Generate 12 hourly vitals readings with realistic trend."""
     base_hr, base_rr, base_spo2, base_sbp, base_dbp, base_temp, consciousness, air_ox = VITALS_PROFILE[profile_key]
-    now = datetime.now().replace(minute=0, second=0, microsecond=0)
+    now = datetime.now()
 
     # For critical patients: trending worse over last 4 hours
     for h in range(12, 0, -1):
-        hour_key = now - timedelta(hours=h)
+        if profile_key == "stale_vitals" and h <= 5:
+            continue  # No vitals recorded in the last 5 hours for this patient
+
+        m_offset = random.randint(-15, 15)
+        hour_key = now - timedelta(hours=h) + timedelta(minutes=m_offset)
 
         # Add trend: critical worsens, stable improves slightly
         trend = 0
@@ -119,7 +126,7 @@ def gen_vitals_trajectory(session, subject_id, profile_key):
 
         session.add(VitalTimeSeries(
             subject_id    = subject_id,
-            chart_hour    = hour_key.strftime("%Y-%m-%dT%H:00"),
+            chart_hour    = hour_key.strftime("%Y-%m-%dT%H:%M"),
             heart_rate    = hr,
             resp_rate     = rr,
             spo2          = spo2,
@@ -134,12 +141,13 @@ def gen_vitals_trajectory(session, subject_id, profile_key):
 def gen_labs(session, subject_id, profile_key):
     """Insert 2 lab readings (8h and 4h ago) for the patient."""
     labs = LAB_PROFILE[profile_key]
-    now  = datetime.now().replace(minute=0, second=0, microsecond=0)
+    now  = datetime.now()
     for hours_ago in [8, 4]:
-        ts = now - timedelta(hours=hours_ago)
+        m_offset = random.randint(-20, 20)
+        ts = now - timedelta(hours=hours_ago) + timedelta(minutes=m_offset)
         session.add(LabEvent(
             subject_id = subject_id,
-            chart_hour = ts.strftime("%Y-%m-%dT%H:00"),
+            chart_hour = ts.strftime("%Y-%m-%dT%H:%M"),
             potassium  = labs.get("potassium"),
             creatinine = labs.get("creatinine"),
             lactate    = labs.get("lactate"),
