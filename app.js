@@ -110,9 +110,9 @@ function logout() {
   // Since Sabari's standalone login is completely removed, redirect to Ashmit's unified login
   const fromServer = (location.port === '5175' || location.port === '80' || location.port === '');
   if (fromServer) {
-    window.location.href = `http://${location.hostname}:5173/`;
+    window.location.href = `http://${location.hostname}:5180/`;
   } else {
-    document.body.innerHTML = '<div style="padding:40px;text-align:center;font-family:sans-serif">Logged out.<br><br><a href="http://localhost:5173/">Go to Unified Login</a></div>';
+    document.body.innerHTML = '<div style="padding:40px;text-align:center;font-family:sans-serif">Logged out.<br><br><a href="http://localhost:5180/">Go to Unified Login</a></div>';
   }
 }
 
@@ -122,7 +122,7 @@ function logout() {
   if (!raw) {
     const fromServer = (location.port === '5175' || location.port === '80' || location.port === '');
     if (fromServer) {
-      window.location.href = `http://${location.hostname}:5173/`;
+      window.location.href = `http://${location.hostname}:5180/`;
     }
     return;
   }
@@ -191,6 +191,23 @@ const MODALS = {
     <div class="modal-t">Co-Sign Override Complete</div>
     <div class="modal-b" style="color:var(--t3)">✅ Override successfully co-signed and recorded in the NABH audit trail.</div>
     <div class="modal-f"><button class="btn btn-pri" onclick="closeModal();nav('dl1')">Back to DL Flags</button></div>`,
+  enter_vitals: () => `
+    <div class="modal-t">Enter Vital Signs</div>
+    <div class="modal-b">Please record the latest vital signs for the patient to clear the Stale status and recalculate NEWS2.</div>
+    <div class="grid3" style="gap:12px; margin-bottom: 16px;">
+      <div class="fg"><label class="fl">SpO₂ (%)</label><input class="fi" type="number" placeholder="98"></div>
+      <div class="fg"><label class="fl">RR (/min)</label><input class="fi" type="number" placeholder="16"></div>
+      <div class="fg"><label class="fl">BP (mmHg)</label><input class="fi" type="text" placeholder="120/80"></div>
+      <div class="fg"><label class="fl">HR (bpm)</label><input class="fi" type="number" placeholder="72"></div>
+      <div class="fg"><label class="fl">Temp (°C)</label><input class="fi" type="number" placeholder="37.0" step="0.1"></div>
+      <div class="fg"><label class="fl">AVPU</label>
+        <select class="fi"><option>Alert</option><option>Voice</option><option>Pain</option><option>Unresponsive</option></select>
+      </div>
+    </div>
+    <div class="modal-f">
+      <button class="btn btn-sec" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-pri" onclick="closeModal();alert('Vitals saved to database!');nav('n1')">Save Vitals</button>
+    </div>`,
 };
 
 /* ═══════════════════════════════════════════════════════════════
@@ -316,7 +333,7 @@ SCREENS.n1 = () => {
           <td><span class="${statusBd}" style="${isStale?'color:var(--muted)':''}">${statusLbl.toUpperCase()}</span></td>
           <td>
             ${isStale ? 
-              `<button class="btn btn-warn btn-xs" style="color:#000" onclick="event.stopPropagation();alert('Enter Vitals modal will open here')">Enter Vitals</button>` 
+              `<button class="btn btn-warn btn-xs" style="color:#000" onclick="event.stopPropagation();openModal('enter_vitals')">Enter Vitals</button>` 
             : 
               `${score >= 5 ? `<button class="btn ${score >= 7 ? 'btn-danger' : 'btn-warn'} btn-xs" onclick="event.stopPropagation();nav('n2', ${p.id})">Escalate</button>` : ''}
               ${ackBtn}`

@@ -201,6 +201,18 @@ def get_ward_data(ward: str = "All", replay: bool = False, db: Session = Depends
     else:
         patients = db.query(Patient).filter(Patient.ward == ward).all()
     
+    # Base "now" on the latest recorded vital in the entire database to prevent 
+    # everything from going stale if the demo server runs for hours.
+    from sqlalchemy import func
+    max_time_str = db.query(func.max(VitalTimeSeries.chart_hour)).scalar()
+    if max_time_str:
+        if 'T' in str(max_time_str):
+            demo_now = datetime.fromisoformat(str(max_time_str))
+        else:
+            demo_now = datetime.strptime(str(max_time_str), "%Y-%m-%d %H:%M:%S")
+    else:
+        demo_now = datetime.now()
+        
     result = []
     for p in patients:
         vitals_history = db.query(VitalTimeSeries).filter(
@@ -236,7 +248,7 @@ def get_ward_data(ward: str = "All", replay: bool = False, db: Session = Depends
             latest_time = datetime.fromisoformat(latest_record_time_str)
         else:
             latest_time = datetime.strptime(latest_record_time_str, "%Y-%m-%d %H:%M:%S")
-        is_stale = (datetime.now() - latest_time).total_seconds() > (4 * 3600)
+        is_stale = (demo_now - latest_time).total_seconds() > (4 * 3600)
 
         news_data = calculate_news2(latest_vitals, getattr(p, 'hypercapnic_failure', 0) == 1)
         news2_score = news_data["total"]
