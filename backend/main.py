@@ -9,6 +9,14 @@ from pydantic import BaseModel
 from datetime import datetime
 import random
 
+class EscalationCreate(BaseModel):
+    patientId: int
+    level: str
+    attending: str
+    observations: str
+    interventions: str
+    escalatedBy: str
+
 def is_valid(val):
     if val is None:
         return False

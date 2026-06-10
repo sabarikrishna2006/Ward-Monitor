@@ -372,15 +372,17 @@ SCREENS.n1b = () => {
       <div class="card">
         <div class="card-title">Current Vitals <span class="muted" style="font-weight:400;font-size:11px">${new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span></div>
         <table style="width:100%;font-size:12.5px"><tbody>
-          ${[
-            ['SpO₂',             (v.spo2 || '-') + '%',               valCrit(v.spo2, 92, '<'), v.spo2 < 92 ? '⚠ LOW' : ''],
-            ['Respiratory Rate', (v.resp_rate || '-') + ' /min',      valCrit(v.resp_rate, 21, '>'), v.resp_rate > 21 ? '⚠ HIGH' : ''],
-            ['Blood Pressure',   (v.sbp || '-') + '/' + (v.dbp || '-') + ' mmHg', valCrit(v.sbp, 90, '<'), v.sbp < 90 ? '⚠ LOW' : ''],
-            ['Heart Rate',       (v.heart_rate || '-') + ' bpm',      valCrit(v.heart_rate, 110, '>'), v.heart_rate > 110 ? '⚠ HIGH' : ''],
-            ['Temperature',      (v.temperature || '-') + '°C',       valCrit(v.temperature, 38.0, '>'), v.temperature > 38.0 ? '⚠ ELEVATED' : ''],
-            ['AVPU',             v.consciousness || 'A',          '',       ''],
+          ${(() => {
+            const sbp = p.bp ? parseInt(p.bp.split('/')[0]) : null;
+            return [
+            ['SpO₂',             (p.spo2 || '-') + '%',               valCrit(p.spo2, 92, '<'), p.spo2 < 92 ? '⚠ LOW' : ''],
+            ['Respiratory Rate', (p.rr || '-') + ' /min',             valCrit(p.rr, 21, '>'), p.rr > 21 ? '⚠ HIGH' : ''],
+            ['Blood Pressure',   (p.bp || '-/-') + ' mmHg',           valCrit(sbp, 90, '<'), (sbp && sbp < 90) ? '⚠ LOW' : ''],
+            ['Heart Rate',       (p.hr || '-') + ' bpm',              valCrit(p.hr, 110, '>'), p.hr > 110 ? '⚠ HIGH' : ''],
+            ['Temperature',      (p.temp || '-') + '°C',              valCrit(p.temp, 38.0, '>'), p.temp > 38.0 ? '⚠ ELEVATED' : ''],
+            ['AVPU',             'A',                                 '',       ''],
             ['NEWS2 Score',      score,                  isCrit ? 'v-crit' : '', isCrit ? '🔴 CRITICAL' : ''],
-          ].map(([lbl,val,cls,f]) => `
+          ] })().map(([lbl,val,cls,f]) => `
             <tr>
               <td class="muted">${lbl}</td>
               <td class="${cls}" style="font-weight:700">${val}</td>
@@ -598,15 +600,15 @@ SCREENS.n3 = () => {
   </tbody></table></div>
 </div>
 
-${v.spo2 ? `<div class="card" style="max-width:560px;margin-bottom:16px">
+${p.spo2 ? `<div class="card" style="max-width:560px;margin-bottom:16px">
   <div class="card-title">Vitals at Time of Escalation</div>
   <div class="grid3">
-    <div><div class="muted small">SpO2</div><div class="bold ${(v.spo2||99)<92?'v-crit':''}">` + (v.spo2||'--') + `%</div></div>
-    <div><div class="muted small">RR</div><div class="bold">` + (v.resp_rate||'--') + ` /min</div></div>
-    <div><div class="muted small">BP</div><div class="bold">` + (v.sbp||'--') + `/` + (v.dbp||'--') + `</div></div>
-    <div><div class="muted small">HR</div><div class="bold">` + (v.heart_rate||'--') + ` bpm</div></div>
-    <div><div class="muted small">Temp</div><div class="bold">` + (v.temperature||'--') + `&deg;C</div></div>
-    <div><div class="muted small">AVPU</div><div class="bold">` + (v.consciousness||'A') + `</div></div>
+    <div><div class="muted small">SpO2</div><div class="bold ${(p.spo2||99)<92?'v-crit':''}">` + (p.spo2||'--') + `%</div></div>
+    <div><div class="muted small">RR</div><div class="bold">` + (p.rr||'--') + ` /min</div></div>
+    <div><div class="muted small">BP</div><div class="bold">` + (p.bp||'--') + `</div></div>
+    <div><div class="muted small">HR</div><div class="bold">` + (p.hr||'--') + ` bpm</div></div>
+    <div><div class="muted small">Temp</div><div class="bold">` + (p.temp||'--') + `&deg;C</div></div>
+    <div><div class="muted small">AVPU</div><div class="bold">A</div></div>
   </div>
 </div>` : ''}
 <div style="display:flex;gap:8px">
