@@ -49,7 +49,7 @@ async function nav(id, param = null) {
   if (param !== null) APP.currentPatientId = param;
 
   try {
-    if (id === 'n1') {
+    if (id === 'n1' || id === 'dl1') {
       const res = await fetch('/api/ward-data?ward=All');
       if (res.ok) APP.data.n1 = await res.json();
     } else if ((id === 'n1b' || id === 'n2') && APP.currentPatientId) {
@@ -218,6 +218,7 @@ const SCREENS = {};
 /* ── N1 — NEWS2 PRIORITY DASHBOARD ─────────────────────────── */
 SCREENS.n1 = () => {
   const patients = (APP.data.n1?.patients || []);
+  patients.sort((a, b) => b.news2 - a.news2); // Sort by highest acuity first
   let critCount = 0, medCount = 0, lowCount = 0, staleCount = 0;
   
   APP.n1_filter = APP.n1_filter || 'all';
@@ -538,12 +539,12 @@ SCREENS.n2 = () => {
   <div class="card" style="margin-bottom:12px">
     <div class="card-title">Vitals at Time of Escalation</div>
     <div class="grid3">
-      <div><div class="muted small">SpO₂</div><div class="bold v-crit">${v.spo2||'-'}%</div></div>
-      <div><div class="muted small">RR</div><div class="bold v-crit">${v.resp_rate||'-'} /min</div></div>
-      <div><div class="muted small">BP</div><div class="bold v-crit">${v.sbp||'-'}/${v.dbp||'-'}</div></div>
-      <div><div class="muted small">HR</div><div class="bold v-crit">${v.heart_rate||'-'} bpm</div></div>
-      <div><div class="muted small">Temp</div><div class="bold">${v.temperature||'-'}°C</div></div>
-      <div><div class="muted small">AVPU</div><div class="bold">${v.consciousness||'A'}</div></div>
+      <div><div class="muted small">SpO₂</div><div class="bold v-crit">${p.spo2||'-'}%</div></div>
+      <div><div class="muted small">RR</div><div class="bold v-crit">${p.rr||'-'} /min</div></div>
+      <div><div class="muted small">BP</div><div class="bold v-crit">${p.bp||'-/-'}</div></div>
+      <div><div class="muted small">HR</div><div class="bold v-crit">${p.hr||'-'} bpm</div></div>
+      <div><div class="muted small">Temp</div><div class="bold">${p.temp||'-'}°C</div></div>
+      <div><div class="muted small">AVPU</div><div class="bold">A</div></div>
     </div>
   </div>
 

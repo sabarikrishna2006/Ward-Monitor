@@ -517,7 +517,15 @@ def create_escalation(esc: EscalationCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_esc)
     
-    return {"message": "Escalation created", "id": new_esc.id}
+    return {
+        "id": new_esc.id,
+        "patientName": new_esc.patient_name,
+        "ward": new_esc.ward,
+        "bed": new_esc.bed,
+        "news2": new_esc.news2_score,
+        "attending": new_esc.attending,
+        "escalatedAt": new_esc.escalated_at
+    }
 
 @app.get("/api/escalations")
 def get_escalations(db: Session = Depends(get_db)):
@@ -571,3 +579,8 @@ def get_patient_detail(subject_id: int, db: Session = Depends(get_db)):
             
     raise HTTPException(status_code=404, detail="Patient not found")
 
+# Mount the frontend directory (sabari_project) at the root to serve static files (index.html, app.js, styles.css)
+import os
+from fastapi.staticfiles import StaticFiles
+frontend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")
