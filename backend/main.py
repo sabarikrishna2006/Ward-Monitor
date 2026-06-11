@@ -223,12 +223,15 @@ def get_ward_data(ward: str = "All", replay: bool = False, db: Session = Depends
         
     result = []
     for p in patients:
-        vitals_history = db.query(VitalTimeSeries).filter(
+        all_vitals = db.query(VitalTimeSeries).filter(
             VitalTimeSeries.subject_id == p.subject_id
-        ).order_by(VitalTimeSeries.chart_hour.desc()).offset(REPLAY_OFFSET).limit(24).all()
+        ).order_by(VitalTimeSeries.chart_hour.desc()).all()
         
-        if not vitals_history:
+        if not all_vitals:
             continue
+            
+        safe_offset = min(REPLAY_OFFSET, len(all_vitals) - 1)
+        vitals_history = all_vitals[safe_offset : safe_offset + 24]
             
         vitals_history.reverse()
         
