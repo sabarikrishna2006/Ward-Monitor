@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime
 
@@ -8,15 +8,16 @@ Base = declarative_base()
 class Patient(Base):
     __tablename__ = "patients"
 
-    subject_id = Column(Integer, primary_key=True, index=True)
-    name       = Column(String)
-    age        = Column(Integer)
-    sex        = Column(String)
-    ward       = Column(String, default="Ward 4B")
-    room       = Column(String)
-    bed        = Column(String)
-    admitted   = Column(String)
-    complaint  = Column(String)
+    subject_id   = Column(Integer, primary_key=True, index=True)
+    patient_code = Column(String(20))
+    name         = Column(String)
+    age          = Column(Integer)
+    sex          = Column(String)
+    ward         = Column(String, default="Ward 4B")
+    room         = Column(String)
+    bed          = Column(String)
+    admitted     = Column(String)
+    complaint    = Column(String)
     hypercapnic_failure = Column(Integer, default=0)
 
 
@@ -74,9 +75,11 @@ class Escalation(Base):
     escalated_by     = Column(String)
     observations     = Column(String)
     interventions    = Column(String)
-    status           = Column(String, default="active")  # active | acknowledged | resolved
-    escalated_at     = Column(String)
-    acknowledged_at  = Column(String, nullable=True)
-    resolved_at      = Column(String, nullable=True)
-    resolved_by      = Column(String, nullable=True)
-    resolution_notes = Column(String, nullable=True)
+    status              = Column(String, default="active")  # active | acknowledged | resolved | false_alarm
+    escalated_at        = Column(String)
+    acknowledged_at     = Column(String, nullable=True)
+    resolved_at         = Column(String, nullable=True)
+    resolved_by         = Column(String, nullable=True)
+    resolution_notes    = Column(String, nullable=True)
+    false_alarm         = Column(Boolean, default=False)
+    false_alarm_reason  = Column(String, nullable=True)

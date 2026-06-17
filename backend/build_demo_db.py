@@ -170,11 +170,12 @@ def build():
         session.commit()
         print(f"  Cleared existing data.")
 
-        for (sid, name, age, sex, ward_suffix, bed, complaint, scenario) in PATIENTS:
+        for i, (sid, name, age, sex, ward_suffix, bed, complaint, scenario) in enumerate(PATIENTS, start=1):
             ward = f"Ward {ward_suffix}"
 
             patient = Patient(
                 subject_id          = sid,
+                patient_code        = f"PT-26-{i:04d}",
                 name                = name,
                 age                 = age,
                 sex                 = sex,

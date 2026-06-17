@@ -55,6 +55,16 @@ async function nav(id, param = null) {
     } else if ((id === 'n1b' || id === 'n2') && APP.currentPatientId) {
       const res = await fetch(`/api/patients/${APP.currentPatientId}`);
       if (res.ok) APP.data.n1b = await res.json();
+    } else if (id === 'n_vitals' && APP.currentPatientId) {
+      try {
+        const [pRes, vRes] = await Promise.all([
+          fetch(`/api/patients/${APP.currentPatientId}`),
+          fetch(`/api/patients/${APP.currentPatientId}/vitals/latest`)
+        ]);
+        if (pRes.ok) APP.data.n_vitals_patient = await pRes.json();
+        if (vRes.ok) APP.data.n_vitals_latest = await vRes.json();
+        else APP.data.n_vitals_latest = null;
+      } catch { APP.data.n_vitals_latest = null; }
     } else if (id === 'n5') {
       const res = await fetch('/api/escalations');
       if (res.ok) APP.data.n5 = await res.json();
@@ -74,16 +84,44 @@ function goBack() {
 /* ─── ACTIONS ─── */
 window.ackPatient = function(event, patientId) {
   event.stopPropagation();
-  // Find patient in n1 data
   if (APP.data.n1 && APP.data.n1.patients) {
     const p = APP.data.n1.patients.find(x => x.id == patientId);
-    if (p) {
-      p._acked = true;
-      renderAll();
-      // Here you would also send a request to the backend:
-      // fetch(\`/api/patients/\${patientId}/ack\`, { method: 'POST' });
-    }
+    if (p) { p._acked = true; renderAll(); }
   }
+}
+
+window.showFalseAlarmMenu = function() {
+  const menu = document.getElementById('false-alarm-menu');
+  if (menu) menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+}
+
+window.submitFalseAlarm = async function(patientId, reason) {
+  // Find the active escalation for this patient
+  const escs = APP.data.n5 && APP.data.n5.escalations
+    ? APP.data.n5.escalations.filter(e => e.patientId == patientId && e.status === 'active')
+    : [];
+
+  if (escs.length === 0) {
+    alert('No active escalation found for this patient.');
+    return;
+  }
+  const escId = escs[0].id;
+
+  try {
+    const res = await fetch(`/api/escalations/${escId}/false-alarm`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason })
+    });
+    if (res.ok) {
+      alert(`Marked as false alarm: "${reason}"`);
+      const menu = document.getElementById('false-alarm-menu');
+      if (menu) menu.style.display = 'none';
+      nav('n5');
+    } else {
+      alert('Failed to mark false alarm — check backend.');
+    }
+  } catch (e) { alert('Network error: ' + e.message); }
 }
 
 /* ─── LOGIN ─── */
@@ -191,23 +229,6 @@ const MODALS = {
     <div class="modal-t">Co-Sign Override Complete</div>
     <div class="modal-b" style="color:var(--t3)">✅ Override successfully co-signed and recorded in the NABH audit trail.</div>
     <div class="modal-f"><button class="btn btn-pri" onclick="closeModal();nav('dl1')">Back to DL Flags</button></div>`,
-  enter_vitals: () => `
-    <div class="modal-t">Enter Vital Signs</div>
-    <div class="modal-b">Please record the latest vital signs for the patient to clear the Stale status and recalculate NEWS2.</div>
-    <div class="grid3" style="gap:12px; margin-bottom: 16px;">
-      <div class="fg"><label class="fl">SpO₂ (%)</label><input class="fi" type="number" placeholder="98"></div>
-      <div class="fg"><label class="fl">RR (/min)</label><input class="fi" type="number" placeholder="16"></div>
-      <div class="fg"><label class="fl">BP (mmHg)</label><input class="fi" type="text" placeholder="120/80"></div>
-      <div class="fg"><label class="fl">HR (bpm)</label><input class="fi" type="number" placeholder="72"></div>
-      <div class="fg"><label class="fl">Temp (°C)</label><input class="fi" type="number" placeholder="37.0" step="0.1"></div>
-      <div class="fg"><label class="fl">AVPU</label>
-        <select class="fi"><option>Alert</option><option>Voice</option><option>Pain</option><option>Unresponsive</option></select>
-      </div>
-    </div>
-    <div class="modal-f">
-      <button class="btn btn-sec" onclick="closeModal()">Cancel</button>
-      <button class="btn btn-pri" onclick="closeModal();alert('Vitals saved to database!');nav('n1')">Save Vitals</button>
-    </div>`,
 };
 
 /* ═══════════════════════════════════════════════════════════════
@@ -326,7 +347,7 @@ SCREENS.n1 = () => {
       
       return `
         <tr class="${rowClass}" onclick="nav('n1b', ${p.id})">
-          <td><b>${p.name}</b><br><span class="pid">PT-${p.id}</span></td>
+          <td><b>${p.name}</b><br><span class="pid">${p.patient_code || 'PT-' + p.id}</span></td>
           <td>${p.ward.split(' ')[1] || p.ward}</td>
           <td class="${valCrit(p.spo2, 92, '<')}">${spo2} ${timeHtml(p.spo2_time)}</td>
           <td class="${valCrit(p.rr, 21, '>')}">${rr} ${timeHtml(p.rr_time)}</td>
@@ -337,9 +358,9 @@ SCREENS.n1 = () => {
           <td><span class="${scoreClass}">${s}</span></td>
           <td><span class="${statusBd}" style="${isStale?'color:var(--muted)':''}">${statusLbl.toUpperCase()}</span></td>
           <td>
-            ${isStale ? 
-              `<button class="btn btn-warn btn-xs" style="color:#000" onclick="event.stopPropagation();openModal('enter_vitals')">Enter Vitals</button>` 
-            : 
+            ${isStale ?
+              `<button class="btn btn-warn btn-xs" style="color:#000" onclick="event.stopPropagation();nav('n_vitals', ${p.id})">Enter Vitals</button>`
+            :
               `${score >= 5 ? `<button class="btn ${score >= 7 ? 'btn-danger' : 'btn-warn'} btn-xs" onclick="event.stopPropagation();nav('n2', ${p.id})">Escalate</button>` : ''}
               ${ackBtn}`
             }
@@ -431,6 +452,10 @@ SCREENS.n1b = () => {
       <div class="card-title">Monitor for — report immediately if observed</div>
       ${['Unusual bruising or petechiae','Black/tarry stools (melena)','Blood in urine (haematuria)','Prolonged bleeding from puncture sites','Sudden confusion or neurological change'].map(s=>`<div class="check-row"><input type="checkbox"> ${s}</div>`).join('')}
       <div style="margin-top:12px"><button class="btn btn-sec btn-sm" onclick="nav('n2')">Log in Escalation Form</button></div>
+    </div>
+    <div style="margin-top:10px;padding:10px 0;border-top:1px solid var(--border)">
+      ${APP.role === 'nurse' ? `<div class="muted small" style="margin-bottom:8px">Nurse view — read only. Attending resolution required.</div>` : ''}
+      <button class="btn btn-sec btn-sm" onclick="nav('${APP.role === 'charge' ? 'dl1' : 'dl3'}', ${p.id})">View Drug-Lab Details →</button>
     </div>`;
 
   const labsHtml = `
@@ -471,9 +496,13 @@ SCREENS.n1b = () => {
     </div>`;
 
   return `
-<div class="bc"><span class="bc-link" onclick="nav('n1')">NEWS2 Dashboard</span><span class="bc-sep">/</span><span>Patient Detail</span></div>
+<div class="bc">
+  <span class="bc-link" onclick="nav('n1')">NEWS2 Dashboard</span>
+  <span class="bc-sep">/</span>
+  ${APP.role === 'charge' ? '<span class="bc-link" onclick="nav(\'n5\')">Escalation Queue</span><span class="bc-sep">/</span><span>Head Nurse Review</span>' : '<span>Patient Detail</span>'}
+</div>
 <div class="sh">
-  <h1 class="sh-title">${p.name || 'Unknown'} <span class="pid" style="font-size:13px">PT-${p.id || ''}</span></h1>
+  <h1 class="sh-title">${p.name || 'Unknown'} <span class="pid" style="font-size:13px">${p.patient_code || 'PT-' + (p.id || '')}</span></h1>
   <div class="sh-actions">
     <span class="bd ${bdClass}" style="font-size:12px;padding:5px 12px">NEWS2: ${score} — ${lbl}</span>
     ${score >= 5 ? `<button class="btn ${isCrit ? 'btn-danger' : 'btn-warn'} btn-sm" onclick="nav('n2', ${p.id})">Escalate Now</button>` : ''}
@@ -489,9 +518,21 @@ SCREENS.n1b = () => {
 
 ${APP.n1b_tab === 'vitals' ? vitals : APP.n1b_tab === 'drug-lab' ? druglab : APP.n1b_tab === 'labs' ? labsHtml : medsHtml}
 
-<div style="display:flex;gap:8px;margin-top:16px">
-  <button class="btn btn-sec btn-sm" onclick="nav('n1')">← Back to Dashboard</button>
-  ${score >= 5 ? `<button class="btn btn-danger btn-sm" onclick="nav('n2', ${p.id})">Escalate Patient</button>` : ''}
+<div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
+  ${APP.role === 'charge' ? `
+    <button class="btn btn-sec btn-sm" onclick="nav('n5')">← Back to Escalation Queue</button>
+    <button class="btn btn-warn btn-sm" onclick="showFalseAlarmMenu()">Mark False Alarm ▾</button>
+    ${score >= 5 ? `<button class="btn btn-danger btn-sm" onclick="nav('n2', ${p.id})">Escalate to Attending</button>` : ''}
+  ` : `
+    <button class="btn btn-sec btn-sm" onclick="nav('n1')">← Back to Dashboard</button>
+    ${score >= 5 ? `<button class="btn btn-danger btn-sm" onclick="nav('n2', ${p.id})">Escalate Patient</button>` : ''}
+  `}
+</div>
+<div id="false-alarm-menu" style="display:none;margin-top:8px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;max-width:400px">
+  <div class="card-title" style="margin-bottom:8px">Reason for False Alarm</div>
+  ${['Expected clinical variation','Data entry error','Post-procedure transient change','Medication effect','Other'].map(r =>
+    `<button class="btn btn-sec btn-sm" style="margin:4px;display:inline-block" onclick="submitFalseAlarm(${p.id}, '${r}')">${r}</button>`
+  ).join('')}
 </div>`;
 };
 
@@ -532,7 +573,7 @@ SCREENS.n2 = () => {
 
   return `
 <div class="bc"><span class="bc-link" onclick="nav('n1')">NEWS2 Dashboard</span><span class="bc-sep">/</span><span>Escalation</span></div>
-<div class="sh"><h1 class="sh-title">Raise Escalation — PT-${p.id}</h1></div>
+<div class="sh"><h1 class="sh-title">Raise Escalation — ${p.patient_code || 'PT-' + p.id}</h1></div>
 <div class="alert al-err">🔴 NEWS2 Score: ${score} — CRITICAL · ${p.name} · ${p.ward}</div>
 
 <div style="max-width:580px">
@@ -1003,6 +1044,104 @@ SCREENS.dl2b = () => `
     <button class="btn btn-sec" onclick="nav('dl1')">← Back to Flags</button>
   </div>
 </div>`;
+
+/* ── N_VITALS — NURSE VITALS ENTRY SCREEN ───────────────────── */
+SCREENS.n_vitals = () => {
+  const p = APP.data.n_vitals_patient || {};
+  const latest = APP.data.n_vitals_latest;
+  const staleMins = latest ? latest.stale_mins : null;
+  const isStale = latest ? latest.is_stale : true;
+  const staleWarning = isStale && staleMins !== null
+    ? '<div class="alert al-warn">⚠ Last vitals recorded ' + staleMins + ' min ago — entry required.</div>'
+    : staleMins !== null
+      ? '<div class="alert al-ok">Last vitals recorded ' + staleMins + ' min ago.</div>'
+      : '<div class="alert al-warn">⚠ No vitals on record for this patient.</div>';
+
+  window.submitVitals = async function() {
+    const get = id => document.getElementById(id)?.value;
+    const spo2 = parseFloat(get('v-spo2'));
+    const rr   = parseFloat(get('v-rr'));
+    const hr   = parseFloat(get('v-hr'));
+    const sbp  = parseFloat(get('v-sbp'));
+    const dbp  = parseFloat(get('v-dbp'));
+    const temp = parseFloat(get('v-temp'));
+    const consciousness = get('v-avpu') || 'A';
+    const air_or_oxygen = get('v-air') || 'Air';
+
+    if ([spo2, rr, hr, sbp, dbp, temp].some(isNaN)) {
+      alert('All fields are required and must be valid numbers.');
+      return;
+    }
+    if (spo2 < 70 || spo2 > 100)   { alert('SpO2 must be 70-100%'); return; }
+    if (rr < 5   || rr > 60)       { alert('Resp Rate must be 5-60'); return; }
+    if (hr < 20  || hr > 250)      { alert('Heart Rate must be 20-250'); return; }
+    if (sbp < 50 || sbp > 250)     { alert('SBP must be 50-250'); return; }
+    if (dbp < 30 || dbp > 150)     { alert('DBP must be 30-150'); return; }
+    if (temp < 33 || temp > 42)    { alert('Temp must be 33-42 C'); return; }
+
+    const btn = document.getElementById('submit-vitals-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+
+    try {
+      const res = await fetch('/api/patients/' + APP.currentPatientId + '/vitals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ spo2, resp_rate: rr, heart_rate: hr, sbp, dbp, temperature: temp, consciousness, air_or_oxygen })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const score = data.news2_score;
+        const level = data.risk_level;
+        const badgeClass = level === 'critical' ? 'bd-t1' : level === 'warning' ? 'bd-t2' : 'bd-t3';
+        const factors = (data.factors || []).map(function(f) { return f.name + ': +' + f.score; }).join(' - ') || 'All parameters within range';
+        const el = document.getElementById('vitals-result');
+        if (el) {
+          el.innerHTML = '<div class="alert al-ok" style="margin-top:16px">' +
+            '✓ Vitals saved - NEWS2 score: <span class="bd ' + badgeClass + '" style="font-size:13px;padding:3px 10px">' + score + ' — ' + level.toUpperCase() + '</span>' +
+            '<br><span class="muted small">' + factors + '</span></div>';
+        }
+        setTimeout(function() { nav('n1b', APP.currentPatientId); }, 2000);
+      } else {
+        if (btn) { btn.disabled = false; btn.textContent = 'Submit Vitals'; }
+        alert('Failed to save vitals - check backend is running.');
+      }
+    } catch(e) {
+      if (btn) { btn.disabled = false; btn.textContent = 'Submit Vitals'; }
+      alert('Network error: ' + e.message);
+    }
+  };
+
+  const pid = APP.currentPatientId;
+  const patName = p.patient_code || p.name || 'Patient';
+  const patSubname = p.name || '';
+  return '<div class="bc">' +
+    '<span class="bc-link" onclick="nav(\'n1\')">NEWS2 Dashboard</span>' +
+    '<span class="bc-sep">/</span>' +
+    '<span class="bc-link" onclick="nav(\'n1b\',' + pid + ')">Patient Detail</span>' +
+    '<span class="bc-sep">/</span>' +
+    '<span>Enter Vitals</span>' +
+    '</div>' +
+    '<div class="sh"><h1 class="sh-title">Enter Vitals — ' + patName + '</h1>' +
+    '<div class="sh-actions"><span class="muted small">' + patSubname + '</span></div></div>' +
+    staleWarning +
+    '<div class="card" style="max-width:560px">' +
+    '<div class="card-title">Vital Signs Entry</div>' +
+    '<div class="grid3" style="gap:12px;margin-bottom:16px">' +
+    '<div class="fg"><label class="fl">SpO2 (%)</label><input class="fi" id="v-spo2" type="number" min="70" max="100" step="0.1" placeholder="e.g. 96"></div>' +
+    '<div class="fg"><label class="fl">Resp Rate (/min)</label><input class="fi" id="v-rr" type="number" min="5" max="60" placeholder="e.g. 18"></div>' +
+    '<div class="fg"><label class="fl">Heart Rate (bpm)</label><input class="fi" id="v-hr" type="number" min="20" max="250" placeholder="e.g. 88"></div>' +
+    '<div class="fg"><label class="fl">BP Systolic (mmHg)</label><input class="fi" id="v-sbp" type="number" min="50" max="250" placeholder="e.g. 118"></div>' +
+    '<div class="fg"><label class="fl">BP Diastolic (mmHg)</label><input class="fi" id="v-dbp" type="number" min="30" max="150" placeholder="e.g. 76"></div>' +
+    '<div class="fg"><label class="fl">Temperature (C)</label><input class="fi" id="v-temp" type="number" min="33" max="42" step="0.1" placeholder="e.g. 37.0"></div>' +
+    '<div class="fg"><label class="fl">AVPU</label><select class="fi" id="v-avpu"><option value="A">Alert</option><option value="V">Voice</option><option value="P">Pain</option><option value="U">Unresponsive</option></select></div>' +
+    '<div class="fg"><label class="fl">Air / O2</label><select class="fi" id="v-air"><option value="Air">Air</option><option value="Oxygen">Oxygen</option></select></div>' +
+    '</div>' +
+    '<div style="display:flex;gap:8px;align-items:center">' +
+    '<button class="btn btn-sec btn-sm" onclick="nav(\'n1b\',' + pid + ')">Cancel</button>' +
+    '<button class="btn btn-pri" id="submit-vitals-btn" onclick="submitVitals()">Submit Vitals</button>' +
+    '</div></div>' +
+    '<div id="vitals-result"></div>';
+};
 
 /* ── DL CO-SIGN (Charge Nurse action) ───────────────────────── */
 SCREENS.dlcosign = () => `

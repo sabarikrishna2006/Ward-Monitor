@@ -165,8 +165,10 @@ def add_patient(patient: PatientCreate, db: Session = Depends(get_db)):
     max_id = db.query(Patient).order_by(Patient.subject_id.desc()).first()
     new_id = (max_id.subject_id + 1) if max_id else 1
     
+    year_suffix = datetime.now().year % 100
     new_patient = Patient(
         subject_id=new_id,
+        patient_code=f"PT-{year_suffix:02d}-{new_id:04d}",
         name=patient.name,
         age=patient.age,
         sex=patient.sex,
@@ -450,6 +452,7 @@ def get_ward_data(ward: str = "All", replay: bool = False, db: Session = Depends
 
         result.append({
             "id": str(p.subject_id),
+            "patient_code": p.patient_code or f"PT-26-{p.subject_id:04d}",
             "name": p.name,
             "age": p.age,
             "sex": p.sex,
@@ -573,14 +576,99 @@ def resolve_escalation(esc_id: int, res: EscalationResolve, db: Session = Depend
 
 @app.get("/api/patients/{subject_id}")
 def get_patient_detail(subject_id: int, db: Session = Depends(get_db)):
-    # This endpoint returns a single patient's detailed data for the N1b view
     ward_data = get_ward_data(ward="All", replay=False, db=db)
-    
     for p in ward_data["patients"]:
         if str(p["id"]) == str(subject_id):
             return p
-            
     raise HTTPException(status_code=404, detail="Patient not found")
+
+class VitalsInput(BaseModel):
+    spo2: float
+    resp_rate: float
+    heart_rate: float
+    sbp: float
+    dbp: float
+    temperature: float
+    consciousness: str = "A"
+    air_or_oxygen: str = "Air"
+
+@app.post("/api/patients/{subject_id}/vitals")
+def add_vitals(subject_id: int, v: VitalsInput, db: Session = Depends(get_db)):
+    patient = db.query(Patient).filter(Patient.subject_id == subject_id).first()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+
+    vt = VitalTimeSeries(
+        subject_id=subject_id,
+        chart_hour=datetime.now().isoformat(),
+        heart_rate=v.heart_rate,
+        resp_rate=v.resp_rate,
+        spo2=v.spo2,
+        sbp=v.sbp,
+        dbp=v.dbp,
+        temperature=v.temperature,
+        consciousness=v.consciousness,
+        air_or_oxygen=v.air_or_oxygen,
+    )
+    db.add(vt)
+    db.commit()
+
+    news_result = calculate_news2(v.dict(), patient.hypercapnic_failure == 1)
+    news2_score = news_result["total"]
+    if news2_score >= 7:
+        risk_level = "critical"
+    elif news2_score >= 5:
+        risk_level = "warning"
+    else:
+        risk_level = "stable"
+
+    return {
+        "news2_score": news2_score,
+        "risk_level": risk_level,
+        "factors": news_result["factors"],
+        "chart_hour": vt.chart_hour,
+    }
+
+@app.get("/api/patients/{subject_id}/vitals/latest")
+def get_latest_vitals(subject_id: int, db: Session = Depends(get_db)):
+    vt = db.query(VitalTimeSeries).filter(
+        VitalTimeSeries.subject_id == subject_id
+    ).order_by(VitalTimeSeries.chart_hour.desc()).first()
+
+    if not vt:
+        raise HTTPException(status_code=404, detail="No vitals found")
+
+    recorded_at = datetime.fromisoformat(str(vt.chart_hour)) if 'T' in str(vt.chart_hour) else datetime.strptime(str(vt.chart_hour), "%Y-%m-%d %H:%M:%S")
+    stale_mins = int((datetime.now() - recorded_at).total_seconds() // 60)
+    is_stale = stale_mins > 45
+
+    return {
+        "chart_hour": vt.chart_hour,
+        "stale_mins": stale_mins,
+        "is_stale": is_stale,
+        "heart_rate": vt.heart_rate,
+        "resp_rate": vt.resp_rate,
+        "spo2": vt.spo2,
+        "sbp": vt.sbp,
+        "dbp": vt.dbp,
+        "temperature": vt.temperature,
+        "consciousness": vt.consciousness,
+        "air_or_oxygen": vt.air_or_oxygen,
+    }
+
+class FalseAlarmBody(BaseModel):
+    reason: str
+
+@app.post("/api/escalations/{esc_id}/false-alarm")
+def mark_false_alarm(esc_id: int, body: FalseAlarmBody, db: Session = Depends(get_db)):
+    esc = db.query(Escalation).filter(Escalation.id == esc_id).first()
+    if not esc:
+        raise HTTPException(status_code=404, detail="Escalation not found")
+    esc.status = "false_alarm"
+    esc.false_alarm = True
+    esc.false_alarm_reason = body.reason
+    db.commit()
+    return {"status": "ok", "id": esc_id, "reason": body.reason}
 
 # Mount the frontend directory (sabari_project) at the root to serve static files (index.html, app.js, styles.css)
 import os
