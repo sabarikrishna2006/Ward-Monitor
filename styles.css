@@ -191,6 +191,205 @@ tr.stale td{color:var(--muted);opacity:.65}
 .action-card:hover{background:#fefefe}
 .action-card.selected-action{background:#faf5fa}
 
+/* ── EWS REASON CELL (dashboard) ── */
+.ews-reason-td{min-width:170px;max-width:230px}
+.ews-cell{display:flex;flex-direction:column;gap:2px;line-height:1.35}
+.ews-sigs{display:flex;flex-wrap:wrap;gap:4px 8px}
+.ews-sig{font-size:12px;font-weight:800;white-space:nowrap}
+.ews-flag{font-size:10.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:225px}
+.ews-action{font-size:11px;font-weight:700}
+.ews-ok{font-size:11.5px;color:var(--t3);font-weight:600}
+.ews-ai{font-size:10px;color:var(--muted);font-weight:600;margin-top:1px}
+.demo-tag{display:inline-block;background:var(--pl);color:var(--p);font-size:8.5px;font-weight:800;padding:0 4px;border-radius:4px;letter-spacing:.3px;text-transform:uppercase;vertical-align:middle}
+.dx-cell{font-size:11.5px;color:var(--ink2);max-width:150px}
+.loc-tag{display:inline-block;font-size:9px;font-weight:800;padding:1px 5px;border-radius:4px;letter-spacing:.4px}
+.loc-ccu{background:var(--t1b);color:var(--t1)}
+.loc-gw{background:var(--t3b);color:var(--t3)}
+.due-label{font-size:10px;color:var(--muted);margin-top:3px;font-weight:600}
+.due-over{color:var(--t1);font-weight:800}
+
+/* ── DIAGNOSIS BANNER (patient detail) ── */
+.dx-banner{display:flex;gap:26px;flex-wrap:wrap;padding:12px 16px;border-radius:8px;margin-bottom:16px;border:1px solid var(--border);background:#fff}
+.dx-banner.sev-t1{background:var(--t1b);border-color:var(--t1)}
+.dx-banner.sev-t2{background:var(--t2b);border-color:var(--t2)}
+.dx-banner.sev-t3{background:var(--t3b);border-color:var(--t3)}
+.dx-banner .dx-lbl{display:block;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px}
+.dx-banner b{font-size:13px;color:var(--ink)}
+
+/* ── DCM source tags ── */
+.src-tag{font-size:9px;color:var(--muted);font-weight:500}
+
+/* ── ML INSIGHTS (demo) ── */
+.ml-risk-num{font-size:40px;font-weight:900;line-height:1}
+.ml-bar-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.ml-bar-lbl{flex:1;font-size:11.5px;color:var(--ink2)}
+.ml-bar{width:90px;height:8px;background:var(--surf);border-radius:4px;overflow:hidden}
+.ml-bar-fill{height:100%;background:var(--p);border-radius:4px}
+.ml-bar-pct{width:34px;text-align:right;font-size:11px;font-weight:700;color:var(--p)}
+
 /* ── LOGIN ── */
 .login-page{display:flex;align-items:center;justify-content:center;height:100vh;background:var(--surf)}
 .login-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:40px;width:440px;max-width:90vw;box-shadow:0 12px 32px rgba(0,0,0,.08)}
+
+/* ── HAMBURGER BUTTON ── */
+.ham-btn{
+  display:none;
+  width:40px;height:40px;
+  align-items:center;justify-content:center;
+  border:none;background:none;padding:0;
+  border-radius:6px;flex-shrink:0;
+}
+.ham-btn:hover{background:var(--surf)}
+.ham-icon{display:flex;flex-direction:column;gap:5px;width:20px}
+.ham-icon span{display:block;height:2px;background:var(--ink);border-radius:2px}
+
+/* ── SIDEBAR OVERLAY (mobile) ── */
+#sidebar-overlay{
+  display:none;
+  position:fixed;inset:0;
+  background:rgba(0,0,0,.45);
+  z-index:155;
+}
+#sidebar-overlay.open{display:block}
+
+/* ══════════════════════════════════════
+   RESPONSIVE — Tablet  ≤768px
+══════════════════════════════════════ */
+@media(max-width:768px){
+  /* Show hamburger */
+  .ham-btn{display:flex}
+
+  /* Sidebar: off-canvas drawer */
+  #sidebar-wrap{
+    position:fixed;
+    top:calc(4px + var(--ab));
+    bottom:0;
+    left:0;
+    z-index:160;
+    transform:translateX(-100%);
+    transition:transform .25s ease;
+    box-shadow:none;
+  }
+  #sidebar-wrap.open{
+    transform:translateX(0);
+    box-shadow:4px 0 20px rgba(0,0,0,.18);
+  }
+
+  /* Content fills full width */
+  #layout{position:relative}
+
+  /* Tighter main padding */
+  #main{padding:16px}
+
+  /* Stats: 2-column */
+  .stats{grid-template-columns:1fr 1fr}
+
+  /* Grids collapse to 1 column */
+  .grid2,.grid3{grid-template-columns:1fr}
+
+  /* Screen header: stack */
+  .sh{flex-direction:column;align-items:flex-start;gap:6px}
+  .sh-title{font-size:18px;min-width:0}
+  .sh-actions{width:100%;flex-wrap:wrap}
+
+  /* Tables: horizontal scroll wrapper */
+  .tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
+
+  /* Tab strip: horizontal scroll */
+  .tab-strip{overflow-x:auto;white-space:nowrap;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;padding-bottom:2px;scrollbar-width:none}
+  .tab-strip::-webkit-scrollbar{display:none}
+  .tab-btn{white-space:nowrap}
+
+  /* Diagnosis banner: tighter */
+  .dx-banner{gap:14px;padding:10px 12px}
+
+  /* Modal: wider */
+  #modal-box{width:95vw;padding:24px 20px}
+
+  /* Login */
+  .login-outer{padding:20px 16px}
+}
+
+/* ══════════════════════════════════════
+   RESPONSIVE — Phone  ≤480px
+══════════════════════════════════════ */
+@media(max-width:480px){
+  /* Stats: single column */
+  .stats{grid-template-columns:1fr}
+
+  /* Minimal main padding */
+  #main{padding:12px}
+
+  /* Screen title: smaller */
+  .sh-title{font-size:16px}
+
+  /* Appbar: compact */
+  #appbar{padding:0 10px;gap:6px}
+  .alogo{font-size:13px}
+  #hdr-meta{display:none}
+
+  /* Touch targets ≥44px */
+  .btn{min-height:44px}
+  .tab-btn{min-height:44px;padding:8px 12px}
+  .sb-item{min-height:44px}
+  .cred-row{min-height:44px}
+
+  /* ── N1 + N5 table → stacked patient cards ── */
+  table.tbl-stack thead{display:none}
+  table.tbl-stack,
+  table.tbl-stack tbody,
+  table.tbl-stack tr,
+  table.tbl-stack td{display:block;width:100%}
+  table.tbl-stack tr{
+    background:#fff;
+    border:1px solid var(--border);
+    border-radius:8px;
+    margin-bottom:10px;
+    padding:10px 12px;
+    cursor:pointer;
+    box-shadow:0 1px 3px rgba(0,0,0,.05);
+  }
+  table.tbl-stack tr.row-crit{background:var(--t1b);border-color:var(--t1)}
+  table.tbl-stack tr.row-warn{background:var(--t2b);border-color:var(--t2)}
+  table.tbl-stack tr.stale{opacity:.65}
+  table.tbl-stack td{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    border-bottom:1px solid var(--border);
+    padding:5px 2px;
+    font-size:12px;
+  }
+  table.tbl-stack td:last-child{border-bottom:none}
+  table.tbl-stack td::before{
+    content:attr(data-label);
+    font-size:10px;font-weight:700;
+    color:var(--muted);
+    text-transform:uppercase;
+    letter-spacing:.4px;
+    white-space:nowrap;
+    margin-right:10px;
+    flex-shrink:0;
+    padding-top:2px;
+  }
+  /* Hide lower-priority vitals on phone — keep Patient, NEWS2, EWS Reason, Status, Actions */
+  table.tbl-stack td[data-label="Ward"],
+  table.tbl-stack td[data-label^="SpO"],
+  table.tbl-stack td[data-label="RR"],
+  table.tbl-stack td[data-label="BP"],
+  table.tbl-stack td[data-label="HR"],
+  table.tbl-stack td[data-label="Temp"],
+  table.tbl-stack td[data-label="AVPU"]{display:none}
+
+  /* EWS reason: unconstrained width in card */
+  table.tbl-stack .ews-reason-td{min-width:0;max-width:none}
+
+  /* ML bars: shorter */
+  .ml-bar{width:60px}
+
+  /* Drug-lab flag: stack icon */
+  .dlf{flex-direction:column}
+
+  /* Modal: full bottom sheet */
+  #modal-box{padding:20px 16px}
+}

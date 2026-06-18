@@ -33,6 +33,15 @@ const NAV = {
     { separator: true, label: 'Drug-Lab Awareness' },
     { id: 'dl3',  label: 'Active DL Flags' },
   ],
+  gw_nurse: [
+    { id: 'n1',   label: 'GW Dashboard'    },
+    { id: 'n1b',  label: 'Patient Detail'  },
+    { id: 'n2',   label: 'Escalation Form' },
+    { id: 'n4',   label: 'Status Log'      },
+    { id: 'n6',   label: 'Shift Handoff'   },
+    { separator: true, label: 'Drug-Lab Awareness' },
+    { id: 'dl3',  label: 'Active DL Flags' },
+  ],
   charge: [
     { id: 'n5',   label: 'Escalation Queue' },
     { id: 'n5b',  label: 'Threshold Config' },
@@ -42,14 +51,36 @@ const NAV = {
   ]
 };
 
+/* ─── MOBILE SIDEBAR DRAWER ─── */
+window.toggleSidebar = function() {
+  const sw = document.getElementById('sidebar-wrap');
+  const ov = document.getElementById('sidebar-overlay');
+  if (!sw) return;
+  const isOpen = sw.classList.toggle('open');
+  if (ov) ov.classList.toggle('open', isOpen);
+};
+
+function closeSidebar() {
+  const sw = document.getElementById('sidebar-wrap');
+  const ov = document.getElementById('sidebar-overlay');
+  if (sw) sw.classList.remove('open');
+  if (ov) ov.classList.remove('open');
+}
+
 /* ─── NAVIGATION ─── */
 async function nav(id, param = null) {
+  closeSidebar();
   if (APP.screen && APP.screen !== id) APP.history.push(APP.screen);
   APP.screen = id;
   if (param !== null) APP.currentPatientId = param;
 
   try {
-    if (id === 'n1' || id === 'dl1') {
+    if (id === 'n1') {
+      // CCU nurse → CCU patients; GW nurse → General Ward; charge → all
+      const loc = APP.role === 'nurse' ? 'CCU' : APP.role === 'gw_nurse' ? 'GENERAL_WARD' : 'All';
+      const res = await fetch('/api/ward-data?location=' + loc);
+      if (res.ok) APP.data.n1 = await res.json();
+    } else if (id === 'dl1') {
       const res = await fetch('/api/ward-data?ward=All');
       if (res.ok) APP.data.n1 = await res.json();
     } else if ((id === 'n1b' || id === 'n2') && APP.currentPatientId) {
@@ -65,10 +96,23 @@ async function nav(id, param = null) {
         if (vRes.ok) APP.data.n_vitals_latest = await vRes.json();
         else APP.data.n_vitals_latest = null;
       } catch { APP.data.n_vitals_latest = null; }
+    } else if (id === 'n_transfer' && APP.currentPatientId) {
+      const res = await fetch(`/api/patients/${APP.currentPatientId}/transfer-eligibility`);
+      if (res.ok) APP.data.n_transfer = await res.json();
     } else if (id === 'n5') {
-      const res = await fetch('/api/escalations');
-      if (res.ok) APP.data.n5 = await res.json();
+      const [eRes, tRes] = await Promise.all([
+        fetch('/api/escalations'),
+        fetch('/api/ccu-transfers?status=pending')
+      ]);
+      if (eRes.ok) APP.data.n5 = await eRes.json();
+      if (tRes.ok) APP.data.n5_transfers = await tRes.json();
+      // 15-min SLA: auto re-escalate breached, unattended alerts (once each), then re-pull
+      if (await autoReescalateBreaches()) {
+        const r = await fetch('/api/escalations');
+        if (r.ok) APP.data.n5 = await r.json();
+      }
     }
+    APP.lastRefresh = new Date();
   } catch (err) {
     console.error('Fetch error:', err);
   }
@@ -79,6 +123,36 @@ async function nav(id, param = null) {
 function goBack() {
   const prev = APP.history.pop();
   if (prev) { APP.screen = prev; renderAll(); }
+}
+
+/* ─── AUTO-REFRESH (15 min) + AUTO RE-ESCALATION ─── */
+let _refreshTimer = null;
+const REFRESH_MS = 15 * 60 * 1000;          // 15-minute polling cadence
+const REFRESHABLE = ['n1', 'n5', 'n1b', 'dl1'];   // read-only screens (never a form mid-entry)
+
+function startAutoRefresh() {
+  if (_refreshTimer) clearInterval(_refreshTimer);
+  _refreshTimer = setInterval(() => refreshNow(true), REFRESH_MS);
+}
+function stopAutoRefresh() { if (_refreshTimer) { clearInterval(_refreshTimer); _refreshTimer = null; } }
+async function refreshNow(auto) {
+  if (!REFRESHABLE.includes(APP.screen)) return;   // do not clobber an open form
+  await nav(APP.screen, APP.currentPatientId);
+}
+
+/* Auto-bump escalations that breached the 15-min SLA and were never re-escalated (once each). */
+async function autoReescalateBreaches() {
+  const escs = (APP.data.n5?.escalations || []).filter(e => e.slaBreached && !e.reescalatedAt && e.status === 'active');
+  if (escs.length === 0) return false;
+  for (const e of escs) {
+    try {
+      await fetch(`/api/escalations/${e.id}/reescalate`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: '', auto: true })
+      });
+    } catch (_) { /* ignore */ }
+  }
+  return true;
 }
 
 /* ─── ACTIONS ─── */
@@ -127,7 +201,7 @@ window.submitFalseAlarm = async function(patientId, reason) {
 /* ─── LOGIN ─── */
 /* Called by index.html after credentials are verified */
 window.onFoqalLogin = function(user) {
-  APP.role = user.role;   // 'nurse' | 'charge'
+  APP.role = user.role;   // 'nurse' (CCU) | 'gw_nurse' (General Ward) | 'charge' (Head Nurse)
   APP.user = {
     name:  user.name,
     role:  user.roleLabel,
@@ -135,11 +209,13 @@ window.onFoqalLogin = function(user) {
     ward:  user.ward,
     empId: user.empId,
   };
-  // Route to the correct first screen by role
-  nav(user.role === 'nurse' ? 'n1' : 'n5');
+  // Route to the correct first screen by role (charge → escalation queue; nurses → dashboard)
+  nav(user.role === 'charge' ? 'n5' : 'n1');
+  startAutoRefresh();   // 15-min data refresh + SLA re-check
 };
 
 function logout() {
+  stopAutoRefresh();
   APP.role = null; APP.user = null; APP.screen = null; APP.history = [];
   sessionStorage.removeItem('foqal_token');
   sessionStorage.removeItem('foqal_user');
@@ -236,6 +312,54 @@ const MODALS = {
    ═══════════════════════════════════════════════════════════════ */
 const SCREENS = {};
 
+/* ── Plain-language EWS reason cell (colored vital arrows + flag + action) ── */
+function sevColor(s) { return s === 'crit' ? 'var(--t1)' : s === 'warn' ? 'var(--t2)' : 'var(--muted)'; }
+
+function renderEwsReason(p, compact) {
+  const r = p.ewsReason || {};
+  const signals = (r.signals || []).map(s =>
+    `<span class="ews-sig" style="color:${sevColor(s.sev)}" title="${(s.plain||'').replace(/"/g,'')}">${s.arrow}${s.short}</span>`
+  ).join('');
+  const flag = r.flag
+    ? `<div class="ews-flag" style="color:${sevColor(r.flag.sev)}" title="${(r.flag.text||'').replace(/"/g,'')}">&#128138; ${r.flag.text}</div>`
+    : '';
+  const toneCol = r.tone === 'crit' ? 'var(--t1)' : r.tone === 'warn' ? 'var(--t2)'
+                 : r.tone === 'stable' ? 'var(--t3)' : 'var(--muted)';
+  const action = r.action ? `<div class="ews-action" style="color:${toneCol}">&rarr; ${r.action}</div>` : '';
+  const ok = (!signals && !flag) ? `<span class="ews-ok">&#10003; All parameters normal</span>` : '';
+  const ai = (p.mlRisk != null && !compact)
+    ? `<div class="ews-ai" title="Illustrative deterioration risk — predictive model in training (Sprint 4)">AI ${p.mlRisk}% <span class="demo-tag">demo</span></div>`
+    : '';
+  return `<div class="ews-cell">${signals ? `<div class="ews-sigs">${signals}</div>` : ''}${flag}${ok}${action}${ai}</div>`;
+}
+
+/* ── NEWS2 trend mini-chart (SVG) built from real recentVitals ── */
+function renderNews2Svg(recent) {
+  const pts = (recent || []).filter(r => typeof r.news2 === 'number');
+  if (pts.length < 2) return '<div class="muted small" style="padding:14px 0">Not enough data for a trend.</div>';
+  const W = 480, H = 92, pad = 22;
+  const maxScore = Math.max(9, ...pts.map(p => p.news2));
+  const x = i => pad + i * ((W - 2 * pad) / (pts.length - 1));
+  const y = v => H - 16 - (v / maxScore) * (H - 30);
+  const col = v => v >= 7 ? 'var(--t1)' : v >= 5 ? 'var(--t2)' : 'var(--t3)';
+  const line = pts.map((p, i) => `${x(i).toFixed(0)},${y(p.news2).toFixed(0)}`).join(' ');
+  const dots = pts.map((p, i) =>
+    `<circle cx="${x(i).toFixed(0)}" cy="${y(p.news2).toFixed(0)}" r="3.5" fill="${col(p.news2)}"/>` +
+    `<text x="${x(i).toFixed(0)}" y="${(y(p.news2) - 6).toFixed(0)}" font-size="9" fill="${col(p.news2)}" text-anchor="middle" font-weight="700">${p.news2}</text>`
+  ).join('');
+  const labels = pts.map((p, i) =>
+    `<text x="${x(i).toFixed(0)}" y="${H - 2}" font-size="8" fill="var(--muted)" text-anchor="middle">${p.time}</text>`
+  ).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:92px;display:block">
+    <line x1="0" y1="${y(7).toFixed(0)}" x2="${W}" y2="${y(7).toFixed(0)}" stroke="var(--t1)" stroke-width="1" stroke-dasharray="4,3" opacity="0.4"/>
+    <line x1="0" y1="${y(5).toFixed(0)}" x2="${W}" y2="${y(5).toFixed(0)}" stroke="var(--t2)" stroke-width="1" stroke-dasharray="4,3" opacity="0.4"/>
+    <text x="3" y="${(y(7) - 2).toFixed(0)}" font-size="8" fill="var(--t1)">&#8805;7</text>
+    <text x="3" y="${(y(5) - 2).toFixed(0)}" font-size="8" fill="var(--t2)">&#8805;5</text>
+    <polyline points="${line}" fill="none" stroke="var(--p)" stroke-width="2.5" stroke-linejoin="round"/>
+    ${dots}${labels}
+  </svg>`;
+}
+
 /* ── N1 — NEWS2 PRIORITY DASHBOARD ─────────────────────────── */
 SCREENS.n1 = () => {
   const patients = (APP.data.n1?.patients || []);
@@ -262,11 +386,12 @@ SCREENS.n1 = () => {
   const nowStr = new Date().toLocaleString('en-IN', {day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'});
 
   return `
-<div class="bc"><span>Ward 4B / 4C</span><span class="bc-sep">/</span><span>NEWS2 Priority Dashboard</span></div>
+<div class="bc"><span>${APP.role==='gw_nurse'?'General Ward':APP.role==='nurse'?'CCU · Ward 4B/4C':'Ward 4B/4C'}</span><span class="bc-sep">/</span><span>NEWS2 Dashboard</span></div>
 <div class="sh">
-  <h1 class="sh-title">NEWS2 Priority Dashboard</h1>
+  <h1 class="sh-title">${APP.role==='gw_nurse'?'General Ward — NEWS2 Dashboard':APP.role==='nurse'?'CCU — NEWS2 Dashboard':'NEWS2 Priority Dashboard'}</h1>
   <div class="sh-actions">
-    <span class="muted small">${nowStr}</span>
+    <span class="muted small">${APP.lastRefresh ? 'Updated ' + APP.lastRefresh.toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'}) + ' · auto 15m' : nowStr}</span>
+    <button class="btn btn-sec btn-sm" onclick="refreshNow(false)" title="Refresh now">↻</button>
     <button class="btn btn-sec btn-sm" onclick="nav('n6')">Shift Handoff</button>
   </div>
 </div>
@@ -290,10 +415,10 @@ SCREENS.n1 = () => {
   </div>
 </div>
 
-<div class="tw"><table>
+<div class="tw"><table class="tbl-stack">
   <thead><tr>
-    <th>Patient</th><th>Ward</th><th>SpO₂ (%)</th><th>RR (/min)</th><th>BP (mmHg)</th>
-    <th>HR (bpm)</th><th>Temp (°C)</th><th>AVPU</th><th>NEWS2</th><th>Status</th><th>Actions</th>
+    <th>Patient</th><th>Diagnosis</th><th>Ward</th><th>SpO₂ (%)</th><th>RR (/min)</th><th>BP (mmHg)</th>
+    <th>HR (bpm)</th><th>Temp (°C)</th><th>AVPU</th><th>NEWS2</th><th>EWS Reason</th><th>Status</th><th>Actions</th>
   </tr></thead>
   <tbody>
     ${filteredPatients.map(p => {
@@ -308,21 +433,7 @@ SCREENS.n1 = () => {
       const statusBd = isStale ? 'bd bd-muted' : score >= 7 ? 'bd bd-t1' : score >= 5 ? 'bd bd-t2' : 'bd bd-t3';
       
       // Calculate stale minutes for UI
-      let staleText = 'Stale';
-      if (isStale) {
-        if (p.stale_mins) {
-          staleText = `Stale ${p.stale_mins}m`;
-        } else if (p.vitals && p.vitals.bp_time) {
-          try {
-            const t1 = new Date(p.vitals.bp_time);
-            const t2 = new Date();
-            const diffMins = Math.floor((t2 - t1) / 60000);
-            if (diffMins > 0) staleText = `Stale ${diffMins}m`;
-          } catch (e) {}
-        }
-      }
-      
-      const statusLbl = isStale ? staleText : score >= 7 ? 'Escalate' : score >= 5 ? 'Monitor' : 'Stable';
+      const statusLbl = isStale ? 'Overdue' : score >= 7 ? 'Escalate' : score >= 5 ? 'Monitor' : 'Stable';
       
       const valCrit = (val, thres, op) => {
         if (!val || val === '--' || isStale) return '';
@@ -347,17 +458,19 @@ SCREENS.n1 = () => {
       
       return `
         <tr class="${rowClass}" onclick="nav('n1b', ${p.id})">
-          <td><b>${p.name}</b><br><span class="pid">${p.patient_code || 'PT-' + p.id}</span></td>
-          <td>${p.ward.split(' ')[1] || p.ward}</td>
-          <td class="${valCrit(p.spo2, 92, '<')}">${spo2} ${timeHtml(p.spo2_time)}</td>
-          <td class="${valCrit(p.rr, 21, '>')}">${rr} ${timeHtml(p.rr_time)}</td>
-          <td class="${valCrit(bpVal, 90, '<')}">${bp} ${timeHtml(p.bp_time)}</td>
-          <td class="${valCrit(p.hr, 110, '>')}">${hr} ${timeHtml(p.hr_time)}</td>
-          <td class="${valCrit(p.temp, 38.0, '>')}">${temp} ${timeHtml(p.temp_time)}</td>
-          <td>${avpu} ${timeHtml(p.avpu_time)}</td>
-          <td><span class="${scoreClass}">${s}</span></td>
-          <td><span class="${statusBd}" style="${isStale?'color:var(--muted)':''}">${statusLbl.toUpperCase()}</span></td>
-          <td>
+          <td data-label="Patient"><b>${p.name}</b><br><span class="pid">${p.patient_code || 'PT-' + p.id}</span></td>
+          <td data-label="Diagnosis" class="dx-cell">${p.diagnosis_short || '—'}</td>
+          <td data-label="Ward">${p.ward.split(' ')[1] || p.ward}${p.ward_location === 'GENERAL_WARD' ? '<br><span class="loc-tag loc-gw">GW</span>' : '<br><span class="loc-tag loc-ccu">CCU</span>'}</td>
+          <td data-label="SpO₂" class="${valCrit(p.spo2, 92, '<')}">${spo2} ${timeHtml(p.spo2_time)}</td>
+          <td data-label="RR" class="${valCrit(p.rr, 21, '>')}">${rr} ${timeHtml(p.rr_time)}</td>
+          <td data-label="BP" class="${valCrit(bpVal, 90, '<')}">${bp} ${timeHtml(p.bp_time)}</td>
+          <td data-label="HR" class="${valCrit(p.hr, 110, '>')}">${hr} ${timeHtml(p.hr_time)}</td>
+          <td data-label="Temp" class="${valCrit(p.temp, 38.0, '>')}">${temp} ${timeHtml(p.temp_time)}</td>
+          <td data-label="AVPU">${avpu} ${timeHtml(p.avpu_time)}</td>
+          <td data-label="NEWS2"><span class="${scoreClass}">${s}</span></td>
+          <td data-label="EWS Reason" class="ews-reason-td">${renderEwsReason(p)}</td>
+          <td data-label="Status"><span class="${statusBd}" style="${isStale?'color:var(--muted)':''}">${statusLbl.toUpperCase()}</span>${p.dueLabel ? `<div class="due-label ${p.isOverdue ? 'due-over' : ''}">${p.dueLabel}</div>` : ''}</td>
+          <td data-label="Actions">
             ${isStale ?
               `<button class="btn btn-warn btn-xs" style="color:#000" onclick="event.stopPropagation();nav('n_vitals', ${p.id})">Enter Vitals</button>`
             :
@@ -389,7 +502,29 @@ SCREENS.n1b = () => {
     return '';
   };
 
-  const vitals = `
+  // DCM heart-failure params (with data-source tags) + NEWS2 trend chart
+  const dcmRow = (l, val, sev, f, src) => `<tr><td class="muted">${l} <span class="src-tag">(${src})</span></td><td class="bold" style="color:${sev==='crit'?'var(--t1)':sev==='warn'?'var(--t2)':'var(--ink)'}">${val}</td><td class="small" style="font-weight:600;color:${sev==='crit'?'var(--t1)':'var(--t2)'}">${f||''}</td></tr>`;
+  const kLab = (p.recentLabs || []).find(l => l.test === 'Potassium');
+  const kNum = kLab ? kLab.value : null;
+  const kVal = kNum != null ? kNum + ' mmol/L' : '—';
+  const kSev = kNum != null && (kNum < 3.5 || kNum > 5.5) ? 'crit' : (kNum != null && kNum > 5.0 ? 'warn' : '');
+  const kFlag = kNum == null ? '' : kNum < 3.5 ? '↓ Low' : kNum > 5.5 ? '⚠ High' : kNum > 5.0 ? 'High-normal' : 'Normal';
+  const hrNum = typeof p.hr === 'number' ? p.hr : parseInt(p.hr);
+  const rhythm = isNaN(hrNum) ? '—' : hrNum > 100 ? 'Sinus tachycardia' : hrNum < 50 ? 'Bradycardia' : 'Sinus rhythm';
+  const fb = p.fluidBalance;
+  const trendSvg = `<div class="card" style="margin-bottom:14px"><div class="card-title">NEWS2 Trend — Last 6h <span class="muted small" style="font-weight:400">🔴 ≥7 · 🟡 ≥5</span></div>${renderNews2Svg(p.recentVitals)}</div>`;
+  const dcmCard = `<div class="card" style="margin-top:14px">
+      <div class="card-title">Heart-Failure Watch — DCM-specific</div>
+      <table style="width:100%;font-size:12.5px"><tbody>
+        ${dcmRow('Fluid Balance (24h)', fb != null ? (fb > 0 ? '+' : '') + fb + ' ml' : '—', fb > 500 ? 'crit' : fb > 0 ? 'warn' : '', fb > 0 ? '⚠ Positive (overload)' : fb != null ? 'Balanced' : '', 'manual / HIS')}
+        ${dcmRow('Urine Output (4h)', p.urineOutput != null ? p.urineOutput + ' ml' : '—', p.urineOutput != null && p.urineOutput < 200 ? 'warn' : '', p.urineOutput != null && p.urineOutput < 200 ? '↓ Low output' : '', 'manual')}
+        ${dcmRow('Serum K⁺ (last)', kVal, kSev, kFlag, 'lab / HIS')}
+        ${dcmRow('Rhythm (from HR)', rhythm, '', '', 'monitor')}
+      </tbody></table>
+      <div class="muted small" style="margin-top:6px">Fluid status, urine output and K⁺ are the key bedside signals in decompensated heart failure.</div>
+    </div>`;
+
+  const vitals = trendSvg + `
     <div class="grid2">
       <div class="card">
         <div class="card-title">Current Vitals <span class="muted" style="font-weight:400;font-size:11px">${new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span></div>
@@ -397,12 +532,12 @@ SCREENS.n1b = () => {
           ${(() => {
             const sbp = p.bp ? parseInt(p.bp.split('/')[0]) : null;
             return [
-            ['SpO₂',             (p.spo2 || '-') + '%',               valCrit(p.spo2, 92, '<'), p.spo2 < 92 ? '⚠ LOW' : ''],
+            ['SpO₂',             (p.spo2 || '-') + '%' + (p.o2 === 'Oxygen' ? ' (on O₂)' : ''), valCrit(p.spo2, 92, '<'), p.spo2 < 92 ? '⚠ LOW' : (p.o2 === 'Oxygen' ? 'On oxygen' : '')],
             ['Respiratory Rate', (p.rr || '-') + ' /min',             valCrit(p.rr, 21, '>'), p.rr > 21 ? '⚠ HIGH' : ''],
             ['Blood Pressure',   (p.bp || '-/-') + ' mmHg',           valCrit(sbp, 90, '<'), (sbp && sbp < 90) ? '⚠ LOW' : ''],
             ['Heart Rate',       (p.hr || '-') + ' bpm',              valCrit(p.hr, 110, '>'), p.hr > 110 ? '⚠ HIGH' : ''],
             ['Temperature',      (p.temp || '-') + '°C',              valCrit(p.temp, 38.0, '>'), p.temp > 38.0 ? '⚠ ELEVATED' : ''],
-            ['AVPU',             'A',                                 '',       ''],
+            ['AVPU',             p.avpu || 'A',                       (p.avpu && p.avpu !== 'A') ? 'v-crit' : '', (p.avpu && p.avpu !== 'A') ? ('⚠ ' + ({C:'Confused',V:'Voice',P:'Pain',U:'Unresponsive'}[p.avpu] || p.avpu)) : ''],
             ['NEWS2 Score',      score,                  isCrit ? 'v-crit' : '', isCrit ? '🔴 CRITICAL' : ''],
           ] })().map(([lbl,val,cls,f]) => `
             <tr>
@@ -432,6 +567,32 @@ SCREENS.n1b = () => {
             ${(!p.recentVitals || p.recentVitals.length === 0) ? `<tr><td colspan="6" class="muted small text-center" style="padding: 20px">No recent vitals recorded.</td></tr>` : ''}
           </tbody>
         </table></div>
+      </div>
+    </div>` + dcmCard;
+
+  // ── ML Insights (DEMO placeholder — predictive model in training) ──
+  const mlContribs = (p.mlContributors || []).map(c =>
+    `<div class="ml-bar-row"><div class="ml-bar-lbl">${c.label}</div><div class="ml-bar"><div class="ml-bar-fill" style="width:${c.pct}%"></div></div><div class="ml-bar-pct">${c.pct}%</div></div>`
+  ).join('') || '<div class="muted small">No abnormal signals contributing.</div>';
+  const mlRiskCol = score >= 7 ? 'var(--t1)' : score >= 5 ? 'var(--t2)' : 'var(--t3)';
+  const mlInsights = `
+    <div class="alert al-info">🧪 <b>Illustrative</b> deterioration risk — the predictive model is in training (Sprint 4). These values are placeholders for demonstration and will be replaced by the trained model's output.</div>
+    <div class="grid2">
+      <div class="card">
+        <div class="card-title">Deterioration Risk — Demo Prediction</div>
+        <div style="display:flex;align-items:center;gap:18px;margin-bottom:12px">
+          <div class="ml-risk-num" style="color:${mlRiskCol}">${p.mlRisk != null ? p.mlRisk + '%' : '—'}</div>
+          <div><div style="font-size:12.5px;font-weight:600">${p.mlWindow || '6-12 hour'} deterioration window</div>
+          <div class="muted small">Heuristic demo · recomputed on each vitals entry</div></div>
+        </div>
+        <b class="small">Top contributing signals (from NEWS2):</b>
+        <div style="margin-top:8px">${mlContribs}</div>
+      </div>
+      <div class="card">
+        <div class="card-title">What this means</div>
+        <div class="small" style="line-height:1.7">${p.mlExplanation || '—'}</div>
+        <div class="card-title" style="margin-top:14px">Recommended action</div>
+        <div class="small" style="line-height:1.7">${p.recommendedAction || '—'}</div>
       </div>
     </div>`;
 
@@ -509,14 +670,29 @@ SCREENS.n1b = () => {
   </div>
 </div>
 
+${(() => {
+  const sev = score >= 7 ? 't1' : score >= 5 ? 't2' : 't3';
+  const sig = ((p.ewsReason && p.ewsReason.signals) || []).map(s => s.arrow + s.short).join('  ') || '✓ Stable';
+  const loc = p.ward_location === 'GENERAL_WARD' ? 'General Ward' : 'CCU';
+  const locTag = p.ward_location === 'GENERAL_WARD' ? 'loc-gw' : 'loc-ccu';
+  return `<div class="dx-banner sev-${sev}">
+    <div><span class="dx-lbl">Diagnosis</span><b>${p.diagnosis_short || p.complaint || '—'}</b></div>
+    <div><span class="dx-lbl">EWS Trigger</span><b>${sig}</b></div>
+    <div><span class="dx-lbl">Ward · Bed</span><b>${p.ward || ''} · Bed ${p.bed || ''} <span class="loc-tag ${locTag}">${loc}</span></b></div>
+    <div><span class="dx-lbl">Monitoring</span><b>${(p.monitoring && p.monitoring.label) || '—'}${p.dueLabel ? ' · ' + p.dueLabel : ''}</b></div>
+    <div><span class="dx-lbl">AI risk <span class="demo-tag">demo</span></span><b style="color:var(--p)">${p.mlRisk != null ? p.mlRisk + '%' : '—'}</b></div>
+  </div>`;
+})()}
+
 <div class="tab-strip">
   <button class="tab-btn${APP.n1b_tab==='vitals'?' active':''}" onclick="APP.n1b_tab='vitals';renderAll()">Vital Signs</button>
+  <button class="tab-btn${APP.n1b_tab==='ml'?' active':''}" onclick="APP.n1b_tab='ml';renderAll()">ML Insights</button>
   <button class="tab-btn${APP.n1b_tab==='drug-lab'?' active':''}" onclick="APP.n1b_tab='drug-lab';renderAll()">Drug-Lab Alerts</button>
   <button class="tab-btn${APP.n1b_tab==='labs'?' active':''}" onclick="APP.n1b_tab='labs';renderAll()">Lab Results</button>
   <button class="tab-btn${APP.n1b_tab==='meds'?' active':''}" onclick="APP.n1b_tab='meds';renderAll()">Medications</button>
 </div>
 
-${APP.n1b_tab === 'vitals' ? vitals : APP.n1b_tab === 'drug-lab' ? druglab : APP.n1b_tab === 'labs' ? labsHtml : medsHtml}
+${APP.n1b_tab === 'ml' ? mlInsights : APP.n1b_tab === 'drug-lab' ? druglab : APP.n1b_tab === 'labs' ? labsHtml : APP.n1b_tab === 'meds' ? medsHtml : vitals}
 
 <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
   ${APP.role === 'charge' ? `
@@ -527,6 +703,7 @@ ${APP.n1b_tab === 'vitals' ? vitals : APP.n1b_tab === 'drug-lab' ? druglab : APP
     <button class="btn btn-sec btn-sm" onclick="nav('n1')">← Back to Dashboard</button>
     ${score >= 5 ? `<button class="btn btn-danger btn-sm" onclick="nav('n2', ${p.id})">Escalate Patient</button>` : ''}
   `}
+  ${p.ward_location === 'CCU' ? `<button class="btn btn-pri btn-sm" style="background:var(--p)" onclick="nav('n_transfer', ${p.id})">CCU→GW Transfer →</button>` : ''}
 </div>
 <div id="false-alarm-menu" style="display:none;margin-top:8px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;max-width:400px">
   <div class="card-title" style="margin-bottom:8px">Reason for False Alarm</div>
@@ -534,6 +711,95 @@ ${APP.n1b_tab === 'vitals' ? vitals : APP.n1b_tab === 'drug-lab' ? druglab : APP
     `<button class="btn btn-sec btn-sm" style="margin:4px;display:inline-block" onclick="submitFalseAlarm(${p.id}, '${r}')">${r}</button>`
   ).join('')}
 </div>`;
+};
+
+/* ── N_TRANSFER — CCU → GENERAL WARD STEP-DOWN ──────────────── */
+SCREENS.n_transfer = () => {
+  const e = APP.data.n_transfer || {};
+  const pid = APP.currentPatientId;
+  const pending = e.pendingTransfer;
+
+  window.submitTransfer = async function() {
+    const rationale = (document.getElementById('tr-rationale')?.value || '').trim();
+    if (!rationale) { alert('Please enter a clinical rationale.'); return; }
+    const target = document.getElementById('tr-target')?.value || 'General Ward';
+    const btn = document.getElementById('tr-submit'); if (btn) { btn.disabled = true; btn.textContent = 'Submitting…'; }
+    try {
+      const res = await fetch(`/api/patients/${pid}/ccu-transfer`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rationale, targetWard: target, recommendedBy: APP.user ? APP.user.name : 'Nurse' })
+      });
+      if (res.ok) { nav('n_transfer', pid); }
+      else { const d = await res.json().catch(() => ({})); alert('Could not submit: ' + (d.detail || res.status)); if (btn) { btn.disabled = false; btn.textContent = 'Submit to Head Nurse →'; } }
+    } catch (err) { alert('Network error: ' + err.message); if (btn) { btn.disabled = false; } }
+  };
+  window.withdrawTransfer = async function(tid) {
+    if (!confirm('Withdraw this step-down recommendation?')) return;
+    try { const res = await fetch(`/api/ccu-transfers/${tid}/withdraw`, { method: 'POST' }); if (res.ok) nav('n_transfer', pid); }
+    catch (err) { alert('Network error'); }
+  };
+
+  const header = `<div class="bc"><span class="bc-link" onclick="nav('n1b', ${pid})">Patient Detail</span><span class="bc-sep">/</span><span>CCU&rarr;GW Transfer</span></div>
+  <div class="sh"><h1 class="sh-title">CCU → General Ward Step-Down</h1><div class="sh-actions">${pending ? '<span class="bd bd-t3">Submitted ✓</span>' : (e.eligible ? '<span class="bd bd-t3">Eligible</span>' : '<span class="bd bd-t2">Criteria not fully met</span>')}</div></div>`;
+
+  if (pending) {
+    return header + `
+      <div class="alert al-ok">✅ Step-down recommendation submitted — Head Nurse review pending. Patient remains in CCU until approval.</div>
+      <div class="card" style="max-width:660px"><div class="card-title">Submitted Recommendation</div>
+      <table style="width:100%;font-size:12.5px"><tbody>
+        <tr><td class="muted">Patient</td><td class="bold">${e.name || ''} <span class="pid">${e.patientCode || ''}</span></td></tr>
+        <tr><td class="muted">Diagnosis</td><td>${e.diagnosis || ''}</td></tr>
+        <tr><td class="muted">Transfer</td><td>CCU → ${pending.targetWard}</td></tr>
+        <tr><td class="muted">NEWS2 at submit</td><td>${pending.news2AtSubmit}</td></tr>
+        <tr><td class="muted">Stable window</td><td>${pending.stableWindowHours}h</td></tr>
+        <tr><td class="muted">Recommended by</td><td>${pending.recommendedBy}</td></tr>
+        <tr><td class="muted">Rationale</td><td>${pending.rationale}</td></tr>
+        <tr><td class="muted">Submitted</td><td class="mono">${pending.submittedAt}</td></tr>
+        <tr><td class="muted">Status</td><td><span class="bd bd-t2">Pending Head Nurse</span></td></tr>
+      </tbody></table>
+      <div style="display:flex;gap:8px;margin-top:14px">
+        <button class="btn btn-sec" onclick="withdrawTransfer(${pending.id})">Withdraw Recommendation</button>
+        <button class="btn btn-pri" onclick="nav('n1', ${pid})">← Back to Dashboard</button>
+      </div></div>`;
+  }
+
+  const criteria = (e.criteria || []).map(c => {
+    const col = c.met ? 'var(--t3)' : (c.info ? 'var(--t2)' : 'var(--t1)');
+    const mark = c.met ? '✓ Met' : (c.info ? '⚠ ' + (c.detail || '') : '✗ Not met');
+    return `<tr><td style="padding:5px 0">${c.label}<div class="muted small">${c.detail || ''}</div></td><td style="text-align:right;font-weight:700;color:${col};white-space:nowrap;vertical-align:top">${mark}</td></tr>`;
+  }).join('');
+
+  return header + `
+    ${e.eligible ? '<div class="alert al-ok">✅ Step-down criteria met — you can submit this recommendation to the Head Nurse.</div>' : '<div class="alert al-warn">⚠️ Not all step-down criteria are met. NEWS2 must be ≤ 2 sustained for 6h+ before transfer.</div>'}
+    <div class="grid2" style="margin-bottom:14px">
+      <div class="card"><div class="card-title">Step-Down Criteria (computed live)</div>
+        <table style="width:100%;font-size:12.5px"><tbody>${criteria}</tbody></table>
+      </div>
+      <div class="card"><div class="card-title">Patient Summary</div>
+        <table style="width:100%;font-size:12.5px"><tbody>
+          <tr><td class="muted">Patient</td><td class="bold">${e.name || ''} <span class="pid">${e.patientCode || ''}</span></td></tr>
+          <tr><td class="muted">Diagnosis</td><td>${e.diagnosis || ''}</td></tr>
+          <tr><td class="muted">Current location</td><td>${e.wardLocation === 'GENERAL_WARD' ? 'General Ward' : 'CCU'} · Bed ${e.bed || ''}</td></tr>
+          <tr><td class="muted">Admitted</td><td>${e.admitted || ''}</td></tr>
+          <tr><td class="muted">Current NEWS2</td><td class="bold">${e.news2}</td></tr>
+          <tr><td class="muted">Stable window</td><td>${e.stableWindowHours}h</td></tr>
+        </tbody></table>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:14px"><div class="card-title">Step-Down Recommendation Form</div>
+      <div class="frow">
+        <div class="fg"><label class="fl">Transfer type</label><input class="fi" value="CCU → General Ward" readonly style="background:var(--surf)"></div>
+        <div class="fg"><label class="fl">Target ward</label><select class="fi" id="tr-target"><option>General Ward</option><option>Step-Down Unit (HDU)</option></select></div>
+      </div>
+      <div class="fg"><label class="fl">Recommending nurse</label><input class="fi" value="${APP.user ? APP.user.name : 'Nurse'}" readonly style="background:var(--surf)"></div>
+      <div class="fg"><label class="fl">Clinical rationale <span style="color:var(--t1)">*</span></label>
+        <textarea class="fi" id="tr-rationale" rows="3" placeholder="e.g. NEWS2 ≤2 sustained 8h+; haemodynamically stable; inotropes weaned; no escalation in 24h.">${e.eligible ? 'NEWS2 ≤ 2 sustained ' + (e.stableWindowHours || 6) + 'h; haemodynamically stable; no escalation in 24h.' : ''}</textarea>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-pri" id="tr-submit" onclick="submitTransfer()" ${e.eligible ? '' : 'disabled title="Criteria not met"'}>Submit to Head Nurse →</button>
+        <button class="btn btn-sec" onclick="nav('n1b', ${pid})">Cancel</button>
+      </div>
+    </div>`;
 };
 
 /* ── N2 — ESCALATION FORM ───────────────────────────────────── */
@@ -697,36 +963,60 @@ SCREENS.n4 = () => `
 </div>`;
 
 /* ── N4b — POST RESOLUTION ──────────────────────────────────── */
-SCREENS.n4b = () => `
+SCREENS.n4b = () => {
+  const p = APP.data.n1b || {};
+  const score = p.news2 != null ? p.news2 : '--';
+  const sc = typeof score === 'number' ? (score >= 7 ? 'hi' : score >= 5 ? 'med' : 'lo') : 'lo';
+  const who = APP.user ? APP.user.name : 'Clinical team';
+  return `
 <div class="bc"><span class="bc-link" onclick="nav('n4')">Status Log</span><span class="bc-sep">/</span><span>Resolved</span></div>
-<div class="sh"><h1 class="sh-title">Escalation Resolved — PT-24-0092</h1></div>
-<div class="alert al-ok">✅ Dr. Anand Sharma marked escalation resolved — 02 Jun 2026, 15:10</div>
+<div class="sh"><h1 class="sh-title">Escalation Resolved — ${p.name || 'Patient'} <span class="pid" style="font-size:13px">${p.patient_code || ''}</span></h1></div>
+<div class="alert al-ok">✅ ${who} marked the escalation resolved. Continue routine monitoring per NEWS2 cadence (${(p.monitoring && p.monitoring.label) || 'as indicated'}).</div>
 <div class="tw"><table>
   <thead><tr><th>Patient</th><th>SpO₂</th><th>RR</th><th>BP</th><th>HR</th><th>NEWS2</th><th>Status</th></tr></thead>
   <tbody>
     <tr>
-      <td><b>Priya Sharma</b><br><span class="pid">PT-24-0092</span> <span style="font-size:10px;color:var(--t3)">Resolved 15:10</span></td>
-      <td style="color:var(--t3)">96%</td><td>16</td><td>108/70</td><td>88</td>
-      <td><span class="n2s lo">3</span></td><td><span class="bd bd-t3">✓ Resolved</span></td>
+      <td><b>${p.name || '—'}</b><br><span class="pid">${p.patient_code || ''}</span></td>
+      <td style="color:var(--t3)">${p.spo2 != null ? p.spo2 + '%' : '--'}</td>
+      <td>${p.rr != null ? p.rr : '--'}</td>
+      <td>${p.bp || '--'}</td>
+      <td>${p.hr != null ? p.hr : '--'}</td>
+      <td><span class="n2s ${sc}">${score}</span></td>
+      <td><span class="bd bd-t3">✓ Resolved</span></td>
     </tr>
-    <tr class="row-warn"><td><b>Arun Verma</b><br><span class="pid">PT-24-0103</span></td><td class="v-warn">93%</td><td class="v-warn">20</td><td>96/60</td><td>108</td><td><span class="n2s med">6</span></td><td><span class="bd bd-t2">Monitor</span></td></tr>
-    <tr><td><b>Rajesh Kumar</b><br><span class="pid">PT-24-0087</span></td><td>94%</td><td>18</td><td>102/68</td><td>96</td><td><span class="n2s med">4</span></td><td><span class="bd bd-t2">Watch</span></td></tr>
-    <tr><td><b>Mohan Singh</b><br><span class="pid">PT-24-0095</span></td><td style="color:var(--t3)">97%</td><td>14</td><td>118/76</td><td>82</td><td><span class="n2s lo">1</span></td><td><span class="bd bd-t3">Stable</span></td></tr>
   </tbody>
 </table></div>
 <div style="display:flex;gap:8px;margin-top:12px">
   <button class="btn btn-pri" onclick="nav('n1')">← Back to Dashboard</button>
 </div>`;
+};
 
 /* ── N5 — CHARGE NURSE QUEUE ────────────────────────────────── */
 SCREENS.n5 = () => {
   const allEsc = (APP.data.n5?.escalations || []);
   const escalations = allEsc.filter(e => e.status === 'active');
-  const emptyState = `<div style="text-align:center;padding:72px 24px;color:var(--muted)">
+  const transfers = (APP.data.n5_transfers?.transfers || []);
+  const emptyState = `<div style="text-align:center;padding:48px 24px;color:var(--muted)">
     <div style="font-size:44px;margin-bottom:14px">&#10003;</div>
     <div style="font-size:15px;font-weight:700;color:var(--t3);margin-bottom:6px">No Active Escalations</div>
     <div style="font-size:12.5px">All patients in Ward 4B/4C are within normal NEWS2 thresholds.</div>
   </div>`;
+  const levelLabel = l => ({nurse:'Head Nurse', doctor:'Attending', consultant:'Consultant', code_blue:'Code Blue'}[l] || l || '--');
+  const fmtTime = ts => { if (!ts) return '--'; try { return new Date(ts).toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'}); } catch (e) { return ts; } };
+
+  window.reescalateEsc = async function(id) {
+    try { const res = await fetch(`/api/escalations/${id}/reescalate`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({reason:''})});
+      if (res.ok) { const d = await res.json(); alert('Re-escalated to ' + d.newLevelLabel); nav('n5'); } else alert('Re-escalation failed.'); } catch (e) { alert('Network error'); }
+  };
+  window.approveTransfer = async function(id) {
+    try { const res = await fetch(`/api/ccu-transfers/${id}/approve`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({decidedBy: APP.user?APP.user.name:'Head Nurse'})});
+      if (res.ok) { alert('Transfer approved — patient moved to General Ward.'); nav('n5'); } else alert('Approval failed.'); } catch (e) { alert('Network error'); }
+  };
+  window.rejectTransfer = async function(id) {
+    if (!confirm('Reject this step-down recommendation?')) return;
+    try { const res = await fetch(`/api/ccu-transfers/${id}/reject`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({decidedBy: APP.user?APP.user.name:'Head Nurse'})});
+      if (res.ok) nav('n5'); } catch (e) { alert('Network error'); }
+  };
 
   return `
 <div class="bc"><span>Ward 4B / 4C</span><span class="bc-sep">/</span><span>Escalation Queue</span></div>
@@ -747,29 +1037,57 @@ SCREENS.n5 = () => {
 </div>
 
 ${escalations.length === 0 ? emptyState : `
-<div class="tw" style="margin-bottom:14px"><table>
-  <thead><tr><th>Patient</th><th>Ward</th><th>NEWS2</th><th>Escalated At</th><th>Escalated By</th><th>Attending</th><th>Status / SLA</th><th>Action</th></tr></thead>
+<div class="tw" style="margin-bottom:14px"><table class="tbl-stack">
+  <thead><tr><th>Patient</th><th>Ward</th><th>NEWS2</th><th>Level</th><th>Escalated</th><th>By</th><th>Status / SLA</th><th>Action</th></tr></thead>
   <tbody>
     ${escalations.map(e => {
-      const isBreached = false;
+      const breached = e.slaBreached;
+      const slaCell = e.reescalatedAt
+        ? `<span class="bd bd-t1">⏱ Re-escalated</span><div class="muted small">${e.reescalationNote || ''}</div>`
+        : breached
+          ? `<span class="bd bd-t1">⏱ SLA BREACHED</span><div class="due-over small">${e.minsElapsed}m unattended</div>`
+          : `<span class="bd bd-t2">Active</span>${e.slaRemaining != null ? `<div class="muted small">${e.slaRemaining}m to SLA</div>` : ''}`;
       return `
-        <tr class="${isBreached ? 'row-crit' : ''}">
-          <td><b>${e.patientName}</b><br><span class="pid">PT-${e.patientId}</span></td>
-          <td>${e.ward} / Bed ${e.bed}</td>
-          <td><span class="n2s ${e.news2 >= 7 ? 'hi' : 'med'}">${e.news2}</span></td>
-          <td class="mono">${e.escalatedAt || '--'}</td>
-          <td>${e.escalatedBy || '--'}</td>
-          <td>${e.attending || '--'}</td>
-          <td><span class="bd bd-t2">Active</span></td>
-          <td>
-            <button class="btn btn-sec btn-xs" onclick="alert('Re-escalation to on-call doctor initiated.')">Re-escalate</button>
-          </td>
+        <tr class="${breached ? 'row-crit' : ''}">
+          <td data-label="Patient"><b>${e.patientName}</b><br><span class="pid">PT-${e.patientId}</span></td>
+          <td data-label="Ward">${e.ward} / Bed ${e.bed}</td>
+          <td data-label="NEWS2"><span class="n2s ${e.news2 >= 7 ? 'hi' : 'med'}">${e.news2}</span></td>
+          <td data-label="Level" class="small">${levelLabel(e.level)}</td>
+          <td data-label="Escalated" class="mono">${fmtTime(e.escalatedAt)}</td>
+          <td data-label="By">${e.escalatedBy || '--'}</td>
+          <td data-label="Status / SLA">${slaCell}</td>
+          <td data-label="Action"><div style="display:flex;gap:4px;flex-wrap:wrap">
+            <button class="btn ${breached ? 'btn-danger' : 'btn-sec'} btn-xs" onclick="reescalateEsc(${e.id})">Re-escalate ↑</button>
+            <button class="btn btn-sec btn-xs" onclick="nav('n1b', ${e.patientId})">Review</button>
+          </div></td>
         </tr>
       `;
     }).join('')}
   </tbody>
 </table></div>
-`}`;
+`}
+
+<div class="card" style="margin-top:14px">
+  <div class="card-title">CCU → General Ward Transfer Approvals ${transfers.length ? `<span class="bd bd-t2" style="margin-left:8px">${transfers.length} Pending</span>` : ''}</div>
+  ${transfers.length === 0
+    ? '<div class="muted small" style="padding:8px 0">No pending step-down recommendations.</div>'
+    : `<div class="tw" style="border:none"><table class="tbl-stack">
+        <thead><tr><th>Patient</th><th>Recommended By</th><th>NEWS2</th><th>Stable Window</th><th>Submitted</th><th>Actions</th></tr></thead>
+        <tbody>${transfers.map(t => `
+          <tr>
+            <td data-label="Patient"><b>${t.patientName}</b><br><span class="pid">${t.diagnosis || ''}</span></td>
+            <td data-label="Recommended By">${t.recommendedBy}</td>
+            <td data-label="NEWS2"><span class="n2s lo">${t.news2AtSubmit}</span></td>
+            <td data-label="Stable Window" style="color:var(--t3);font-weight:700">${t.stableWindowHours}h ✓</td>
+            <td data-label="Submitted" class="mono">${fmtTime(t.submittedAt)}</td>
+            <td data-label="Actions"><div style="display:flex;gap:6px">
+              <button class="btn btn-pri btn-xs" onclick="approveTransfer(${t.id})">Approve →</button>
+              <button class="btn btn-sec btn-xs" onclick="rejectTransfer(${t.id})">Reject</button>
+            </div></td>
+          </tr>`).join('')}</tbody></table></div>
+       <div class="muted small" style="margin-top:6px">Approval moves the patient CCU → General Ward (ward_location change). Requires charge-nurse credentials; cannot be undone without re-admission.</div>`}
+</div>
+`;
 };
 
 /* ── N5b — THRESHOLD CONFIG ─────────────────────────────────── */
@@ -881,45 +1199,34 @@ SCREENS.n6b = () => `
    ══════════════════════════════════════════════════════════════ */
 
 /* ── DL3 — NURSE AWARENESS (read-only) ──────────────────────── */
-SCREENS.dl3 = () => `
-<div class="bc"><span class="bc-link" onclick="nav('n1b')">Patient Detail</span><span class="bc-sep">/</span><span>Drug-Lab Awareness</span></div>
-<div class="sh"><h1 class="sh-title">Drug-Lab Awareness — Nurse View</h1></div>
-<div class="alert al-info">Nurse awareness only — clinical actions (override / hold / consult) must be taken by the Attending Physician. Document any adverse observations in the escalation form.</div>
+SCREENS.dl3 = () => {
+  const p = APP.data.n1b || {};
+  const alerts = p.drugLabAlerts || [];
+  return `
+<div class="bc"><span class="bc-link" onclick="nav('n1b', ${p.id})">Patient Detail</span><span class="bc-sep">/</span><span>Drug-Lab Awareness</span></div>
+<div class="sh"><h1 class="sh-title">Drug-Lab Awareness — ${p.name || 'Patient'}</h1><div class="sh-actions"><span class="pid">${p.patient_code || ''}</span></div></div>
+<div class="alert al-info">Nurse awareness only — clinical actions (override / hold / consult) are taken by the Head Nurse / Attending. Document any adverse observations in the escalation form.</div>
 
-<div class="dlf t1">
-  <div class="dlf-bd">
-    <div class="flex-r">
-      <div class="dlf-title">⚠ T1 — Warfarin + Aspirin (PT-24-0087 Rajesh Kumar)</div>
-      <span class="bd bd-t1">T1 CRITICAL</span>
-    </div>
-    <div class="dlf-desc"><b>Risk:</b> HIGH BLEEDING RISK. Monitor for signs of GI bleed (melena, haematemesis), unusual bruising, blood in urine. <b>Attending action taken:</b> Warfarin held pending haematology review.</div>
-    <div style="font-size:11.5px;color:var(--t3);font-weight:600;margin-top:6px">✓ Attending action recorded — monitoring in place</div>
-  </div>
-</div>
-
-<div class="dlf t1" style="margin-bottom:12px">
-  <div class="dlf-bd">
-    <div class="flex-r">
-      <div class="dlf-title">⚠ T1 — Heparin + Aspirin (PT-24-0092 Priya Sharma)</div>
-      <span class="bd bd-t1">T1 CRITICAL</span>
-    </div>
-    <div class="dlf-desc"><b>Risk:</b> Post-PCI anticoagulation risk. Monitor bleeding sites, puncture site haematoma, neurological changes. Alert attending immediately if any bleed signs observed.</div>
-    <div style="font-size:11.5px;color:var(--t2);font-weight:600;margin-top:6px">⏳ Pending attending action</div>
-  </div>
-</div>
+${alerts.length === 0
+  ? '<div class="alert al-ok">No active drug-lab flags for this patient.</div>'
+  : alerts.map(a => {
+      const tier = a.severity === 'CRITICAL' ? 't1' : 't2';
+      return `<div class="dlf ${tier}" style="margin-bottom:10px"><div class="dlf-bd">
+        <div class="flex-r"><div class="dlf-title">&#9888; ${a.severity} — ${a.rule_name || ''}</div><span class="bd ${a.severity==='CRITICAL'?'bd-t1':'bd-t2'}">${a.severity}</span></div>
+        <div class="dlf-desc"><b>Alert:</b> ${a.message || ''}<br><b>Watch / action:</b> ${a.action || ''}</div>
+        ${a.guideline ? `<div class="muted small" style="margin-top:4px">${a.guideline}</div>` : ''}
+      </div></div>`;
+    }).join('')}
 
 <div class="card">
   <div class="card-title">Observation Checklist — report immediately if any observed</div>
-  <div class="check-row"><input type="checkbox"> Unusual bruising or petechiae</div>
-  <div class="check-row"><input type="checkbox"> Black or tarry stools (melena)</div>
-  <div class="check-row"><input type="checkbox"> Blood in urine (haematuria)</div>
-  <div class="check-row"><input type="checkbox"> Haematemesis (blood in vomit)</div>
-  <div class="check-row"><input type="checkbox"> Prolonged bleeding from puncture sites</div>
-  <div class="check-row"><input type="checkbox"> Sudden confusion or neurological change</div>
+  ${['Unusual bruising or petechiae','Black or tarry stools (melena)','Blood in urine (haematuria)','Haematemesis (blood in vomit)','Prolonged bleeding from puncture sites','Sudden confusion or neurological change'].map(s => `<div class="check-row"><input type="checkbox"> ${s}</div>`).join('')}
   <div style="margin-top:12px;display:flex;gap:8px">
-    <button class="btn btn-sec btn-sm" onclick="nav('n2')">Log in Escalation</button>
+    <button class="btn btn-sec btn-sm" onclick="nav('n1b', ${p.id})">← Back to Patient</button>
+    <button class="btn btn-sec btn-sm" onclick="nav('n2', ${p.id})">Log in Escalation</button>
   </div>
 </div>`;
+};
 
 /* ── DL1 — DL FLAG OVERVIEW (Charge Nurse — live from ward data) ──── */
 SCREENS.dl1 = () => {
@@ -958,92 +1265,145 @@ ${allFlags.length === 0
         <div style="margin-top:6px;font-size:11.5px;color:var(--ink2)"><b>Action:</b> ${a.action || ''}</div>
         <div style="margin-top:4px;font-size:11px;color:var(--muted)">${a.guideline || ''}</div>
         <div style="margin-top:8px;display:flex;align-items:center;gap:12px">
-          <span style="font-size:11px;color:var(--t2);font-weight:600">Pending attending action</span>
-          ${a.severity === 'CRITICAL' ? `<span class="dlf-link" onclick="nav('dlcosign')">T1 Co-Sign Required &rarr;</span>` : ''}
+          <span class="dlf-link" onclick="openDl2('${a.patientId}', '${(a.rule_name||'').replace(/'/g,"\\'")}')">View detail &amp; take action &rarr;</span>
         </div>
       </div></div>`;
     }).join('')}`;
 };
 
-/* ── DL2 — FLAG DETAIL & ACTION (via Attending — accessible to Charge Nurse) ── */
-SCREENS.dl2 = () => `
+/* Open the real flag a user clicked, then route to DL2 (Flag Detail & Action) */
+window.openDl2 = function(pid, ruleName) {
+  const pats = APP.data.n1?.patients || [];
+  for (const p of pats) {
+    if (p.id == pid) {
+      const a = (p.drugLabAlerts || []).find(x => x.rule_name === ruleName) || (p.drugLabAlerts || [])[0];
+      if (a) {
+        APP.dl2_flag = { ...a, patientName: p.name, patientId: p.id, patientCode: p.patient_code, ward: p.ward, bed: p.bed, diagnosis: p.diagnosis_short };
+        APP.dl2_action = 'hold';
+        APP.dl2_justification = '';
+        nav('dl2');
+        return;
+      }
+    }
+  }
+  alert('Flag details unavailable — refresh the dashboard.');
+};
+
+/* Persist a Drug-Lab action (DL2/dlcosign → DL2b) to the NABH audit trail */
+window.recordDlAction = async function(cosignedBy) {
+  const f = APP.dl2_flag;
+  if (!f) { alert('No flag selected.'); return; }
+  const noteEl = document.getElementById('dl2-note');
+  if (noteEl) APP.dl2_justification = noteEl.value;
+  try {
+    const res = await fetch('/api/drug-lab-actions', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        subjectId: f.patientId, ruleName: f.rule_name, severity: f.severity,
+        action: APP.dl2_action, justification: APP.dl2_justification || '',
+        recordedBy: APP.user ? APP.user.name : 'Charge Nurse', cosignedBy: cosignedBy || null
+      })
+    });
+    if (res.ok) {
+      APP.dl2_result = await res.json();
+      APP.dl2_result.patientName = f.patientName;
+      APP.dl2_result.diagnosis = f.diagnosis;
+      nav('dl2b');
+    } else { alert('Could not record action.'); }
+  } catch (e) { alert('Network error: ' + e.message); }
+};
+
+/* ── DL2 — FLAG DETAIL & ACTION (data-driven from the clicked flag) ── */
+SCREENS.dl2 = () => {
+  const f = APP.dl2_flag;
+  if (!f) return `<div class="bc"><span class="bc-link" onclick="nav('dl1')">DL Flags</span></div>
+    <div class="alert al-warn">No flag selected. <span class="bc-link" onclick="nav('dl1')">← Back to Drug-Lab flags</span></div>`;
+  const isCrit = f.severity === 'CRITICAL';
+  const tier = isCrit ? 't1' : 't2';
+
+  window.submitDl2 = function() {
+    const noteEl = document.getElementById('dl2-note');
+    if (noteEl) APP.dl2_justification = noteEl.value;
+    if (APP.dl2_action === 'override' && isCrit) { nav('dlcosign'); return; }  // T1 override needs co-sign
+    recordDlAction(null);
+  };
+  const actCard = (key, title, desc, badge) => `
+    <div class="card action-card${APP.dl2_action===key?' selected-action':''}" style="border:2px solid ${APP.dl2_action===key?'var(--p)':'var(--border)'};cursor:pointer" onclick="APP.dl2_action='${key}';renderAll()">
+      <div class="flex-r" style="margin-bottom:4px"><input type="radio" name="dl-action" ${APP.dl2_action===key?'checked':''}> <b>${title}</b>${badge?`<span class="bd bd-t1" style="margin-left:auto">${badge}</span>`:''}</div>
+      <div style="font-size:11.5px;color:var(--ink2)">${desc}</div>
+    </div>`;
+
+  return `
 <div class="bc"><span class="bc-link" onclick="nav('dl1')">DL Flags</span><span class="bc-sep">/</span><span>Flag Detail</span></div>
-<div class="sh"><h1 class="sh-title">Drug-Lab Flag Detail — T1 Warfarin + Aspirin</h1></div>
+<div class="sh"><h1 class="sh-title">Drug-Lab Flag Detail</h1><div class="sh-actions"><span class="bd ${isCrit?'bd-t1':'bd-t2'}">${f.severity}</span></div></div>
 
 <div class="grid2">
   <div>
-    <div class="dlf t1" style="margin-bottom:12px">
+    <div class="dlf ${tier}" style="margin-bottom:12px">
       <div class="dlf-bd">
-        <div class="dlf-title">⚠ T1 CRITICAL — Warfarin 5mg OD + Aspirin 75mg OD</div>
-        <div class="dlf-desc" style="margin-top:8px;line-height:1.8">
-          <b>Risk:</b> HIGH BLEEDING RISK<br>
-          <b>INR:</b> 3.2 (therapeutic target: 2.0–3.0 — currently supratherapeutic)<br>
-          <b>Indication for Aspirin:</b> Coronary artery disease (documented)<br>
-          <b>Indication for Warfarin:</b> Dilated cardiomyopathy, EF 28% (thromboembolic prophylaxis)<br>
-          <b>Risk level:</b> Combined anticoagulation increases annual GI bleed risk by 3.2× (ESC 2023)<br>
-          <b>Guideline:</b> ACCP 2022 — Avoid dual antithrombotic in DCM unless mechanical valve or AF with PCI
+        <div class="dlf-title">&#9888; ${f.severity} — ${f.rule_name || ''}</div>
+        <div class="dlf-desc" style="margin-top:8px;line-height:1.7">
+          <b>Patient:</b> ${f.patientName} <span class="pid">${f.patientCode || ''}</span> · ${f.diagnosis || ''} · ${f.ward}, Bed ${f.bed}<br>
+          <b>Alert:</b> ${f.message || ''}<br>
+          <b>Recommended action:</b> ${f.action || ''}
         </div>
       </div>
     </div>
     <div class="card">
       <div class="card-title">Evidence</div>
       <div class="tw" style="border:none"><table><tbody>
-        <tr><td class="muted">Lab: INR</td><td class="bold" style="color:var(--t1)">3.2 (02 Jun 2026)</td></tr>
-        <tr><td class="muted">Warfarin dose</td><td>5mg OD (oral)</td></tr>
-        <tr><td class="muted">Aspirin dose</td><td>75mg OD (oral)</td></tr>
-        <tr><td class="muted">Rule</td><td class="mono">R-001 — Warfarin + Aspirin · T1</td></tr>
-        <tr><td class="muted">Reference</td><td>ESC Heart Failure Guidelines 2023</td></tr>
+        <tr><td class="muted">Rule</td><td class="bold">${f.rule_name || ''}</td></tr>
+        <tr><td class="muted">Severity</td><td style="color:${isCrit?'var(--t1)':'var(--t2)'};font-weight:700">${f.severity}</td></tr>
+        <tr><td class="muted">Clinical basis</td><td>${f.message || ''}</td></tr>
+        <tr><td class="muted">Guideline</td><td>${f.guideline || '—'}</td></tr>
       </tbody></table></div>
     </div>
   </div>
   <div class="card">
     <div class="card-title">Required Action — Choose One</div>
     <div style="display:flex;flex-direction:column;gap:10px">
-      <div class="card action-card${APP.dl2_action==='override'?' selected-action':''}" style="border:2px solid ${APP.dl2_action==='override'?'var(--t1)':'var(--border)'};cursor:pointer" onclick="APP.dl2_action='override';renderAll();nav('dlcosign')">
-        <div class="flex-r" style="margin-bottom:4px">
-          <input type="radio" name="dl-action" ${APP.dl2_action==='override'?'checked':''}> <b>Override with clinical justification</b> <span class="bd bd-t1" style="margin-left:auto">Requires T1 Co-sign</span>
-        </div>
-        <div style="font-size:11.5px;color:var(--ink2)">Document why both drugs are clinically necessary. Charge Nurse co-sign required for T1 override.</div>
-      </div>
-      <div class="card action-card${APP.dl2_action==='hold'?' selected-action':''}" style="border:2px solid ${APP.dl2_action==='hold'?'var(--p)':'var(--border)'};cursor:pointer" onclick="APP.dl2_action='hold';renderAll()">
-        <div class="flex-r" style="margin-bottom:4px">
-          <input type="radio" name="dl-action" ${APP.dl2_action==='hold'?'checked':''}> <b>Hold Warfarin — pending haematology review</b>
-        </div>
-        <div style="font-size:11.5px;color:var(--ink2)">Suspend Warfarin until haematology consultation. Aspirin continues as primary antithrombotic. INR monitoring in 5 days.</div>
-      </div>
-      <div class="card action-card${APP.dl2_action==='pharmacist'?' selected-action':''}" style="border:2px solid ${APP.dl2_action==='pharmacist'?'var(--p)':'var(--border)'};cursor:pointer" onclick="APP.dl2_action='pharmacist';renderAll()">
-        <div class="flex-r" style="margin-bottom:4px">
-          <input type="radio" name="dl-action" ${APP.dl2_action==='pharmacist'?'checked':''}> <b>Consult Clinical Pharmacist</b>
-        </div>
-        <div style="font-size:11.5px;color:var(--ink2)">Refer to clinical pharmacist for formal medication review. Action pending pharmacist recommendation.</div>
-      </div>
+      ${actCard('override', 'Override with clinical justification', 'Document why the regimen is clinically necessary.' + (isCrit?' Head-Nurse co-sign required for a CRITICAL (T1) override.':''), isCrit?'Requires T1 Co-sign':'')}
+      ${actCard('hold', 'Hold implicated drug — pending review', 'Suspend the implicated drug until specialist/haematology review. Monitor relevant labs.')}
+      ${actCard('pharmacist', 'Consult Clinical Pharmacist', 'Refer for formal medication review. Action pending pharmacist recommendation.')}
     </div>
-    <div style="display:flex;gap:8px;margin-top:16px">
+    <div class="fg" style="margin-top:12px"><label class="fl">Clinical note (optional)</label>
+      <textarea class="fi" id="dl2-note" rows="2" placeholder="Add any context for the audit trail…">${APP.dl2_justification||''}</textarea>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px">
       <button class="btn btn-sec" onclick="nav('dl1')">← Back</button>
-      <button class="btn btn-pri" onclick="nav('dl2b')">Submit Action →</button>
+      <button class="btn btn-pri" onclick="submitDl2()">${APP.dl2_action==='override'&&isCrit?'Continue to Co-Sign →':'Submit Action →'}</button>
     </div>
   </div>
 </div>`;
+};
 
-/* ── DL2b — DL ACTION CONFIRMATION ─────────────────────────── */
-SCREENS.dl2b = () => `
-<div class="bc"><span class="bc-link" onclick="nav('dl2')">Flag Detail</span><span class="bc-sep">/</span><span>Confirmation</span></div>
+/* ── DL2b — DL ACTION CONFIRMATION (data-driven from the persisted record) ── */
+SCREENS.dl2b = () => {
+  const r = APP.dl2_result;
+  if (!r) return `<div class="bc"><span class="bc-link" onclick="nav('dl1')">DL Flags</span></div>
+    <div class="alert al-warn">No action on record. <span class="bc-link" onclick="nav('dl1')">← Back to flags</span></div>`;
+  const labels = { override: 'Override with clinical justification', hold: 'Hold implicated drug — pending review', pharmacist: 'Consult Clinical Pharmacist' };
+  return `
+<div class="bc"><span class="bc-link" onclick="nav('dl1')">DL Flags</span><span class="bc-sep">/</span><span>Confirmation</span></div>
 <div class="sh"><h1 class="sh-title">Drug-Lab Action Recorded</h1></div>
-<div class="alert al-ok">✅ Action recorded: Warfarin held pending haematology review</div>
-<div class="card" style="max-width:500px">
+<div class="alert al-ok">✅ Action recorded for ${r.patientName || 'patient'}: <b>${labels[r.action] || r.action}</b></div>
+<div class="card" style="max-width:560px">
   <div class="tw" style="border:none;margin-bottom:14px"><table><tbody>
-    <tr><td class="muted">Flag</td><td>Warfarin + Aspirin — T1</td></tr>
-    <tr><td class="muted">Action taken</td><td class="bold">Hold Warfarin — haematology review</td></tr>
-    <tr><td class="muted">Recorded by</td><td>Dr. Anand Sharma (Attending)</td></tr>
-    <tr><td class="muted">Timestamp</td><td class="mono">02 Jun 2026, 14:20</td></tr>
+    <tr><td class="muted">Patient</td><td class="bold">${r.patientName || ''} ${r.diagnosis ? '· ' + r.diagnosis : ''}</td></tr>
+    <tr><td class="muted">Flag</td><td>${r.ruleName || ''} <span class="bd ${r.severity==='CRITICAL'?'bd-t1':'bd-t2'}">${r.severity}</span></td></tr>
+    <tr><td class="muted">Action taken</td><td class="bold">${labels[r.action] || r.action}</td></tr>
+    ${r.justification ? `<tr><td class="muted">Justification</td><td>${r.justification}</td></tr>` : ''}
+    <tr><td class="muted">Recorded by</td><td>${r.recordedBy || ''}</td></tr>
+    ${r.cosignedBy ? `<tr><td class="muted">Co-signed by</td><td>${r.cosignedBy} (Head Nurse)</td></tr>` : ''}
+    <tr><td class="muted">Timestamp</td><td class="mono">${r.recordedAt || ''}</td></tr>
     <tr><td class="muted">Status</td><td><span class="bd bd-t3">Resolved</span></td></tr>
-    <tr><td class="muted">NABH audit</td><td>Logged · Haematology referral queued</td></tr>
   </tbody></table></div>
-  <div class="alert al-info">ℹ️ This action is recorded in the NABH audit trail. The flag will no longer block the discharge summary signing flow.</div>
+  <div class="alert al-info">ℹ️ Recorded in the NABH audit trail (<span class="mono">/api/drug-lab-actions</span>).</div>
   <div style="display:flex;gap:8px">
     <button class="btn btn-sec" onclick="nav('dl1')">← Back to Flags</button>
   </div>
 </div>`;
+};
 
 /* ── N_VITALS — NURSE VITALS ENTRY SCREEN ───────────────────── */
 SCREENS.n_vitals = () => {
@@ -1143,41 +1503,44 @@ SCREENS.n_vitals = () => {
     '<div id="vitals-result"></div>';
 };
 
-/* ── DL CO-SIGN (Charge Nurse action) ───────────────────────── */
-SCREENS.dlcosign = () => `
-<div class="bc"><span class="bc-link" onclick="nav('dl1')">DL Flags</span><span class="bc-sep">/</span><span>Tier 1 Co-Sign</span></div>
-<div class="sh"><h1 class="sh-title">Tier 1 Override — Charge Nurse Co-Sign Required</h1></div>
-<div class="alert al-err">🔐 Overriding a T1 Drug-Lab flag requires a second sign-off from the Charge Nurse. This is an NABH mandatory safety requirement.</div>
+/* ── DL CO-SIGN (Tier-1 override, data-driven) ──────────────── */
+SCREENS.dlcosign = () => {
+  const f = APP.dl2_flag;
+  if (!f) return `<div class="bc"><span class="bc-link" onclick="nav('dl1')">DL Flags</span></div>
+    <div class="alert al-warn">No flag selected. <span class="bc-link" onclick="nav('dl1')">← Back to flags</span></div>`;
+  window.submitCosign = function() {
+    APP.dl2_justification = document.getElementById('co-just')?.value || '';
+    APP.dl2_action = 'override';
+    const cosigner = document.getElementById('co-name')?.value || (APP.user ? APP.user.name : 'Head Nurse');
+    recordDlAction(cosigner);
+  };
+  return `
+<div class="bc"><span class="bc-link" onclick="nav('dl1')">DL Flags</span><span class="bc-sep">/</span><span class="bc-link" onclick="nav('dl2')">Flag Detail</span><span class="bc-sep">/</span><span>Tier 1 Co-Sign</span></div>
+<div class="sh"><h1 class="sh-title">Tier 1 Override — Co-Sign Required</h1><div class="sh-actions"><span class="bd bd-t1">${f.severity}</span></div></div>
+<div class="alert al-err">🔐 Overriding a CRITICAL (T1) Drug-Lab flag requires a second sign-off — an NABH mandatory safety requirement.</div>
+<div class="alert al-info">Flag: <b>${f.rule_name || ''}</b> — ${f.patientName} <span class="pid">${f.patientCode || ''}</span>. ${f.message || ''}</div>
 
 <div class="grid2">
   <div class="card">
-    <div class="card-title">Override Justification (Attending)</div>
-    <div class="fg"><label class="fl">Clinical Justification</label>
-      <textarea class="fi" rows="5">Patient has dilated cardiomyopathy with EF 28% (high thromboembolic risk — Warfarin mandatory) AND documented triple vessel CAD requiring antiplatelet therapy. Short-term dual therapy acceptable with close INR monitoring. Target INR 2.0–2.5. Haematology review scheduled.</textarea>
+    <div class="card-title">Override Justification</div>
+    <div class="fg"><label class="fl">Clinical Justification <span style="color:var(--t1)">*</span></label>
+      <textarea class="fi" id="co-just" rows="5" placeholder="Document why this regimen must continue despite the flag…">${APP.dl2_justification || ''}</textarea>
     </div>
-    <div class="fg"><label class="fl">Attending Signature</label>
-      <input class="fi" value="Dr. Anand Sharma · MCI-98765-DL">
-    </div>
-    <div class="fg"><label class="fl">Timestamp</label>
-      <input class="fi" value="02 Jun 2026, 14:22" readonly style="background:var(--surf)">
+    <div class="fg"><label class="fl">Recorded by</label>
+      <input class="fi" value="${APP.user ? APP.user.name : 'Charge Nurse'}" readonly style="background:var(--surf)">
     </div>
   </div>
   <div class="card">
-    <div class="card-title">Charge Nurse Co-Sign</div>
-    <div class="muted small" style="margin-bottom:12px">Charge Nurse Leena Kurup must verify the justification and provide credentials to complete the override.</div>
-    <div class="fg"><label class="fl">Charge Nurse Name</label>
-      <input class="fi" value="Sister Leena Kurup">
-    </div>
-    <div class="fg"><label class="fl">Employee ID</label>
-      <input class="fi" placeholder="EMP-XXXX">
-    </div>
-    <div class="fg"><label class="fl">Password</label>
-      <input class="fi" type="password" placeholder="Enter credentials">
-    </div>
-    <div class="alert al-warn" style="margin-top:10px">⚠️ By co-signing, you acknowledge the clinical justification and accept oversight responsibility for this override.</div>
+    <div class="card-title">Head Nurse Co-Sign</div>
+    <div class="muted small" style="margin-bottom:12px">A second senior nurse must verify the justification and provide credentials to complete the override.</div>
+    <div class="fg"><label class="fl">Co-signing Head Nurse</label><input class="fi" id="co-name" value="Sister Leena Kurup"></div>
+    <div class="fg"><label class="fl">Employee ID</label><input class="fi" placeholder="EMP-XXXX"></div>
+    <div class="fg"><label class="fl">Password</label><input class="fi" type="password" placeholder="Enter credentials"></div>
+    <div class="alert al-warn" style="margin-top:10px">⚠️ By co-signing, you accept oversight responsibility for this override.</div>
     <div style="display:flex;gap:8px;margin-top:12px">
-      <button class="btn btn-sec" onclick="nav('dl1')">← Back</button>
-      <button class="btn btn-pri" onclick="openModal('cosign_confirm')">Co-Sign Override ✓</button>
+      <button class="btn btn-sec" onclick="nav('dl2')">← Back</button>
+      <button class="btn btn-pri" onclick="submitCosign()">Co-Sign Override ✓</button>
     </div>
   </div>
 </div>`;
+};

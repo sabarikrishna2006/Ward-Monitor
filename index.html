@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=1440">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Foqal CareOS · Ward Monitor</title>
 
 <!-- ── INSTANT SESSION BOOT: must run before body renders ──
@@ -119,6 +119,9 @@ body.login-mode {
   <div id="topbar-line"></div>
 
   <header id="appbar">
+    <button class="ham-btn" onclick="toggleSidebar()" aria-label="Menu">
+      <div class="ham-icon"><span></span><span></span><span></span></div>
+    </button>
     <div style="display:flex;align-items:center;gap:10px">
       <div class="alogo">Foqal <em>CareOS</em></div>
       <div id="hdr-role" class="role-chip"></div>
@@ -132,6 +135,7 @@ body.login-mode {
   </header>
 
   <div id="layout">
+    <div id="sidebar-overlay" onclick="toggleSidebar()"></div>
     <nav id="sidebar-wrap">
       <div class="sb-header" id="sb-section-lbl"></div>
       <div id="sidebar"></div>

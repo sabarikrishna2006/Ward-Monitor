@@ -17,7 +17,10 @@ class Patient(Base):
     room         = Column(String)
     bed          = Column(String)
     admitted     = Column(String)
-    complaint    = Column(String)
+    complaint    = Column(String)          # full diagnosis text (→ MIMIC ICD long title)
+    diagnosis_short = Column(String(60))   # short chip for dashboard, e.g. "DCM · HFrEF (EF 25%)"
+    # CCU = Critical Care Unit (continuous monitoring); GENERAL_WARD = stepped-down (slower cadence)
+    ward_location   = Column(String(20), default="CCU")
     hypercapnic_failure = Column(Integer, default=0)
 
 
@@ -35,6 +38,9 @@ class VitalTimeSeries(Base):
     temperature  = Column(Float)
     consciousness    = Column(String, default="A")
     air_or_oxygen    = Column(String, default="Air")
+    # DCM / heart-failure nursing params (→ MIMIC outputevents / intake-output)
+    urine_output  = Column(Float)   # ml over last ~4h
+    fluid_balance = Column(Float)   # net ml over last 24h (positive = fluid overload)
 
 
 class LabEvent(Base):
@@ -83,3 +89,40 @@ class Escalation(Base):
     resolution_notes    = Column(String, nullable=True)
     false_alarm         = Column(Boolean, default=False)
     false_alarm_reason  = Column(String, nullable=True)
+    reescalated_at      = Column(String, nullable=True)   # set when 15-min SLA breach auto-bumps level
+    reescalation_note   = Column(String, nullable=True)
+
+
+class CcuTransfer(Base):
+    """CCU → General Ward step-down recommendation (nurse raises, Head Nurse approves)."""
+    __tablename__ = "ccu_transfers"
+
+    id                  = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    subject_id          = Column(Integer, ForeignKey("patients.subject_id"), index=True)
+    patient_name        = Column(String)
+    diagnosis           = Column(String)
+    rationale           = Column(String)
+    recommended_by      = Column(String)
+    target_ward         = Column(String, default="General Ward")
+    news2_at_submit     = Column(Integer)
+    stable_window_hours = Column(Integer)
+    status              = Column(String, default="pending")  # pending | approved | rejected | withdrawn
+    submitted_at        = Column(String)
+    decided_at          = Column(String, nullable=True)
+    decided_by          = Column(String, nullable=True)
+
+
+class DrugLabAction(Base):
+    """Records the action taken on a Drug-Lab flag (DL2 → DL2b) for the NABH audit trail."""
+    __tablename__ = "drug_lab_actions"
+
+    id            = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    subject_id    = Column(Integer, ForeignKey("patients.subject_id"), index=True)
+    rule_name     = Column(String)
+    severity      = Column(String)                       # CRITICAL | WARNING
+    action_taken  = Column(String)                       # override | hold | pharmacist
+    justification = Column(String, nullable=True)
+    recorded_by   = Column(String)
+    cosigned_by   = Column(String, nullable=True)        # Head Nurse, required for T1 override
+    status        = Column(String, default="recorded")   # recorded | resolved
+    recorded_at   = Column(String)

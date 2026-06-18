@@ -22,32 +22,43 @@ from datetime import datetime, timedelta
 # Make sure local modules are importable
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from database import engine, init_db
-from models import Patient, VitalTimeSeries, LabEvent, Medication, Escalation
+from models import Patient, VitalTimeSeries, LabEvent, Medication, Escalation, CcuTransfer, DrugLabAction
 from sqlalchemy.orm import Session
 
 # ─── Demographics ─────────────────────────────────────────────────────────────
 # 16 patients — realistic South Indian DCM cardiology ward names
+# id, name, age, sex, ward_suffix, bed, complaint, scenario, diagnosis_short
 PATIENTS = [
     # ── Ward 4B — 8 patients ──────────────────────────────────────────────────
-    # id, name, age, sex, bed, complaint, scenario
-    (10001, "Rajesh Kumar",      58, "M", "4B", "01", "DCM with HFrEF (EF 25%), NYHA III, Decompensated HF",    "critical_high"),
-    (10002, "Priya Sharma",      62, "F", "4B", "03", "DCM, Pulmonary Oedema, AF with RVR",                     "critical_dl"),
-    (10003, "Arun Verma",        71, "M", "4B", "05", "Ischaemic Cardiomyopathy, HF Exacerbation",               "warning_rr"),
-    (10004, "Sunita Devi",       55, "F", "4B", "07", "DCM Post-Partum Cardiomyopathy, NYHA III",                "warning_spo2"),
-    (10005, "Mohan Singh",       67, "M", "4B", "09", "DCM with Arrhythmia (VT), Cardiac Cachexia",             "stable_watch"),
-    (10006, "Kavitha Nair",      49, "F", "4B", "11", "DCM, NYHA II, Controlled, Medication Review",            "stable_meds"),
-    (10007, "Suresh Patel",      73, "M", "4B", "13", "Dilated Cardiomyopathy, Cardiac Cachexia",               "stable_low"),
-    (10008, "Rekha Patel",       60, "F", "4B", "15", "DCM, Post-CRT-D Implant Recovery",                       "stable_low"),
+    (10001, "Rajesh Kumar",      58, "M", "4B", "01", "DCM with HFrEF (EF 25%), NYHA III, Decompensated HF",    "critical_high",   "DCM · HFrEF (EF 25%)"),
+    (10002, "Priya Sharma",      62, "F", "4B", "03", "DCM, Pulmonary Oedema, AF with RVR",                     "critical_dl",     "DCM · AF + pulm. oedema"),
+    (10003, "Arun Verma",        71, "M", "4B", "05", "Ischaemic Cardiomyopathy, HF Exacerbation",               "warning_rr",      "Ischaemic CM · HF flare"),
+    (10004, "Sunita Devi",       55, "F", "4B", "07", "DCM Post-Partum Cardiomyopathy, NYHA III",                "warning_spo2",    "Post-partum CM · NYHA III"),
+    (10005, "Mohan Singh",       67, "M", "4B", "09", "DCM with Arrhythmia (VT), Cardiac Cachexia",             "stable_watch",    "DCM · VT risk"),
+    (10006, "Kavitha Nair",      49, "F", "4B", "11", "DCM, NYHA II, Controlled, Medication Review",            "stable_meds",     "DCM · NYHA II (stable)"),
+    (10007, "Suresh Patel",      73, "M", "4B", "13", "Dilated Cardiomyopathy, Cardiac Cachexia",               "stable_low",      "DCM · cachexia"),
+    (10008, "Rekha Patel",       60, "F", "4B", "15", "DCM, Post-CRT-D Implant Recovery",                       "stable_low",      "DCM · post-CRT-D"),
     # ── Ward 4C — 8 patients ──────────────────────────────────────────────────
-    (10009, "Vikram Sharma",     64, "M", "4C", "02", "DCM with Sepsis (qSOFA 2), Decompensated HF",            "critical_sepsis"),
-    (10010, "Anita Singh",       57, "F", "4C", "04", "DCM, NYHA III, Hyperkalemia on ACE+Spiro",               "critical_dl"),
-    (10011, "Deepak Rao",        69, "M", "4C", "06", "Ischaemic DCM, HF Exacerbation, AKI Stage 1",            "warning_akd"),
-    (10012, "Meena Iyer",        52, "F", "4C", "08", "DCM with HFrEF (EF 30%), Persistent Dyspnoea",           "warning_hr"),
-    (10013, "Anand Gupta",       75, "M", "4C", "10", "DCM, Elderly, NYHA II, Digoxin on Low K+",               "warning_dl"),
-    (10014, "Saritha Pillai",    45, "F", "4C", "12", "DCM, Young-Onset, Post-myocarditis, NYHA II",            "stable_watch"),
-    (10015, "Nitin Shah",        66, "M", "4C", "14", "DCM with AF, Rate-controlled, NYHA II",                  "stable_low"),
-    (10016, "Asha Gupta",        70, "F", "4C", "16", "DCM, NYHA I, Post-discharge Monitoring",                 "stale_vitals"),
+    (10009, "Vikram Sharma",     64, "M", "4C", "02", "DCM with Sepsis (qSOFA 2), Decompensated HF",            "critical_sepsis", "DCM · sepsis (qSOFA 2)"),
+    (10010, "Anita Singh",       57, "F", "4C", "04", "DCM, NYHA III, Hyperkalemia on ACE+Spiro",               "critical_dl",     "DCM · hyperkalaemia risk"),
+    (10011, "Deepak Rao",        69, "M", "4C", "06", "Ischaemic DCM, HF Exacerbation, AKI Stage 1",            "warning_akd",     "Ischaemic DCM · AKI-1"),
+    (10012, "Meena Iyer",        52, "F", "4C", "08", "DCM with HFrEF (EF 30%), Persistent Dyspnoea",           "warning_hr",      "DCM · HFrEF (EF 30%)"),
+    (10013, "Anand Gupta",       75, "M", "4C", "10", "DCM, Elderly, NYHA II, Digoxin on Low K+",               "warning_dl",      "DCM · digoxin + low K⁺"),
+    (10014, "Saritha Pillai",    45, "F", "4C", "12", "DCM, Young-Onset, Post-myocarditis, NYHA II",            "stable_watch",    "DCM · post-myocarditis"),
+    (10015, "Nitin Shah",        66, "M", "4C", "14", "DCM with AF, Rate-controlled, NYHA II",                  "stable_low",      "DCM · AF (rate-ctrl)"),
+    (10016, "Asha Gupta",        70, "F", "4C", "16", "DCM, NYHA I, Post-discharge Monitoring",                 "stale_vitals",    "DCM · NYHA I"),
 ]
+
+# Which patients live in the CCU vs the General Ward (step-down).
+# Acute (critical/warning) stay in CCU; stable patients are in the General Ward.
+# Exception: 10005 is a stable patient kept in CCU as a step-down CANDIDATE (seeds a pending transfer).
+CCU_STEPDOWN_CANDIDATES = {10005}
+
+def ward_location_for(subject_id, scenario):
+    is_stable = scenario.startswith("stable") or scenario == "stale_vitals"
+    if is_stable and subject_id not in CCU_STEPDOWN_CANDIDATES:
+        return "GENERAL_WARD"
+    return "CCU"
 
 # ─── DCM Medications per clinical scenario ────────────────────────────────────
 MEDS = {
@@ -98,19 +109,39 @@ LAB_PROFILE = {
     "stale_vitals":    {"potassium": 4.0, "creatinine": 1.0, "lactate": 1.0, "inr": None},
 }
 
+# ─── DCM / heart-failure I/O profiles (urine ml/4h, fluid balance ml/24h) ──────
+# Decompensated HF → fluid overload (positive balance) + low urine output.
+# Stable/euvolaemic → balanced or slightly negative on diuretics, normal urine.
+DCM_PROFILE = {
+    "critical_high":   (160, 840),
+    "critical_dl":     (140, 760),
+    "critical_sepsis": (120, 320),
+    "warning_rr":      (240, 350),
+    "warning_spo2":    (260, 300),
+    "warning_akd":     (180, 420),   # AKI → reduced urine
+    "warning_hr":      (280, 250),
+    "warning_dl":      (300, 180),
+    "stable_watch":    (380, 120),
+    "stable_meds":     (420, -50),
+    "stable_low":      (450, -120),
+    "stale_vitals":    (400, 0),
+}
+
 
 def gen_vitals_trajectory(session, subject_id, profile_key):
     """Generate 12 hourly vitals readings with realistic trend."""
     base_hr, base_rr, base_spo2, base_sbp, base_dbp, base_temp, consciousness, air_ox = VITALS_PROFILE[profile_key]
+    u_base, fb_base = DCM_PROFILE.get(profile_key, (350, 0))
     now = datetime.now()
+
+    # The "stale" patient's whole chart is pushed ~13h into the past so its last
+    # reading is overdue even against the slow General-Ward cadence (12h).
+    stale_shift = 13 if profile_key == "stale_vitals" else 0
 
     # For critical patients: trending worse over last 4 hours
     for h in range(12, 0, -1):
-        if profile_key == "stale_vitals" and h <= 5:
-            continue  # No vitals recorded in the last 5 hours for this patient
-
         m_offset = random.randint(-15, 15)
-        hour_key = now - timedelta(hours=h) + timedelta(minutes=m_offset)
+        hour_key = now - timedelta(hours=h + stale_shift) + timedelta(minutes=m_offset)
 
         # Add trend: critical worsens, stable improves slightly
         trend = 0
@@ -123,6 +154,9 @@ def gen_vitals_trajectory(session, subject_id, profile_key):
         sbp  = max(65, min(210, int(base_sbp - trend * 2  + random.gauss(0, 6))))
         dbp  = max(40, min(120, int(base_dbp - trend      + random.gauss(0, 4))))
         temp = max(35.0, min(40.5, round(base_temp + (0.1 if profile_key=="critical_sepsis" and h<=6 else 0) + random.gauss(0, 0.15), 1)))
+        # I/O worsens slightly with the same trend (less urine, more positive balance)
+        urine = max(40,  int(u_base  - trend * 12 + random.gauss(0, 20)))
+        fbal  = int(fb_base + trend * 25 + random.gauss(0, 30))
 
         session.add(VitalTimeSeries(
             subject_id    = subject_id,
@@ -135,6 +169,8 @@ def gen_vitals_trajectory(session, subject_id, profile_key):
             temperature   = temp,
             consciousness = consciousness,
             air_or_oxygen = air_ox,
+            urine_output  = urine,
+            fluid_balance = fbal,
         ))
 
 
@@ -165,13 +201,14 @@ def build():
 
     with Session(engine) as session:
         # Clear all existing data
-        for model in [Escalation, Medication, LabEvent, VitalTimeSeries, Patient]:
+        for model in [DrugLabAction, CcuTransfer, Escalation, Medication, LabEvent, VitalTimeSeries, Patient]:
             session.query(model).delete()
         session.commit()
         print(f"  Cleared existing data.")
 
-        for i, (sid, name, age, sex, ward_suffix, bed, complaint, scenario) in enumerate(PATIENTS, start=1):
+        for i, (sid, name, age, sex, ward_suffix, bed, complaint, scenario, dx_short) in enumerate(PATIENTS, start=1):
             ward = f"Ward {ward_suffix}"
+            loc  = ward_location_for(sid, scenario)
 
             patient = Patient(
                 subject_id          = sid,
@@ -184,6 +221,8 @@ def build():
                 bed                 = bed,
                 admitted            = (datetime.now() - timedelta(days=random.randint(1, 7))).strftime("%d %b %Y"),
                 complaint           = complaint,
+                diagnosis_short     = dx_short,
+                ward_location       = loc,
                 hypercapnic_failure = 0,
             )
             session.add(patient)
@@ -203,7 +242,22 @@ def build():
                     frequency  = freq,
                 ))
 
-            print(f"  [OK] {name:20s}  Ward {ward_suffix}  Bed {bed}  [{scenario}]")
+            print(f"  [OK] {name:20s}  Ward {ward_suffix}  Bed {bed}  {loc:13s} [{scenario}]")
+
+        # ── Seed one pending CCU→GW step-down transfer (Mohan Singh, stable in CCU) ──
+        session.add(CcuTransfer(
+            subject_id          = 10005,
+            patient_name        = "Mohan Singh",
+            diagnosis           = "DCM · VT risk",
+            rationale           = "NEWS2 ≤ 2 sustained 8h+; haemodynamically stable; "
+                                  "no escalation in 24h; inotropes weaned off.",
+            recommended_by      = "Nurse Rekha Devi",
+            target_ward         = "General Ward",
+            news2_at_submit     = 2,
+            stable_window_hours = 8,
+            status              = "pending",
+            submitted_at        = (datetime.now() - timedelta(hours=1)).isoformat(timespec="minutes"),
+        ))
 
         session.commit()
 
