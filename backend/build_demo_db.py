@@ -21,9 +21,18 @@ from datetime import datetime, timedelta
 
 # Make sure local modules are importable
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from database import engine, init_db
-from models import Patient, VitalTimeSeries, LabEvent, Medication, Escalation, CcuTransfer, DrugLabAction
+from database import engine
+from models import Base, Patient, VitalTimeSeries, LabEvent, Medication, Escalation, CcuTransfer, DrugLabAction
 from sqlalchemy.orm import Session
+
+
+def init_db_fresh():
+    """Drop all tables and recreate — ensures schema is always up-to-date."""
+    # Ensure the data/ directory exists (database.py points here)
+    data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+    os.makedirs(data_dir, exist_ok=True)
+    Base.metadata.drop_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
 
 # ─── Demographics ─────────────────────────────────────────────────────────────
 # 16 patients — realistic South Indian DCM cardiology ward names
@@ -197,14 +206,10 @@ def build():
     print("=" * 60)
     print("Foqal CareOS — Demo DB Builder")
     print("=" * 60)
-    init_db()
+    init_db_fresh()
+    print("  Schema recreated (drop + create).")
 
     with Session(engine) as session:
-        # Clear all existing data
-        for model in [DrugLabAction, CcuTransfer, Escalation, Medication, LabEvent, VitalTimeSeries, Patient]:
-            session.query(model).delete()
-        session.commit()
-        print(f"  Cleared existing data.")
 
         for i, (sid, name, age, sex, ward_suffix, bed, complaint, scenario, dx_short) in enumerate(PATIENTS, start=1):
             ward = f"Ward {ward_suffix}"
