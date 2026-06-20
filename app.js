@@ -83,7 +83,7 @@ async function nav(id, param = null) {
     } else if (id === 'dl1') {
       const res = await fetch('/api/ward-data?ward=All');
       if (res.ok) APP.data.n1 = await res.json();
-    } else if ((id === 'n1b' || id === 'n2') && APP.currentPatientId) {
+    } else if ((id === 'n1b' || id === 'n2' || id === 'n4' || id === 'n4b') && APP.currentPatientId) {
       const res = await fetch(`/api/patients/${APP.currentPatientId}`);
       if (res.ok) APP.data.n1b = await res.json();
     } else if (id === 'n_vitals' && APP.currentPatientId) {
@@ -392,6 +392,7 @@ SCREENS.n1 = () => {
   <div class="sh-actions">
     <span class="muted small">${APP.lastRefresh ? 'Updated ' + APP.lastRefresh.toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'}) + ' · auto 15m' : nowStr}</span>
     <button class="btn btn-sec btn-sm" onclick="refreshNow(false)" title="Refresh now">↻</button>
+    ${APP.role === 'nurse' ? `<button class="btn btn-pri btn-sm" style="background:var(--p)" onclick="nav('n_transfer')">CCU GW Transfer</button>` : ''}
     <button class="btn btn-sec btn-sm" onclick="nav('n6')">Shift Handoff</button>
   </div>
 </div>
