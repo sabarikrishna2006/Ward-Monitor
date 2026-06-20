@@ -286,29 +286,34 @@ class EscalationResolve(BaseModel):
 
 @app.post("/api/patients")
 def add_patient(patient: PatientCreate, db: Session = Depends(get_db)):
-    max_id = db.query(Patient).order_by(Patient.subject_id.desc()).first()
-    new_id = (max_id.subject_id + 1) if max_id else 1
-    
+    max_row = db.query(Patient).order_by(Patient.hadm_id.desc()).first()
+    new_id = (max_row.hadm_id + 1) if max_row else 10100
+
     year_suffix = datetime.now().year % 100
     new_patient = Patient(
+        hadm_id=new_id,
         subject_id=new_id,
         patient_code=f"PT-{year_suffix:02d}-{new_id:04d}",
-        name=patient.name,
-        age=patient.age,
-        sex=patient.sex,
+        patient_name=patient.name,
+        anchor_age=patient.age,
+        gender=(patient.sex or "M")[0].upper(),
         ward=patient.ward,
         room=patient.room,
         bed=patient.bed,
-        admitted=datetime.now().strftime("%d %b %Y"),
-        complaint=patient.complaint,
-        hypercapnic_failure=patient.hypercapnic_failure
+        admit_time=datetime.now(),
+        ews_complaint=patient.complaint,
+        admitting_diagnosis=patient.complaint,
+        hypercapnic_failure=patient.hypercapnic_failure,
+        ward_location="CCU",
+        status="active",
+        data_fetch_status="fetched",
     )
     db.add(new_patient)
     db.commit()
-    
+
     v = VitalTimeSeries(
-        subject_id=new_id,
-        chart_hour=datetime.now().isoformat(),
+        hadm_id=new_id,
+        chart_time=datetime.now(),
         heart_rate=patient.hr,
         resp_rate=patient.rr,
         spo2=patient.spo2,
@@ -340,20 +345,13 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
     # Base "now" on the latest recorded vital in the entire database to prevent 
     # everything from going stale if the demo server runs for hours.
     from sqlalchemy import func
-    max_time_str = db.query(func.max(VitalTimeSeries.chart_hour)).scalar()
-    if max_time_str:
-        if 'T' in str(max_time_str):
-            demo_now = datetime.fromisoformat(str(max_time_str))
-        else:
-            demo_now = datetime.strptime(str(max_time_str), "%Y-%m-%d %H:%M:%S")
-    else:
-        demo_now = datetime.now()
-        
+    demo_now = db.query(func.max(VitalTimeSeries.chart_time)).scalar() or datetime.now()
+
     result = []
     for p in patients:
         all_vitals = db.query(VitalTimeSeries).filter(
-            VitalTimeSeries.subject_id == p.subject_id
-        ).order_by(VitalTimeSeries.chart_hour.desc()).all()
+            VitalTimeSeries.hadm_id == p.hadm_id
+        ).order_by(VitalTimeSeries.chart_time.desc()).all()
         
         if not all_vitals:
             continue
@@ -385,11 +383,7 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
                 latest_vitals['air_or_oxygen'] = v.air_or_oxygen
             
         # Calculate time diff for stale check
-        latest_record_time_str = str(vitals_history[-1].chart_hour)
-        if 'T' in latest_record_time_str:
-            latest_time = datetime.fromisoformat(latest_record_time_str)
-        else:
-            latest_time = datetime.strptime(latest_record_time_str, "%Y-%m-%d %H:%M:%S")
+        latest_time = vitals_history[-1].chart_time or demo_now
         time_diff_secs = (demo_now - latest_time).total_seconds()
         stale_mins = int(time_diff_secs // 60)
 
@@ -428,7 +422,7 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
             if not has_any_valid:
                 continue
 
-            time_str = str(v.chart_hour).split('T')[-1][:5] if 'T' in str(v.chart_hour) else str(v.chart_hour)
+            time_str = v.chart_time.strftime("%H:%M") if v.chart_time else "--"
             trajectory.append({
                 "time": time_str,
                 # Use forward-filled values so no null gaps in the chart
@@ -469,24 +463,25 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
             })
 
         db_labs = db.query(LabEvent).filter(
-            LabEvent.subject_id == p.subject_id
-        ).order_by(LabEvent.chart_hour.desc()).limit(10).all()
-        
+            LabEvent.hadm_id == p.hadm_id
+        ).order_by(LabEvent.chart_time.desc()).limit(10).all()
+
         formatted_labs = []
         rule_engine_labs = {}
         for l in db_labs:
-            if l.lactate: 
-                formatted_labs.append({"time": str(l.chart_hour), "test": "Lactate", "value": round(l.lactate, 2), "unit": "mmol/L"})
+            l_time = l.chart_time.strftime("%H:%M") if l.chart_time else "--"
+            if l.lactate:
+                formatted_labs.append({"time": l_time, "test": "Lactate", "value": round(l.lactate, 2), "unit": "mmol/L"})
                 if "lactate" not in rule_engine_labs: rule_engine_labs["lactate"] = l.lactate
-            if l.creatinine: 
-                formatted_labs.append({"time": str(l.chart_hour), "test": "Creatinine", "value": round(l.creatinine, 2), "unit": "mg/dL"})
+            if l.creatinine:
+                formatted_labs.append({"time": l_time, "test": "Creatinine", "value": round(l.creatinine, 2), "unit": "mg/dL"})
                 if "creatinine" not in rule_engine_labs: rule_engine_labs["creatinine"] = l.creatinine
-            if l.potassium: 
-                formatted_labs.append({"time": str(l.chart_hour), "test": "Potassium", "value": round(l.potassium, 2), "unit": "mmol/L"})
+            if l.potassium:
+                formatted_labs.append({"time": l_time, "test": "Potassium", "value": round(l.potassium, 2), "unit": "mmol/L"})
                 if "potassium" not in rule_engine_labs: rule_engine_labs["potassium"] = l.potassium
 
         # ── Full medication objects (name + dose + frequency) ──
-        meds_db = db.query(Medication).filter(Medication.subject_id == p.subject_id).all()
+        meds_db = db.query(Medication).filter(Medication.hadm_id == p.hadm_id).all()
         med_names = [m.med_name for m in meds_db]
         medications = [
             {"name": m.med_name, "dose": m.dose or "--", "frequency": m.frequency or "--"}
@@ -594,9 +589,9 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
         ews_reason = build_ews_reason(latest_vitals, news_data, drug_lab_alerts, news2_score, status)
 
         result.append({
-            "id": str(p.subject_id),
-            "patient_code": p.patient_code or f"PT-26-{p.subject_id:04d}",
-            "diagnosis_short": p.diagnosis_short or (p.complaint.split(',')[0] if p.complaint else "—"),
+            "id": str(p.hadm_id),
+            "patient_code": p.patient_code or f"PT-26-{p.hadm_id:04d}",
+            "diagnosis_short": p.diagnosis_short or (p.ews_complaint.split(',')[0] if p.ews_complaint else "—"),
             "ward_location": ward_location,
             "ewsReason": ews_reason,
             "monitoring": monitoring,
@@ -606,17 +601,17 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
             "fluidBalance": int(latest_vitals['fluid_balance']) if latest_vitals['fluid_balance'] is not None else None,
             "mlContributors": ml["contributors"],
             "mlWindow": ml["window"],
-            "name": p.name,
-            "age": p.age,
-            "sex": p.sex,
+            "name": p.patient_name,
+            "age": p.anchor_age,
+            "sex": p.gender,
             "ward": p.ward,
             "room": p.room,
             "bed": p.bed,
-            "admitted": p.admitted,
-            "complaint": p.complaint,
+            "admitted": p.admit_time.strftime("%d %b %Y") if p.admit_time else "--",
+            "complaint": p.ews_complaint,
             "briefFlag": brief_flag,
             "status": status,
-            "vitals": {"bp_time": str(vitals_history[-1].chart_hour)},
+            "vitals": {"bp_time": vitals_history[-1].chart_time.strftime("%H:%M") if vitals_history[-1].chart_time else "--"},
             "hr":   int(latest_vitals['heart_rate'])  if latest_vitals['heart_rate']  else "--",
             "rr":   int(latest_vitals['resp_rate'])   if latest_vitals['resp_rate']   else "--",
             "spo2": int(latest_vitals['spo2'])        if latest_vitals['spo2']        else "--",
@@ -643,12 +638,12 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
 @app.post("/api/escalations")
 def create_escalation(esc: EscalationCreate, db: Session = Depends(get_db)):
     # Get patient info
-    patient = db.query(Patient).filter(Patient.subject_id == esc.patientId).first()
+    patient = db.query(Patient).filter(Patient.hadm_id == esc.patientId).first()
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
 
     # Get latest vitals for NEWS2 score
-    vitals = db.query(VitalTimeSeries).filter(VitalTimeSeries.subject_id == esc.patientId).order_by(VitalTimeSeries.chart_hour.desc()).first()
+    vitals = db.query(VitalTimeSeries).filter(VitalTimeSeries.hadm_id == esc.patientId).order_by(VitalTimeSeries.chart_time.desc()).first()
     
     news2_score = 0
     if vitals:
@@ -661,8 +656,8 @@ def create_escalation(esc: EscalationCreate, db: Session = Depends(get_db)):
         news2_score = news_data["total"]
 
     new_esc = Escalation(
-        subject_id=esc.patientId,
-        patient_name=patient.name,
+        hadm_id=esc.patientId,
+        patient_name=patient.patient_name,
         ward=patient.ward,
         bed=patient.bed,
         news2_score=news2_score,
@@ -672,7 +667,7 @@ def create_escalation(esc: EscalationCreate, db: Session = Depends(get_db)):
         observations=esc.observations,
         interventions=esc.interventions,
         status='active',
-        escalated_at=datetime.now().isoformat()
+        escalated_at=datetime.now()
     )
     db.add(new_esc)
     db.commit()
@@ -700,17 +695,14 @@ def get_escalations(db: Session = Depends(get_db)):
         sla_breached = False
         sla_remaining = None
         if e.escalated_at:
-            try:
-                t = datetime.fromisoformat(e.escalated_at)
-                mins_elapsed = int((datetime.now() - t).total_seconds() // 60)
-                if e.status == 'active' and not e.acknowledged_at:
-                    sla_breached = mins_elapsed > SLA_MINS
-                    sla_remaining = max(0, SLA_MINS - mins_elapsed)
-            except Exception:
-                pass
+            t = e.escalated_at if isinstance(e.escalated_at, datetime) else datetime.fromisoformat(str(e.escalated_at))
+            mins_elapsed = int((datetime.now() - t.replace(tzinfo=None)).total_seconds() // 60)
+            if e.status == 'active' and not e.acknowledged_at:
+                sla_breached = mins_elapsed > SLA_MINS
+                sla_remaining = max(0, SLA_MINS - mins_elapsed)
         result.append({
             "id": e.id,
-            "patientId": e.subject_id,
+            "patientId": e.hadm_id,
             "patientName": e.patient_name,
             "ward": e.ward,
             "bed": e.bed,
@@ -741,7 +733,7 @@ def resolve_escalation(esc_id: int, res: EscalationResolve, db: Session = Depend
         raise HTTPException(status_code=404, detail="Escalation not found")
         
     esc.status = 'resolved'
-    esc.resolved_at = datetime.now().isoformat()
+    esc.resolved_at = datetime.now()
     esc.resolved_by = res.resolvedBy
     esc.resolution_notes = res.notes
     
@@ -768,13 +760,13 @@ class VitalsInput(BaseModel):
 
 @app.post("/api/patients/{subject_id}/vitals")
 def add_vitals(subject_id: int, v: VitalsInput, db: Session = Depends(get_db)):
-    patient = db.query(Patient).filter(Patient.subject_id == subject_id).first()
+    patient = db.query(Patient).filter(Patient.hadm_id == subject_id).first()
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
 
     vt = VitalTimeSeries(
-        subject_id=subject_id,
-        chart_hour=datetime.now().isoformat(),
+        hadm_id=subject_id,
+        chart_time=datetime.now(),
         heart_rate=v.heart_rate,
         resp_rate=v.resp_rate,
         spo2=v.spo2,
@@ -800,24 +792,24 @@ def add_vitals(subject_id: int, v: VitalsInput, db: Session = Depends(get_db)):
         "news2_score": news2_score,
         "risk_level": risk_level,
         "factors": news_result["factors"],
-        "chart_hour": vt.chart_hour,
+        "chart_time": vt.chart_time.isoformat() if vt.chart_time else None,
     }
 
 @app.get("/api/patients/{subject_id}/vitals/latest")
 def get_latest_vitals(subject_id: int, db: Session = Depends(get_db)):
     vt = db.query(VitalTimeSeries).filter(
-        VitalTimeSeries.subject_id == subject_id
-    ).order_by(VitalTimeSeries.chart_hour.desc()).first()
+        VitalTimeSeries.hadm_id == subject_id
+    ).order_by(VitalTimeSeries.chart_time.desc()).first()
 
     if not vt:
         raise HTTPException(status_code=404, detail="No vitals found")
 
-    recorded_at = datetime.fromisoformat(str(vt.chart_hour)) if 'T' in str(vt.chart_hour) else datetime.strptime(str(vt.chart_hour), "%Y-%m-%d %H:%M:%S")
+    recorded_at = (vt.chart_time if isinstance(vt.chart_time, datetime) else datetime.now()).replace(tzinfo=None)
     stale_mins = int((datetime.now() - recorded_at).total_seconds() // 60)
     is_stale = stale_mins > 45
 
     return {
-        "chart_hour": vt.chart_hour,
+        "chart_time": vt.chart_time.isoformat() if vt.chart_time else None,
         "stale_mins": stale_mins,
         "is_stale": is_stale,
         "heart_rate": vt.heart_rate,
@@ -866,12 +858,13 @@ def reescalate(esc_id: int, body: ReescalateBody, db: Session = Depends(get_db))
     cur = esc.level if esc.level in _LEVEL_ORDER else "nurse"
     nxt = _LEVEL_ORDER[min(_LEVEL_ORDER.index(cur) + 1, len(_LEVEL_ORDER) - 1)]
     esc.level = nxt
-    esc.reescalated_at = datetime.now().isoformat()
+    esc.reescalated_at = datetime.now()
     esc.reescalation_note = body.reason or (
         f"{'Auto' if body.auto else 'Manual'} re-escalation after 15-min SLA breach → {_LEVEL_LABEL[nxt]}")
     db.commit()
     return {"status": "ok", "id": esc_id, "newLevel": nxt,
-            "newLevelLabel": _LEVEL_LABEL[nxt], "reescalatedAt": esc.reescalated_at}
+            "newLevelLabel": _LEVEL_LABEL[nxt],
+            "reescalatedAt": esc.reescalated_at.isoformat() if esc.reescalated_at else None}
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -879,7 +872,7 @@ def reescalate(esc_id: int, body: ReescalateBody, db: Session = Depends(get_db))
 # ════════════════════════════════════════════════════════════════════════════
 def _transfer_dict(t):
     return {
-        "id": t.id, "subjectId": t.subject_id, "patientName": t.patient_name,
+        "id": t.id, "subjectId": t.hadm_id, "patientName": t.patient_name,
         "diagnosis": t.diagnosis, "rationale": t.rationale, "recommendedBy": t.recommended_by,
         "targetWard": t.target_ward, "news2AtSubmit": t.news2_at_submit,
         "stableWindowHours": t.stable_window_hours, "status": t.status,
@@ -890,8 +883,8 @@ def stable_window_hours_db(db, patient):
     """How many consecutive most-recent readings had NEWS2 ≤ 2 (demo readings ~hourly).
     Computed over the full vitals history, not the 5-row dashboard window."""
     rows = db.query(VitalTimeSeries).filter(
-        VitalTimeSeries.subject_id == patient.subject_id
-    ).order_by(VitalTimeSeries.chart_hour.asc()).all()
+        VitalTimeSeries.hadm_id == patient.hadm_id
+    ).order_by(VitalTimeSeries.chart_time.asc()).all()
     hyp = (getattr(patient, 'hypercapnic_failure', 0) == 1)
     n = 0
     for v in reversed(rows):
@@ -907,7 +900,7 @@ def stable_window_hours_db(db, patient):
 @app.get("/api/patients/{subject_id}/transfer-eligibility")
 def transfer_eligibility(subject_id: int, db: Session = Depends(get_db)):
     detail = get_patient_detail(subject_id, db)
-    patient = db.query(Patient).filter(Patient.subject_id == subject_id).first()
+    patient = db.query(Patient).filter(Patient.hadm_id == subject_id).first()
     recent = detail.get("recentVitals", [])
     score = detail.get("news2", 99)
 
@@ -915,7 +908,7 @@ def transfer_eligibility(subject_id: int, db: Session = Depends(get_db)):
     sustained = score <= 2 and window_h >= 6
 
     active_esc = db.query(Escalation).filter(
-        Escalation.subject_id == subject_id, Escalation.status == 'active').count()
+        Escalation.hadm_id == subject_id, Escalation.status == 'active').count()
     no_recent_esc = active_esc == 0
 
     hr = detail.get("hr"); spo2 = detail.get("spo2")
@@ -943,12 +936,12 @@ def transfer_eligibility(subject_id: int, db: Session = Depends(get_db)):
     eligible = all(c["met"] for c in criteria if not c.get("info"))
 
     existing = db.query(CcuTransfer).filter(
-        CcuTransfer.subject_id == subject_id, CcuTransfer.status == 'pending').first()
+        CcuTransfer.hadm_id == subject_id, CcuTransfer.status == 'pending').first()
 
     return {
         "subjectId": subject_id, "patientCode": detail.get("patient_code"),
         "name": detail.get("name"),
-        "diagnosis": (patient.diagnosis_short if patient else None) or detail.get("complaint"),
+        "diagnosis": (patient.diagnosis_short if patient else None) or detail.get("ews_complaint"),
         "wardLocation": patient.ward_location if patient else "CCU",
         "bed": detail.get("bed"), "admitted": detail.get("admitted"),
         "news2": score, "stableWindowHours": window_h,
@@ -963,20 +956,20 @@ class CcuTransferCreate(BaseModel):
 
 @app.post("/api/patients/{subject_id}/ccu-transfer")
 def create_ccu_transfer(subject_id: int, body: CcuTransferCreate, db: Session = Depends(get_db)):
-    patient = db.query(Patient).filter(Patient.subject_id == subject_id).first()
+    patient = db.query(Patient).filter(Patient.hadm_id == subject_id).first()
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
     existing = db.query(CcuTransfer).filter(
-        CcuTransfer.subject_id == subject_id, CcuTransfer.status == 'pending').first()
+        CcuTransfer.hadm_id == subject_id, CcuTransfer.status == 'pending').first()
     if existing:
         raise HTTPException(status_code=409, detail="A pending transfer already exists for this patient")
     detail = get_patient_detail(subject_id, db)
     t = CcuTransfer(
-        subject_id=subject_id, patient_name=patient.name, diagnosis=patient.diagnosis_short,
+        hadm_id=subject_id, patient_name=patient.patient_name, diagnosis=patient.diagnosis_short,
         rationale=body.rationale, recommended_by=body.recommendedBy, target_ward=body.targetWard,
         news2_at_submit=detail.get("news2"),
         stable_window_hours=stable_window_hours_db(db, patient),
-        status="pending", submitted_at=datetime.now().isoformat(timespec="minutes"),
+        status="pending", submitted_at=datetime.now(),
     )
     db.add(t); db.commit(); db.refresh(t)
     return _transfer_dict(t)
@@ -1000,9 +993,9 @@ def approve_ccu_transfer(tid: int, body: TransferDecision, db: Session = Depends
     if t.status != "pending":
         raise HTTPException(status_code=400, detail="Transfer already decided")
     t.status = "approved"
-    t.decided_at = datetime.now().isoformat(timespec="minutes")
+    t.decided_at = datetime.now()
     t.decided_by = body.decidedBy
-    patient = db.query(Patient).filter(Patient.subject_id == t.subject_id).first()
+    patient = db.query(Patient).filter(Patient.hadm_id == t.hadm_id).first()
     if patient:
         patient.ward_location = "GENERAL_WARD"   # the step-down state change
     db.commit()
@@ -1016,7 +1009,7 @@ def reject_ccu_transfer(tid: int, body: TransferDecision, db: Session = Depends(
     if t.status != "pending":
         raise HTTPException(status_code=400, detail="Transfer already decided")
     t.status = "rejected"
-    t.decided_at = datetime.now().isoformat(timespec="minutes")
+    t.decided_at = datetime.now()
     t.decided_by = body.decidedBy
     db.commit()
     return {"status": "ok", "id": tid}
@@ -1027,7 +1020,7 @@ def withdraw_ccu_transfer(tid: int, db: Session = Depends(get_db)):
     if not t:
         raise HTTPException(status_code=404, detail="Transfer not found")
     t.status = "withdrawn"
-    t.decided_at = datetime.now().isoformat(timespec="minutes")
+    t.decided_at = datetime.now()
     db.commit()
     return {"status": "ok", "id": tid}
 
@@ -1046,7 +1039,7 @@ class DrugLabActionCreate(BaseModel):
 
 def _dl_action_dict(a):
     return {
-        "id": a.id, "subjectId": a.subject_id, "ruleName": a.rule_name, "severity": a.severity,
+        "id": a.id, "subjectId": a.hadm_id, "ruleName": a.rule_name, "severity": a.severity,
         "action": a.action_taken, "justification": a.justification, "recordedBy": a.recorded_by,
         "cosignedBy": a.cosigned_by, "status": a.status, "recordedAt": a.recorded_at,
     }
@@ -1054,10 +1047,10 @@ def _dl_action_dict(a):
 @app.post("/api/drug-lab-actions")
 def create_drug_lab_action(body: DrugLabActionCreate, db: Session = Depends(get_db)):
     a = DrugLabAction(
-        subject_id=body.subjectId, rule_name=body.ruleName, severity=body.severity,
+        hadm_id=body.subjectId, rule_name=body.ruleName, severity=body.severity,
         action_taken=body.action, justification=body.justification,
         recorded_by=body.recordedBy, cosigned_by=body.cosignedBy,
-        status="resolved", recorded_at=datetime.now().isoformat(timespec="minutes"),
+        status="resolved", recorded_at=datetime.now(),
     )
     db.add(a); db.commit(); db.refresh(a)
     return _dl_action_dict(a)
@@ -1066,9 +1059,66 @@ def create_drug_lab_action(body: DrugLabActionCreate, db: Session = Depends(get_
 def list_drug_lab_actions(subjectId: Optional[int] = None, db: Session = Depends(get_db)):
     q = db.query(DrugLabAction)
     if subjectId is not None:
-        q = q.filter(DrugLabAction.subject_id == subjectId)
+        q = q.filter(DrugLabAction.hadm_id == subjectId)
     rows = q.order_by(DrugLabAction.recorded_at.desc()).all()
     return {"actions": [_dl_action_dict(a) for a in rows]}
+
+
+
+# ════════════════════════════════════════════════════════════════════════════
+#  Integration endpoints — EWS ↔ Discharge Summary AI hand-off
+# ════════════════════════════════════════════════════════════════════════════
+from sqlalchemy import text as sql_text
+
+@app.post("/api/patients/{subject_id}/initiate-discharge")
+def initiate_discharge(subject_id: int, db: Session = Depends(get_db)):
+    """Mark patient discharge-ready in shared active_patients table.
+    Sets status='data_ready' so Ashmit's system picks it up for summary generation."""
+    patient = db.query(Patient).filter(Patient.hadm_id == subject_id).first()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    db.execute(sql_text(
+        "UPDATE active_patients SET status = 'data_ready', updated_at = NOW() WHERE hadm_id = :h"
+    ), {"h": subject_id})
+    db.commit()
+    return {
+        "status": "discharge_initiated",
+        "hadm_id": subject_id,
+        "message": "Patient moved to discharge queue. Discharge AI will generate summary.",
+    }
+
+
+@app.get("/api/patients/{subject_id}/ews-context")
+def get_ews_context(subject_id: int, db: Session = Depends(get_db)):
+    """Return EWS monitoring context for use by the Discharge Summary AI.
+    Called by Ashmit's system to enrich the generated summary with ward data."""
+    hadm_id = subject_id
+    latest_vitals = (
+        db.query(VitalTimeSeries)
+        .filter(VitalTimeSeries.hadm_id == hadm_id)
+        .order_by(VitalTimeSeries.chart_time.desc())
+        .limit(5).all()
+    )
+    escalations = db.query(Escalation).filter(Escalation.hadm_id == hadm_id).all()
+    dla = db.query(DrugLabAction).filter(DrugLabAction.hadm_id == hadm_id).all()
+    peak_news2 = max((e.news2_score or 0 for e in escalations), default=0)
+    return {
+        "hadm_id": hadm_id,
+        "peak_news2": peak_news2,
+        "escalation_count": len(escalations),
+        "code_blue_events": sum(1 for e in escalations if e.level == "code_blue"),
+        "critical_drug_lab_flags": sum(1 for d in dla if d.severity == "CRITICAL"),
+        "latest_vitals": [
+            {
+                "chart_time": v.chart_time.isoformat() if v.chart_time else None,
+                "heart_rate": v.heart_rate,
+                "spo2": v.spo2,
+                "sbp": v.sbp,
+                "resp_rate": v.resp_rate,
+            }
+            for v in latest_vitals
+        ],
+    }
 
 
 # Mount the frontend directory (sabari_project) at the root to serve static files (index.html, app.js, styles.css)

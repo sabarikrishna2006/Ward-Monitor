@@ -1,19 +1,41 @@
+import os
+from google.cloud.sql.connector import Connector, IPTypes
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from models import Base
-import os
 
-# DB lives inside backend/data/ — works both locally and on server
 _HERE = os.path.dirname(os.path.abspath(__file__))
-DATABASE_URL = f"sqlite:///{os.path.join(_HERE, 'data', 'ward_careos.db')}"
+os.environ.setdefault(
+    "GOOGLE_APPLICATION_CREDENTIALS",
+    os.path.join(_HERE, "..", "..", "healthcare-project-db-creds.json")
+)
 
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+_INSTANCE = "healthcare-project-496207:us-central1:foqal-healthcare-cloud-sql-db"
+_DB_USER  = "postgres"
+_DB_PASS  = "foqalAnalyticsHealthcareDB2026"
+_DB_NAME  = "postgres"
+
+_connector = Connector()
+
+def _make_connection():
+    return _connector.connect(
+        _INSTANCE, "pg8000",
+        user=_DB_USER, password=_DB_PASS, db=_DB_NAME,
+        ip_type=IPTypes.PUBLIC,
+    )
+
+engine = create_engine(
+    "postgresql+pg8000://",
+    creator=_make_connection,
+    pool_size=5,
+    max_overflow=10,
+    pool_pre_ping=True,
+)
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-
 def init_db():
-    Base.metadata.create_all(bind=engine)
-
+    # Tables already exist in Cloud SQL — no-op kept for startup compatibility
+    pass
 
 def get_db():
     db = SessionLocal()
