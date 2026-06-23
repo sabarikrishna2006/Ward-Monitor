@@ -32,6 +32,8 @@ const NAV = {
     { id: 'n6b',  label: 'Handoff Complete'},
     { separator: true, label: 'Drug-Lab Awareness' },
     { id: 'dl3',  label: 'Active DL Flags' },
+    { separator: true, label: 'Demo' },
+    { id: 'n_demo_replay', label: 'Patient Arc Replay' },
   ],
   gw_nurse: [
     { id: 'n1',   label: 'GW Dashboard'    },
@@ -41,6 +43,8 @@ const NAV = {
     { id: 'n6',   label: 'Shift Handoff'   },
     { separator: true, label: 'Drug-Lab Awareness' },
     { id: 'dl3',  label: 'Active DL Flags' },
+    { separator: true, label: 'Demo' },
+    { id: 'n_demo_replay', label: 'Patient Arc Replay' },
   ],
   charge: [
     { id: 'n5',   label: 'Escalation Queue' },
@@ -48,6 +52,8 @@ const NAV = {
     { separator: true, label: 'Drug-Lab Co-Sign' },
     { id: 'dl1',  label: 'DL Flag Overview' },
     { id: 'dlcosign', label: 'Tier 1 Co-Sign' },
+    { separator: true, label: 'Demo' },
+    { id: 'n_demo_replay', label: 'Patient Arc Replay' },
   ]
 };
 
@@ -99,6 +105,13 @@ async function nav(id, param = null) {
     } else if (id === 'n_transfer' && APP.currentPatientId) {
       const res = await fetch(`/api/patients/${APP.currentPatientId}/transfer-eligibility`);
       if (res.ok) APP.data.n_transfer = await res.json();
+    } else if (id === 'n_demo_replay') {
+      // Load DCM patient list for the picker; replay data loaded on patient selection
+      const res = await fetch('/api/mimic/dcm-patients');
+      if (res.ok) APP.data.n_demo_patients = (await res.json()).patients || [];
+      APP.data.n_demo_replay = null;        // reset replay data
+      APP.data.n_demo_frame = 0;
+      APP.data.n_demo_playing = false;
     } else if (id === 'n5') {
       const [eRes, tRes] = await Promise.all([
         fetch('/api/escalations'),
@@ -1544,4 +1557,190 @@ SCREENS.dlcosign = () => {
     </div>
   </div>
 </div>`;
+};
+
+/* ══════════════════════════════════════════════════════════════════════════
+   PATIENT ARC REPLAY DEMO  (n_demo_replay)
+   Stakeholder-facing: plays the real MIMIC clinical arc frame by frame.
+   Fetches from GET /api/demo/replay/{hadm_id}
+   ══════════════════════════════════════════════════════════════════════════ */
+
+let _replayTimer = null;
+
+window._replayLoadPatient = async function(hadmId) {
+  if (!hadmId) return;
+  const loadBtn = document.getElementById('replay-load-btn');
+  if (loadBtn) loadBtn.textContent = 'Loading…';
+  try {
+    const res = await fetch(`/api/demo/replay/${hadmId}`);
+    if (!res.ok) throw new Error(await res.text());
+    APP.data.n_demo_replay = await res.json();
+    APP.data.n_demo_frame = 0;
+    APP.data.n_demo_playing = false;
+    if (_replayTimer) { clearInterval(_replayTimer); _replayTimer = null; }
+  } catch (e) {
+    alert('Could not load replay: ' + e.message);
+  }
+  renderAll();
+};
+
+window._replayStep = function(delta) {
+  const d = APP.data.n_demo_replay;
+  if (!d) return;
+  const max = d.frames.length - 1;
+  APP.data.n_demo_frame = Math.max(0, Math.min(max, (APP.data.n_demo_frame || 0) + delta));
+  renderAll();
+};
+
+window._replayTogglePlay = function(speedMs) {
+  const d = APP.data.n_demo_replay;
+  if (!d) return;
+  if (_replayTimer) {
+    clearInterval(_replayTimer);
+    _replayTimer = null;
+    APP.data.n_demo_playing = false;
+    renderAll();
+    return;
+  }
+  APP.data.n_demo_playing = true;
+  renderAll();
+  _replayTimer = setInterval(() => {
+    const max = d.frames.length - 1;
+    const next = (APP.data.n_demo_frame || 0) + 1;
+    if (next > max) {
+      clearInterval(_replayTimer);
+      _replayTimer = null;
+      APP.data.n_demo_playing = false;
+    } else {
+      APP.data.n_demo_frame = next;
+    }
+    renderAll();
+  }, speedMs);
+};
+
+SCREENS['n_demo_replay'] = function() {
+  const patients = APP.data.n_demo_patients || [];
+  const replay   = APP.data.n_demo_replay;
+  const frame_i  = APP.data.n_demo_frame || 0;
+  const playing  = APP.data.n_demo_playing;
+
+  const NEWS2_COLOR = (n) => n >= 7 ? 'var(--t1)' : n >= 5 ? 'var(--t2)' : 'var(--t3)';
+  const NYHA_LABEL = (n) => ['', 'NYHA I', 'NYHA II', 'NYHA III', 'NYHA IV'][n] || '—';
+  const EVENT_ICON = (t) => ({escalation:'🚨', drug_flag:'⚠️', admission:'🏥', treatment:'💊', stable:'✅', discharge:'🚪'})[t] || '•';
+
+  const pickerHtml = `
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title" style="margin-bottom:10px">Select DCM Patient for Replay</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <select id="replay-picker" class="fi" style="max-width:320px;flex:1">
+          <option value="">— select hadm_id —</option>
+          ${patients.map(p => {
+            const inDb = p.in_active_patients ? '✓' : '○';
+            return '<option value="' + p.hadm_id + '">' + inDb + ' ' + p.hadm_id + ' · ' + (p.diagnosis||'DCM') + ' · Age ' + p.age + (p.gender||'') + '</option>';
+          }).join('')}
+        </select>
+        <button class="btn btn-pri" id="replay-load-btn"
+          onclick="_replayLoadPatient(document.getElementById('replay-picker').value)">Load Arc</button>
+      </div>
+      ${patients.length === 0 ? '<div class="muted small" style="margin-top:8px">No DCM patients found in Cloud SQL.</div>' : ''}
+    </div>`;
+
+  if (!replay) {
+    return '<div class="bc"><span>Demo</span><span class="bc-sep">/</span><span>Patient Arc Replay</span></div>' +
+      '<div class="sh"><h1 class="sh-title">Patient Arc Replay</h1>' +
+      '<p class="muted small" style="margin-top:4px">Real MIMIC-IV DCM patient trajectory: Admission → Deterioration → Intervention → Discharge</p></div>' +
+      '<div class="content">' + pickerHtml +
+      '<div class="card" style="text-align:center;padding:40px;color:var(--muted)">Select a patient above to view their clinical arc.</div></div>';
+  }
+
+  const pt    = replay.patient;
+  const frames = replay.frames;
+  const frame  = frames[frame_i] || frames[0];
+  const v = frame.vitals || {};
+  const labs = frame.labs || {};
+  const events = frame.events || [];
+  const bpStr = (v.sbp && v.dbp) ? v.sbp + '/' + v.dbp : '--/--';
+  const news2  = frame.news2 || 0;
+  const nyha   = frame.nyha  || 1;
+  const bnp    = frame.bnp;
+
+  const timelineHtml = '<div style="display:flex;align-items:flex-start;gap:0;margin:16px 0 8px;overflow-x:auto;padding-bottom:4px">' +
+    frames.map((f, i) => {
+      const active = i === frame_i;
+      const nc = NEWS2_COLOR(f.news2 || 0);
+      return '<div style="flex:1;min-width:80px;text-align:center;cursor:pointer;position:relative" onclick="APP.data.n_demo_frame=' + i + ';renderAll()">' +
+        '<div style="width:28px;height:28px;border-radius:50%;background:' + nc + ';color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;margin:0 auto 4px;border:3px solid ' + (active ? '#fff' : 'transparent') + ';box-shadow:' + (active ? '0 0 0 3px ' + nc : 'none') + ';transition:all .2s">' +
+        (f.news2 ?? '?') + '</div>' +
+        '<div style="font-size:10px;color:' + (active ? '#fff' : 'var(--muted)') + ';background:' + (active ? nc : 'transparent') + ';border-radius:4px;padding:2px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:84px;margin:0 auto">' +
+        f.label.replace(' · ', ' ') + '</div>' +
+        (i < frames.length - 1 ? '<div style="position:absolute;top:13px;right:-1px;width:100%;height:2px;background:var(--border);z-index:-1"></div>' : '') +
+        '</div>';
+    }).join('') + '</div>';
+
+  const eventsHtml = events.length > 0 ? events.map(e => {
+    const border = e.severity === 'CRITICAL' ? 'var(--t1)' : e.type === 'escalation' ? 'var(--t2)' : 'var(--t3)';
+    return '<div class="alert" style="border-left:4px solid ' + border + ';margin-bottom:8px;padding:10px 12px">' +
+      '<div style="font-weight:600">' + EVENT_ICON(e.type) + ' ' + e.type.replace('_',' ').toUpperCase() + '</div>' +
+      '<div style="margin-top:4px">' + e.text + '</div>' +
+      (e.news2 !== undefined ? '<div class="muted small" style="margin-top:2px">NEWS2 at event: ' + e.news2 + '</div>' : '') +
+      '</div>';
+  }).join('') : '<div class="muted small" style="padding:16px 0">No clinical events in this frame.</div>';
+
+  const controlsHtml =
+    '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:16px">' +
+    '<button class="btn btn-sec" onclick="_replayStep(-1)" ' + (frame_i === 0 ? 'disabled' : '') + '>← Prev</button>' +
+    '<button class="btn ' + (playing ? 'btn-danger' : 'btn-pri') + '" onclick="_replayTogglePlay(2000)">' + (playing ? '⏸ Pause' : '▶ Play (2s/frame)') + '</button>' +
+    '<button class="btn btn-sec" onclick="_replayTogglePlay(800)">⚡ Fast</button>' +
+    '<button class="btn btn-sec" onclick="_replayStep(1)" ' + (frame_i === frames.length - 1 ? 'disabled' : '') + '>Next →</button>' +
+    '<span class="muted small" style="margin-left:auto">Frame ' + (frame_i + 1) + ' of ' + frames.length + ' · ' + (frame.vital_count || 0) + ' vitals</span>' +
+    '</div>';
+
+  return '<div class="bc"><span>Demo</span><span class="bc-sep">/</span><span>Patient Arc Replay</span></div>' +
+    '<div class="sh"><h1 class="sh-title">Patient Arc Replay</h1>' +
+    '<span class="muted small">Real MIMIC-IV DCM · ' + pt.diagnosis + ' · Age ' + pt.age + (pt.gender||'') + '</span></div>' +
+    '<div class="content">' + pickerHtml +
+    '<div class="card" style="margin-bottom:16px">' +
+      '<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin-bottom:8px">' +
+        '<div><div class="muted small">Patient</div><div style="font-weight:600">' + (pt.name || 'MIMIC Patient') + ' · HADM ' + pt.hadm_id + '</div></div>' +
+        '<div><div class="muted small">Admission NYHA</div><div style="font-weight:600">' + NYHA_LABEL(pt.nyha_at_admission) + '</div></div>' +
+        (pt.bnp_at_admission ? '<div><div class="muted small">Admission BNP</div><div style="font-weight:600">' + pt.bnp_at_admission + ' pg/mL</div></div>' : '') +
+        (pt.lvef ? '<div><div class="muted small">LVEF</div><div style="font-weight:600">' + pt.lvef + '%</div></div>' : '') +
+        '<div style="margin-left:auto;text-align:center"><div style="font-size:38px;font-weight:800;color:' + NEWS2_COLOR(news2) + ';line-height:1">' + news2 + '</div><div class="muted small">NEWS2</div></div>' +
+        '<div style="text-align:center"><div style="font-size:22px;font-weight:700;color:var(--accent)">' + NYHA_LABEL(nyha) + '</div>' + (bnp ? '<div class="muted small">BNP ' + bnp + ' pg/mL</div>' : '<div class="muted small">No BNP</div>') + '</div>' +
+      '</div>' +
+      '<div style="background:var(--surf);border-radius:6px;padding:8px 0">' +
+        '<div style="font-weight:600;padding:0 12px 8px">' + frame.label + '</div>' +
+        timelineHtml +
+      '</div>' +
+      controlsHtml +
+    '</div>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">' +
+      '<div class="card"><div class="card-title" style="margin-bottom:12px">Vitals at Frame</div>' +
+        '<table style="width:100%;border-collapse:collapse;font-size:13px"><tbody>' +
+        '<tr><td class="muted">Heart Rate</td><td style="text-align:right;font-weight:600">' + (v.hr ?? '--') + ' bpm</td></tr>' +
+        '<tr><td class="muted">Resp Rate</td><td style="text-align:right;font-weight:600">' + (v.rr ?? '--') + ' /min</td></tr>' +
+        '<tr><td class="muted">SpO2</td><td style="text-align:right;font-weight:600">' + (v.spo2 ?? '--') + '%</td></tr>' +
+        '<tr><td class="muted">Blood Pressure</td><td style="text-align:right;font-weight:600">' + bpStr + ' mmHg</td></tr>' +
+        '<tr><td class="muted">Temperature</td><td style="text-align:right;font-weight:600">' + (v.temp ?? '--') + ' °C</td></tr>' +
+        '<tr><td class="muted">Consciousness</td><td style="text-align:right;font-weight:600">' + (v.avpu || 'A') + '</td></tr>' +
+        (v.urine_output != null ? '<tr><td class="muted">Urine Output</td><td style="text-align:right;font-weight:600">' + v.urine_output + ' mL</td></tr>' : '') +
+        (v.weight_kg ? '<tr><td class="muted">Weight</td><td style="text-align:right;font-weight:600">' + v.weight_kg + ' kg</td></tr>' : '') +
+        '</tbody></table></div>' +
+      '<div class="card"><div class="card-title" style="margin-bottom:12px">Labs at Frame</div>' +
+        '<table style="width:100%;border-collapse:collapse;font-size:13px"><tbody>' +
+        (labs.potassium ? '<tr><td class="muted">Potassium</td><td style="text-align:right;font-weight:600">' + labs.potassium + ' mmol/L</td></tr>' : '') +
+        (labs.creatinine ? '<tr><td class="muted">Creatinine</td><td style="text-align:right;font-weight:600">' + labs.creatinine + ' mg/dL</td></tr>' : '') +
+        (labs.sodium ? '<tr><td class="muted">Sodium</td><td style="text-align:right;font-weight:600">' + labs.sodium + ' mmol/L</td></tr>' : '') +
+        (labs.hemoglobin ? '<tr><td class="muted">Hemoglobin</td><td style="text-align:right;font-weight:600">' + labs.hemoglobin + ' g/dL</td></tr>' : '') +
+        (labs.lactate ? '<tr><td class="muted">Lactate</td><td style="text-align:right;font-weight:600">' + labs.lactate + ' mmol/L</td></tr>' : '') +
+        (labs.bnp ? '<tr><td class="muted">BNP</td><td style="text-align:right;font-weight:600">' + labs.bnp + ' pg/mL</td></tr>' : '') +
+        (labs.troponin ? '<tr><td class="muted">Troponin T</td><td style="text-align:right;font-weight:600">' + labs.troponin + ' ng/mL</td></tr>' : '') +
+        (labs.inr ? '<tr><td class="muted">INR</td><td style="text-align:right;font-weight:600">' + labs.inr + '</td></tr>' : '') +
+        (Object.keys(labs).length === 0 ? '<tr><td colspan="2" class="muted">No labs in this frame</td></tr>' : '') +
+        '</tbody></table></div>' +
+    '</div>' +
+    '<div class="card" style="margin-top:12px"><div class="card-title" style="margin-bottom:12px">Clinical Events — ' + frame.label + '</div>' +
+      eventsHtml +
+    '</div>' +
+    '</div>';
 };

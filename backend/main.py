@@ -1,14 +1,37 @@
 import math
-from fastapi import FastAPI, Depends, HTTPException
+import os
+import yaml
+from collections import defaultdict
+from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from database import SessionLocal, init_db
 from models import Patient, VitalTimeSeries, LabEvent, Medication, Escalation, CcuTransfer, DrugLabAction
 from engine.drug_lab import check_patient_against_rules
+from mimic_sync import sync_patient_from_mimic, list_dcm_patients
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime, timedelta
 import random
+
+_NEWS2_YAML = os.path.join(os.path.dirname(__file__), "rules", "news2_thresholds.yaml")
+_NEWS2_CACHE: dict | None = None
+
+def _load_news2_thresholds() -> dict:
+    global _NEWS2_CACHE
+    if _NEWS2_CACHE is None:
+        with open(_NEWS2_YAML, "r", encoding="utf-8") as f:
+            _NEWS2_CACHE = yaml.safe_load(f)
+    return _NEWS2_CACHE
+
+def _score_range(value: float, bands: list[dict]) -> int:
+    """Score a numeric vital against a sorted list of band dicts {min?, max?, score}."""
+    for band in bands:
+        lo = band.get("min", float("-inf"))
+        hi = band.get("max", float("inf"))
+        if lo <= value <= hi:
+            return band.get("score", 0)
+    return 0
 
 class EscalationCreate(BaseModel):
     patientId: int
@@ -51,66 +74,55 @@ def get_db():
         db.close()
 
 def calculate_news2(vitals, hypercapnic_failure=False):
+    """
+    YAML-driven NEWS2 scorer. Loads thresholds from rules/news2_thresholds.yaml.
+    active_set in the YAML controls which threshold set is used (uk_news2 or india_news2).
+    SpO2 Scale 2 (hypercapnic) on-oxygen bonuses are still handled in code per RCP spec.
+    """
+    cfg = _load_news2_thresholds()
+    active = cfg.get("active_set", "uk_news2")
+    thresholds = cfg.get(active, cfg.get("uk_news2", {}))
+
     score = 0
     factors = []
-    
+
     rr = vitals.get('resp_rate')
     if rr is not None:
-        if rr <= 8: s = 3
-        elif 9 <= rr <= 11: s = 1
-        elif 12 <= rr <= 20: s = 0
-        elif 21 <= rr <= 24: s = 2
-        else: s = 3
+        s = _score_range(rr, thresholds.get("resp_rate", []))
         score += s
         if s > 0: factors.append({"name": "Respiration Rate", "score": s})
 
     spo2 = vitals.get('spo2')
     if spo2 is not None:
+        on_o2 = vitals.get('air_or_oxygen') == 'Oxygen'
         if hypercapnic_failure:
-            if spo2 <= 83: s = 3
-            elif 84 <= spo2 <= 85: s = 2
-            elif 86 <= spo2 <= 87: s = 1
-            elif 88 <= spo2 <= 92: s = 0
-            elif 93 <= spo2 <= 94 and vitals.get('air_or_oxygen') == 'Oxygen': s = 1
-            elif 95 <= spo2 <= 96 and vitals.get('air_or_oxygen') == 'Oxygen': s = 2
-            elif spo2 >= 97 and vitals.get('air_or_oxygen') == 'Oxygen': s = 3
-            else: s = 0
+            s2_bands = thresholds.get("spo2_scale2", [])
+            s = _score_range(spo2, s2_bands)
+            # On-Oxygen bonuses per RCP SpO2 Scale 2 spec (93-94→+1, 95-96→+2, ≥97→+3)
+            if on_o2 and spo2 >= 93:
+                if spo2 <= 94: s = 1
+                elif spo2 <= 96: s = 2
+                else: s = 3
             score += s
             if s > 0: factors.append({"name": "SpO2 (Scale 2)", "score": s})
         else:
-            if spo2 <= 91: s = 3
-            elif 92 <= spo2 <= 93: s = 2
-            elif 94 <= spo2 <= 95: s = 1
-            else: s = 0
+            s = _score_range(spo2, thresholds.get("spo2_scale1", []))
             score += s
             if s > 0: factors.append({"name": "SpO2 (Scale 1)", "score": s})
-            
-    air_or_oxygen = vitals.get('air_or_oxygen')
-    if air_or_oxygen == 'Oxygen':
+
+    if vitals.get('air_or_oxygen') == 'Oxygen':
         score += 2
         factors.append({"name": "Supplemental Oxygen", "score": 2})
 
     sbp = vitals.get('sbp')
     if sbp is not None:
-        # NEWS2 standard thresholds (internationally validated, used in Indian hospitals)
-        # India calibration: SBP >= 220 mmHg = hypertensive crisis (score 3)
-        # per ICMR/CSI hypertension guidelines — more prevalent in Indian cohorts
-        if sbp <= 90: s = 3
-        elif 91 <= sbp <= 100: s = 2
-        elif 101 <= sbp <= 110: s = 1
-        elif 111 <= sbp <= 219: s = 0
-        else: s = 3  # >= 220 mmHg — hypertensive crisis
+        s = _score_range(sbp, thresholds.get("sbp", []))
         score += s
         if s > 0: factors.append({"name": "Systolic BP", "score": s})
 
     hr = vitals.get('heart_rate')
     if hr is not None:
-        if hr <= 40: s = 3
-        elif 41 <= hr <= 50: s = 1
-        elif 51 <= hr <= 90: s = 0
-        elif 91 <= hr <= 110: s = 1
-        elif 111 <= hr <= 130: s = 2
-        else: s = 3
+        s = _score_range(hr, thresholds.get("heart_rate", []))
         score += s
         if s > 0: factors.append({"name": "Heart Rate", "score": s})
 
@@ -121,11 +133,7 @@ def calculate_news2(vitals, hypercapnic_failure=False):
 
     temp = vitals.get('temperature')
     if temp is not None:
-        if temp <= 35.0: s = 3
-        elif 35.1 <= temp <= 36.0: s = 1
-        elif 36.1 <= temp <= 38.0: s = 0
-        elif 38.1 <= temp <= 39.0: s = 1
-        else: s = 2
+        s = _score_range(temp, thresholds.get("temperature", []))
         score += s
         if s > 0: factors.append({"name": "Temperature", "score": s})
 
@@ -330,7 +338,8 @@ def add_patient(patient: PatientCreate, db: Session = Depends(get_db)):
 REPLAY_OFFSET = 0
 
 @app.get("/api/ward-data")
-def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False, db: Session = Depends(get_db)):
+def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False,
+                  hadm_id: Optional[int] = None, db: Session = Depends(get_db)):
     global REPLAY_OFFSET
     if replay:
         REPLAY_OFFSET = (REPLAY_OFFSET + 1) % 20
@@ -340,19 +349,56 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
         q = q.filter(Patient.ward == ward)
     if location != "All":
         q = q.filter(Patient.ward_location == location)   # CCU | GENERAL_WARD
+    if hadm_id is not None:
+        q = q.filter(Patient.hadm_id == hadm_id)
     patients = q.all()
-    
-    # Base "now" on the latest recorded vital in the entire database to prevent 
-    # everything from going stale if the demo server runs for hours.
+
+    if not patients:
+        return {"patients": [], "ward": ward}
+
+    patient_ids = [p.hadm_id for p in patients]
+
     from sqlalchemy import func
+
+    # Bulk-fetch vitals/labs/meds in 3 queries instead of 3×N Cloud SQL round-trips
     demo_now = db.query(func.max(VitalTimeSeries.chart_time)).scalar() or datetime.now()
+
+    _vrows = db.query(VitalTimeSeries).filter(
+        VitalTimeSeries.hadm_id.in_(patient_ids)
+    ).order_by(VitalTimeSeries.chart_time.desc()).all()
+    _vitals_map = defaultdict(list)
+    for _v in _vrows:
+        _vitals_map[_v.hadm_id].append(_v)
+
+    _lrows = db.query(LabEvent).filter(
+        LabEvent.hadm_id.in_(patient_ids)
+    ).order_by(LabEvent.chart_time.desc()).all()
+    _labs_map = defaultdict(list)
+    for _l in _lrows:
+        _labs_map[_l.hadm_id].append(_l)
+
+    _mrows = db.query(Medication).filter(
+        Medication.hadm_id.in_(patient_ids)
+    ).all()
+    _meds_map = defaultdict(list)
+    for _m in _mrows:
+        _meds_map[_m.hadm_id].append(_m)
 
     result = []
     for p in patients:
-        all_vitals = db.query(VitalTimeSeries).filter(
-            VitalTimeSeries.hadm_id == p.hadm_id
-        ).order_by(VitalTimeSeries.chart_time.desc()).all()
-        
+        all_vitals = list(_vitals_map[p.hadm_id])   # already sorted desc by bulk query
+
+        # Auto-sync from MIMIC if this patient has no vitals yet (first appearance)
+        if not all_vitals and getattr(p, 'data_fetch_status', None) == 'fetched':
+            try:
+                sync_patient_from_mimic(p.hadm_id, db)
+                all_vitals = db.query(VitalTimeSeries).filter(
+                    VitalTimeSeries.hadm_id == p.hadm_id
+                ).order_by(VitalTimeSeries.chart_time.desc()).all()
+                _vitals_map[p.hadm_id] = all_vitals
+            except Exception:
+                pass  # sync failure should not break the ward view
+
         if not all_vitals:
             continue
             
@@ -462,9 +508,7 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
                 "news2": hist_news2
             })
 
-        db_labs = db.query(LabEvent).filter(
-            LabEvent.hadm_id == p.hadm_id
-        ).order_by(LabEvent.chart_time.desc()).limit(10).all()
+        db_labs = _labs_map[p.hadm_id][:10]
 
         formatted_labs = []
         rule_engine_labs = {}
@@ -479,9 +523,21 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
             if l.potassium:
                 formatted_labs.append({"time": l_time, "test": "Potassium", "value": round(l.potassium, 2), "unit": "mmol/L"})
                 if "potassium" not in rule_engine_labs: rule_engine_labs["potassium"] = l.potassium
+            # MIMIC-sourced labs (new columns from schema_migration_v2)
+            if getattr(l, 'bnp', None):
+                formatted_labs.append({"time": l_time, "test": "BNP", "value": round(float(l.bnp), 0), "unit": "pg/mL"})
+                if "bnp" not in rule_engine_labs: rule_engine_labs["bnp"] = float(l.bnp)
+            if getattr(l, 'troponin', None):
+                formatted_labs.append({"time": l_time, "test": "Troponin T", "value": round(float(l.troponin), 4), "unit": "ng/mL"})
+                if "troponin" not in rule_engine_labs: rule_engine_labs["troponin"] = float(l.troponin)
+            if getattr(l, 'sodium', None):
+                formatted_labs.append({"time": l_time, "test": "Sodium", "value": round(float(l.sodium), 1), "unit": "mmol/L"})
+                if "sodium" not in rule_engine_labs: rule_engine_labs["sodium"] = float(l.sodium)
+            if getattr(l, 'hemoglobin', None):
+                formatted_labs.append({"time": l_time, "test": "Hemoglobin", "value": round(float(l.hemoglobin), 1), "unit": "g/dL"})
 
         # ── Full medication objects (name + dose + frequency) ──
-        meds_db = db.query(Medication).filter(Medication.hadm_id == p.hadm_id).all()
+        meds_db = _meds_map[p.hadm_id]
         med_names = [m.med_name for m in meds_db]
         medications = [
             {"name": m.med_name, "dose": m.dose or "--", "frequency": m.frequency or "--"}
@@ -630,9 +686,11 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
             "drugLabAlerts": drug_lab_alerts,
             "meds": med_names,
             "medications": medications,
-            "stale_mins": stale_mins
+            "stale_mins": stale_mins,
+            "nyhaClass": getattr(p, 'nyha_class', None),
+            "bnpBaseline": float(p.bnp_baseline) if getattr(p, 'bnp_baseline', None) else None,
         })
-        
+
     return {"patients": result, "ward": ward}
 
 @app.post("/api/escalations")
@@ -742,10 +800,9 @@ def resolve_escalation(esc_id: int, res: EscalationResolve, db: Session = Depend
 
 @app.get("/api/patients/{subject_id}")
 def get_patient_detail(subject_id: int, db: Session = Depends(get_db)):
-    ward_data = get_ward_data(ward="All", replay=False, db=db)
-    for p in ward_data["patients"]:
-        if str(p["id"]) == str(subject_id):
-            return p
+    ward_data = get_ward_data(ward="All", location="All", replay=False, hadm_id=subject_id, db=db)
+    if ward_data["patients"]:
+        return ward_data["patients"][0]
     raise HTTPException(status_code=404, detail="Patient not found")
 
 class VitalsInput(BaseModel):
@@ -1121,8 +1178,223 @@ def get_ews_context(subject_id: int, db: Session = Depends(get_db)):
     }
 
 
+# ════════════════════════════════════════════════════════════════════════════
+#  MIMIC Sync Endpoints
+# ════════════════════════════════════════════════════════════════════════════
+
+@app.post("/api/patients/{hadm_id}/sync-mimic")
+def sync_single_patient(hadm_id: int, db: Session = Depends(get_db)):
+    """Manually trigger MIMIC data sync for a single patient."""
+    patient = db.query(Patient).filter(Patient.hadm_id == hadm_id).first()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    result = sync_patient_from_mimic(hadm_id, db)
+    return {"status": "synced", **result}
+
+
+@app.post("/api/patients/bulk-sync-mimic")
+def bulk_sync_patients(db: Session = Depends(get_db)):
+    """Sync all active patients that have no ews_vitals yet."""
+    patients = db.query(Patient).filter(Patient.status == "active").all()
+    results = []
+    for p in patients:
+        has_vitals = db.query(VitalTimeSeries).filter(
+            VitalTimeSeries.hadm_id == p.hadm_id
+        ).first()
+        if not has_vitals:
+            try:
+                r = sync_patient_from_mimic(p.hadm_id, db)
+                results.append(r)
+            except Exception as e:
+                results.append({"hadm_id": p.hadm_id, "error": str(e)})
+    return {"synced": len(results), "results": results}
+
+
+@app.get("/api/mimic/dcm-patients")
+def get_dcm_patients(db: Session = Depends(get_db)):
+    """List available DCM patients (ICD I42.x / 425.x) from ap_admissions."""
+    patients = list_dcm_patients(db)
+    return {"total": len(patients), "patients": patients}
+
+
+# ════════════════════════════════════════════════════════════════════════════
+#  Replay Demo Endpoint
+# ════════════════════════════════════════════════════════════════════════════
+
+@app.get("/api/demo/replay/{hadm_id}")
+def get_replay_demo(hadm_id: int, db: Session = Depends(get_db)):
+    """
+    Build a stakeholder replay demo: patient arc from admission to discharge.
+    Segments MIMIC vitals and labs into 6 narrative frames aligned with clinical events.
+    """
+    patient = db.query(Patient).filter(Patient.hadm_id == hadm_id).first()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+
+    # All vitals in chronological order
+    all_vitals = db.query(VitalTimeSeries).filter(
+        VitalTimeSeries.hadm_id == hadm_id
+    ).order_by(VitalTimeSeries.chart_time.asc()).all()
+
+    if not all_vitals:
+        raise HTTPException(status_code=404, detail="No vitals found — run /sync-mimic first")
+
+    # All labs in chronological order
+    all_labs = db.query(LabEvent).filter(
+        LabEvent.hadm_id == hadm_id
+    ).order_by(LabEvent.chart_time.asc()).all()
+
+    # Escalations and drug-lab actions for event overlay
+    escalations = db.query(Escalation).filter(
+        Escalation.hadm_id == hadm_id
+    ).order_by(Escalation.escalated_at.asc()).all()
+    dla_actions = db.query(DrugLabAction).filter(
+        DrugLabAction.hadm_id == hadm_id
+    ).order_by(DrugLabAction.recorded_at.asc()).all()
+
+    # Split total time range into 6 equal frames
+    t_start = all_vitals[0].chart_time
+    t_end = all_vitals[-1].chart_time
+    total_secs = (t_end - t_start).total_seconds() or 1
+    frame_secs = total_secs / 6
+
+    frame_labels = [
+        "Day 1 · Admission",
+        "Day 2 · Early Monitoring",
+        "Day 3 · Deterioration",
+        "Day 4 · Intervention",
+        "Day 5 · Recovery",
+        "Day 6 · Step-down",
+    ]
+
+    def _pick_vitals_in_window(start: datetime, end: datetime):
+        return [v for v in all_vitals if start <= v.chart_time <= end]
+
+    def _pick_labs_in_window(start: datetime, end: datetime):
+        return [l for l in all_labs if l.chart_time and start <= l.chart_time <= end]
+
+    def _vitals_dict(v: VitalTimeSeries):
+        return {
+            "hr":   round(v.heart_rate, 0) if v.heart_rate else None,
+            "rr":   round(v.resp_rate, 0) if v.resp_rate else None,
+            "spo2": round(v.spo2, 0) if v.spo2 else None,
+            "sbp":  round(v.sbp, 0) if v.sbp else None,
+            "dbp":  round(v.dbp, 0) if v.dbp else None,
+            "temp": round(v.temperature, 1) if v.temperature else None,
+            "avpu": v.consciousness or "A",
+            "urine_output": float(v.urine_output) if v.urine_output else None,
+            "weight_kg": float(v.weight_kg) if v.weight_kg else None,
+        }
+
+    frames = []
+    for i in range(6):
+        w_start = t_start + timedelta(seconds=i * frame_secs)
+        w_end = t_start + timedelta(seconds=(i + 1) * frame_secs)
+
+        w_vitals = _pick_vitals_in_window(w_start, w_end)
+        w_labs = _pick_labs_in_window(w_start, w_end)
+
+        # Pick representative vitals: last in window (captures deterioration if any)
+        rep_vital = w_vitals[-1] if w_vitals else (all_vitals[0] if all_vitals else None)
+        rep_lab = w_labs[-1] if w_labs else (all_labs[0] if all_labs else None)
+
+        v_dict = {}
+        news2_score = 0
+        if rep_vital:
+            v_dict = _vitals_dict(rep_vital)
+            vd = {
+                "resp_rate": rep_vital.resp_rate, "spo2": rep_vital.spo2,
+                "sbp": rep_vital.sbp, "heart_rate": rep_vital.heart_rate,
+                "temperature": rep_vital.temperature,
+                "consciousness": rep_vital.consciousness or "A",
+                "air_or_oxygen": rep_vital.air_or_oxygen or "Air",
+            }
+            news2_score = calculate_news2(vd, getattr(patient, 'hypercapnic_failure', 0) == 1)["total"]
+
+        bnp_val = float(rep_lab.bnp) if rep_lab and rep_lab.bnp else getattr(patient, 'bnp_baseline', None)
+        bnp_val = float(bnp_val) if bnp_val else None
+
+        from mimic_sync import compute_nyha
+        nyha, _ = compute_nyha(bnp_val, getattr(patient, 'lvef_percent', None), news2_score)
+
+        # Events: escalations + drug-lab actions within this window
+        events = []
+        for esc in escalations:
+            if esc.escalated_at and w_start <= esc.escalated_at <= w_end:
+                events.append({
+                    "type": "escalation", "level": esc.level,
+                    "text": f"Escalated to {esc.level} — {esc.observations or 'clinical deterioration'}",
+                    "news2": esc.news2_score,
+                })
+        for dla in dla_actions:
+            if dla.recorded_at and w_start <= dla.recorded_at <= w_end:
+                events.append({
+                    "type": "drug_flag", "severity": dla.severity,
+                    "text": f"{dla.rule_name} — {dla.action_taken}",
+                })
+        if i == 0:
+            meds = db.query(Medication).filter(Medication.hadm_id == hadm_id).all()
+            med_names = ", ".join(m.med_name for m in meds[:4]) if meds else "—"
+            events.append({
+                "type": "admission",
+                "text": f"Admitted: {patient.admitting_diagnosis or patient.diagnosis_short or 'DCM'}. "
+                        f"NYHA {nyha}. Meds: {med_names}",
+            })
+        if i == 5 and not any(e["type"] == "discharge" for e in events):
+            events.append({
+                "type": "discharge",
+                "text": f"NEWS2 stable ≤ {news2_score}. Step-down to General Ward. "
+                        "Discharge summary generation initiated.",
+            })
+
+        lab_dict = {}
+        if rep_lab:
+            lab_dict = {k: v for k, v in {
+                "potassium": rep_lab.potassium,
+                "creatinine": rep_lab.creatinine,
+                "lactate": rep_lab.lactate,
+                "inr": rep_lab.inr,
+                "bnp": float(rep_lab.bnp) if rep_lab.bnp else None,
+                "troponin": float(rep_lab.troponin) if rep_lab.troponin else None,
+                "sodium": float(rep_lab.sodium) if rep_lab.sodium else None,
+                "hemoglobin": float(rep_lab.hemoglobin) if rep_lab.hemoglobin else None,
+            }.items() if v is not None}
+
+        frames.append({
+            "frame": i + 1,
+            "label": frame_labels[i],
+            "chart_time": rep_vital.chart_time.isoformat() if rep_vital and rep_vital.chart_time else None,
+            "news2": news2_score,
+            "nyha": nyha,
+            "bnp": bnp_val,
+            "vitals": v_dict,
+            "labs": lab_dict,
+            "events": events,
+            "vital_count": len(w_vitals),
+        })
+
+    return {
+        "patient": {
+            "hadm_id": patient.hadm_id,
+            "name": patient.patient_name,
+            "age": patient.anchor_age,
+            "gender": patient.gender,
+            "diagnosis": patient.admitting_diagnosis or patient.diagnosis_short or "Dilated Cardiomyopathy",
+            "nyha_at_admission": getattr(patient, 'nyha_class', None),
+            "bnp_at_admission": float(patient.bnp_baseline) if getattr(patient, 'bnp_baseline', None) else None,
+            "lvef": getattr(patient, 'lvef_percent', None),
+        },
+        "frames": frames,
+        "total_vital_readings": len(all_vitals),
+        "total_lab_readings": len(all_labs),
+    }
+
+
+# ════════════════════════════════════════════════════════════════════════════
+#  Static frontend
+# ════════════════════════════════════════════════════════════════════════════
+
 # Mount the frontend directory (sabari_project) at the root to serve static files (index.html, app.js, styles.css)
-import os
 from fastapi.staticfiles import StaticFiles
 frontend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")

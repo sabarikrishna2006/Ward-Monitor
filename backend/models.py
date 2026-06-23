@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, Numeric
+from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, Numeric, BigInteger
 from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
@@ -37,6 +37,11 @@ class Patient(Base):
     status              = Column(String(30), default="active")
     data_fetch_status   = Column(String(20), default="fetched")
 
+    # MIMIC integration — cardiology metrics (added by schema_migration_v2.sql)
+    nyha_class          = Column(Integer)          # 1-4, derived from BNP/EF/NEWS2
+    lvef_percent        = Column(Integer)          # % from echo; NULL if unavailable
+    bnp_baseline        = Column(Numeric(10, 2))   # BNP at admission (pg/mL)
+
 
 class VitalTimeSeries(Base):
     __tablename__ = "ews_vitals_timeseries"
@@ -54,6 +59,7 @@ class VitalTimeSeries(Base):
     air_or_oxygen = Column(String(10), default="Air")
     urine_output  = Column(Float)
     fluid_balance = Column(Float)
+    weight_kg     = Column(Numeric(6, 2))          # daily weight (kg)
 
 
 class LabEvent(Base):
@@ -68,6 +74,11 @@ class LabEvent(Base):
     inr        = Column(Float)
     egfr       = Column(Float)
     alt        = Column(Float)
+    # MIMIC integration — added by schema_migration_v2.sql
+    bnp        = Column(Numeric(10, 2))   # BNP pg/mL (itemids 50963, 51921)
+    troponin   = Column(Numeric(10, 4))   # Troponin T ng/mL (itemid 51003)
+    sodium     = Column(Numeric(6, 2))    # Na mmol/L (itemid 50983)
+    hemoglobin = Column(Numeric(6, 2))    # Hgb g/dL (itemid 51222)
 
 
 class Medication(Base):
@@ -139,3 +150,58 @@ class DrugLabAction(Base):
     cosigned_by   = Column(String, nullable=True)
     status        = Column(String, default="recorded")
     recorded_at   = Column(DateTime)
+
+
+# ── Read-only ORM mirrors of Ashmit's ap_* tables ───────────────────────────
+# These are declared so SQLAlchemy can query them; we never create/drop them.
+
+class ApChartEvent(Base):
+    __tablename__ = "ap_chartevents"
+    __table_args__ = {"extend_existing": True}
+
+    id        = Column(BigInteger, primary_key=True)
+    hadm_id   = Column(Integer, index=True)
+    itemid    = Column(Integer)
+    charttime = Column(DateTime)
+    valuenum  = Column(Numeric(14, 4))
+    valueuom  = Column(String)
+
+
+class ApLabEvent(Base):
+    __tablename__ = "ap_labevents"
+    __table_args__ = {"extend_existing": True}
+
+    labevent_id = Column(BigInteger, primary_key=True)
+    hadm_id     = Column(Integer, index=True)
+    itemid      = Column(Integer)
+    charttime   = Column(DateTime)
+    valuenum    = Column(Numeric(14, 4))
+    valueuom    = Column(String)
+
+
+class ApPrescription(Base):
+    __tablename__ = "ap_prescriptions"
+    __table_args__ = {"extend_existing": True}
+
+    id              = Column(BigInteger, primary_key=True)
+    hadm_id         = Column(Integer, index=True)
+    drug            = Column(String)
+    drug_type       = Column(String)
+    dose_val_rx     = Column(String)
+    dose_unit_rx    = Column(String)
+    doses_per_24_hrs = Column(Float)
+    route           = Column(String)
+    starttime       = Column(DateTime)
+    stoptime        = Column(DateTime)
+
+
+class ApOutputEvent(Base):
+    __tablename__ = "ap_outputevents"
+    __table_args__ = {"extend_existing": True}
+
+    id        = Column(BigInteger, primary_key=True)
+    hadm_id   = Column(Integer, index=True)
+    itemid    = Column(Integer)
+    charttime = Column(DateTime)
+    value     = Column(Float)
+    valueuom  = Column(String)

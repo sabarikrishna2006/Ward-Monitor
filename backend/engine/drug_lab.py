@@ -62,10 +62,14 @@ DRUG_CLASS_MAP = {
 }
 
 
+_RULES_CACHE: list | None = None
+
 def load_rules():
-    """Load rules from YAML file."""
-    with open(RULES_PATH, 'r', encoding='utf-8') as f:
-        return yaml.safe_load(f)['rules']
+    global _RULES_CACHE
+    if _RULES_CACHE is None:
+        with open(RULES_PATH, 'r', encoding='utf-8') as f:
+            _RULES_CACHE = yaml.safe_load(f)['rules']
+    return _RULES_CACHE
 
 
 def _med_matches_class(med_name, med_classes):

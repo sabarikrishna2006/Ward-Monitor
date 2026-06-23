@@ -27,12 +27,19 @@ from sqlalchemy.orm import Session
 
 
 def init_db_fresh():
-    """Drop all tables and recreate — ensures schema is always up-to-date."""
-    # Ensure the data/ directory exists (database.py points here)
-    data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
-    os.makedirs(data_dir, exist_ok=True)
-    Base.metadata.drop_all(bind=engine)
-    Base.metadata.create_all(bind=engine)
+    """Truncate only EWS-owned tables so shared ap_* tables are untouched.
+    Creates any missing EWS tables first (idempotent against Cloud SQL)."""
+    from sqlalchemy import text
+    ews_tables = [
+        "ews_drug_lab_actions", "ews_ccu_transfers", "ews_escalations",
+        "ews_medications", "ews_lab_events", "ews_vitals_timeseries", "active_patients",
+    ]
+    Base.metadata.create_all(bind=engine, checkfirst=True)
+    with engine.connect() as conn:
+        for t in ews_tables:
+            conn.execute(text(f"TRUNCATE TABLE {t} CASCADE"))
+        conn.commit()
+    print("  EWS tables truncated (ap_* tables preserved).")
 
 # ─── Demographics ─────────────────────────────────────────────────────────────
 # 16 patients — realistic South Indian DCM cardiology ward names
@@ -63,9 +70,9 @@ PATIENTS = [
 # Exception: 10005 is a stable patient kept in CCU as a step-down CANDIDATE (seeds a pending transfer).
 CCU_STEPDOWN_CANDIDATES = {10005}
 
-def ward_location_for(subject_id, scenario):
+def ward_location_for(hadm_id, scenario):
     is_stable = scenario.startswith("stable") or scenario == "stale_vitals"
-    if is_stable and subject_id not in CCU_STEPDOWN_CANDIDATES:
+    if is_stable and hadm_id not in CCU_STEPDOWN_CANDIDATES:
         return "GENERAL_WARD"
     return "CCU"
 
@@ -168,8 +175,8 @@ def gen_vitals_trajectory(session, subject_id, profile_key):
         fbal  = int(fb_base + trend * 25 + random.gauss(0, 30))
 
         session.add(VitalTimeSeries(
-            subject_id    = subject_id,
-            chart_hour    = hour_key.strftime("%Y-%m-%dT%H:%M"),
+            hadm_id       = subject_id,
+            chart_time    = hour_key,
             heart_rate    = hr,
             resp_rate     = rr,
             spo2          = spo2,
@@ -191,8 +198,8 @@ def gen_labs(session, subject_id, profile_key):
         m_offset = random.randint(-20, 20)
         ts = now - timedelta(hours=hours_ago) + timedelta(minutes=m_offset)
         session.add(LabEvent(
-            subject_id = subject_id,
-            chart_hour = ts.strftime("%Y-%m-%dT%H:%M"),
+            hadm_id    = subject_id,
+            chart_time = ts,
             potassium  = labs.get("potassium"),
             creatinine = labs.get("creatinine"),
             lactate    = labs.get("lactate"),
@@ -207,7 +214,6 @@ def build():
     print("Foqal CareOS — Demo DB Builder")
     print("=" * 60)
     init_db_fresh()
-    print("  Schema recreated (drop + create).")
 
     with Session(engine) as session:
 
@@ -216,19 +222,23 @@ def build():
             loc  = ward_location_for(sid, scenario)
 
             patient = Patient(
+                hadm_id             = sid,
                 subject_id          = sid,
                 patient_code        = f"PT-26-{i:04d}",
-                name                = name,
-                age                 = age,
-                sex                 = sex,
+                patient_name        = name,
+                anchor_age          = age,
+                gender              = (sex or "M")[0].upper(),
                 ward                = ward,
                 room                = ward_suffix,
                 bed                 = bed,
-                admitted            = (datetime.now() - timedelta(days=random.randint(1, 7))).strftime("%d %b %Y"),
-                complaint           = complaint,
+                admit_time          = datetime.now() - timedelta(days=random.randint(1, 7)),
+                ews_complaint       = complaint,
+                admitting_diagnosis = complaint,
                 diagnosis_short     = dx_short,
                 ward_location       = loc,
                 hypercapnic_failure = 0,
+                status              = "active",
+                data_fetch_status   = "fetched",
             )
             session.add(patient)
 
@@ -241,17 +251,20 @@ def build():
             # Medications
             for (drug, dose, freq) in MEDS.get(scenario, MEDS["stable_low"]):
                 session.add(Medication(
-                    subject_id = sid,
-                    med_name   = drug,
-                    dose       = dose,
-                    frequency  = freq,
+                    hadm_id   = sid,
+                    med_name  = drug,
+                    dose      = dose,
+                    frequency = freq,
                 ))
 
             print(f"  [OK] {name:20s}  Ward {ward_suffix}  Bed {bed}  {loc:13s} [{scenario}]")
 
+        # Flush patients to DB before inserting CcuTransfer (FK constraint requires active_patients row first)
+        session.flush()
+
         # ── Seed one pending CCU→GW step-down transfer (Mohan Singh, stable in CCU) ──
         session.add(CcuTransfer(
-            subject_id          = 10005,
+            hadm_id             = 10005,
             patient_name        = "Mohan Singh",
             diagnosis           = "DCM · VT risk",
             rationale           = "NEWS2 ≤ 2 sustained 8h+; haemodynamically stable; "
@@ -261,12 +274,12 @@ def build():
             news2_at_submit     = 2,
             stable_window_hours = 8,
             status              = "pending",
-            submitted_at        = (datetime.now() - timedelta(hours=1)).isoformat(timespec="minutes"),
+            submitted_at        = datetime.now() - timedelta(hours=1),
         ))
 
         session.commit()
 
-    print(f"\n  16 patients written to ward_careos.db")
+    print(f"\n  16 patients written to Cloud SQL (active_patients + ews_* tables).")
     print("  Run backend: py -3 -m uvicorn main:app --reload --port 8000")
     print("=" * 60)
 
