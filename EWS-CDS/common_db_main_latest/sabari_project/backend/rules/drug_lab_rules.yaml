@@ -1,0 +1,153 @@
+rules:
+  # ── EXISTING GENERAL RULES ────────────────────────────────────────────────
+  # Drug-Lab Interaction Rule Engine
+  # Loads rules from rules/drug_lab_rules.yaml and checks patient data against them.
+  # Rules sourced from: Cardiological Society of India (CSI), CDSCO, RSSDI, ICMR, ESC, FDA.
+  
+  - name: "Hyperkalemia risk with ACE inhibitors"
+    trigger:
+      lab: potassium
+      condition: "> 5.5"
+    medications:
+      - ace_inhibitors
+      - k_sparing_diuretics
+    severity: CRITICAL
+    message: "K⁺ {lab_value} mmol/L with ACE inhibitor/K-sparing diuretic — hyperkalemia risk."
+    action: "Hold ACE inhibitor and K-sparing diuretic. Repeat K⁺ in 2h. Notify physician. Consider calcium gluconate if K⁺ > 6.0."
+    guideline: "Cardiological Society of India (CSI) HF Guidelines 2022"
+
+  - name: "Lactic acidosis risk — eGFR low with metformin"
+    trigger:
+      lab: egfr
+      condition: "< 30"
+    medications:
+      - metformin
+    severity: CRITICAL
+    message: "eGFR {lab_value} mL/min with metformin active — lactic acidosis risk."
+    action: "Stop metformin immediately. Monitor bicarbonate and lactate. Notify physician."
+    guideline: "CDSCO Drug Safety Guidelines / RSSDI 2023"
+
+  - name: "AKI risk — rising creatinine with NSAID"
+    trigger:
+      lab: creatinine
+      condition: "> 1.5"
+    medications:
+      - nsaids
+      - ace_inhibitors
+    severity: WARNING
+    message: "Creatinine {lab_value} mg/dL with nephrotoxic medication — AKI risk."
+    action: "Review nephrotoxic medications. Increase monitoring frequency. Consider renal ultrasound."
+    guideline: "KDIGO AKI Guidelines 2012 / Indian Nephrology Society"
+
+  - name: "Bleeding risk — elevated INR with anticoagulant"
+    trigger:
+      lab: inr
+      condition: "> 3.5"
+    medications:
+      - anticoagulants
+    severity: CRITICAL
+    message: "INR {lab_value} with anticoagulant active — major bleeding risk."
+    action: "Hold anticoagulant. Consider vitamin K (1–5 mg oral). Monitor for bleeding signs. Notify physician urgently."
+    guideline: "CSI Anticoagulation Guidelines / ACCP 2012"
+
+  - name: "Lactate elevation — sepsis concern"
+    trigger:
+      lab: lactate
+      condition: "> 2.0"
+    medications: []
+    severity: WARNING
+    message: "Lactate {lab_value} mmol/L elevated — assess for sepsis."
+    action: "Assess qSOFA/SOFA criteria. Consider blood cultures and broad-spectrum antibiotics."
+    guideline: "Surviving Sepsis Campaign 2021 / ISCCM India"
+
+  # ── CARDIOLOGY-SPECIFIC RULES (India-calibrated) ──────────────────────────
+  - name: "Digoxin toxicity — hypokalemia"
+    trigger:
+      lab: potassium
+      condition: "< 3.5"
+    medications:
+      - digoxin
+    severity: CRITICAL
+    message: "K⁺ {lab_value} mmol/L with active digoxin — hypokalemia greatly increases digoxin toxicity risk."
+    action: "Hold digoxin. Check digoxin serum level (target 0.8–1.2 ng/mL). Replace potassium (IV/oral). 12-lead ECG urgently. Notify cardiologist."
+    guideline: "CSI Guidelines / FDA Drug Safety / Cardiological Society of India 2022"
+
+  - name: "Amiodarone potentiates warfarin — INR elevation"
+    trigger:
+      lab: inr
+      condition: "> 2.5"
+    medications:
+      - anticoagulants
+      - amiodarone
+    severity: WARNING
+    message: "INR {lab_value} with amiodarone + anticoagulant active — amiodarone inhibits warfarin metabolism (CYP2C9)."
+    action: "Reduce warfarin dose by 30–50%. Monitor INR weekly for 6 weeks (peak effect at 7 weeks). Check for bleeding signs."
+    guideline: "CSI Atrial Fibrillation Guidelines 2021 / British National Formulary"
+
+  - name: "Loop diuretic — hypokalemia arrhythmia risk"
+    trigger:
+      lab: potassium
+      condition: "< 3.5"
+    medications:
+      - loop_diuretics
+    severity: WARNING
+    message: "K⁺ {lab_value} mmol/L with loop diuretic (furosemide/torsemide) — diuretic-induced hypokalemia, cardiac arrhythmia risk."
+    action: "Potassium replacement (oral KCl 20–40 mEq or IV if < 3.0). Review diuretic dose. 12-lead ECG. Notify physician."
+    guideline: "CSI Heart Failure Guidelines 2022 / Indian Heart Journal"
+
+  - name: "Beta-blocker symptomatic bradycardia"
+    trigger:
+      lab: heart_rate
+      condition: "< 50"
+    medications:
+      - beta_blockers
+    severity: WARNING
+    message: "HR {lab_value} bpm with beta-blocker active — symptomatic bradycardia risk."
+    action: "Withhold next beta-blocker dose. 12-lead ECG. If symptomatic (hypotension, dizziness), notify cardiologist. Consider atropine if haemodynamically unstable."
+    guideline: "ESC 2021 HF Guidelines / CSI Bradycardia Protocol"
+
+  - name: "Statin hepatotoxicity — elevated transaminases"
+    trigger:
+      lab: alt
+      condition: "> 120"
+    medications:
+      - statins
+    severity: WARNING
+    message: "ALT {lab_value} U/L (>3× ULN) with statin active — statin-induced hepatotoxicity risk."
+    action: "Withhold statin. Repeat LFT in 1 week. If ALT > 200 U/L, consult gastroenterology. Do NOT restart until ALT < 3× ULN."
+    guideline: "RSSDI Lipid Guidelines 2023 / ICMR Statin Safety Guidelines"
+
+  - name: "Hyperkalemia early warning — HF patient on ACE + spironolactone"
+    trigger:
+      lab: potassium
+      condition: "> 5.0"
+    medications:
+      - ace_inhibitors
+      - k_sparing_diuretics
+    severity: WARNING
+    message: "K⁺ {lab_value} mmol/L (> 5.0) with ACE inhibitor + aldosterone antagonist — early hyperkalemia in heart failure."
+    action: "Reduce spironolactone dose. Low-potassium diet counselling. Repeat K⁺ in 24h. If K⁺ > 5.5 mmol/L, hold spironolactone."
+    guideline: "CSI HF Guidelines 2022 / ESC HF 2021 (Section 7.3)"
+
+  - name: "Amiodarone + Digoxin — serum digoxin toxicity"
+    trigger:
+      lab: creatinine
+      condition: "> 1.2"
+    medications:
+      - digoxin
+      - amiodarone
+    severity: CRITICAL
+    message: "Creatinine {lab_value} mg/dL with amiodarone + digoxin — amiodarone increases digoxin levels by 70–100% via P-gp inhibition."
+    action: "Reduce digoxin dose by 50%. Check serum digoxin level urgently (therapeutic range 0.8–1.2 ng/mL). Monitor for toxicity: nausea, bradycardia, visual disturbance. Notify cardiologist."
+    guideline: "CSI AF Guidelines 2021 / FDA Drug Safety Communication"
+
+  - name: "Contrast nephropathy risk — creatinine with metformin"
+    trigger:
+      lab: creatinine
+      condition: "> 1.3"
+    medications:
+      - metformin
+    severity: WARNING
+    message: "Creatinine {lab_value} mg/dL with metformin — risk of contrast-induced nephropathy if contrast agent used."
+    action: "Hold metformin 48h before and after contrast administration. Ensure adequate IV hydration. Recheck creatinine before restarting."
+    guideline: "CDSCO Advisory / RCR Contrast Guidelines 2023"
