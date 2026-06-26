@@ -394,7 +394,7 @@ def list_encounters(status: Optional[str] = None,
                     assigned_to: Optional[str] = None,
                     exclude_status: Optional[str] = None) -> List[Dict]:
     sql = """
-        SELECT ae.*, ap.primary_diagnosis_title, ap.patient_name
+        SELECT ae.*, ap.primary_diagnosis_title, ap.patient_name, ap.anchor_age, ap.gender
         FROM app_encounters ae
         LEFT JOIN active_patients ap ON ap.hadm_id = ae.hadm_id
         WHERE TRUE

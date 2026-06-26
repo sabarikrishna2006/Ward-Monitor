@@ -50,7 +50,7 @@ async function dqLoad() {
     // Fetch summary for each encounter in parallel
     const withSummaries = await Promise.all(encs.map(async e => {
       const sum = await fetchSummary(e.id).catch(() => null);
-      return { ...e, admission: null, patient: null, summary: sum || null };
+      return { ...e, admission: null, patient: e.patient_name ? { full_name: e.patient_name, age: e.anchor_age, gender: e.gender } : null, summary: sum || null };
     }));
     _dq.encounters = withSummaries;
     _dqBuildRegenToasts(withSummaries);
@@ -83,7 +83,7 @@ async function dqLoad() {
         if (prev !== next) {
           const withSummaries = await Promise.all(encs.map(async e => {
             const sum = await fetchSummary(e.id).catch(() => null);
-            return { ...e, summary: sum || null };
+            return { ...e, admission: null, patient: e.patient_name ? { full_name: e.patient_name } : null, summary: sum || null };
           }));
           _dq.encounters = withSummaries;
           _dqBuildRegenToasts(withSummaries);
@@ -195,6 +195,9 @@ SCREEN_RENDERERS["doctor-queue"] = function renderDoctorQueue() {
           <div>
             <div style="font-size:10px;font-weight:800;color:var(--ink-5);letter-spacing:.14em;text-transform:uppercase;margin-bottom:4px">Patient</div>
             <div style="font-weight:800;font-size:18px;color:var(--ink);letter-spacing:-.02em;line-height:1">${fmtPid(enc.hadm_id, enc.display_id)}</div>
+            <div style="font-size:13px;color:#6B7280;margin-top:4px">
+              ${enc.patient?.full_name || ''} ${enc.patient?.age ? '· ' + enc.patient.age + 'y' : ''}
+            </div>
           </div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
             <span class="pill ${si.cls}" style="font-size:10.5px">${dotHTML}${si.label}</span>

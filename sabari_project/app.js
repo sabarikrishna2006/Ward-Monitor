@@ -19,6 +19,8 @@ const APP = {
   currentPatientId: null,
 };
 
+const DOCTOR_PORTAL_URL = window.CONFIG?.DOCTOR_PORTAL_URL || `http://${location.hostname}:5180`;
+
 /* ─── NAV TREE per role ─── */
 const NAV = {
   nurse: [
@@ -79,6 +81,7 @@ async function nav(id, param = null) {
   if (APP.screen && APP.screen !== id) APP.history.push(APP.screen);
   APP.screen = id;
   if (param !== null) APP.currentPatientId = param;
+  if (id === 'n1' || id === 'n1b') APP._dischargePatient = null;
 
   // Async shell-first: paint the shell + skeleton immediately so the user never
   // sees a blank white screen while data loads. Data screens show the skeleton
@@ -270,14 +273,17 @@ function logout() {
   APP.role = null; APP.user = null; APP.screen = null; APP.history = [];
   sessionStorage.removeItem('foqal_token');
   sessionStorage.removeItem('foqal_user');
+  sessionStorage.removeItem('unified_auth');
   document.documentElement.removeAttribute('data-authed');
 
-  // Since Sabari's standalone login is completely removed, redirect to Ashmit's unified login
-  const fromServer = (location.port === '5175' || location.port === '80' || location.port === '');
-  if (fromServer) {
-    window.location.href = `http://${location.hostname}:5180/`;
+  const logoutBtn = document.getElementById('logout-btn');
+  if (logoutBtn) {
+    document.getElementById('logout-btn').innerHTML = `<span class="icon">◴</span> Logging out...`;
+    setTimeout(() => {
+      window.location.href = DOCTOR_PORTAL_URL + '/';
+    }, 500);
   } else {
-    document.body.innerHTML = '<div style="padding:40px;text-align:center;font-family:sans-serif">Logged out.<br><br><a href="http://localhost:5180/">Go to Unified Login</a></div>';
+    document.body.innerHTML = `<div style="padding:40px;text-align:center;font-family:sans-serif">Logged out.<br><br><a href="${DOCTOR_PORTAL_URL}/">Go to Unified Login</a></div>`;
   }
 }
 
@@ -285,9 +291,9 @@ function logout() {
 (function() {
   const raw = sessionStorage.getItem('foqal_user');
   if (!raw) {
-    const fromServer = (location.port === '5175' || location.port === '80' || location.port === '');
-    if (fromServer) {
-      window.location.href = `http://${location.hostname}:5180/`;
+    const noRedirect = sessionStorage.getItem('unified_auth');
+    if (!noRedirect) {
+      window.location.href = DOCTOR_PORTAL_URL + '/';
     }
     return;
   }
@@ -314,7 +320,9 @@ function renderAll() {
 
 function renderHeader() {
   const u = APP.user;
-  document.getElementById('hdr-role').textContent  = u ? u.role  : '';
+  const roleEl = document.getElementById('hdr-role');
+  roleEl.textContent  = u ? u.role  : '';
+  roleEl.className = 'role-chip' + (u && u.role ? ' ' + u.role : '');
   document.getElementById('hdr-user').textContent  = u ? u.name  : '';
   document.getElementById('hdr-ward').textContent  = u ? u.ward  : '';
 }
@@ -944,6 +952,18 @@ SCREENS.n2 = () => {
     } catch(e) { console.error(e); alert('Network error: ' + e.message); }
   };
 
+  setTimeout(async () => {
+    const sel = document.getElementById('esc-attending');
+    if (!sel) return;
+    try {
+      const res = await fetch('/api/on-call-doctors');
+      const docs = await res.json();
+      sel.innerHTML = docs.map(d => `<option value="${d.name}">${d.name} (${d.role})</option>`).join('');
+    } catch(e) {
+      sel.innerHTML = '<option value="Unknown">Failed to load on-call list</option>';
+    }
+  }, 0);
+
   return `
 <div class="bc"><span class="bc-link" onclick="nav('n1')">NEWS2 Dashboard</span><span class="bc-sep">/</span><span>Escalation</span></div>
 <div class="sh"><h1 class="sh-title">Raise Escalation — ${p.patient_code || 'PT-' + p.id}</h1></div>
@@ -973,16 +993,14 @@ SCREENS.n2 = () => {
     </div>
     <div class="fg"><label class="fl">Attending to Notify</label>
       <select class="fi" id="esc-attending">
-        <option value="Dr. Anand Sharma">Dr. Anand Sharma (On-call, Cardiology)</option>
-        <option value="Dr. Priya Mehta">Dr. Priya Mehta</option>
-        <option value="Dr. Deepak Rao">Dr. Deepak Rao</option>
+        <option>Loading...</option>
       </select>
     </div>
     <div class="fg"><label class="fl">Clinical Observations</label>
-      <textarea class="fi" id="esc-obs" rows="3">Patient increasingly short of breath, oxygen requirement escalating. Responsive to voice but lethargic.</textarea>
+      <textarea class="fi" id="esc-obs" rows="3" placeholder="Patient increasingly short of breath, oxygen requirement escalating. Responsive to voice but lethargic."></textarea>
     </div>
     <div class="fg"><label class="fl">Interventions Already Taken</label>
-      <textarea class="fi" id="esc-int" rows="2">O₂ titrated. Head of bed elevated 45°.</textarea>
+      <textarea class="fi" id="esc-int" rows="2" placeholder="O₂ titrated. Head of bed elevated 45°."></textarea>
     </div>
     <div style="display:flex;gap:8px;margin-top:12px">
       <button class="btn btn-sec" onclick="nav('n1')">Cancel</button>
@@ -1033,41 +1051,68 @@ ${p.spo2 ? `<div class="card" style="max-width:560px;margin-bottom:16px">
 };
 
 /* ── N4 — STATUS LOG ────────────────────────────────────────── */
-SCREENS.n4 = () => `
+SCREENS.n4 = () => {
+  const e = APP.data.lastEscalation || {};
+  const p = APP.data.n1b || {};
+  const patCode = p.patient_code || 'PT-' + p.id;
+  
+  window.doctorAcknowledge = async function(escId) {
+    if (!escId) return nav('n4b');
+    try {
+      await fetch('/api/escalations/' + escId + '/resolve', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ resolvedBy: APP.user?.name || 'Doctor', notes: '' })
+      });
+    } catch(err) {}
+    nav('n4b');
+  };
+
+  setTimeout(async () => {
+    const tlEl = document.getElementById('esc-timeline');
+    if (!tlEl) return;
+    if (!e.id) {
+      tlEl.innerHTML = '<div class="muted" style="padding: 20px;">No escalation data available.</div>';
+      return;
+    }
+    try {
+      const res = await fetch('/api/escalations/' + e.id);
+      const fullEsc = await res.json();
+      let html = '';
+      const escAt = new Date(fullEsc.escalated_at || Date.now());
+      html += '<div class="tl-date">' + escAt.toLocaleDateString('en-IN') + '</div>';
+      
+      html += '<div class="tl-item"><div class="tl-dot err">!</div><div class="tl-body"><div class="tl-title">Escalation Raised</div><div class="tl-time">' + escAt.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) + '</div><div class="tl-detail">To ' + fullEsc.attending + '. Level: ' + fullEsc.level + '. Recorded by ' + fullEsc.escalated_by + '.</div></div></div>';
+
+      if (fullEsc.acknowledged_at) {
+         html += '<div class="tl-item"><div class="tl-dot ok">✓</div><div class="tl-body"><div class="tl-title">Doctor Acknowledged</div><div class="tl-time">' + new Date(fullEsc.acknowledged_at).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) + '</div><div class="tl-detail">Acknowledged.</div></div></div>';
+      }
+      if (fullEsc.resolved_at) {
+         html += '<div class="tl-item"><div class="tl-dot ok">✓</div><div class="tl-body"><div class="tl-title">Resolved</div><div class="tl-time">' + new Date(fullEsc.resolved_at).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) + '</div><div class="tl-detail">Resolved by ' + fullEsc.resolved_by + '.</div></div></div>';
+      }
+      tlEl.innerHTML = html;
+    } catch (err) {}
+  }, 0);
+
+  return `
 <div class="bc"><span class="bc-link" onclick="nav('n1')">NEWS2 Dashboard</span><span class="bc-sep">/</span><span>Escalation Status</span></div>
 <div class="sh">
-  <h1 class="sh-title">Escalation Status — PT-24-0092</h1>
+  <h1 class="sh-title">Escalation Status — ${patCode}</h1>
   <div class="sh-actions">
-    <button class="btn btn-pri btn-sm" onclick="nav('n4b')">Doctor Acknowledges →</button>
+    <button class="btn btn-pri btn-sm" onclick="doctorAcknowledge(${e.id || 0})">Doctor Acknowledges →</button>
   </div>
 </div>
-<div class="tl">
-  ${[
-    ['14:28','Vitals Recorded',      'NEWS2: 9. SpO₂ 91%, BP 88/52, RR 22. Recorded by Nurse Rekha Devi.',         ''],
-    ['14:29','Escalation Raised',    'To Dr. Anand Sharma (Attending). Level: Nurse-to-Doctor.',                    'err'],
-    ['14:30','Notification Sent',    'Secure non-PHI push alert: "Escalation raised — patient requires attention"', ''],
-    ['14:32','Doctor Acknowledged',  'Dr. Anand Sharma confirmed — en route to ward.',                              'ok'],
-    ['14:37','Doctor at Bedside',    'Bedside assessment initiated. Team assembled.',                                'ok'],
-    ['14:45','Intervention Given',   'IV Furosemide 80mg bolus. O₂ via NRM mask 15L/min.',                         ''],
-    ['14:50','Repeat Vitals',        'SpO₂ 93%, BP 94/60, HR 106. Improving.',                                     'ok'],
-    ['15:10','Patient Stabilised',   'NEWS2 reduced to 4. Ongoing Q1h monitoring ordered.',                         'ok'],
-  ].map(([t,e,d,cls]) => `
-  <div class="tl-item">
-    <div class="tl-dot ${cls}">${cls==='ok'?'✓':cls==='err'?'!':'●'}</div>
-    <div class="tl-body">
-      <div class="tl-title">${e}</div>
-      <div class="tl-time">${t} · 02 Jun 2026</div>
-      <div class="tl-detail">${d}</div>
-    </div>
-  </div>`).join('')}
+<div class="tl" id="esc-timeline">
+  <div class="muted" style="padding: 20px;">Loading timeline...</div>
 </div>
 <div class="card" style="margin-top:16px">
   <div class="card-title">De-escalation Criteria</div>
-  <div class="check-row"><input type="checkbox" checked> SpO₂ ≥ 94% sustained 30 min</div>
-  <div class="check-row"><input type="checkbox" checked> Systolic BP ≥ 90 mmHg</div>
-  <div class="check-row"><input type="checkbox" checked> NEWS2 ≤ 4 for 60 minutes</div>
+  <div class="check-row"><input type="checkbox"> SpO₂ ≥ 94% sustained 30 min</div>
+  <div class="check-row"><input type="checkbox"> Systolic BP ≥ 90 mmHg</div>
+  <div class="check-row"><input type="checkbox"> NEWS2 ≤ 4 for 60 minutes</div>
   <div class="check-row"><input type="checkbox"> Doctor confirmed de-escalation</div>
 </div>`;
+};
 
 /* ── N4b — POST RESOLUTION ──────────────────────────────────── */
 SCREENS.n4b = () => {
@@ -1230,12 +1275,15 @@ SCREENS.n5b = () => `
   </div>
   <div style="display:flex;gap:8px;justify-content:flex-end">
     <button class="btn btn-sec" onclick="nav('n5')">Cancel</button>
-    <button class="btn btn-pri">Save & Sign Off</button>
+    <button class="btn btn-pri" disabled>(Demo Mode — read-only)</button>
   </div>
 </div>`;
 
 /* ── N6 — SHIFT HANDOFF ─────────────────────────────────────── */
-SCREENS.n6 = () => `
+SCREENS.n6 = () => {
+  const nurseName = APP.user ? APP.user.name : 'Nurse';
+  const timeStr = new Date().toLocaleString('en-IN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short', year: 'numeric' });
+  return `
 <div class="bc"><span class="bc-link" onclick="nav('n1')">NEWS2 Dashboard</span><span class="bc-sep">/</span><span>Shift Handoff</span></div>
 <div class="sh"><h1 class="sh-title">Shift Handoff — Ward 4B/4C</h1></div>
 
@@ -1244,17 +1292,17 @@ SCREENS.n6 = () => `
     <div class="card-title">Handoff Details</div>
     <div class="frow">
       <div class="fg"><label class="fl">Outgoing Nurse</label>
-        <input class="fi" value="Nurse Rekha Devi" readonly style="background:var(--surf)">
+        <input class="fi" value="${nurseName}" readonly style="background:var(--surf)">
       </div>
       <div class="fg"><label class="fl">Shift</label>
-        <input class="fi" value="Day Shift  07:00 – 19:00" readonly style="background:var(--surf)">
+        <input class="fi" value="Day Shift" readonly style="background:var(--surf)">
       </div>
     </div>
     <div class="fg"><label class="fl">Incoming Nurse</label>
       <select class="fi"><option>Nurse Prathima M (Night Shift)</option></select>
     </div>
     <div class="fg"><label class="fl">Handoff Time</label>
-      <input class="fi" value="19:00, 02 Jun 2026" readonly style="background:var(--surf)">
+      <input class="fi" value="${timeStr}" readonly style="background:var(--surf)">
     </div>
   </div>
   <div class="card">
@@ -1287,21 +1335,25 @@ SCREENS.n6 = () => `
 </div>`;
 
 /* ── N6b — HANDOFF COMPLETE ─────────────────────────────────── */
-SCREENS.n6b = () => `
+SCREENS.n6b = () => {
+  const nurseName = APP.user ? APP.user.name : 'Nurse';
+  const timeStr = new Date().toLocaleString('en-IN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short', year: 'numeric' });
+  return `
 <div class="bc"><span class="bc-link" onclick="nav('n6')">Shift Handoff</span><span class="bc-sep">/</span><span>Complete</span></div>
 <div class="sh"><h1 class="sh-title">Shift Handoff Complete</h1></div>
 <div class="card" style="max-width:440px;margin:0 auto;text-align:center;padding:36px">
   <div style="font-size:44px;margin-bottom:14px">🤝</div>
   <div style="font-size:16px;font-weight:800;color:var(--t3);margin-bottom:16px">Handoff Complete</div>
   <div class="tw" style="text-align:left;margin-bottom:20px"><table><tbody>
-    <tr><td class="muted">Outgoing</td><td class="bold">Nurse Rekha Devi</td></tr>
+    <tr><td class="muted">Outgoing</td><td class="bold">${nurseName}</td></tr>
     <tr><td class="muted">Incoming</td><td class="bold">Nurse Prathima M</td></tr>
-    <tr><td class="muted">Shift end</td><td class="mono">19:02, 02 Jun 2026</td></tr>
-    <tr><td class="muted">Reference</td><td class="mono">HO-4B-2026-0602-19</td></tr>
+    <tr><td class="muted">Shift end</td><td class="mono">${timeStr}</td></tr>
+    <tr><td class="muted">Reference</td><td class="mono">HO-4B-${new Date().getTime().toString().slice(-6)}</td></tr>
     <tr><td class="muted">Acknowledged</td><td style="color:var(--t3)">✓ Nurse Prathima M</td></tr>
   </tbody></table></div>
   <button class="btn btn-pri" style="width:100%;justify-content:center" onclick="nav('n1')">← Return to Dashboard</button>
 </div>`;
+};
 
 /* ══════════════════════════════════════════════════════════════
    DRUG-LAB SCREENS
@@ -1540,10 +1592,10 @@ SCREENS.n_vitals = () => {
     const air_or_oxygen = get('v-air') || 'Air';
 
     if ([spo2, rr, hr, sbp, dbp, temp].some(isNaN)) {
-      alert('All fields are required and must be valid numbers.');
       return;
     }
-    if (spo2 < 70 || spo2 > 100)   { alert('SpO2 must be 70-100%'); return; }
+    if (spo2 < 0 || spo2 > 100)   { alert('SpO2 must be 0-100%'); return; }
+    if (spo2 < 85 && !confirm(`SpO2 is critically low (${spo2}%). Are you sure you want to record this value?`)) return;
     if (rr < 5   || rr > 60)       { alert('Resp Rate must be 5-60'); return; }
     if (hr < 20  || hr > 250)      { alert('Heart Rate must be 20-250'); return; }
     if (sbp < 50 || sbp > 250)     { alert('SBP must be 50-250'); return; }
@@ -1659,7 +1711,7 @@ SCREENS.dlcosign = () => {
 /* ── DISCHARGE CONFIRMATION SCREEN ─────────────────────────────────────── */
 SCREENS.n_discharge = () => {
   const dp = APP._dischargePatient || {};
-  const residentBase = `http://${location.hostname}:5180`;
+  const residentBase = DOCTOR_PORTAL_URL;
   return `
 <div class="bc"><span class="bc-link" onclick="nav('n1')">NEWS2 Dashboard</span><span class="bc-sep">/</span><span>Discharge Initiated</span></div>
 <div class="sh"><h1 class="sh-title">Discharge Process Started</h1><div class="sh-actions"><span class="bd bd-t3">✓ Submitted</span></div></div>
@@ -1694,7 +1746,7 @@ SCREENS.n_discharge = () => {
 <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
   <button class="btn btn-sec btn-sm" onclick="nav('n1')">← Back to Ward Dashboard</button>
   <button class="btn btn-pri btn-sm" style="background:#16a34a"
-    onclick="window.open('${residentBase}/upload.html?hadm_id=${dp.id}','_blank')">
+    onclick="window.open('${residentBase}/upload.html?hadm_id=${dp.id}&patient_name=' + encodeURIComponent('${dp.name || ''}'),'_blank')">
     Open Doctor Portal →
   </button>
 </div>`;

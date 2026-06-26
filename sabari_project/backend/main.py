@@ -435,6 +435,12 @@ import time as _time
 _ward_cache: dict = {}          # key: (ward, location) → {"ts": float, "data": dict}
 _WARD_CACHE_TTL = 20            # seconds; fresh enough for 15-min polling dashboard
 
+def _invalidate_ward_cache(ward: str):
+    """Invalidates cache for a specific ward and the 'All' ward to prevent data leaks/performance drops."""
+    keys_to_remove = [k for k in _ward_cache.keys() if k[0] in ("All", ward)]
+    for k in keys_to_remove:
+        _ward_cache.pop(k, None)
+
 @app.get("/api/ward-data")
 def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False,
                   hadm_id: Optional[int] = None, db: Session = Depends(get_db)):
@@ -574,11 +580,17 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
         # Monitoring cadence + "vitals due/overdue" — adapts to CCU vs General Ward
         ward_location = getattr(p, 'ward_location', 'CCU') or 'CCU'
         monitoring = monitoring_plan(news2_score, news_data["factors"], ward_location)
-        is_overdue = stale_mins > monitoring["interval_mins"]
-        due_label = ("Overdue " + fmt_mins(stale_mins - monitoring["interval_mins"])) if is_overdue \
-                    else ("Due in " + fmt_mins(monitoring["interval_mins"] - stale_mins))
+        no_vitals_yet = len(vitals_history) == 0
+        is_overdue = stale_mins > monitoring["interval_mins"] and not no_vitals_yet
+        
+        if no_vitals_yet:
+            due_label = "Awaiting first vitals"
+        else:
+            due_label = ("Overdue " + fmt_mins(stale_mins - monitoring["interval_mins"])) if is_overdue \
+                        else ("Due in " + fmt_mins(monitoring["interval_mins"] - stale_mins))
 
-        if is_overdue: status = 'stale'
+        if no_vitals_yet: status = 'stable'
+        elif is_overdue: status = 'stale'
         elif news2_score >= 7: status = 'critical'
         elif news2_score >= 5: status = 'warning'
         else: status = 'stable'
@@ -598,7 +610,7 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
             # Only add points where at least one numeric vital is valid
             has_any_valid = any([
                 is_valid(v.heart_rate), is_valid(v.resp_rate),
-                is_valid(v.spo2), is_valid(v.sbp)
+                is_valid(v.spo2), is_valid(v.sbp), is_valid(v.temperature)
             ])
             if not has_any_valid:
                 continue
@@ -787,6 +799,7 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
             "ewsReason": ews_reason,
             "monitoring": monitoring,
             "isOverdue": is_overdue,
+            "noVitalsYet": no_vitals_yet,
             "dueLabel": due_label,
             "urineOutput": int(latest_vitals['urine_output']) if latest_vitals['urine_output'] is not None else None,
             "fluidBalance": int(latest_vitals['fluid_balance']) if latest_vitals['fluid_balance'] is not None else None,
@@ -976,7 +989,7 @@ def add_vitals(subject_id: int, v: VitalsInput, db: Session = Depends(get_db)):
     # BUG-07 FIX: Invalidate the ward cache so the next dashboard poll returns
     # fresh NEWS2 scores. Without this, the nurse returns to the dashboard and
     # sees the old score for up to 20 seconds.
-    _ward_cache.clear()
+    _invalidate_ward_cache(patient.ward)
 
     news_result = calculate_news2(v.dict(), patient.hypercapnic_failure == 1)
     news2_score = news_result["total"]
@@ -1003,9 +1016,18 @@ def get_latest_vitals(subject_id: int, db: Session = Depends(get_db)):
     if not vt:
         raise HTTPException(status_code=404, detail="No vitals found")
 
+    patient = db.query(Patient).filter(Patient.hadm_id == subject_id).first()
+    v_dict = {
+        "heart_rate": vt.heart_rate, "resp_rate": vt.resp_rate,
+        "spo2": vt.spo2, "sbp": vt.sbp, "temperature": vt.temperature,
+        "air_or_oxygen": vt.air_or_oxygen
+    }
+    news_result = calculate_news2(v_dict, patient.hypercapnic_failure == 1 if patient else False)
+    plan = monitoring_plan(news_result["total"], news_result["factors"], patient.ward_location if patient else "GW")
+
     recorded_at = (vt.chart_time if isinstance(vt.chart_time, datetime) else datetime.now()).replace(tzinfo=None)
     stale_mins = int((datetime.now() - recorded_at).total_seconds() // 60)
-    is_stale = stale_mins > 45
+    is_stale = stale_mins > plan["interval_mins"]
 
     return {
         "chart_time": vt.chart_time.isoformat() if vt.chart_time else None,
@@ -1289,7 +1311,11 @@ def sync_vitals_now(hadm_id: int, db: Session = Depends(get_db)):
             "UPDATE active_patients SET data_fetch_status='fetched' WHERE hadm_id=:h AND data_fetch_status IN ('partial','fetching','pending')"
         ), {"h": hadm_id})
         db.commit()
-        _ward_cache.clear()
+        patient = db.query(Patient).filter(Patient.hadm_id == hadm_id).first()
+        if patient:
+            _invalidate_ward_cache(patient.ward)
+        else:
+            _ward_cache.clear()
         return {"status": "ok", "hadm_id": hadm_id, "vitals_inserted": result.get("vitals_inserted", 0)}
     except Exception as e:
         return {"status": "error", "detail": str(e)}
@@ -1301,6 +1327,17 @@ def initiate_discharge(subject_id: int, db: Session = Depends(get_db)):
     patient = db.query(Patient).filter(Patient.hadm_id == subject_id).first()
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
+    try:
+        name_row = db.execute(sql_text("""
+            SELECT hcp.full_name FROM hospital_core.admissions hca
+            JOIN hospital_core.patients hcp ON hca.uhid = hcp.uhid
+            WHERE hca.hadm_id = :h LIMIT 1
+        """), {"h": subject_id}).fetchone()
+        if name_row and name_row[0]:
+            db.execute(sql_text("UPDATE active_patients SET patient_name = :n WHERE hadm_id = :h"), 
+                       {"n": name_row[0], "h": subject_id})
+    except Exception:
+        pass
 
     db.execute(sql_text(
         "UPDATE active_patients SET status = 'data_ready', data_fetch_status = 'fetched', updated_at = NOW() WHERE hadm_id = :h"
@@ -1325,7 +1362,7 @@ def initiate_discharge(subject_id: int, db: Session = Depends(get_db)):
         """), {"h": subject_id})
 
     db.commit()
-    _ward_cache.clear()  # invalidate so next poll reflects discharge
+    _invalidate_ward_cache(patient.ward)  # invalidate so next poll reflects discharge
     return {
         "status": "discharge_initiated",
         "hadm_id": subject_id,
@@ -1365,6 +1402,23 @@ def get_ews_context(subject_id: int, db: Session = Depends(get_db)):
         ],
     }
 
+@app.get("/api/on-call-doctors")
+def get_on_call_doctors(db: Session = Depends(get_db)):
+    """Return a list of on-call doctors (or consultants) from app_users."""
+    try:
+        users = db.execute(sql_text(
+            "SELECT full_name, role FROM app_users WHERE is_active = TRUE AND role IN ('doctor', 'consultant')"
+        )).fetchall()
+        if not users:
+            raise Exception("No doctors found")
+        return [{"name": u[0], "role": u[1]} for u in users]
+    except Exception:
+        return [
+            {"name": "Dr. Anand Sharma", "role": "Cardiology"},
+            {"name": "Dr. Priya Mehta", "role": "doctor"},
+            {"name": "Dr. Deepak Rao", "role": "doctor"}
+        ]
+
 
 # ════════════════════════════════════════════════════════════════════════════
 #  MIMIC Sync Endpoints
@@ -1381,21 +1435,33 @@ def sync_single_patient(hadm_id: int, db: Session = Depends(get_db)):
 
 
 @app.post("/api/patients/bulk-sync-mimic")
-def bulk_sync_patients(db: Session = Depends(get_db)):
-    """Sync all active patients that have no ews_vitals yet."""
+def bulk_sync_patients(background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    """Sync all active patients that have no ews_vitals yet in the background."""
     patients = db.query(Patient).filter(Patient.status == "active").all()
-    results = []
+    
+    def run_sync(hadm_ids):
+        db_bg = SessionLocal()
+        try:
+            for hadm_id in hadm_ids:
+                try:
+                    sync_patient_from_mimic(hadm_id, db_bg)
+                except Exception:
+                    pass
+        finally:
+            db_bg.close()
+
+    hadm_ids_to_sync = []
     for p in patients:
         has_vitals = db.query(VitalTimeSeries).filter(
             VitalTimeSeries.hadm_id == p.hadm_id
         ).first()
         if not has_vitals:
-            try:
-                r = sync_patient_from_mimic(p.hadm_id, db)
-                results.append(r)
-            except Exception as e:
-                results.append({"hadm_id": p.hadm_id, "error": str(e)})
-    return {"synced": len(results), "results": results}
+            hadm_ids_to_sync.append(p.hadm_id)
+            
+    if hadm_ids_to_sync:
+        background_tasks.add_task(run_sync, hadm_ids_to_sync)
+        
+    return {"status": "sync_started", "patients_queued": len(hadm_ids_to_sync)}
 
 
 @app.get("/api/mimic/dcm-patients")
