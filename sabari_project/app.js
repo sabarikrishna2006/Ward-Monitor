@@ -83,12 +83,13 @@ async function nav(id, param = null) {
   if (param !== null) APP.currentPatientId = param;
   if (id === 'n1' || id === 'n1b') APP._dischargePatient = null;
 
-  // Async shell-first: paint the shell + skeleton immediately so the user never
-  // sees a blank white screen while data loads. Data screens show the skeleton
-  // only when they have no data yet, so the 30s auto-refresh never flashes it.
+  // Async shell-first: for the data-dashboard screens, paint the shell + skeleton
+  // immediately so the user never sees a blank white screen while data loads.
+  // Limited to these screens (which have a skeleton state); detail/form screens
+  // still render after their fetch to avoid flashing stale data.
   APP.loading = true;
   APP.fetchError = false;
-  renderAll();
+  if (['n1', 'n5', 'dl1'].includes(id)) renderAll();
 
   try {
     if (id === 'n1') {
@@ -1333,6 +1334,7 @@ SCREENS.n6 = () => {
     <button class="btn btn-pri" onclick="nav('n6b')">Complete Handoff</button>
   </div>
 </div>`;
+};
 
 /* ── N6b — HANDOFF COMPLETE ─────────────────────────────────── */
 SCREENS.n6b = () => {
