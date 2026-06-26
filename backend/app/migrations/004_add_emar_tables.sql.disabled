@@ -1,0 +1,39 @@
+-- Migration 004: Add ap_emar and ap_emar_detail tables for BQ-fetched eMAR caching
+-- Applied: 2026-06-06
+
+CREATE TABLE IF NOT EXISTS ap_emar (
+    emar_id           VARCHAR(60)   NOT NULL,
+    emar_seq          INTEGER,
+    hadm_id           INTEGER       NOT NULL
+        REFERENCES active_patients (hadm_id) ON DELETE CASCADE,
+    subject_id        BIGINT,
+    charttime         TIMESTAMPTZ,
+    medication        TEXT,
+    event_txt         VARCHAR(200),
+    scheduletime      TIMESTAMPTZ,
+    route             VARCHAR(100),
+    source_fetched_at TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (emar_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_emar_hadm_id  ON ap_emar (hadm_id);
+CREATE INDEX IF NOT EXISTS idx_emar_charttime ON ap_emar (hadm_id, charttime DESC);
+
+CREATE TABLE IF NOT EXISTS ap_emar_detail (
+    id                  BIGSERIAL     PRIMARY KEY,
+    emar_id             VARCHAR(60),
+    hadm_id             INTEGER       NOT NULL
+        REFERENCES active_patients (hadm_id) ON DELETE CASCADE,
+    subject_id          BIGINT,
+    medication          TEXT,
+    product_description TEXT,
+    dose_given          TEXT,
+    dose_given_unit     VARCHAR(60),
+    route               VARCHAR(100),
+    administration_type VARCHAR(60),
+    charttime           TIMESTAMPTZ,
+    source_fetched_at   TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_emar_detail_hadm_id ON ap_emar_detail (hadm_id);
+CREATE INDEX IF NOT EXISTS idx_emar_detail_emar_id ON ap_emar_detail (emar_id);

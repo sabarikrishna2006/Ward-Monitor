@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Foqal CareOS · Ward Monitor</title>
+
+<!-- ── INSTANT SESSION BOOT: must run before body renders ──
+     When coming from Ashmit's login, sessionStorage already has foqal_user.
+     We write a CSS rule immediately so #login-wrap never flashes on screen. -->
+<script>
+  (function() {
+    try {
+      // 1. Cross-Origin SSO Handoff (from Ashmit's port 5173)
+      var params = new URLSearchParams(window.location.search);
+      var urlTok = params.get('foqal_token');
+      var urlUser = params.get('foqal_user');
+      if (urlTok && urlUser) {
+        sessionStorage.setItem('foqal_token', urlTok);
+        sessionStorage.setItem('foqal_user', urlUser);
+        // Clean URL immediately so token doesn't stay in address bar
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+
+      // 2. Standard Session Boot
+      var raw = sessionStorage.getItem('foqal_user');
+      var tok = sessionStorage.getItem('foqal_token');
+      if (raw && tok) {
+        var u = JSON.parse(raw);
+        if (u && u.role) {
+          // Mark body so CSS hides login immediately
+          document.documentElement.setAttribute('data-authed', '1');
+          // Store flag for app.js to read
+          window.__FOQAL_AUTOBOOT__ = u;
+        }
+      }
+    } catch(e) {}
+  })();
+</script>
+<style>
+  /* Hide login instantly when auto-authenticated (avoids any flash) */
+  html[data-authed='1'] #login-wrap { display: none !important; }
+  html[data-authed='1'] body { background: #fff !important; }
+</style>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<style>
+/* ── Override body for login centering ── */
+body.login-mode {
+  background: #f3f4f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+}
+/* ── LOGIN WRAPPER ── */
+.login-outer { width:100%; max-width:440px; padding:32px 20px; }
+/* ── LOGIN HEADER ── */
+.login-header { text-align:center; margin-bottom:28px; }
+.login-logo { font-size:28px; font-weight:900; color:var(--p); letter-spacing:-.5px; line-height:1; }
+.login-logo em { font-style:normal; font-weight:400; }
+.login-subtitle { font-size:12.5px; color:var(--muted); margin-top:6px; }
+/* ── LOGIN CARD ── */
+.login-card {
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:28px 28px 22px;
+  box-shadow:0 1px 3px rgba(0,0,0,.06),0 4px 12px rgba(0,0,0,.04);
+}
+/* ── CREDENTIAL HINT BADGES ── */
+.cred-hints { margin-top:20px; border-top:1px solid var(--border); padding-top:16px; }
+.cred-hints-title { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); margin-bottom:10px; }
+.cred-row {
+  display:flex; align-items:center; gap:10px;
+  padding:9px 12px; border-radius:7px;
+  border:1px solid var(--border); background:#fafafa;
+  margin-bottom:8px; cursor:pointer;
+  transition:border-color .12s,background .12s;
+}
+.cred-row:hover { border-color:var(--p); background:#fdf5ff; }
+.cred-badge {
+  font-size:10.5px; font-weight:700;
+  padding:3px 8px; border-radius:5px;
+  color:#fff; white-space:nowrap;
+}
+.cred-badge.ward   { background:#7c3aed; }
+.cred-badge.charge { background:#dc2626; }
+.cred-info { font-size:11.5px; color:var(--ink2); flex:1; }
+.cred-info b { color:var(--ink); }
+.cred-fill { font-size:10.5px; color:var(--p); font-weight:600; }
+/* ── ERROR BANNER ── */
+.err-banner {
+  display:none; margin-top:10px;
+  padding:9px 12px; background:#fef2f2;
+  border:1px solid #fca5a5; border-radius:6px;
+  font-size:12px; color:#dc2626; line-height:1.5;
+}
+/* ── SPINNER ── */
+.spinner {
+  display:inline-block; width:12px; height:12px;
+  border:2px solid rgba(255,255,255,.4); border-top-color:#fff;
+  border-radius:50%; animation:spin .6s linear infinite;
+  margin-right:6px; vertical-align:middle;
+}
+@keyframes spin { to { transform:rotate(360deg) } }
+</style>
+</head>
+<body class="login-mode">
+
+<!-- ═══ SABARI LOGIN REMOVED ═══ -->
+<!-- Unauthenticated users are now instantly redirected to Ashmit's unified login. -->
+
+<!-- ═══ APP SHELL ═══ -->
+<div id="app-shell" style="display:none">
+  <div id="topbar-line"></div>
+
+  <header id="appbar">
+    <button class="ham-btn" onclick="toggleSidebar()" aria-label="Menu">
+      <div class="ham-icon"><span></span><span></span><span></span></div>
+    </button>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div class="alogo">Foqal <em>CareOS</em></div>
+      <div id="hdr-role" class="role-chip"></div>
+    </div>
+    <div id="hdr-meta">
+      <span id="hdr-ward" class="muted small"></span>
+      <span class="bc-sep">&middot;</span>
+      <span id="hdr-user" class="small bold"></span>
+    </div>
+    <button class="btn btn-sec btn-sm" onclick="logout()" style="margin-left:auto">Sign Out</button>
+  </header>
+
+  <div id="layout">
+    <div id="sidebar-overlay" onclick="toggleSidebar()"></div>
+    <nav id="sidebar-wrap">
+      <div class="sb-header" id="sb-section-lbl"></div>
+      <div id="sidebar"></div>
+    </nav>
+    <div id="content">
+      <div id="main"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div id="modal-overlay" onclick="closeModal()">
+  <div id="modal-box" onclick="event.stopPropagation()"></div>
+</div>
+
+<!-- Script removed: Authentication is now strictly handled by Ashmit's unified login. -->
+
+<script src="app.js"></script>
+</body>
+</html>

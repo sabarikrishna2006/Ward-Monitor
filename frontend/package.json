@@ -1,0 +1,14 @@
+{
+  "name": "discharge-summary",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "playwright": "^1.60.0",
+    "vite": "^5.0.0"
+  }
+}

@@ -1,0 +1,404 @@
+/* ── VARIABLES ── */
+:root{
+  --p:#800080;--pl:#f7edf7;--pm:#c060c0;
+  --t1:#dc2626;--t1b:#fef2f2;
+  --t2:#d97706;--t2b:#fffbeb;
+  --t3:#059669;--t3b:#ecfdf5;
+  --ink:#111827;--ink2:#374151;--muted:#6b7280;
+  --border:#e5e7eb;--surf:#f9fafb;
+  --font:system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'SF Mono','Menlo','Consolas',monospace;
+  --sb:220px;--ab:56px;--tb:38px;
+}
+/* ── RESET ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:var(--font);color:var(--ink);background:#fff;font-size:13px}
+button{cursor:pointer;font-family:inherit;font-size:inherit}
+input,select,textarea{font-family:inherit;font-size:inherit}
+a{color:inherit;text-decoration:none}
+
+/* ── TOPBAR ── */
+#topbar-line{height:4px;background:var(--p);position:fixed;top:0;left:0;right:0;z-index:200}
+
+/* ── APP BAR ── */
+#appbar{
+  height:var(--ab);background:#fff;border-bottom:1px solid var(--border);
+  position:fixed;top:4px;left:0;right:0;z-index:190;
+  display:flex;align-items:center;padding:0 18px;gap:10px;
+}
+.alogo{font-size:15px;font-weight:800;color:var(--p);letter-spacing:-.4px;white-space:nowrap}
+.alogo em{color:var(--ink);font-style:normal;font-weight:400}
+
+.role-chip{padding:3px 10px;border-radius:12px;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;white-space:nowrap;background:var(--surf);color:var(--muted)}
+#hdr-role.Bedside.Nurse{background:#f0f9ff;color:#0369a1}
+#hdr-role.Charge.Nurse{background:#e0f2fe;color:#075985}
+
+#hdr-meta{display:flex;align-items:center;gap:8px;margin-left:12px}
+
+/* ── LAYOUT ── */
+#layout{
+  display:flex;position:fixed;
+  top:calc(4px + var(--ab));left:0;right:0;bottom:0;
+}
+
+/* ── SIDEBAR ── */
+#sidebar-wrap{
+  width:var(--sb);background:#fff;border-right:1px solid var(--border);
+  display:flex;flex-direction:column;flex-shrink:0;
+}
+.sb-header{padding:14px 14px 8px;font-size:10px;font-weight:800;letter-spacing:1px;color:var(--muted);text-transform:uppercase}
+#sidebar{overflow-y:auto;flex:1}
+.sb-sep{padding:16px 14px 6px;font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)}
+.sb-item{
+  display:flex;align-items:center;gap:8px;padding:8px 14px;
+  font-size:12.5px;color:var(--ink2);cursor:pointer;
+  border-left:3px solid transparent;transition:all .1s;
+}
+.sb-item:hover{background:var(--surf)}
+.sb-item.active{background:var(--pl);color:var(--p);border-left-color:var(--p);font-weight:600}
+
+/* ── CONTENT ── */
+/* min-height:0 on the flex chain is required for #main to scroll instead of
+   overflowing — without it the dashboard loses scrollability on resize/minimize. */
+#content{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;min-height:0;background:var(--surf)}
+#main{flex:1;overflow-y:auto;min-height:0;padding:24px 32px}
+
+/* ── LOADING / SKELETON ── */
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.skeleton{background:linear-gradient(90deg,#eef1f4 25%,#e2e6ea 50%,#eef1f4 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:4px;display:inline-block}
+
+/* ── TAB STRIP ── */
+.tab-strip{display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border)}
+.tab-btn{
+  background:none;border:none;padding:8px 16px;font-size:13px;font-weight:500;color:var(--muted);
+  border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s;
+}
+.tab-btn:hover{color:var(--ink)}
+.tab-btn.active{color:var(--p);font-weight:700;border-bottom-color:var(--p)}
+
+/* ── BREADCRUMB ── */
+.bc{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);margin-bottom:12px;flex-wrap:wrap}
+.bc-link{color:var(--p);cursor:pointer}.bc-link:hover{text-decoration:underline}
+.bc-sep{color:var(--border)}
+
+/* ── SCREEN HEADER ── */
+.sh{display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.sh-title{font-size:22px;font-weight:800;color:var(--ink);flex:1;min-width:200px;letter-spacing:-0.5px}
+.sh-actions{display:flex;gap:12px;align-items:center}
+.pid{font-family:var(--mono);font-size:11px;color:var(--muted);font-weight:500}
+
+/* ── STATS BAR ── */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.stat{background:#fff;border:1px solid var(--border);border-radius:8px;padding:16px}
+.stat-v{font-size:32px;font-weight:800;line-height:1;color:var(--ink)}
+.stat-l{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:6px}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:6px;font-size:12.5px;font-weight:600;border:1px solid transparent;cursor:pointer;transition:all .15s;white-space:nowrap}
+.btn-pri{background:var(--p);color:#fff;border-color:var(--p)}
+.btn-pri:hover{background:#6a006a;border-color:#6a006a}
+.btn-sec{background:#fff;color:var(--ink);border-color:var(--border)}
+.btn-sec:hover{background:var(--surf)}
+.btn-danger{background:var(--t1);color:#fff;border-color:var(--t1)}
+.btn-danger:hover{background:#b91c1c;border-color:#b91c1c}
+.btn-warn{background:#fffbeb;color:#92400e;border-color:#fcd34d}
+.btn-warn:hover{background:#fef3c7}
+.btn-sm{padding:5px 12px;font-size:11.5px}
+.btn-xs{padding:3px 8px;font-size:11px}
+
+/* ── BADGES ── */
+.bd{display:inline-flex;align-items:center;padding:2px 8px;border-radius:12px;font-size:10.5px;font-weight:700}
+.bd-t1{background:var(--t1b);color:var(--t1)}
+.bd-t2{background:var(--t2b);color:var(--t2)}
+.bd-t3{background:var(--t3b);color:var(--t3)}
+.bd-gray{background:#f3f4f6;color:#4b5563}
+
+/* ── TABLE ── */
+.tw{background:#fff;border:1px solid var(--border);border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.02)}
+table{width:100%;border-collapse:collapse}
+th{padding:10px 16px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;background:var(--surf);border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:12px 16px;border-bottom:1px solid var(--border);color:var(--ink);vertical-align:middle;cursor:default}
+tr:last-child td{border-bottom:none}
+tr{transition:background .15s}
+tr:hover td{background:#f8fafc}
+tr[onclick]{cursor:pointer}
+
+.row-crit td{background:var(--t1b)}.row-crit:hover td{background:#fee2e2}
+.row-warn td{background:var(--t2b)}.row-warn:hover td{background:#fef3c7}
+.v-crit{color:var(--t1);font-weight:800}
+.v-warn{color:var(--t2);font-weight:700}
+tr.stale td{color:var(--muted);opacity:.65}
+
+/* ── CARD ── */
+.card{background:#fff;border:1px solid var(--border);border-radius:8px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,0.02)}
+.card-title{font-size:13px;font-weight:700;color:var(--ink);margin-bottom:14px;letter-spacing:-0.2px}
+
+/* ── FORM ── */
+.fg{margin-bottom:16px}
+.fl{display:block;font-size:11.5px;font-weight:600;color:var(--ink2);margin-bottom:6px}
+.fi{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;color:var(--ink);background:#fff;transition:all .15s}
+.fi:focus{outline:none;border-color:var(--p);box-shadow:0 0 0 3px rgba(128,0,128,.1)}
+
+/* ── ALERT ── */
+.alert{padding:12px 16px;border-radius:8px;display:flex;align-items:flex-start;gap:8px;font-size:12.5px;margin-bottom:16px;line-height:1.5}
+.alert b{font-weight:700}
+.al-err{background:var(--t1b);color:var(--t1);border:1px solid #fca5a5}
+.al-warn{background:var(--t2b);color:#92400e;border:1px solid #fcd34d}
+.al-ok{background:var(--t3b);color:#065f46;border:1px solid #6ee7b7}
+.al-info{background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe}
+
+/* ── TIMELINE ── */
+.tl{padding:8px 0;margin-bottom:16px}
+.tl-item{display:flex;gap:14px;padding:12px 0;position:relative}
+.tl-item:not(:last-child)::before{content:'';position:absolute;left:15px;top:38px;bottom:-12px;width:2px;background:var(--border)}
+.tl-dot{width:32px;height:32px;border-radius:50%;background:var(--pl);border:2px solid var(--p);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--p);flex-shrink:0}
+.tl-dot.ok{background:var(--t3b);border-color:var(--t3);color:var(--t3)}
+.tl-dot.err{background:var(--t1b);border-color:var(--t1);color:var(--t1)}
+.tl-body{flex:1;padding-top:2px}
+.tl-title{font-size:14px;font-weight:700;color:var(--ink)}
+.tl-time{font-size:11.5px;color:var(--muted);margin-top:2px}
+.tl-detail{font-size:13px;color:var(--ink2);margin-top:6px;line-height:1.5;background:#fff;padding:10px 14px;border:1px solid var(--border);border-radius:6px;display:inline-block}
+
+/* ── NEWS2 SCORE ── */
+.n2s{font-size:18px;font-weight:900}
+.n2s.hi{color:var(--t1)}.n2s.med{color:var(--t2)}.n2s.lo{color:var(--t3)}
+
+/* ── DRUG-LAB FLAG ── */
+.dlf{background:#fff;border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:12px;display:flex;gap:14px;box-shadow:0 1px 3px rgba(0,0,0,0.02)}
+.dlf.t1{border-left:4px solid var(--t1)}
+.dlf.t2{border-left:4px solid var(--t2)}
+.dlf-bd{flex:1}
+.dlf-title{font-size:14px;font-weight:700;color:var(--ink)}
+.dlf-desc{font-size:12.5px;color:var(--ink2);margin-top:6px;line-height:1.6}
+.dlf-link{font-size:12px;color:var(--p);font-weight:700;cursor:pointer;margin-top:8px;display:inline-block}
+.dlf-link:hover{text-decoration:underline}
+
+/* ── MODAL ── */
+#modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:300;align-items:center;justify-content:center;backdrop-filter:blur(2px)}
+#modal-overlay.open{display:flex}
+#modal-box{background:#fff;border-radius:12px;padding:32px;width:520px;max-width:90vw;box-shadow:0 24px 48px rgba(0,0,0,.2)}
+.modal-t{font-size:18px;font-weight:800;color:var(--ink);margin-bottom:12px}
+.modal-b{font-size:13.5px;color:var(--ink2);margin-bottom:24px;line-height:1.6}
+.modal-f{display:flex;justify-content:flex-end;gap:12px;margin-top:24px}
+
+/* ── MISC ── */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+.mono{font-family:var(--mono)}
+.muted{color:var(--muted)}
+.small{font-size:11.5px}
+.bold{font-weight:700}
+.flex-r{display:flex;align-items:center;gap:10px}
+.check-row{display:flex;align-items:flex-start;gap:10px;margin-bottom:12px;font-size:13px}
+.check-row input[type=checkbox]{margin-top:3px;accent-color:var(--p);width:16px;height:16px;cursor:pointer}
+.radio-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:13px;cursor:pointer}
+.radio-row input[type=radio]{accent-color:var(--p);width:16px;height:16px;cursor:pointer}
+.action-card:hover{background:#fefefe}
+.action-card.selected-action{background:#faf5fa}
+
+/* ── EWS REASON CELL (dashboard) ── */
+.ews-reason-td{min-width:170px;max-width:230px}
+.ews-cell{display:flex;flex-direction:column;gap:2px;line-height:1.35}
+.ews-sigs{display:flex;flex-wrap:wrap;gap:4px 8px}
+.ews-sig{font-size:12px;font-weight:800;white-space:nowrap}
+.ews-flag{font-size:10.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:225px}
+.ews-action{font-size:11px;font-weight:700}
+.ews-ok{font-size:11.5px;color:var(--t3);font-weight:600}
+.ews-ai{font-size:10px;color:var(--muted);font-weight:600;margin-top:1px}
+.demo-tag{display:inline-block;background:var(--pl);color:var(--p);font-size:8.5px;font-weight:800;padding:0 4px;border-radius:4px;letter-spacing:.3px;text-transform:uppercase;vertical-align:middle}
+.dx-cell{font-size:11.5px;color:var(--ink2);max-width:150px}
+.loc-tag{display:inline-block;font-size:9px;font-weight:800;padding:1px 5px;border-radius:4px;letter-spacing:.4px}
+.loc-ccu{background:var(--t1b);color:var(--t1)}
+.loc-gw{background:var(--t3b);color:var(--t3)}
+.due-label{font-size:10px;color:var(--muted);margin-top:3px;font-weight:600}
+.due-over{color:var(--t1);font-weight:800}
+
+/* ── DIAGNOSIS BANNER (patient detail) ── */
+.dx-banner{display:flex;gap:26px;flex-wrap:wrap;padding:12px 16px;border-radius:8px;margin-bottom:16px;border:1px solid var(--border);background:#fff}
+.dx-banner.sev-t1{background:var(--t1b);border-color:var(--t1)}
+.dx-banner.sev-t2{background:var(--t2b);border-color:var(--t2)}
+.dx-banner.sev-t3{background:var(--t3b);border-color:var(--t3)}
+.dx-banner .dx-lbl{display:block;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px}
+.dx-banner b{font-size:13px;color:var(--ink)}
+
+/* ── DCM source tags ── */
+.src-tag{font-size:9px;color:var(--muted);font-weight:500}
+
+/* ── ML INSIGHTS (demo) ── */
+.ml-risk-num{font-size:40px;font-weight:900;line-height:1}
+.ml-bar-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.ml-bar-lbl{flex:1;font-size:11.5px;color:var(--ink2)}
+.ml-bar{width:90px;height:8px;background:var(--surf);border-radius:4px;overflow:hidden}
+.ml-bar-fill{height:100%;background:var(--p);border-radius:4px}
+.ml-bar-pct{width:34px;text-align:right;font-size:11px;font-weight:700;color:var(--p)}
+
+/* ── LOGIN ── */
+.login-page{display:flex;align-items:center;justify-content:center;height:100vh;background:var(--surf)}
+.login-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:40px;width:440px;max-width:90vw;box-shadow:0 12px 32px rgba(0,0,0,.08)}
+
+/* ── HAMBURGER BUTTON ── */
+.ham-btn{
+  display:none;
+  width:40px;height:40px;
+  align-items:center;justify-content:center;
+  border:none;background:none;padding:0;
+  border-radius:6px;flex-shrink:0;
+}
+.ham-btn:hover{background:var(--surf)}
+.ham-icon{display:flex;flex-direction:column;gap:5px;width:20px}
+.ham-icon span{display:block;height:2px;background:var(--ink);border-radius:2px}
+
+/* ── SIDEBAR OVERLAY (mobile) ── */
+#sidebar-overlay{
+  display:none;
+  position:fixed;inset:0;
+  background:rgba(0,0,0,.45);
+  z-index:155;
+}
+#sidebar-overlay.open{display:block}
+
+/* ══════════════════════════════════════
+   RESPONSIVE — Tablet  ≤768px
+══════════════════════════════════════ */
+@media(max-width:768px){
+  /* Show hamburger */
+  .ham-btn{display:flex}
+
+  /* Sidebar: off-canvas drawer */
+  #sidebar-wrap{
+    position:fixed;
+    top:calc(4px + var(--ab));
+    bottom:0;
+    left:0;
+    z-index:160;
+    transform:translateX(-100%);
+    transition:transform .25s ease;
+    box-shadow:none;
+  }
+  #sidebar-wrap.open{
+    transform:translateX(0);
+    box-shadow:4px 0 20px rgba(0,0,0,.18);
+  }
+
+  /* Content fills full width. Keep #layout fixed (NOT position:relative) so #main
+     stays the scroll container — body has overflow:hidden, so a relative layout
+     would clip content and lose scrolling. Sidebar is an overlay drawer here. */
+  #content{width:100%}
+
+  /* Tighter main padding */
+  #main{padding:16px}
+
+  /* Stats: 2-column */
+  .stats{grid-template-columns:1fr 1fr}
+
+  /* Grids collapse to 1 column */
+  .grid2,.grid3{grid-template-columns:1fr}
+
+  /* Screen header: stack */
+  .sh{flex-direction:column;align-items:flex-start;gap:6px}
+  .sh-title{font-size:18px;min-width:0}
+  .sh-actions{width:100%;flex-wrap:wrap}
+
+  /* Tables: horizontal scroll wrapper */
+  .tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
+
+  /* Tab strip: horizontal scroll */
+  .tab-strip{overflow-x:auto;white-space:nowrap;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;padding-bottom:2px;scrollbar-width:none}
+  .tab-strip::-webkit-scrollbar{display:none}
+  .tab-btn{white-space:nowrap}
+
+  /* Diagnosis banner: tighter */
+  .dx-banner{gap:14px;padding:10px 12px}
+
+  /* Modal: wider */
+  #modal-box{width:95vw;padding:24px 20px}
+
+  /* Login */
+  .login-outer{padding:20px 16px}
+}
+
+/* ══════════════════════════════════════
+   RESPONSIVE — Phone  ≤480px
+══════════════════════════════════════ */
+@media(max-width:480px){
+  /* Stats: single column */
+  .stats{grid-template-columns:1fr}
+
+  /* Minimal main padding */
+  #main{padding:12px}
+
+  /* Screen title: smaller */
+  .sh-title{font-size:16px}
+
+  /* Appbar: compact */
+  #appbar{padding:0 10px;gap:6px}
+  .alogo{font-size:13px}
+  #hdr-meta{display:none}
+
+  /* Touch targets ≥44px */
+  .btn{min-height:44px}
+  .tab-btn{min-height:44px;padding:8px 12px}
+  .sb-item{min-height:44px}
+  .cred-row{min-height:44px}
+
+  /* ── N1 + N5 table → stacked patient cards ── */
+  table.tbl-stack thead{display:none}
+  table.tbl-stack,
+  table.tbl-stack tbody,
+  table.tbl-stack tr,
+  table.tbl-stack td{display:block;width:100%}
+  table.tbl-stack tr{
+    background:#fff;
+    border:1px solid var(--border);
+    border-radius:8px;
+    margin-bottom:10px;
+    padding:10px 12px;
+    cursor:pointer;
+    box-shadow:0 1px 3px rgba(0,0,0,.05);
+  }
+  table.tbl-stack tr.row-crit{background:var(--t1b);border-color:var(--t1)}
+  table.tbl-stack tr.row-warn{background:var(--t2b);border-color:var(--t2)}
+  table.tbl-stack tr.stale{opacity:.65}
+  table.tbl-stack td{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    border-bottom:1px solid var(--border);
+    padding:5px 2px;
+    font-size:12px;
+  }
+  table.tbl-stack td:last-child{border-bottom:none}
+  table.tbl-stack td::before{
+    content:attr(data-label);
+    font-size:10px;font-weight:700;
+    color:var(--muted);
+    text-transform:uppercase;
+    letter-spacing:.4px;
+    white-space:nowrap;
+    margin-right:10px;
+    flex-shrink:0;
+    padding-top:2px;
+  }
+  /* Hide lower-priority vitals on phone — keep Patient, NEWS2, EWS Reason, Status, Actions */
+  table.tbl-stack td[data-label="Ward"],
+  table.tbl-stack td[data-label^="SpO"],
+  table.tbl-stack td[data-label="RR"],
+  table.tbl-stack td[data-label="BP"],
+  table.tbl-stack td[data-label="HR"],
+  table.tbl-stack td[data-label="Temp"],
+  table.tbl-stack td[data-label="AVPU"]{display:none}
+
+  /* EWS reason: unconstrained width in card */
+  table.tbl-stack .ews-reason-td{min-width:0;max-width:none}
+
+  /* ML bars: shorter */
+  .ml-bar{width:60px}
+
+  /* Drug-lab flag: stack icon */
+  .dlf{flex-direction:column}
+
+  /* Modal: full bottom sheet */
+  #modal-box{padding:20px 16px}
+}
