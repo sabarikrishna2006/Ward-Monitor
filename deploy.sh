@@ -56,22 +56,22 @@ screen -S data      -X quit 2>/dev/null && echo "         Stopped data"      || 
 screen -S frontend  -X quit 2>/dev/null && echo "         Stopped frontend"  || true
 sleep 1
 
-echo "[ASHMIT] Starting backend main API (port 4002)..."
+echo "[ASHMIT] Starting backend main API (port 3802)..."
 screen -dmS main bash -c "
     cd '$ASHMIT_DIR'
     source .venv/bin/activate
     while true; do
-        uvicorn backend.app.main:app --host 0.0.0.0 --port 4002
+        uvicorn backend.app.main:app --host 0.0.0.0 --port 3802
         echo '[main] crashed, restarting in 8s...'; sleep 8
     done
 "
 
-echo "[ASHMIT] Starting data server (port 4003)..."
+echo "[ASHMIT] Starting data server (port 3803)..."
 screen -dmS data bash -c "
     cd '$ASHMIT_DIR'
     source .venv/bin/activate
     while true; do
-        uvicorn backend.app.data_server:app --host 0.0.0.0 --port 4003
+        uvicorn backend.app.data_server:app --host 0.0.0.0 --port 3803
         echo '[data] crashed, restarting in 8s...'; sleep 8
     done
 "
@@ -112,12 +112,12 @@ screen -S ward-api      -X quit 2>/dev/null && echo "         Stopped ward-api" 
 screen -S ward-frontend -X quit 2>/dev/null && echo "         Stopped ward-frontend" || true
 sleep 1
 
-echo "[SABARI] Starting Ward Monitor backend (port 8006)..."
+echo "[SABARI] Starting Ward Monitor backend (port 7806)..."
 screen -dmS ward-api bash -c "
     cd '$SABARI_DIR/backend'
     source '$SABARI_DIR/.venv/bin/activate'
     while true; do
-        uvicorn main:app --host 0.0.0.0 --port 8006
+        uvicorn main:app --host 0.0.0.0 --port 7806
         echo '[ward-api] crashed, restarting in 5s...'; sleep 5
     done
 "
@@ -129,7 +129,7 @@ screen -dmS ward-frontend bash -c "
     cd '$SABARI_DIR'
     npm install --silent
     while true; do
-        VITE_PORT=5175 VITE_HOST=0.0.0.0 VITE_API_URL=http://localhost:8006 \
+        VITE_PORT=5175 VITE_HOST=0.0.0.0 VITE_API_URL=http://localhost:7806 \
             npm run dev -- --host 0.0.0.0 --port 5175
         echo '[ward-frontend] crashed, restarting in 5s...'; sleep 5
     done
@@ -140,11 +140,11 @@ echo "==================================================="
 echo " ✅ All services started!"
 echo ""
 echo " Ashmit's App (main login) : http://72.60.102.196:5180/"
-echo " Ashmit's API              : http://72.60.102.196:5115/docs"
-echo " Ashmit's Data Server      : http://72.60.102.196:5119/docs"
+echo " Ashmit's API              : http://72.60.102.196:3802/docs"
+echo " Ashmit's Data Server      : http://72.60.102.196:3803/docs"
 echo ""
 echo " Sabari's Ward Monitor     : http://72.60.102.196:5175/"
-echo " Sabari's API              : http://72.60.102.196:8006/docs"
+echo " Sabari's API              : http://72.60.102.196:7806/docs"
 echo ""
 echo " Login as ward/charge nurse from Ashmit's page and you"
 echo " will be redirected instantly to Sabari's Ward Monitor."
