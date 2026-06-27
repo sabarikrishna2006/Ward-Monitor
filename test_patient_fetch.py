@@ -21,7 +21,7 @@ if os.path.exists(_env_path):
 
 os.environ.setdefault(
     "GOOGLE_APPLICATION_CREDENTIALS",
-    r"C:\Users\ASUS\Desktop\discharge-summary-ai\Foqal_Bucket\foqal-healthcare-project-google.json",
+    os.path.join(os.path.dirname(__file__), "foqal-healthcare-project-google.json")
 )
 
 from sqlalchemy import text
