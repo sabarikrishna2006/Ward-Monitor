@@ -886,7 +886,7 @@ SCREENS.n_transfer = () => {
   }).join('');
 
   return header + `
-    ${e.eligible ? '<div class="alert al-ok">✅ Step-down criteria met — you can submit this recommendation to the Head Nurse.</div>' : '<div class="alert al-warn">⚠️ Not all step-down criteria are met. NEWS2 must be ≤ 2 sustained for 6h+ before transfer.</div>'}
+    ${e.eligible ? '<div class="alert al-ok">✅ Step-down criteria met — you can submit this recommendation to the Head Nurse.</div>' : '<div class="alert al-warn">⚠️ Not all step-down criteria are met. NEWS2 must be ≤ 2 sustained for 2h+ before transfer.</div>'}
     <div class="grid2" style="margin-bottom:14px">
       <div class="card"><div class="card-title">Step-Down Criteria (computed live)</div>
         <table style="width:100%;font-size:12.5px"><tbody>${criteria}</tbody></table>

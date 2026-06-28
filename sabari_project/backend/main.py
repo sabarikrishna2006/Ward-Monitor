@@ -1126,7 +1126,7 @@ def transfer_eligibility(subject_id: int, db: Session = Depends(get_db)):
     score = detail.get("news2", 99)
 
     window_h = stable_window_hours_db(db, patient)
-    sustained = score <= 2 and window_h >= 6
+    sustained = score <= 2 and window_h >= 2
 
     active_esc = db.query(Escalation).filter(
         Escalation.hadm_id == subject_id, Escalation.status == 'active').count()
@@ -1145,7 +1145,7 @@ def transfer_eligibility(subject_id: int, db: Session = Depends(get_db)):
     ])
 
     criteria = [
-        {"label": "NEWS2 ≤ 2, sustained 6h+", "met": bool(sustained and window_h >= 6),
+        {"label": "NEWS2 ≤ 2, sustained 2h+", "met": bool(sustained and window_h >= 2),
          "detail": f"Currently {score}, stable ~{window_h}h"},
         {"label": "No active escalation (24h)", "met": no_recent_esc,
          "detail": "None active" if no_recent_esc else f"{active_esc} active"},
