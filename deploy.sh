@@ -76,14 +76,14 @@ screen -dmS data bash -c "
     done
 "
 
-echo "[ASHMIT] Starting frontend Vite dev server (port 5180)..."
+echo "[ASHMIT] Starting frontend Vite dev server (port 4980)..."
 screen -dmS frontend bash -c "
     export NVM_DIR=\"\$HOME/.nvm\"
     [ -s \"\$NVM_DIR/nvm.sh\" ] && \. \"\$NVM_DIR/nvm.sh\"
     cd '$ASHMIT_DIR/frontend'
     npm install --silent
     while true; do
-        npm run dev -- --host 0.0.0.0 --port 5180
+        npm run dev -- --host 0.0.0.0 --port 4980
         echo '[frontend] crashed, restarting in 5s...'; sleep 5
     done
 "
@@ -122,15 +122,15 @@ screen -dmS ward-api bash -c "
     done
 "
 
-echo "[SABARI] Starting Ward Monitor frontend (port 5175)..."
+echo "[SABARI] Starting Ward Monitor frontend (port 4975)..."
 screen -dmS ward-frontend bash -c "
     export NVM_DIR=\"\$HOME/.nvm\"
     [ -s \"\$NVM_DIR/nvm.sh\" ] && \. \"\$NVM_DIR/nvm.sh\"
     cd '$SABARI_DIR'
     npm install --silent
     while true; do
-        VITE_PORT=5175 VITE_HOST=0.0.0.0 VITE_API_URL=http://localhost:7806 \
-            npm run dev -- --host 0.0.0.0 --port 5175
+        VITE_PORT=4975 VITE_HOST=0.0.0.0 VITE_API_URL=http://localhost:7806 \
+            npm run dev -- --host 0.0.0.0 --port 4975
         echo '[ward-frontend] crashed, restarting in 5s...'; sleep 5
     done
 "
@@ -139,11 +139,11 @@ echo ""
 echo "==================================================="
 echo " ✅ All services started!"
 echo ""
-echo " Ashmit's App (main login) : http://72.60.102.196:5180/"
+echo " Ashmit's App (main login) : http://72.60.102.196:4980/"
 echo " Ashmit's API              : http://72.60.102.196:3802/docs"
 echo " Ashmit's Data Server      : http://72.60.102.196:3803/docs"
 echo ""
-echo " Sabari's Ward Monitor     : http://72.60.102.196:5175/"
+echo " Sabari's Ward Monitor     : http://72.60.102.196:4975/"
 echo " Sabari's API              : http://72.60.102.196:7806/docs"
 echo ""
 echo " Login as ward/charge nurse from Ashmit's page and you"
