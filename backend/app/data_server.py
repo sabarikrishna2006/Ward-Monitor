@@ -773,7 +773,7 @@ async def prefetch_all_tabs(hadm_id: int):
     # no longer depends on billing.html's fire-and-forget chain. Idempotent: the
     # ward sync only flips status 'partial'/'fetching'/'pending' → 'fetched'.
     ews_synced = False
-    ward_base = os.environ.get("WARD_API_BASE", "http://localhost:8006")
+    ward_base = os.environ.get("WARD_API_BASE", "http://localhost:7806")
     try:
         import httpx
         async with httpx.AsyncClient(

@@ -24,7 +24,7 @@ from dotenv import load_dotenv
 from . import cloud_sql_app_db as gdb
 
 # Data server URL — BigQuery + Cloud SQL data layer runs on port 8002
-DATA_SERVER = os.environ.get("DATA_SERVER_URL", "http://127.0.0.1:4003")
+DATA_SERVER = os.environ.get("DATA_SERVER_URL", "http://127.0.0.1:3803")
 
 load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '.env'), override=True)
 
@@ -6088,7 +6088,7 @@ def list_files(encounter_id: str):
 # ── Data server proxy (port 8001 → internal 8002) ────────────────────────────
 # Lets the browser talk to the data server through port 8001 when port 8002
 # is blocked by a firewall. Used on server deployments; localhost uses 8002 direct.
-_DATA_SERVER = os.environ.get("DATA_SERVER_URL", "http://127.0.0.1:4003")
+_DATA_SERVER = os.environ.get("DATA_SERVER_URL", "http://127.0.0.1:3803")
 
 @app.api_route("/data-proxy/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
 async def data_proxy(path: str, request: Request):
