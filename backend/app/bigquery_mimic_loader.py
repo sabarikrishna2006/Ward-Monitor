@@ -222,7 +222,7 @@ def fetch_and_store_patient(hadm_id: int, engine, display_only: bool = False) ->
             "chartdate":  r.get("chartdate"),
             "icd_code":   r.get("icd_code"),
             "icd_version": int(r.get("icd_version", 10)),
-            "long_title": r.get("long_title"),
+            "long_title": r.get("long_title") or r.get("icd_code"),
         }
 
     def _norm_drg(r):

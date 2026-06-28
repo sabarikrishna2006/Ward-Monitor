@@ -386,6 +386,7 @@ async function waTriggerRegen(hadmId, rejectionLogId, encId) {
     if (enc) enc.status = 'Processing';
     if (CURRENT === 'a1') showScreen('a1');
   }
+  localStorage.setItem('wa_regen_' + hadmId, Date.now());
   try {
     await _waFetch(`/api/encounters/${hadmId}/trigger_regeneration`, {
       method: 'POST', headers: {'Content-Type':'application/json'},
@@ -1260,8 +1261,10 @@ const MODALS = {
           </div>
         </div>
       </div>`;
-    document.body.appendChild(el);
-    setTimeout(() => document.getElementById(nid)?.remove(), 30000);
+    if (isAmendment) {
+      document.body.appendChild(el);
+      setTimeout(() => document.getElementById(nid)?.remove(), 30000);
+    }
   }
 
   const _waStyle = document.createElement('style');

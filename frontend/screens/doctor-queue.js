@@ -87,6 +87,9 @@ async function dqLoad() {
           }));
           _dq.encounters = withSummaries;
           _dqBuildRegenToasts(withSummaries);
+          withSummaries.forEach(e => {
+            if (e.status === 'Awaiting Review') localStorage.removeItem('wa_regen_' + e.hadm_id);
+          });
           renderApp();
         }
       } catch(_) {}
@@ -156,11 +159,14 @@ SCREEN_RENDERERS["doctor-queue"] = function renderDoctorQueue() {
   const statusInfo = (enc) => {
     const s = enc.status || "";
     const isRegen = ((enc.rejection_count || 0) > 0) || !!enc.revision_reason;
+    const waRegen = !!localStorage.getItem('wa_regen_' + enc.hadm_id);
     if (s === "Signed Off")       return { label:"Signed",              cls:"pill-green",  dot:"#059669", animated:false };
     if (s === "Awaiting Review")  return isRegen
                                     ? { label:"Regenerated",            cls:"pill-amber",  dot:"#F59E0B", animated:true  }
                                     : { label:"Ready for Review",       cls:"pill-teal",   dot:"#800080", animated:true  };
-    if (s === "Processing")          return { label:"AI Processing",       cls:"pill-blue",   dot:"#A020A0", animated:true  };
+    if (s === "Processing")       return waRegen
+                                    ? { label:"Regenerating",           cls:"pill-blue",   dot:"#6366F1", animated:true  }
+                                    : { label:"AI Processing",          cls:"pill-blue",   dot:"#A020A0", animated:true  };
     if (s === "Revision Requested")  return { label:"Revision Requested",  cls:"pill-amber",  dot:"#D97706", animated:false };
     return                                  { label:"Upload Pending",       cls:"pill-slate",  dot:"#7A3A7A", animated:false };
   };

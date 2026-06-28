@@ -535,6 +535,8 @@ async def _resolve_patient_display(hadm_id: int):
         # Patients loaded by older code (or failed mid-ETL) may have status="fetched"/"partial"
         # but empty ap_diagnoses / ap_admissions. Re-run ETL for them instead of serving stale data.
         if "error" not in data and data.get("diagnoses"):
+            if data.get("procedures"):
+                data["procedures"] = bql.lookup_icd_titles(data["procedures"], "procedures")
             _display_memory_cache[hadm_id] = data
             return data
         # Data missing or stale — re-run ETL directly (bypass _ensure_in_active_directory

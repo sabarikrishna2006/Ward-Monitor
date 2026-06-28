@@ -637,8 +637,10 @@ function openSummary(hadmId) {
       encs.forEach(function(enc) {
         const prev = _prevStatuses[enc.hadm_id];
         if (prev === 'Processing' && enc.status === 'Ready for Review') {
-          const name = synth(enc.hadm_id).name;
-          _showSummaryReadyBanner(enc.hadm_id, name);
+          if (sessionStorage.getItem('foqal_generating_' + enc.hadm_id)) {
+            const name = synth(enc.hadm_id).name;
+            _showSummaryReadyBanner(enc.hadm_id, name);
+          }
         }
         _prevStatuses[enc.hadm_id] = enc.status;
       });
