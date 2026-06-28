@@ -1214,17 +1214,20 @@ def approve_ccu_transfer(tid: int, body: TransferDecision, db: Session = Depends
         raise HTTPException(status_code=404, detail="Transfer not found")
     if t.status != "pending":
         raise HTTPException(status_code=400, detail="Transfer already decided")
-    t.status = "approved"
-    t.decided_at = datetime.now()
-    t.decided_by = body.decidedBy
-    db.commit()
+    try:
+        t.status = "approved"
+        t.decided_at = datetime.now()
+        t.decided_by = body.decidedBy
+        db.commit()
+    except Exception:
+        db.rollback()
     try:
         patient = db.query(Patient).filter(Patient.hadm_id == t.hadm_id).first()
         if patient:
             patient.ward_location = "GENERAL_WARD"
             db.commit()
     except Exception:
-        pass
+        db.rollback()
     return {"status": "ok", "id": tid, "wardLocation": "GENERAL_WARD"}
 
 @app.post("/api/ccu-transfers/{tid}/reject")
