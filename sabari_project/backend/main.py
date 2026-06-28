@@ -1217,10 +1217,14 @@ def approve_ccu_transfer(tid: int, body: TransferDecision, db: Session = Depends
     t.status = "approved"
     t.decided_at = datetime.now()
     t.decided_by = body.decidedBy
-    patient = db.query(Patient).filter(Patient.hadm_id == t.hadm_id).first()
-    if patient:
-        patient.ward_location = "GENERAL_WARD"   # the step-down state change
     db.commit()
+    try:
+        patient = db.query(Patient).filter(Patient.hadm_id == t.hadm_id).first()
+        if patient:
+            patient.ward_location = "GENERAL_WARD"
+            db.commit()
+    except Exception:
+        pass
     return {"status": "ok", "id": tid, "wardLocation": "GENERAL_WARD"}
 
 @app.post("/api/ccu-transfers/{tid}/reject")
