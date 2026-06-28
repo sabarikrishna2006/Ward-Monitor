@@ -433,6 +433,15 @@ function activeSlots() {
   return [...base, ...extra];
 }
 
+function seeded(hadmId, max) {
+  let h = parseInt(hadmId) || 0;
+  h = ((h >> 16) ^ h) * 0x45d9f3b;
+  h = ((h >> 16) ^ h) * 0x45d9f3b;
+  h = (h >> 16) ^ h;
+  return Math.abs(h) % max;
+}
+function seeded2(hadmId, salt, max) { return seeded(hadmId * 31 + salt, max); }
+
 /* ── API calls ── */
 const H     = `http://${location.hostname}`;
 const _API  = window.FOQAL_API_BASE  || `http://${location.hostname}:3802`;
