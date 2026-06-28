@@ -262,7 +262,9 @@ function _bilRenderNotifBar(pending) {
           <div style="flex:1;min-width:0">
             <span style="font-size:13px;font-weight:700;color:#111827">${name}</span>
             <span style="font-size:11.5px;color:#78350f;margin-left:10px">Signed off by ${doctor}</span>
-            <span style="font-size:11px;color:#92400e;margin-left:6px">· Ready for final bill</span>
+            ${p.billing_phase === 'amendment_pending'
+              ? '<span style="font-size:11px;color:#7c3aed;margin-left:6px;font-weight:700">· Amendment Requested — Awaiting New Summary</span>'
+              : '<span style="font-size:11px;color:#92400e;margin-left:6px">· Ready for final bill</span>'}
           </div>
           <button onclick="event.stopPropagation();_bilAck(${p.hadm_id});_ceSelectPatient(${p.hadm_id},'discharge')"
             style="flex-shrink:0;padding:6px 14px;background:#d97706;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">
@@ -604,7 +606,7 @@ async function _loadBillingDashboard() {
 
     // Show persistent notification bar for unacknowledged reconciliation_pending patients
     const _notifPending = (pending_actions || []).filter(p =>
-      p.phase === 'discharge' && p.billing_phase === 'reconciliation_pending'
+      p.phase === 'discharge' && (p.billing_phase === 'reconciliation_pending' || p.billing_phase === 'amendment_pending')
     );
     _bilRenderNotifBar(_notifPending);
 

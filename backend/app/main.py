@@ -5457,6 +5457,14 @@ def create_amendment(encounter_id: str, req: AmendmentRequest):
         })
     except Exception:
         pass
+    try:
+        with _get_engine().begin() as _conn:
+            _conn.execute(
+                _text("UPDATE billing_records SET billing_phase='amendment_pending', updated_at=NOW() WHERE hadm_id=:h AND billing_phase='reconciliation_pending'"),
+                {"h": hadm_id}
+            )
+    except Exception:
+        pass
     return {"ok": True, "amendment_ref": amendment_ref, "id": row.get("id"), "created_at": row.get("created_at")}
 
 
