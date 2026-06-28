@@ -1,11 +1,11 @@
 // ── Foqal CareOS — central service config ─────────────────────────────────────
 // Change ports HERE ONLY. Every HTML/JS file reads from this one place.
 window.FOQAL_CONFIG = {
-  API_PORT:    4002,   // main FastAPI backend
-  DATA_PORT:   4003,   // data server (BigQuery / MIMIC tabs)
-  WARD_PORT:   8006,   // Sabari ward monitor backend
-  FE_PORT:     5180,   // Ashmit Vite dev server
-  SABARI_PORT: 5175,   // Sabari Vite dev server
+  API_PORT:    3802,   // main FastAPI backend
+  DATA_PORT:   3803,   // data server (BigQuery / MIMIC tabs)
+  WARD_PORT:   7806,   // Sabari ward monitor backend
+  FE_PORT:     4980,   // Ashmit Vite dev server
+  SABARI_PORT: 4975,   // Sabari Vite dev server
 };
 const _h = location.hostname;
 window.FOQAL_API_BASE  = `http://${_h}:${window.FOQAL_CONFIG.API_PORT}`;
