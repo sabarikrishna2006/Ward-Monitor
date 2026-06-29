@@ -277,6 +277,66 @@ def build():
             submitted_at        = datetime.now() - timedelta(hours=1),
         ))
 
+        # ── Seed resolved escalations for critical patients (shows escalation history) ──
+        ESCALATION_SEEDS = [
+            # (hadm_id, name, news2, level, obs, interventions, hours_ago_start, hours_ago_resolved)
+            (10001, "Rajesh Kumar",   9, "doctor",     "RR 26, SpO2 88%, BP 84/52 on supplemental O₂",
+             "O₂ titrated to 6L; head of bed 45°; furosemide 40mg IV stat",     3, 1),
+            (10002, "Priya Sharma",  10, "consultant",  "HR 128 AF, SpO2 86%, RR 28, bilateral crepitations",
+             "Rate control metoprolol IV; diuresis initiated; cardiology review",  5, 2),
+            (10009, "Vikram Sharma", 11, "code_blue",   "Temp 38.9°C, RR 30, SpO2 87%, BP 82/50 (qSOFA 3)",
+             "Sepsis bundle initiated; blood cultures ×2; IV pip-tazo 4.5g",      6, None),  # still active
+        ]
+        for sid, sname, snews2, slevel, sobs, sint, hours_start, hours_res in ESCALATION_SEEDS:
+            esc = Escalation(
+                hadm_id         = sid,
+                patient_name    = sname,
+                news2_score     = snews2,
+                level           = slevel,
+                status          = "active" if hours_res is None else "resolved",
+                observations    = sobs,
+                interventions   = sint,
+                escalated_by    = "Nurse Rekha Devi",
+                attending       = "Dr. Anand Sharma",
+                escalated_at    = datetime.now() - timedelta(hours=hours_start),
+            )
+            if hours_res is not None:
+                esc.resolved_by    = "Dr. Anand Sharma"
+                esc.resolution_notes = "Patient stabilised post-intervention. Continue monitoring."
+                esc.resolved_at    = datetime.now() - timedelta(hours=hours_res)
+            session.add(esc)
+
+        # ── Seed Drug-Lab safety flags (NABH DL2) for patients with dangerous combos ──
+        DL_SEEDS = [
+            # critical_dl: K+ 5.7 + ACE inhibitor (Ramipril) → CRITICAL hyperkalaemia risk
+            (10002, "Priya Sharma",   "K⁺ + ACE Inhibitor",        "CRITICAL",
+             "held dose",  "Potassium 5.7 mmol/L with Ramipril. Hold ACE inhibitor; recheck K⁺ in 4h.",
+             "Nurse Rekha Devi", "Dr. Anand Sharma", 4),
+            # warning_dl: K+ 3.2 + Digoxin → CRITICAL toxicity risk
+            (10013, "Anand Gupta",   "K⁺ + Digoxin",               "CRITICAL",
+             "dose review", "Potassium 3.2 mmol/L with Digoxin 0.25mg. Hypokalaemia potentiates digoxin toxicity.",
+             "Nurse Meena Nair", None, 6),
+            # warning_akd: Creatinine 2.2 + NSAID (Ibuprofen) → WARNING nephrotoxicity
+            (10011, "Deepak Rao",    "Creatinine + NSAID",          "WARNING",
+             "held dose",  "Creatinine 2.2 (AKI Stage 1). Ibuprofen held; switch to paracetamol.",
+             "Nurse Rekha Devi", "Dr. Priya Mehta", 2),
+            # warning_hr: INR 2.6 + Amiodarone → WARNING potentiation
+            (10012, "Meena Iyer",    "INR + Amiodarone",            "WARNING",
+             "dose adjusted", "INR 2.6 with Amiodarone (potentiates warfarin). Warfarin dose reduced 20%.",
+             "Nurse Rekha Devi", "Dr. Anand Sharma", 8),
+        ]
+        for sid, sname, rule, severity, action, justification, recby, cosby, hours_ago in DL_SEEDS:
+            session.add(DrugLabAction(
+                hadm_id       = sid,
+                rule_name     = rule,
+                severity      = severity,
+                action_taken  = action,
+                justification = justification,
+                recorded_by   = recby,
+                cosigned_by   = cosby,
+                recorded_at   = datetime.now() - timedelta(hours=hours_ago),
+            ))
+
         session.commit()
 
     print(f"\n  16 patients written to Cloud SQL (active_patients + ews_* tables).")

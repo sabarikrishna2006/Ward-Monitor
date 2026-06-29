@@ -149,6 +149,47 @@ tr.stale td{color:var(--muted);opacity:.65}
 .al-ok{background:var(--t3b);color:#065f46;border:1px solid #6ee7b7}
 .al-info{background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe}
 
+/* ── HOSPITAL TOAST NOTIFICATIONS ── */
+#toast-rack{position:fixed;top:20px;right:20px;z-index:10000;display:flex;flex-direction:column;gap:10px;width:370px;pointer-events:none}
+.toast{display:flex;background:#fff;border-radius:10px;box-shadow:0 6px 28px rgba(0,0,0,.18);overflow:hidden;pointer-events:all;transition:opacity .35s;animation:toast-in .22s ease}
+@keyframes toast-in{from{transform:translateX(110%);opacity:0}to{transform:translateX(0);opacity:1}}
+.toast-bar{width:5px;flex-shrink:0}
+.toast-critical .toast-bar{background:var(--t1)}
+.toast-warning  .toast-bar{background:var(--t2)}
+.toast-success  .toast-bar{background:var(--t3)}
+.toast-info     .toast-bar{background:#2563eb}
+.toast-notify   .toast-bar{background:#7c3aed}
+.toast-body{flex:1;padding:11px 13px 10px;min-width:0}
+.toast-hdr{display:flex;align-items:center;gap:6px;margin-bottom:5px}
+.toast-icon{font-size:15px;line-height:1;flex-shrink:0}
+.toast-title{font-weight:700;font-size:12.5px;flex:1;color:var(--ink);line-height:1.3}
+.toast-badge{font-size:9.5px;font-weight:800;color:#fff;padding:2px 6px;border-radius:3px;letter-spacing:.06em;flex-shrink:0}
+.toast-critical .toast-badge{background:var(--t1)}
+.toast-warning  .toast-badge{background:var(--t2);color:#000}
+.toast-success  .toast-badge{background:var(--t3)}
+.toast-info     .toast-badge{background:#2563eb}
+.toast-notify   .toast-badge{background:#7c3aed}
+.toast-close{background:none;border:none;font-size:16px;line-height:1;color:var(--muted);cursor:pointer;padding:0 2px;margin-left:4px;flex-shrink:0}
+.toast-close:hover{color:var(--ink)}
+.toast-row{display:flex;align-items:baseline;gap:6px;font-size:11.5px;color:var(--ink);margin-bottom:3px;line-height:1.4}
+.toast-lbl{font-weight:700;color:var(--muted);white-space:nowrap;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;min-width:54px}
+.toast-detail{font-size:11.5px;color:var(--muted);margin-top:5px;line-height:1.5;border-top:1px solid var(--border);padding-top:5px}
+.toast-progress{margin-top:7px;height:2px;background:var(--border);border-radius:2px;overflow:hidden}
+.toast-prog-bar{height:100%;border-radius:2px;animation:tp-shrink linear forwards}
+.toast-critical .toast-prog-bar{background:var(--t1)}
+.toast-warning  .toast-prog-bar{background:var(--t2)}
+.toast-success  .toast-prog-bar{background:var(--t3)}
+.toast-info     .toast-prog-bar{background:#2563eb}
+.toast-notify   .toast-prog-bar{background:#7c3aed}
+@keyframes tp-shrink{from{width:100%}to{width:0}}
+
+/* ── DISCHARGE PENDING BADGE ── */
+.badge-discharge{display:inline-block;background:#0d9488;color:#fff;font-size:9.5px;font-weight:800;padding:2px 7px;border-radius:10px;letter-spacing:.05em;margin-left:5px;vertical-align:middle}
+.row-discharge td{background:#f0fdfa !important}
+
+/* ── ROLE CHIP ── */
+.role-chip.gw_nurse{color:#059669}.role-chip.nurse{color:#7c3aed}.role-chip.charge_nurse{color:#d97706}.role-chip.doctor,.role-chip.resident{color:#2563eb}
+
 /* ── TIMELINE ── */
 .tl{padding:8px 0;margin-bottom:16px}
 .tl-item{display:flex;gap:14px;padding:12px 0;position:relative}

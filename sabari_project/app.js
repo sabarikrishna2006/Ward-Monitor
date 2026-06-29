@@ -203,10 +203,11 @@ window.submitFalseAlarm = async function(patientId, reason) {
     : [];
 
   if (escs.length === 0) {
-    alert('No active escalation found for this patient.');
+    showToast('warning', 'No Active Escalation', { detail: 'No active escalation found for this patient.' });
     return;
   }
   const escId = escs[0].id;
+  const esc   = escs[0];
 
   try {
     const res = await fetch(`/api/escalations/${escId}/false-alarm`, {
@@ -215,42 +216,82 @@ window.submitFalseAlarm = async function(patientId, reason) {
       body: JSON.stringify({ reason })
     });
     if (res.ok) {
-      alert(`Marked as false alarm: "${reason}"`);
+      showToast('info', 'False Alarm Documented', {
+        patient:  esc.patientName || esc.patient_name || '',
+        notified: APP.user?.name || 'Charge Nurse',
+        detail:   `Reason: ${reason}`,
+      });
       const menu = document.getElementById('false-alarm-menu');
       if (menu) menu.style.display = 'none';
       nav('n5');
     } else {
-      alert('Failed to mark false alarm — check backend.');
+      showToast('critical', 'Action Failed', { detail: 'Failed to mark false alarm — check backend.' });
     }
-  } catch (e) { alert('Network error: ' + e.message); }
+  } catch (e) { showToast('critical', 'Network Error', { detail: e.message }); }
 }
 
-/* ─── TOAST (global helper) ─── */
-function _showToast(html, color) {
-  color = color || '#2563eb';
+/* ─── HOSPITAL TOAST SYSTEM ─── */
+(function() {
+  const rack = document.createElement('div');
+  rack.id = 'toast-rack';
+  rack.setAttribute('aria-live', 'polite');
+  document.body.appendChild(rack);
+})();
+
+const _TOAST_META = {
+  critical: { icon: '⚠', label: 'CRITICAL' },
+  warning:  { icon: '⚡', label: 'WARNING'  },
+  success:  { icon: '✓',  label: 'DONE'     },
+  info:     { icon: 'ℹ',  label: 'INFO'     },
+  notify:   { icon: '🔔', label: 'NOTIFY'   },
+};
+
+function showToast(type, title, opts) {
+  opts = opts || {};
+  const m = _TOAST_META[type] || _TOAST_META.info;
+  const ms = opts.persistent ? 0 : (opts.duration || (type === 'critical' ? 8000 : 5500));
+  const id = 'toast-' + Date.now() + '-' + Math.random().toString(36).slice(2);
   const t = document.createElement('div');
-  t.style.cssText = `position:fixed;bottom:24px;right:24px;z-index:9999;background:${color};color:#fff;`
-    + `padding:14px 20px;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.25);`
-    + `max-width:340px;font-size:13px;line-height:1.5;transition:opacity .4s;`;
-  t.innerHTML = html;
-  document.body.appendChild(t);
-  setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 450); }, 4500);
+  t.className = 'toast toast-' + type;
+  t.id = id;
+  const patRow  = opts.patient  ? `<div class="toast-row"><span class="toast-lbl">Patient</span>${opts.patient}</div>`  : '';
+  const notRow  = opts.notified ? `<div class="toast-row"><span class="toast-lbl">Notified</span>${opts.notified}</div>` : '';
+  const detRow  = opts.detail   ? `<div class="toast-detail">${opts.detail}</div>` : '';
+  const progRow = ms ? `<div class="toast-progress"><div class="toast-prog-bar" style="animation-duration:${ms}ms"></div></div>` : '';
+  t.innerHTML = `
+    <div class="toast-bar"></div>
+    <div class="toast-body">
+      <div class="toast-hdr">
+        <span class="toast-icon">${m.icon}</span>
+        <span class="toast-title">${title}</span>
+        <span class="toast-badge">${m.label}</span>
+        <button class="toast-close" onclick="(function(el){el.style.opacity='0';setTimeout(()=>el.remove(),350)})(document.getElementById('${id}'))">×</button>
+      </div>
+      ${patRow}${notRow}${detRow}${progRow}
+    </div>`;
+  const rack = document.getElementById('toast-rack');
+  if (rack) rack.prepend(t);
+  if (ms) setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 380); }, ms);
 }
 
 /* ─── INITIATE DISCHARGE (General Ward) ─── */
 window.initiateDischarge = async function(patientId, patientName) {
-  if (!confirm(`Initiate discharge for ${patientName}?\n\nThis will notify the Resident Doctor to generate a discharge summary.`)) return;
   try {
     const res = await fetch(`/api/patients/${patientId}/initiate-discharge`, { method: 'POST' });
     if (res.ok) {
+      showToast('notify', 'Discharge Initiated', {
+        patient: patientName,
+        notified: 'Resident Doctor — Doctor Portal',
+        detail: 'Patient discharge process started. Resident has been notified to generate the summary.',
+      });
       APP._dischargePatient = { id: patientId, name: patientName };
       await refreshNow(false);
       nav('n_discharge', patientId);
     } else {
       const err = await res.json().catch(() => ({}));
-      alert('Failed to initiate discharge: ' + (err.detail || res.status));
+      showToast('critical', 'Discharge Failed', { detail: err.detail || ('Error ' + res.status) });
     }
-  } catch (e) { alert('Network error: ' + e.message); }
+  } catch (e) { showToast('critical', 'Network Error', { detail: e.message }); }
 };
 
 /* ─── LOGIN ─── */
@@ -313,10 +354,15 @@ function logout() {
 function renderAll() {
   renderSidebar();
   renderHeader();
+  const mainEl = document.getElementById('main');
+  const scrollY = mainEl ? mainEl.scrollTop : 0;
   const fn = SCREENS[APP.screen];
-  document.getElementById('main').innerHTML = fn
-    ? fn()
-    : `<div style="padding:60px;text-align:center;color:var(--muted)">Screen not found.</div>`;
+  if (mainEl) {
+    mainEl.innerHTML = fn
+      ? fn()
+      : `<div style="padding:60px;text-align:center;color:var(--muted)">Screen not found.</div>`;
+    requestAnimationFrame(() => { mainEl.scrollTop = scrollY; });
+  }
 }
 
 function renderHeader() {
@@ -547,8 +593,11 @@ SCREENS.n1 = () => {
       const scoreClass = isStale ? 'muted' : score >= 7 ? 'n2s hi' : score >= 5 ? 'n2s med' : 'n2s lo';
       const statusBd = isStale ? 'bd bd-muted' : score >= 7 ? 'bd bd-t1' : score >= 5 ? 'bd bd-t2' : 'bd bd-t3';
       
+      // Discharge-initiated patients stay on dashboard (physically in ward) but get a visual cue
+      const isDischargePending = p.status === 'discharge_initiated' || p.status === 'data_ready';
       // Calculate stale minutes for UI
-      const statusLbl = isStale ? 'Overdue' : score >= 7 ? 'Escalate' : score >= 5 ? 'Monitor' : 'Stable';
+      const statusLbl = isDischargePending ? 'Pending Discharge'
+        : isStale ? 'Overdue' : score >= 7 ? 'Escalate' : score >= 5 ? 'Monitor' : 'Stable';
       
       const valCrit = (val, thres, op) => {
         if (!val || val === '--' || isStale) return '';
@@ -572,8 +621,8 @@ SCREENS.n1 = () => {
       const ackBtn = p._acked ? '' : `<button class="btn btn-sec btn-xs" onclick="event.stopPropagation();ackPatient(event, ${p.id})">Ack</button>`;
       
       return `
-        <tr class="${rowClass}" onclick="nav('n1b', ${p.id})">
-          <td data-label="Patient"><b>${p.name}</b><br><span class="pid">${p.patient_code || 'PT-' + p.id}</span></td>
+        <tr class="${rowClass}${isDischargePending ? ' row-discharge' : ''}" onclick="nav('n1b', ${p.id})">
+          <td data-label="Patient"><b>${p.name}</b>${isDischargePending ? '<span class="badge-discharge">Discharge Pending</span>' : ''}<br><span class="pid">${p.patient_code || 'PT-' + p.id}</span></td>
           <td data-label="Diagnosis" class="dx-cell">${p.diagnosis_short || '—'}</td>
           <td data-label="Ward">${p.ward.split(' ')[1] || p.ward}${p.ward_location === 'GENERAL_WARD' ? '<br><span class="loc-tag loc-gw">GW</span>' : '<br><span class="loc-tag loc-ccu">CCU</span>'}</td>
           <td data-label="SpO₂" class="${valCrit(p.spo2, 92, '<')}">${spo2} ${timeHtml(p.spo2_time)}</td>
@@ -586,10 +635,11 @@ SCREENS.n1 = () => {
           <td data-label="EWS Reason" class="ews-reason-td">${renderEwsReason(p)}</td>
           <td data-label="Status"><span class="${statusBd}" style="${isStale?'color:var(--muted)':''}">${statusLbl.toUpperCase()}</span>${p.dueLabel ? `<div class="due-label ${p.isOverdue ? 'due-over' : ''}">${p.dueLabel}</div>` : ''}</td>
           <td data-label="Actions">
-            ${isStale ?
-              `<button class="btn btn-warn btn-xs" style="color:#000" onclick="event.stopPropagation();nav('n_vitals', ${p.id})">Enter Vitals</button>`
-            :
-              `${score >= 5 ? `<button class="btn ${score >= 7 ? 'btn-danger' : 'btn-warn'} btn-xs" onclick="event.stopPropagation();nav('n2', ${p.id})">Escalate</button>` : ''}
+            ${isDischargePending
+              ? `<button class="btn btn-sec btn-xs" style="border-color:#0d9488;color:#0d9488" onclick="event.stopPropagation();nav('n_discharge', ${p.id})">View Status</button>`
+              : isStale
+                ? `<button class="btn btn-warn btn-xs" style="color:#000" onclick="event.stopPropagation();nav('n_vitals', ${p.id})">Enter Vitals</button>`
+                : `${score >= 5 ? `<button class="btn ${score >= 7 ? 'btn-danger' : 'btn-warn'} btn-xs" onclick="event.stopPropagation();nav('n2', ${p.id})">Escalate</button>` : ''}
               ${ackBtn}`
             }
           </td>
@@ -809,7 +859,16 @@ ${(() => {
 
 ${APP.n1b_tab === 'ml' ? mlInsights : APP.n1b_tab === 'drug-lab' ? druglab : APP.n1b_tab === 'labs' ? labsHtml : APP.n1b_tab === 'meds' ? medsHtml : vitals}
 
-<div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
+${(p.status === 'discharge_initiated' || p.status === 'data_ready') ? `
+<div class="alert al-ok" style="border-left:4px solid #0d9488;margin-top:16px;display:flex;align-items:center;gap:10px">
+  <span style="font-size:18px">🏥</span>
+  <div>
+    <b>Discharge in Progress</b> — Resident Doctor has been notified.
+    <div class="muted small" style="margin-top:2px">Discharge summary generation pending. Patient remains in ward until summary is signed off.</div>
+  </div>
+  <button class="btn btn-sec btn-sm" style="margin-left:auto;border-color:#0d9488;color:#0d9488;white-space:nowrap" onclick="nav('n_discharge', ${p.id})">View Status →</button>
+</div>` : ''}
+<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
   ${APP.role === 'charge' ? `
     <button class="btn btn-sec btn-sm" onclick="nav('n5')">← Back to Escalation Queue</button>
     <button class="btn btn-warn btn-sm" onclick="showFalseAlarmMenu()">Mark False Alarm ▾</button>
@@ -819,7 +878,7 @@ ${APP.n1b_tab === 'ml' ? mlInsights : APP.n1b_tab === 'drug-lab' ? druglab : APP
     ${score >= 5 ? `<button class="btn btn-danger btn-sm" onclick="nav('n2', ${p.id})">Escalate Patient</button>` : ''}
   `}
   ${(!p.ward_location || p.ward_location === 'CCU') ? `<button class="btn btn-pri btn-sm" style="background:var(--p)" onclick="nav('n_transfer', ${p.id})">CCU→GW Transfer →</button>` : ''}
-  ${p.ward_location === 'GENERAL_WARD' ? `<button class="btn btn-pri btn-sm" style="background:#16a34a" onclick="initiateDischarge(${p.id}, '${p.name}')">→ Initiate Discharge</button>` : ''}
+  ${p.ward_location === 'GENERAL_WARD' && !(p.status === 'discharge_initiated' || p.status === 'data_ready') ? `<button class="btn btn-pri btn-sm" style="background:#16a34a" onclick="initiateDischarge(${p.id}, '${p.name}')">→ Initiate Discharge</button>` : ''}
 </div>
 <div id="false-alarm-menu" style="display:none;margin-top:8px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;max-width:400px">
   <div class="card-title" style="margin-bottom:8px">Reason for False Alarm</div>
@@ -837,7 +896,7 @@ SCREENS.n_transfer = () => {
 
   window.submitTransfer = async function() {
     const rationale = (document.getElementById('tr-rationale')?.value || '').trim();
-    if (!rationale) { alert('Please enter a clinical rationale.'); return; }
+    if (!rationale) { showToast('warning', 'Missing Information', { detail: 'Please enter a clinical rationale before submitting.' }); return; }
     const target = document.getElementById('tr-target')?.value || 'General Ward';
     const btn = document.getElementById('tr-submit'); if (btn) { btn.disabled = true; btn.textContent = 'Submitting…'; }
     try {
@@ -845,14 +904,19 @@ SCREENS.n_transfer = () => {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rationale, targetWard: target, recommendedBy: APP.user ? APP.user.name : 'Nurse' })
       });
-      if (res.ok) { nav('n_transfer', pid); }
-      else { const d = await res.json().catch(() => ({})); alert('Could not submit: ' + (d.detail || res.status)); if (btn) { btn.disabled = false; btn.textContent = 'Submit to Head Nurse →'; } }
-    } catch (err) { alert('Network error: ' + err.message); if (btn) { btn.disabled = false; } }
+      if (res.ok) {
+        showToast('notify', 'Step-Down Request Submitted', {
+          notified: 'Charge Nurse / Head Nurse',
+          detail: `Transfer to ${target} — awaiting charge nurse approval.`,
+        });
+        nav('n_transfer', pid);
+      }
+      else { const d = await res.json().catch(() => ({})); showToast('critical', 'Submission Failed', { detail: d.detail || ('Error ' + res.status) }); if (btn) { btn.disabled = false; btn.textContent = 'Submit to Head Nurse →'; } }
+    } catch (err) { showToast('critical', 'Network Error', { detail: err.message }); if (btn) { btn.disabled = false; } }
   };
   window.withdrawTransfer = async function(tid) {
-    if (!confirm('Withdraw this step-down recommendation?')) return;
     try { const res = await fetch(`/api/ccu-transfers/${tid}/withdraw`, { method: 'POST' }); if (res.ok) nav('n_transfer', pid); }
-    catch (err) { alert('Network error'); }
+    catch (err) { showToast('critical', 'Network Error', {}); }
   };
 
   const header = `<div class="bc"><span class="bc-link" onclick="nav('n1b', ${pid})">Patient Detail</span><span class="bc-sep">/</span><span>CCU&rarr;GW Transfer</span></div>
@@ -945,12 +1009,20 @@ SCREENS.n2 = () => {
         body: JSON.stringify(payload)
       });
       if (res.ok) {
-        APP.data.lastEscalation = await res.json();
+        APP.lastEscalation = await res.json();
+        const toastType = score >= 7 ? 'critical' : 'warning';
+        const levelLabel = { nurse: 'Head Nurse', doctor: 'Attending', consultant: 'Consultant', code_blue: 'Code Blue' }[level] || level;
+        showToast(toastType, `Escalation Raised — ${levelLabel}`, {
+          patient:  p.name || p.patient_code || '',
+          notified: `Charge Nurse + ${attending || 'Attending'}`,
+          detail:   `NEWS2: ${score} — ${(observations || '').slice(0, 80) || 'See escalation record'}`,
+          persistent: score >= 7,
+        });
         nav('n3');
       } else {
-        alert('Failed to submit escalation — please check backend is running.');
+        showToast('critical', 'Escalation Failed', { detail: 'Failed to submit escalation — check backend is running.' });
       }
-    } catch(e) { console.error(e); alert('Network error: ' + e.message); }
+    } catch(e) { console.error(e); showToast('critical', 'Network Error', { detail: e.message }); }
   };
 
   setTimeout(async () => {
@@ -1013,7 +1085,7 @@ SCREENS.n2 = () => {
 
 /* ── N3 — POST-ESCALATION (shows real submitted escalation) ─── */
 SCREENS.n3 = () => {
-  const e = APP.data.lastEscalation || {};
+  const e = APP.lastEscalation || {};
   const p = APP.data.n1b || {};
   const v = p.vitals || {};
   const hasData = !!e.id;
@@ -1053,17 +1125,23 @@ ${p.spo2 ? `<div class="card" style="max-width:560px;margin-bottom:16px">
 
 /* ── N4 — STATUS LOG ────────────────────────────────────────── */
 SCREENS.n4 = () => {
-  const e = APP.data.lastEscalation || {};
+  const e = APP.lastEscalation || {};
   const p = APP.data.n1b || {};
   const patCode = p.patient_code || 'PT-' + p.id;
   
   window.doctorAcknowledge = async function(escId) {
     if (!escId) return nav('n4b');
+    const resolvedBy = APP.user?.name || 'Doctor';
     try {
       await fetch('/api/escalations/' + escId + '/resolve', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ resolvedBy: APP.user?.name || 'Doctor', notes: '' })
+        body: JSON.stringify({ resolvedBy, notes: '' })
+      });
+      showToast('success', 'Escalation Resolved', {
+        patient:  p.patient_code || p.name || '',
+        notified: resolvedBy + ' · Ward Nurse notified',
+        detail:   'Patient de-escalated — continue monitoring.',
       });
     } catch(err) {}
     nav('n4b');
@@ -1160,17 +1238,50 @@ SCREENS.n5 = () => {
   const fmtTime = ts => { if (!ts) return '--'; try { return new Date(ts).toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'}); } catch (e) { return ts; } };
 
   window.reescalateEsc = async function(id) {
-    try { const res = await fetch(`/api/escalations/${id}/reescalate`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({reason:''})});
-      if (res.ok) { const d = await res.json(); alert('Re-escalated to ' + d.newLevelLabel); nav('n5'); } else alert('Re-escalation failed.'); } catch (e) { alert('Network error'); }
+    const esc = (APP.data.n5?.escalations || []).find(e => e.id == id) || {};
+    try {
+      const res = await fetch(`/api/escalations/${id}/reescalate`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({reason:''})});
+      if (res.ok) {
+        const d = await res.json();
+        showToast('critical', `Escalation Re-raised — ${d.newLevelLabel || 'Higher Level'}`, {
+          patient:  esc.patientName || esc.patient_name || '',
+          notified: 'Attending Physician + Medical Director',
+          detail:   'SLA window exceeded — escalation escalated to next tier.',
+          persistent: true,
+        });
+        nav('n5');
+      } else showToast('critical', 'Re-escalation Failed', {});
+    } catch (e) { showToast('critical', 'Network Error', {}); }
   };
   window.approveTransfer = async function(id) {
-    try { const res = await fetch(`/api/ccu-transfers/${id}/approve`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({decidedBy: APP.user?APP.user.name:'Head Nurse'})});
-      if (res.ok) { alert('Transfer approved — patient moved to General Ward.'); nav('n5'); } else alert('Approval failed.'); } catch (e) { alert('Network error'); }
+    const tr = (APP.data.n5?.transfers || []).find(t => t.id == id) || {};
+    const decider = APP.user ? APP.user.name : 'Head Nurse';
+    try {
+      const res = await fetch(`/api/ccu-transfers/${id}/approve`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({decidedBy: decider})});
+      if (res.ok) {
+        showToast('success', 'CCU Transfer Approved', {
+          patient:  tr.patientName || tr.patient_name || '',
+          notified: decider,
+          detail:   `Patient cleared for transfer → ${tr.targetWard || 'General Ward'}`,
+        });
+        nav('n5');
+      } else showToast('critical', 'Approval Failed', {});
+    } catch (e) { showToast('critical', 'Network Error', {}); }
   };
   window.rejectTransfer = async function(id) {
-    if (!confirm('Reject this step-down recommendation?')) return;
-    try { const res = await fetch(`/api/ccu-transfers/${id}/reject`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({decidedBy: APP.user?APP.user.name:'Head Nurse'})});
-      if (res.ok) nav('n5'); } catch (e) { alert('Network error'); }
+    const tr = (APP.data.n5?.transfers || []).find(t => t.id == id) || {};
+    const decider = APP.user ? APP.user.name : 'Head Nurse';
+    try {
+      const res = await fetch(`/api/ccu-transfers/${id}/reject`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({decidedBy: decider})});
+      if (res.ok) {
+        showToast('warning', 'Transfer Rejected', {
+          patient:  tr.patientName || tr.patient_name || '',
+          notified: decider,
+          detail:   'Patient remains in CCU. Continue monitoring protocol.',
+        });
+        nav('n5');
+      }
+    } catch (e) { showToast('critical', 'Network Error', {}); }
   };
 
   return `
@@ -1331,7 +1442,7 @@ SCREENS.n6 = () => {
   </div>
   <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
     <button class="btn btn-sec" onclick="nav('n1')">Cancel</button>
-    <button class="btn btn-pri" onclick="nav('n6b')">Complete Handoff</button>
+    <button class="btn btn-pri" onclick="showToast('success','Shift Handoff Complete',{notified:(document.getElementById('ho-incoming')?.value||APP.user?.name||'Incoming Nurse'),detail:'Handoff logged — incoming nurse has acknowledged receipt.'});nav('n6b')">Complete Handoff</button>
   </div>
 </div>`;
 };
@@ -1451,31 +1562,37 @@ window.openDl2 = function(pid, ruleName) {
       }
     }
   }
-  alert('Flag details unavailable — refresh the dashboard.');
+  showToast('warning', 'Flag Details Missing', { detail: 'Flag details unavailable — refresh the dashboard.' });
 };
 
 /* Persist a Drug-Lab action (DL2/dlcosign → DL2b) to the NABH audit trail */
 window.recordDlAction = async function(cosignedBy) {
   const f = APP.dl2_flag;
-  if (!f) { alert('No flag selected.'); return; }
+  if (!f) { showToast('warning', 'No Flag Selected', { detail: 'Please select a drug-lab flag first.' }); return; }
   const noteEl = document.getElementById('dl2-note');
   if (noteEl) APP.dl2_justification = noteEl.value;
+  const nurseName = APP.user ? APP.user.name : 'Charge Nurse';
   try {
     const res = await fetch('/api/drug-lab-actions', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         subjectId: f.patientId, ruleName: f.rule_name, severity: f.severity,
         action: APP.dl2_action, justification: APP.dl2_justification || '',
-        recordedBy: APP.user ? APP.user.name : 'Charge Nurse', cosignedBy: cosignedBy || null
+        recordedBy: nurseName, cosignedBy: cosignedBy || null
       })
     });
     if (res.ok) {
       APP.dl2_result = await res.json();
       APP.dl2_result.patientName = f.patientName;
       APP.dl2_result.diagnosis = f.diagnosis;
+      showToast('warning', 'Drug–Lab Safety Flag — NABH DL2', {
+        patient:  f.patientName || '',
+        notified: nurseName + (cosignedBy ? ` · Cosigned: ${cosignedBy}` : ' · Cosign pending'),
+        detail:   `${f.rule_name} — ${APP.dl2_action}`,
+      });
       nav('dl2b');
-    } else { alert('Could not record action.'); }
-  } catch (e) { alert('Network error: ' + e.message); }
+    } else { showToast('critical', 'Action Failed', { detail: 'Could not record drug-lab action.' }); }
+  } catch (e) { showToast('critical', 'Network Error', { detail: e.message }); }
 };
 
 /* ── DL2 — FLAG DETAIL & ACTION (data-driven from the clicked flag) ── */
@@ -1596,13 +1713,13 @@ SCREENS.n_vitals = () => {
     if ([spo2, rr, hr, sbp, dbp, temp].some(isNaN)) {
       return;
     }
-    if (spo2 < 0 || spo2 > 100)   { alert('SpO2 must be 0-100%'); return; }
-    if (spo2 < 85 && !confirm(`SpO2 is critically low (${spo2}%). Are you sure you want to record this value?`)) return;
-    if (rr < 5   || rr > 60)       { alert('Resp Rate must be 5-60'); return; }
-    if (hr < 20  || hr > 250)      { alert('Heart Rate must be 20-250'); return; }
-    if (sbp < 50 || sbp > 250)     { alert('SBP must be 50-250'); return; }
-    if (dbp < 30 || dbp > 150)     { alert('DBP must be 30-150'); return; }
-    if (temp < 33 || temp > 42)    { alert('Temp must be 33-42 C'); return; }
+    if (spo2 < 0 || spo2 > 100)   { showToast('warning', 'Validation Error', { detail: 'SpO2 must be 0–100%' }); return; }
+    if (spo2 < 85) showToast('critical', 'Critically Low SpO₂', { patient: p.name||'', detail: `SpO2 ${spo2}% — confirm O₂ delivery immediately.`, persistent: true });
+    if (rr < 5   || rr > 60)       { showToast('warning', 'Validation Error', { detail: 'Resp Rate must be 5–60' }); return; }
+    if (hr < 20  || hr > 250)      { showToast('warning', 'Validation Error', { detail: 'Heart Rate must be 20–250' }); return; }
+    if (sbp < 50 || sbp > 250)     { showToast('warning', 'Validation Error', { detail: 'SBP must be 50–250' }); return; }
+    if (dbp < 30 || dbp > 150)     { showToast('warning', 'Validation Error', { detail: 'DBP must be 30–150' }); return; }
+    if (temp < 33 || temp > 42)    { showToast('warning', 'Validation Error', { detail: 'Temp must be 33–42 °C' }); return; }
 
     const btn = document.getElementById('submit-vitals-btn');
     if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
@@ -1618,21 +1735,29 @@ SCREENS.n_vitals = () => {
         const score = data.news2_score;
         const level = data.risk_level;
         const badgeClass = level === 'critical' ? 'bd-t1' : level === 'warning' ? 'bd-t2' : 'bd-t3';
-        const factors = (data.factors || []).map(function(f) { return f.name + ': +' + f.score; }).join(' - ') || 'All parameters within range';
+        const factors = (data.factors || []).map(function(f) { return f.name + ': +' + f.score; }).join(' · ') || 'All parameters within range';
         const el = document.getElementById('vitals-result');
         if (el) {
           el.innerHTML = '<div class="alert al-ok" style="margin-top:16px">' +
-            '✓ Vitals saved - NEWS2 score: <span class="bd ' + badgeClass + '" style="font-size:13px;padding:3px 10px">' + score + ' — ' + level.toUpperCase() + '</span>' +
+            '✓ Vitals saved — NEWS2: <span class="bd ' + badgeClass + '" style="font-size:13px;padding:3px 10px">' + score + ' — ' + level.toUpperCase() + '</span>' +
             '<br><span class="muted small">' + factors + '</span></div>';
         }
-        setTimeout(function() { nav('n1b', APP.currentPatientId); }, 2000);
+        const toastType = level === 'critical' ? 'critical' : level === 'warning' ? 'warning' : 'success';
+        showToast(toastType, `Vitals Updated — NEWS2 ${score}`, {
+          patient:  p.name || p.patient_code || '',
+          notified: APP.user?.name || 'Nurse',
+          detail:   score >= 7 ? '⚠ CRITICAL threshold — escalation required immediately.'
+                  : score >= 5 ? 'Monitor closely — escalation threshold approaching.'
+                  : 'Patient within safe parameters.',
+        });
+        setTimeout(function() { nav('n1b', APP.currentPatientId); }, 2200);
       } else {
         if (btn) { btn.disabled = false; btn.textContent = 'Submit Vitals'; }
-        alert('Failed to save vitals - check backend is running.');
+        showToast('critical', 'Vitals Save Failed', { detail: 'Failed to save vitals — check backend is running.' });
       }
     } catch(e) {
       if (btn) { btn.disabled = false; btn.textContent = 'Submit Vitals'; }
-      alert('Network error: ' + e.message);
+      showToast('critical', 'Network Error', { detail: e.message });
     }
   };
 
@@ -1774,7 +1899,7 @@ window._replayLoadPatient = async function(hadmId) {
     APP.data.n_demo_playing = false;
     if (_replayTimer) { clearInterval(_replayTimer); _replayTimer = null; }
   } catch (e) {
-    alert('Could not load replay: ' + e.message);
+    showToast('critical', 'Arc Load Failed', { detail: e.message });
   }
   renderAll();
 };

@@ -1361,7 +1361,7 @@ def initiate_discharge(subject_id: int, db: Session = Depends(get_db)):
             pass
 
     db.execute(sql_text(
-        "UPDATE active_patients SET status = 'data_ready', data_fetch_status = 'fetched', updated_at = NOW() WHERE hadm_id = :h"
+        "UPDATE active_patients SET status = 'discharge_initiated', data_fetch_status = 'fetched', updated_at = NOW() WHERE hadm_id = :h"
     ), {"h": subject_id})
 
     # Create or reset the app_encounter to 'Pending Ingestion' so it appears

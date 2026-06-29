@@ -453,8 +453,11 @@ def sync_patient_from_mimic(hadm_id: int, db: Session) -> dict:
 
 def list_dcm_patients(db: Session) -> list[dict]:
     """
-    Return DCM patients available in ap_admissions + ap_diagnoses.
-    Filters on ICD-10 I42.x or ICD-9 425.x, joined with active_patients status.
+    Return DCM patients for the arc replay picker.
+    Priority:
+      1. Real MIMIC patients from ap_admissions + ap_diagnoses (ICD I42/425).
+      2. If none found, fall back to demo patients in active_patients that have
+         vitals seeded in ews_vitals_timeseries (build_demo_db.py patients).
     """
     rows = db.execute(sql_text("""
         SELECT DISTINCT
@@ -479,6 +482,45 @@ def list_dcm_patients(db: Session) -> list[dict]:
         LIMIT 100
     """)).fetchall()
 
+    if rows:
+        return [
+            {
+                "hadm_id": r[0],
+                "subject_id": r[1],
+                "gender": r[2],
+                "age": r[3],
+                "admittime": r[4].isoformat() if r[4] else None,
+                "icd_code": r[5],
+                "diagnosis": r[6],
+                "in_active_patients": r[7] is not None,
+                "fetch_status": r[8],
+                "nyha_class": r[9],
+            }
+            for r in rows
+        ]
+
+    # Fallback: demo patients seeded by build_demo_db.py that have vitals data.
+    # These appear in the arc replay picker so the demo is always functional.
+    demo_rows = db.execute(sql_text("""
+        SELECT DISTINCT
+            ap.hadm_id,
+            ap.subject_id,
+            ap.gender,
+            ap.anchor_age,
+            ap.admit_time,
+            ap.diagnosis_short,
+            ap.patient_name,
+            ap.status,
+            ap.data_fetch_status,
+            ap.nyha_class
+        FROM active_patients ap
+        WHERE EXISTS (
+            SELECT 1 FROM ews_vitals_timeseries v WHERE v.hadm_id = ap.hadm_id
+        )
+        ORDER BY ap.admit_time DESC
+        LIMIT 50
+    """)).fetchall()
+
     return [
         {
             "hadm_id": r[0],
@@ -486,11 +528,11 @@ def list_dcm_patients(db: Session) -> list[dict]:
             "gender": r[2],
             "age": r[3],
             "admittime": r[4].isoformat() if r[4] else None,
-            "icd_code": r[5],
-            "diagnosis": r[6],
-            "in_active_patients": r[7] is not None,
+            "icd_code": "DEMO",
+            "diagnosis": r[5] or r[6] or "DCM Demo Patient",
+            "in_active_patients": True,
             "fetch_status": r[8],
             "nyha_class": r[9],
         }
-        for r in rows
+        for r in demo_rows
     ]

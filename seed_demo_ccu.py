@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "sabari_project", "backend"))
 
 from database import engine
-from models import Patient, Medication, CcuTransfer
+from models import Patient, Medication, CcuTransfer, Escalation, DrugLabAction
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 import build_demo_db as bd   # reuse gen_vitals_trajectory, gen_labs, MEDS, ward_location_for
@@ -43,13 +43,12 @@ with Session(engine) as s:
         # CCU for acute, GENERAL_WARD for stable (except step-down candidate stays CCU)
         loc = "CCU" if (sid == STEPDOWN_CANDIDATE or not scenario.startswith("stable")) else "GENERAL_WARD"
         s.add(Patient(
-            id=str(uuid.uuid4()), hadm_id=sid, subject_id=sid,
+            hadm_id=sid, subject_id=sid,
             patient_code=f"PT-26-{sid}", patient_name=name, anchor_age=age,
             gender=sex, ward=f"Ward {ward_suffix}", room=ward_suffix, bed=bed,
             admit_time=datetime.now() - timedelta(days=2), ews_complaint=complaint,
             admitting_diagnosis=complaint, diagnosis_short=dx, ward_location=loc,
             hypercapnic_failure=0, status="active", data_fetch_status="fetched",
-            updated_at=datetime.now(),
         ))
         s.flush()   # ensure active_patients row exists before FK-referencing vitals/labs
         bd.gen_vitals_trajectory(s, sid, scenario)   # 12 hourly readings
@@ -69,6 +68,55 @@ with Session(engine) as s:
             news2_at_submit=2, stable_window_hours=8, status="pending",
             submitted_at=datetime.now() - timedelta(hours=1),
         ))
+
+    # Escalations for critical patients (skip if already seeded for this hadm_id)
+    ESCS = [
+        # hadm_id, name, ward, bed, news2, level, observations, interventions, hrs_ago_start, hrs_ago_resolved
+        (91001, "Ramesh Iyer",   "Ward 4B", "21", 9,  "doctor",
+         "RR 26, SpO2 88%, BP 84/52 — supplemental O₂ in use",
+         "O₂ titrated to 6L; head-of-bed 45°; furosemide 40mg IV stat",
+         3, 1),
+        (91002, "Lakshmi Menon", "Ward 4B", "22", 10, "consultant",
+         "HR 128 AF with RVR, SpO2 86%, RR 28, bilateral crepitations",
+         "Metoprolol IV rate-control; aggressive diuresis; cardiology called",
+         5, None),  # still active
+    ]
+    for sid, sname, ward, bed, snews, slvl, sobs, sint, hrs_start, hrs_res in ESCS:
+        if not s.query(Escalation).filter(Escalation.hadm_id == sid).first():
+            esc = Escalation(
+                hadm_id=sid, patient_name=sname, ward=ward, bed=bed,
+                news2_score=snews, level=slvl, status="active" if hrs_res is None else "resolved",
+                observations=sobs, interventions=sint,
+                escalated_by="Nurse Rekha Devi", attending="Dr. Anand Sharma",
+                escalated_at=datetime.now() - timedelta(hours=hrs_start),
+            )
+            if hrs_res is not None:
+                esc.resolved_by = "Dr. Anand Sharma"
+                esc.resolution_notes = "Patient stabilised post-intervention."
+                esc.resolved_at = datetime.now() - timedelta(hours=hrs_res)
+            s.add(esc)
+
+    # Drug-Lab safety flags (NABH DL2) — pre-seeded so dashboard shows real interactions
+    DLS = [
+        # hadm_id, name, rule, severity, action, justification, recorded_by, cosigned_by, hrs_ago
+        (91002, "Lakshmi Menon", "K⁺ + ACE Inhibitor", "CRITICAL",
+         "held dose",
+         "K⁺ 5.7 mmol/L with Ramipril active. Hold ACE inhibitor; recheck K⁺ in 4h.",
+         "Nurse Rekha Devi", "Dr. Anand Sharma", 4),
+        (91003, "Govind Rao",    "Creatinine + NSAID",  "WARNING",
+         "held dose",
+         "Creatinine 2.1 (AKI Stage 1). Ibuprofen held; switch to paracetamol.",
+         "Nurse Rekha Devi", "Dr. Priya Mehta", 2),
+    ]
+    for sid, sname, rule, severity, action, justification, recby, cosby, hrs_ago in DLS:
+        if not s.query(DrugLabAction).filter(DrugLabAction.hadm_id == sid).first():
+            s.add(DrugLabAction(
+                hadm_id=sid, rule_name=rule, severity=severity,
+                action_taken=action, justification=justification,
+                recorded_by=recby, cosigned_by=cosby,
+                recorded_at=datetime.now() - timedelta(hours=hrs_ago),
+            ))
+
     s.commit()
 
 # app_encounters (so Ashmit's doctor queue sees them) + hospital_core bridge

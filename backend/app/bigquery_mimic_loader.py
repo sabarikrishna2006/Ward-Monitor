@@ -592,4 +592,37 @@ def fetch_and_store_patient(hadm_id: int, engine, display_only: bool = False) ->
     print(f"[DONE] hadm_id={hadm_id}  {total} rows  {elapsed}s")
     counts["_elapsed_s"]  = elapsed
     counts["_total_rows"] = total
+
+    # ── Auto-sync EWS tables from ap_* tables after full fetch ─────────────
+    # This populates ews_vitals_timeseries, ews_lab_events, ews_medications
+    # with NOW-relative timestamps so the ward nurse sees real vitals immediately.
+    if not display_only:
+        try:
+            import sys as _sys, os as _os
+            _sabari_backend = _os.path.join(
+                _os.path.dirname(_os.path.dirname(_os.path.dirname(__file__))),
+                "sabari_project", "backend"
+            )
+            if _sabari_backend not in _sys.path:
+                _sys.path.insert(0, _sabari_backend)
+            from mimic_sync import sync_patient_from_mimic
+            from sqlalchemy.orm import sessionmaker as _SM
+            _Sess = _SM(bind=engine)
+            _db = _Sess()
+            try:
+                ews_counts = sync_patient_from_mimic(hadm_id, _db)
+                print(
+                    f"[EWS-SYNC] hadm_id={hadm_id}  "
+                    f"vitals={ews_counts.get('vitals_inserted',0)}  "
+                    f"labs={ews_counts.get('labs_inserted',0)}  "
+                    f"meds={ews_counts.get('meds_inserted',0)}"
+                )
+                counts["_ews_vitals"] = ews_counts.get("vitals_inserted", 0)
+                counts["_ews_labs"]   = ews_counts.get("labs_inserted", 0)
+                counts["_ews_meds"]   = ews_counts.get("meds_inserted", 0)
+            finally:
+                _db.close()
+        except Exception as _e:
+            print(f"[EWS-SYNC] WARNING: EWS sync failed for hadm_id={hadm_id}: {_e}")
+
     return counts
