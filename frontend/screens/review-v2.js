@@ -2059,7 +2059,7 @@ SCREEN_RENDERERS["review"] = function renderReviewV2() {
       <div style="background:#FFF7ED;border:1.5px solid #D97706;border-radius:10px;padding:12px 16px;margin-bottom:14px">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
           <div style="width:26px;height:26px;border-radius:7px;background:#D97706;display:grid;place-items:center;flex-shrink:0;font-size:14px">📝</div>
-          <span style="font-size:12.5px;font-weight:700;color:#92400E">Amendment Requested — Billing Team</span>
+          <span style="font-size:12.5px;font-weight:700;color:#92400E">Amendment Requested</span>
           ${sectionHtml}
         </div>
         ${af.reason ? `<div style="font-size:12px;color:#78350F;padding:8px 12px;background:rgba(217,119,6,.1);border-radius:6px;border-left:3px solid #D97706;margin-top:4px">
