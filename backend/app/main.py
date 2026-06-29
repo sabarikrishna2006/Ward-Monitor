@@ -719,7 +719,14 @@ def billing_dashboard():
                 'Ready for Review','Awaiting Review',
                 'Awaiting Confirmation','Verifying Claims','Revision Requested'
             )
-            ORDER BY ae.created_at DESC LIMIT 100
+            UNION ALL
+            SELECT {_COLS}
+            FROM active_patients ap
+            JOIN app_encounters ae ON ae.hadm_id = ap.hadm_id
+            LEFT JOIN billing_records br ON br.hadm_id = ap.hadm_id
+            WHERE ae.status = 'Signed Off'
+              AND br.billing_phase = 'amendment_pending'
+            ORDER BY enc_created_at DESC LIMIT 100
         """)).fetchall()
 
         discharge_rows = conn.execute(_text(f"""
@@ -731,7 +738,7 @@ def billing_dashboard():
             LEFT JOIN app_users au ON au.id = aps.signed_by
             WHERE ae.status = 'Signed Off'
               AND (br.billing_phase IS NULL
-                   OR br.billing_phase NOT IN ('final_bill_generated','claim_submitted','tpa_settled','paid'))
+                   OR br.billing_phase NOT IN ('amendment_pending','final_bill_generated','claim_submitted','tpa_settled','paid'))
             ORDER BY ae.updated_at DESC LIMIT 100
         """)).fetchall()
 
@@ -763,6 +770,8 @@ def billing_dashboard():
             status = "Final Bill Overdue"
         elif phase == "discharge":
             status = "Reconciliation Due"
+        elif bp == "amendment_pending":
+            status = "Amendment Requested"
         else:
             status = "Estimate Pending"
         return {

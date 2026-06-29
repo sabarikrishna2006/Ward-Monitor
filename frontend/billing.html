@@ -231,6 +231,7 @@ const _BIL_F = ['Priya Sharma','Kavita Patel','Sunita Rao','Anjali Desai','Leela
 // Tracks hadm_ids already shown as signed-off so we only toast genuinely new ones
 let _bilKnown = new Set();
 let _bilPollStarted = false;
+let _bilToastReady = false; // gate: no toasts until 6s after first dashboard load
 
 // Persistent acknowledgement — once Riya clicks Reconcile or × the card won't reappear
 const _bilAcked = new Set(JSON.parse(localStorage.getItem('bil_notif_acked') || '[]'));
@@ -308,7 +309,7 @@ async function _bilPoll() {
       const key = p.hadm_id + ':' + (p.billing_phase || '');
       if (!_bilKnown.has(key)) {
         _bilKnown.add(key);
-        if (p.phase === 'discharge') { _bilSignedToast(p); changed = true; }
+        if (_bilToastReady && p.phase === 'discharge') { _bilSignedToast(p); changed = true; }
       }
     });
     // Also re-render notification bar with current discharge patients
@@ -542,8 +543,9 @@ async function _loadBillingDashboard() {
               : `<span class="bd bd-blue">Admission</span>`;
           const statusText  = p.billing_status
             || (isFinalBill ? 'Final Bill Overdue' : isDischarge ? 'Reconciliation Due' : 'Estimate Pending');
-          const statusColor = statusText === 'Reconciliation Due' ? 'bd-t1'
-                            : statusText === 'Final Bill Overdue' ? 'bd-gray'
+          const statusColor = statusText === 'Reconciliation Due'  ? 'bd-t1'
+                            : statusText === 'Final Bill Overdue'  ? 'bd-gray'
+                            : statusText === 'Amendment Requested' ? 'bd-purple'
                             : 'bd-t2';
           const statusBadge = `<span class="bd ${statusColor}">${statusText}</span>`;
           const insurance   = _bilInsurance(p.hadm_id, p.insurance_co, p.payment_mode, p.is_ab_beneficiary, p.ab_scheme);
@@ -655,7 +657,11 @@ async function _loadBillingDashboard() {
       _bilKnown.add(p.hadm_id + ':' + (p.billing_phase || ''));
     });
     // Start polling once (30-second interval)
-    if (!_bilPollStarted) { _bilPollStarted = true; setInterval(_bilPoll, 8000); }
+    if (!_bilPollStarted) {
+      _bilPollStarted = true;
+      setTimeout(() => { _bilToastReady = true; }, 6000);
+      setInterval(_bilPoll, 8000);
+    }
 
     // Show persistent notification bar for unacknowledged reconciliation_pending patients
     const _notifPending = (pending_actions || []).filter(p =>
