@@ -465,9 +465,9 @@ function enrich(enc) {
   const info = statusInfo(enc.status);
   return {
     ...enc,
-    _name:        s.name,
-    _age:         s.age,
-    _gender:      s.gender,
+    _name:        enc.patient_name || enc.full_name || s.name,
+    _age:         enc.anchor_age   || s.age,
+    _gender:      enc.gender       || s.gender,
     _diagnosis:   enc.primary_diagnosis_title || s.diagnosis,
     _ward:        s.ward,
     _resident:    s.resident,
@@ -519,18 +519,10 @@ async function loadDashboard(isRetry) {
 
     document.getElementById('err-banner').style.display = 'none';
 
-    _myRows = myEncs.filter(function(r){ return r.assigned_to === user.id; });
-    if (!_myRows.length) _myRows = myEncs;
-
-    if (!_myRows.length) {
-      // Seed cardiology cohort then reload
-      try {
-        await fetch(`${API}/api/seed/cardiology`, { method: 'POST' });
-        const encRes2 = await fetchWithTimeout(`${API}/api/encounters`, TIMEOUT_MS);
-        const encRaw2 = encRes2.ok ? await encRes2.json() : [];
-        _myRows = (Array.isArray(encRaw2) ? encRaw2 : encRaw2.encounters || []).map(enrich);
-      } catch(e) {}
-    }
+    const _released = new Set(['paid','claim_submitted','tpa_settled','final_bill_generated']);
+    const _notReleased = function(r){ return !(r.status === 'Signed Off' && _released.has(r.billing_phase)); };
+    _myRows = myEncs.filter(function(r){ return r.assigned_to === user.id; }).filter(_notReleased);
+    if (!_myRows.length) _myRows = myEncs.filter(_notReleased);
 
     if (!_myRows.length) {
       document.getElementById('s-pending').textContent = 0;

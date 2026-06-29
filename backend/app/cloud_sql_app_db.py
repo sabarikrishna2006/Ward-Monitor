@@ -394,9 +394,12 @@ def list_encounters(status: Optional[str] = None,
                     assigned_to: Optional[str] = None,
                     exclude_status: Optional[str] = None) -> List[Dict]:
     sql = """
-        SELECT ae.*, ap.primary_diagnosis_title, ap.patient_name, ap.anchor_age, ap.gender
+        SELECT ae.*, ap.primary_diagnosis_title, ap.patient_name, ap.anchor_age, ap.gender,
+               br.billing_phase,
+               (SELECT COUNT(*) FROM amendment_log al WHERE al.encounter_id = ae.id) AS amendment_count
         FROM app_encounters ae
         LEFT JOIN active_patients ap ON ap.hadm_id = ae.hadm_id
+        LEFT JOIN billing_records br ON br.hadm_id = ae.hadm_id
         WHERE TRUE
     """
     params: Dict = {}

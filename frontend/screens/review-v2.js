@@ -2045,9 +2045,38 @@ SCREEN_RENDERERS["review"] = function renderReviewV2() {
   })() : "";
 
   // Rejection flow re-review banner (shown when this summary was regenerated after rejection)
+  // ── Amendment banner ──────────────────────────────────────────────────────
+  const amdFlowBanner = (function() {
+    const af = APP.amdFlow;
+    if (!af || String(af.hadmId) !== String(rd?.hadmId)) return "";
+    const detailHtml = af.details
+      ? `<div style="font-size:12px;color:#78350F;padding:8px 12px;background:rgba(217,119,6,.1);border-radius:6px;border-left:3px solid #D97706;margin-top:4px">
+           <strong>Details:</strong> ${af.details.replace(/</g,"&lt;")}
+         </div>` : "";
+    const sectionHtml = af.section
+      ? `<span style="font-size:11px;color:#92400E;font-weight:600"> · Section: ${af.section}</span>` : "";
+    return `
+      <div style="background:#FFF7ED;border:1.5px solid #D97706;border-radius:10px;padding:12px 16px;margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <div style="width:26px;height:26px;border-radius:7px;background:#D97706;display:grid;place-items:center;flex-shrink:0;font-size:14px">📝</div>
+          <span style="font-size:12.5px;font-weight:700;color:#92400E">Amendment Requested — Billing Team</span>
+          ${sectionHtml}
+        </div>
+        ${af.reason ? `<div style="font-size:12px;color:#78350F;padding:8px 12px;background:rgba(217,119,6,.1);border-radius:6px;border-left:3px solid #D97706;margin-top:4px">
+           <strong>Reason:</strong> ${af.reason.replace(/</g,"&lt;")}
+         </div>` : ""}
+        ${detailHtml}
+        <div style="font-size:11.5px;color:#92400E;margin-top:6px">
+          Requested by <strong>${af.requestedBy}</strong>. Please update the relevant section and re-sign.
+        </div>
+      </div>`;
+  })();
+
   const rejFlowBanner = (function() {
     const rf = APP.rejFlow;
     // Show banner when this encounter was previously rejected — match hadmId to avoid cross-patient bleed
+    // Suppress if an amendment banner is already showing
+    if (APP.amdFlow && String(APP.amdFlow.hadmId) === String(rd?.hadmId)) return "";
     if (!rf || !rf.rejectionLogId || !rf.rejectedAt) return "";
     if (String(rf.hadmId) !== String(rd?.hadmId)) return "";
     const reasonHtml = rf.rejectionReason
@@ -2138,6 +2167,7 @@ SCREEN_RENDERERS["review"] = function renderReviewV2() {
               </div>
               <div id="rv2-scroll" style="flex:1;overflow-y:auto;padding:14px 12px;padding-bottom:${isMobile?'110px':'14px'}">
                 ${pilotPauseBannerHTML}
+                ${amdFlowBanner}
                 ${rejFlowBanner}
                 <div style="background:#FDF8FF;border:1px solid #E8DEE8;border-radius:8px;padding:9px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;flex-shrink:0">
                   ${statusDot}

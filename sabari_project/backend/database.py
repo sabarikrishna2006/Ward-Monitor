@@ -30,12 +30,8 @@ engine = create_engine(
     creator=_make_connection,
     pool_size=5,
     max_overflow=10,
-    # Cloud SQL is in us-central1; from India each round-trip is ~300-400ms and a
-    # fresh connection handshake is ~1.8s. pool_pre_ping added an extra SELECT-1
-    # round-trip on EVERY checkout (~350ms). We drop it and instead recycle
-    # connections older than 30 min so stale ones are refreshed proactively.
+    pool_pre_ping=True,   # test connection health on checkout; drops broken ones before they cause 25P02
     pool_recycle=1800,
-    pool_reset_on_return=None,   # Session.close() already rolls back — skip the duplicate round-trip
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

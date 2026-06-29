@@ -70,6 +70,9 @@ def get_db():
     db = SessionLocal()
     try:
         yield db
+    except Exception:
+        db.rollback()
+        raise
     finally:
         db.close()
 
@@ -1334,6 +1337,8 @@ def initiate_discharge(subject_id: int, db: Session = Depends(get_db)):
     patient = db.query(Patient).filter(Patient.hadm_id == subject_id).first()
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
+    # Resolve the real patient name: hospital_core first, then Sabari's own table
+    resolved_name = None
     try:
         name_row = db.execute(sql_text("""
             SELECT hcp.full_name FROM hospital_core.admissions hca
@@ -1341,10 +1346,19 @@ def initiate_discharge(subject_id: int, db: Session = Depends(get_db)):
             WHERE hca.hadm_id = :h LIMIT 1
         """), {"h": subject_id}).fetchone()
         if name_row and name_row[0]:
-            db.execute(sql_text("UPDATE active_patients SET patient_name = :n WHERE hadm_id = :h"), 
-                       {"n": name_row[0], "h": subject_id})
+            resolved_name = name_row[0]
     except Exception:
         pass
+    # Fallback: use Sabari's own patient record (always populated on registration)
+    if not resolved_name and patient.patient_name:
+        resolved_name = patient.patient_name
+    if resolved_name:
+        try:
+            db.execute(sql_text(
+                "UPDATE active_patients SET patient_name = :n WHERE hadm_id = :h"
+            ), {"n": resolved_name, "h": subject_id})
+        except Exception:
+            pass
 
     db.execute(sql_text(
         "UPDATE active_patients SET status = 'data_ready', data_fetch_status = 'fetched', updated_at = NOW() WHERE hadm_id = :h"

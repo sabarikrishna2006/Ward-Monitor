@@ -21,6 +21,42 @@ let _dd = { encounters: null, loading: false, error: null, attempt: 0, errorStat
 
 window.ddInvalidate = () => { _dd.encounters = null; _dd.attempt = 0; _dd.errorStats = null; _dd.statusFilter = 'all'; };
 
+// ── Regen poller — polls every 5s while any encounter is Processing ──────────
+let _ddRegenPollTimer = null;
+function _ddStartRegenPoll() {
+  if (_ddRegenPollTimer) return;
+  _ddRegenPollTimer = setInterval(async () => {
+    const processing = (_dd.encounters || []).filter(e => e.status === 'Processing');
+    if (!processing.length) { clearInterval(_ddRegenPollTimer); _ddRegenPollTimer = null; return; }
+    try {
+      const base = window.FOQAL_API_BASE || 'http://localhost:7005';
+      const fresh = await fetch(`${base}/api/encounters`).then(r => r.ok ? r.json() : null);
+      if (!fresh) return;
+      const freshList = Array.isArray(fresh) ? fresh : (fresh.encounters || []);
+      let changed = false;
+      (_dd.encounters || []).forEach(enc => {
+        const updated = freshList.find(f => f.hadm_id === enc.hadm_id || f.id === enc.id);
+        if (updated && updated.status !== enc.status) {
+          enc.status = updated.status;
+          changed = true;
+        }
+      });
+      if (changed) renderApp();
+      // Stop if none left Processing
+      if (!(_dd.encounters || []).some(e => e.status === 'Processing')) {
+        clearInterval(_ddRegenPollTimer); _ddRegenPollTimer = null;
+      }
+    } catch (_) {}
+  }, 5000);
+}
+function _ddMaybeStartPoll() {
+  if ((_dd.encounters || []).some(e => e.status === 'Processing')) _ddStartRegenPoll();
+}
+function _ddMaybeStopPoll() {
+  if (_ddLivePollTimer) { clearTimeout(_ddLivePollTimer); _ddLivePollTimer = null; }
+  if (_ddRegenPollTimer) { clearInterval(_ddRegenPollTimer); _ddRegenPollTimer = null; }
+}
+
 async function ddLoad() {
   if (_dd.loading) return;
   _dd.loading = true;
@@ -37,6 +73,7 @@ async function ddLoad() {
       return { ...e, summary: sum || null };
     }));
     _dd.encounters = withSummaries;
+    _ddMaybeStartPoll();
     // Fetch error stats for gate widget (non-blocking)
     apiGetErrorStats().then(s => { _dd.errorStats = s; renderApp(); }).catch(() => {});
   } catch (err) {
@@ -50,6 +87,35 @@ async function ddLoad() {
   }
   _dd.loading = false;
   renderApp();
+  _ddLivePoll();
+}
+
+// ── General background poll — catches all status changes every 8s ─────────────
+let _ddLivePollTimer = null;
+function _ddLivePoll() {
+  clearTimeout(_ddLivePollTimer);
+  _ddLivePollTimer = setTimeout(async () => {
+    try {
+      const base = window.FOQAL_API_BASE || 'http://localhost:7005';
+      const fresh = await fetch(`${base}/api/encounters`).then(r => r.ok ? r.json() : null);
+      if (fresh) {
+        const freshList = Array.isArray(fresh) ? fresh : (fresh.encounters || []);
+        let changed = false;
+        (_dd.encounters || []).forEach(enc => {
+          const updated = freshList.find(f => f.hadm_id === enc.hadm_id || f.id === enc.id);
+          if (updated && updated.status !== enc.status) {
+            enc.status = updated.status;
+            changed = true;
+          }
+        });
+        if (changed) {
+          _ddMaybeStartPoll();
+          renderApp();
+        }
+      }
+    } catch (_) {}
+    _ddLivePoll();
+  }, 8000);
 }
 
 // Takes full encounter object so we can read hadm_id for gap-count lookup
@@ -188,7 +254,7 @@ SCREEN_RENDERERS["doctor-dashboard"] = function renderDoctorDashboard() {
 
   const _KEY_PRIO = { regenerated: 0, ready_to_sign: 1, draft: 2, processing: 3, in_review: 3, revision_requested: 4, amendment_requested: 4 };
   const activeEncs = encs
-    .filter(e => ["Awaiting Review","revision_requested","Revision Requested","Amendment Requested"].includes(e.status))
+    .filter(e => ["Awaiting Review","revision_requested","Revision Requested","Amendment Requested","Processing"].includes(e.status))
     .sort((a, b) => {
       const d = (_KEY_PRIO[_ddEncStatusKey(a)] ?? 9) - (_KEY_PRIO[_ddEncStatusKey(b)] ?? 9);
       return d !== 0 ? d : new Date(a.created_at || 0) - new Date(b.created_at || 0);
@@ -551,23 +617,42 @@ SCREEN_SETUP["doctor-dashboard"] = function setupDoctorDashboard() {
         comparePending:false, compareDataA:null, compareDataB:null,
       });
 
-      // For regenerated summaries, ensure APP.rejFlow is populated for the amber banner.
-      if ((enc.rejection_count || 0) > 0) {
-        fetch(`${API_BASE}/api/encounters/${enc.hadm_id}/rejection_log`)
+      // Amendment case — show amendment banner, suppress stale rejection banner
+      if ((enc.amendment_count || 0) > 0) {
+        APP.rejFlow = null;
+        try { localStorage.removeItem('rejFlow_active'); } catch(_) {}
+        fetch(`${API_BASE}/api/amendments/${enc.id}`)
           .then(r => r.ok ? r.json() : null)
           .then(data => {
-            const entry = data?.rejections?.[0];
-            if (entry) {
-              APP.rejFlow = {
-                hadmId: enc.hadm_id, patName: null,
-                rejectionReason: entry.rejection_reason,
-                rejectedAt: entry.rejected_at,
-                rejectionLogId: entry.id,
+            if (data?.amendment) {
+              APP.amdFlow = {
+                hadmId:   enc.hadm_id,
+                reason:   data.amendment.reason   || '',
+                section:  data.amendment.section  || '',
+                details:  data.amendment.details  || '',
+                requestedBy: data.amendment.submitted_by_name || 'Billing team',
               };
-              try { localStorage.setItem('rejFlow_active', JSON.stringify(APP.rejFlow)); } catch(_) {}
             }
-          })
-          .catch(() => {});
+          }).catch(() => {});
+      } else {
+        // For regenerated summaries, ensure APP.rejFlow is populated for the amber banner.
+        APP.amdFlow = null;
+        if ((enc.rejection_count || 0) > 0) {
+          fetch(`${API_BASE}/api/encounters/${enc.hadm_id}/rejection_log`)
+            .then(r => r.ok ? r.json() : null)
+            .then(data => {
+              const entry = data?.rejections?.[0];
+              if (entry) {
+                APP.rejFlow = {
+                  hadmId: enc.hadm_id, patName: null,
+                  rejectionReason: entry.rejection_reason,
+                  rejectedAt: entry.rejected_at,
+                  rejectionLogId: entry.id,
+                };
+                try { localStorage.setItem('rejFlow_active', JSON.stringify(APP.rejFlow)); } catch(_) {}
+              }
+            }).catch(() => {});
+        }
       }
 
       navigate("review");

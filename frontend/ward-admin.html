@@ -436,7 +436,8 @@ async function waLoadKanban(silent = false) {
     const _amdEncs = Array.isArray(kanban) ? kanban.filter(e => {
       if (e.status === 'Amendment Requested') return true;
       if (e.status === 'Files Ready') {
-        // Files Ready with no rejection log = amendment submission
+        // Use amendment_count as primary signal; fall back to no-rejection-log heuristic
+        if (e.amendment_count > 0) return true;
         return !rejLogs.some(rl => String(rl.hadm_id||rl.hadm_id_enc) === String(e.hadm_id));
       }
       return false;
@@ -633,6 +634,7 @@ a1: () => {
   if (!_WA.kanban) return '<div style="display:flex;align-items:center;justify-content:center;height:200px;color:var(--muted)">Loading pipeline…</div>';
   if (_WA.kanban._error) return `<div class="alert al-err" style="margin:16px 0">⚠ Failed to load: ${_WA.kanban._error} <button class="btn btn-sec btn-xs" style="margin-left:8px" onclick="waLoadKanban()">Retry</button></div>`;
   const encs = Array.isArray(_WA.kanban) ? _WA.kanban : [];
+  const _releasedPhases = new Set(['paid','claim_submitted','tpa_settled','final_bill_generated']);
   const col = { up:[], gen:[], rev:[], sig:[], amd:[], rej:[] };
   for (const e of encs) {
     const s = e.status||'';
@@ -640,14 +642,18 @@ a1: () => {
     else if (s==='Processing') col.gen.push(e);
     else if (s==='Ready for Review') col.rev.push(e);   // merge with In Review
     else if (s==='Awaiting Review') col.rev.push(e);    // sent to doctor, doctor reviewing
-    else if (s==='Signed Off') col.sig.push(e);
+    else if (s==='Signed Off' && !_releasedPhases.has(e.billing_phase)) col.sig.push(e);
     else if (s==='Amendment Requested') col.amd.push(e);  // waiting for resident files
     else if (s==='Revision Requested'||s==='revision_requested') col.rej.push(e);
     else if (s==='Files Ready') {
-      // Amendment submissions have no rejection log; revision submissions do
-      const rejLogs = Array.isArray(_WA.rejLogs) ? _WA.rejLogs : [];
-      const hasRejLog = rejLogs.some(rl => String(rl.hadm_id||rl.hadm_id_enc) === String(e.hadm_id));
-      (hasRejLog ? col.rej : col.amd).push(e);
+      // amendment_count > 0 means doctor requested amendment (even if a prior rejection log exists)
+      if (e.amendment_count > 0) {
+        col.amd.push(e);
+      } else {
+        const rejLogs = Array.isArray(_WA.rejLogs) ? _WA.rejLogs : [];
+        const hasRejLog = rejLogs.some(rl => String(rl.hadm_id||rl.hadm_id_enc) === String(e.hadm_id));
+        (hasRejLog ? col.rej : col.amd).push(e);
+      }
     }
     // other statuses (Data Incomplete, etc.) go to uploading column
     else col.up.push(e);

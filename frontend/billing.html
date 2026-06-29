@@ -45,13 +45,13 @@ a{color:inherit;text-decoration:none}
 #content{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
 #main{flex:1;overflow-y:auto;padding:20px 28px;background:var(--surf)}
 
-.bc{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);margin-bottom:14px;flex-wrap:wrap}
+.bc{display:none}
 .bc-link{color:var(--p);cursor:pointer}.bc-link:hover{text-decoration:underline}
 .bc-sep{color:var(--border)}
 
 .sh{display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap}
 .sh-title{font-size:17px;font-weight:800;color:var(--ink);flex:1}
-.sh-id{font-family:var(--mono);font-size:10px;padding:2px 8px;background:var(--p);color:#fff;border-radius:4px;font-weight:700;white-space:nowrap}
+.sh-id{display:none}
 .sh-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 
 .stats{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap}
@@ -186,6 +186,10 @@ tr.highlight td{background:#fdf4ff}
     <div class="alogo">Foqal <em>CareOS</em></div>
     <div class="adiv"></div>
     <span class="role-chip">Billing Staff</span>
+    <div class="adiv"></div>
+    <button class="abtn" onclick="showScreen('ce0')" title="Go to Billing Dashboard">⌂ Dashboard</button>
+    <button class="abtn" id="nav-prev-btn" style="display:none" onclick="_navPrev()">← Prev</button>
+    <button class="abtn" id="nav-next-btn" style="display:none" onclick="_navNext()">Next →</button>
     <div class="aspace"></div>
     <div style="display:flex;align-items:center;gap:8px">
       <span style="font-size:11.5px;color:var(--muted)" id="billing-name">Ravi Kumar</span>
@@ -241,9 +245,8 @@ function _bilAck(hadmId) {
 function _bilRenderNotifBar(pending) {
   _bilLastPending = pending;
   const bar = document.getElementById('bil-notif-bar');
-  if (!bar) return;
-  const unacked = pending.filter(p => !_bilAcked.has(String(p.hadm_id)));
-  if (!unacked.length) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
+  if (bar) { bar.style.display = 'none'; bar.innerHTML = ''; }
+  return; // notification bar suppressed
   bar.style.display = 'block';
   const plural = unacked.length > 1 ? `${unacked.length} patients awaiting` : '1 patient awaiting';
   bar.innerHTML = `
@@ -268,7 +271,7 @@ function _bilRenderNotifBar(pending) {
           </div>
           <button onclick="event.stopPropagation();_bilAck(${p.hadm_id});_ceSelectPatient(${p.hadm_id},'discharge')"
             style="flex-shrink:0;padding:6px 14px;background:#d97706;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">
-            Open CE4 →
+            Open Reconciliation →
           </button>
           <button onclick="event.stopPropagation();_bilAck(${p.hadm_id})"
             title="Dismiss"
@@ -278,21 +281,7 @@ function _bilRenderNotifBar(pending) {
     </div>`;
 }
 
-function _bilSignedToast(p) {
-  const name   = _bilName(p.hadm_id) || p.mrn || fmtPid(p.hadm_id, p.display_id);
-  const doctor = p.signed_by_name ? 'Dr. ' + p.signed_by_name : 'the attending physician';
-  const el = document.createElement('div');
-  el.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#FEF9C3;color:#713F12;' +
-    'border:1.5px solid #FDE047;padding:14px 18px;border-radius:10px;font-size:13px;' +
-    'font-weight:600;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.18);' +
-    'max-width:340px;cursor:pointer;line-height:1.6';
-  el.innerHTML = '🔔 <strong>' + name + '</strong> signed off by ' + doctor + '.<br>' +
-    '<span style="font-weight:400;font-size:12px">Ready for CE4 reconciliation &amp; final billing.</span><br>' +
-    '<span style="font-size:12px;color:#92400E;font-weight:700;text-decoration:underline">Open CE4 →</span>';
-  el.onclick = function() { el.remove(); _ceSelectPatient(p.hadm_id, 'discharge'); };
-  document.body.appendChild(el);
-  setTimeout(function() { el.isConnected && el.remove(); }, 10000);
-}
+function _bilSignedToast(p) { /* toast suppressed */ }
 
 async function _bilPoll() {
   try {
@@ -333,7 +322,7 @@ function _bilInsurance(hadmId, savedCo, savedMode, isAb, abScheme) {
   return `${ins} — ${mode}`;
 }
 
-const SCREENS_LIST = ['ce0','ce1','ce2','ce2b','ce3','ce4','ce5'];
+const SCREENS_LIST = ['ce0','ce1','ce2','ce2b','ce3','ce4','ce5','ce_live'];
 let CURRENT = 'ce0';
 
 /* ── CE state — persists selected patient + form data across screens ── */
@@ -378,6 +367,16 @@ const _CE = {
   paymentRef:    '',
 };
 
+function _ceReset() {
+  const keep = { cost: _CE.cost, wardType: _CE.wardType, paymentMode: _CE.paymentMode };
+  Object.keys(_CE).forEach(k => { _CE[k] = null; });
+  Object.assign(_CE, { cost: keep.cost, wardType: keep.wardType, paymentMode: keep.paymentMode,
+    dischargeType: 'Standard', isAbBeneficiary: false, abScheme: '', estimateData: null,
+    primaryProcedure: '', primaryProcedureIcd: '', paymentRef: '' });
+  _liveData = null;
+  _ce4Data  = null;
+}
+
 function _ceSelectPatient(hadm_id, phase) {
   _ce4Data = null;   // reset CE4 cache when switching patient
   _ce4Fetching = false;
@@ -416,7 +415,14 @@ function _ceSelectPatient(hadm_id, phase) {
         _CE.advancePaid   = d.advance_paid;
         _CE.balanceDue    = d.balance_due;
       }
-      showScreen(phase === 'discharge' ? 'ce4' : 'ce1');
+      if (phase === 'discharge') {
+        showScreen('ce4');
+      } else if (d.billing_phase && d.billing_phase !== 'initial_estimate_draft' && (d.expected_est > 0 || d.floor_est > 0)) {
+        // Admission patient has a generated estimate — show live bill tracker
+        showScreen('ce_live');
+      } else {
+        showScreen('ce1');
+      }
     })
     .catch(() => showScreen(phase === 'discharge' ? 'ce4' : 'ce1'));
 }
@@ -436,12 +442,36 @@ async function _ceSaveRecord(fields) {
 let _ce4Data = null;
 let _ce4Fetching = false;
 
-function showScreen(id) {
+const _SCREEN_ORDER = ['ce0','ce_live','ce1','ce2','ce2b','ce3','ce4','ce5'];
+let _screenHistory = [];
+
+function _navUpdateButtons() {
+  const prevBtn = document.getElementById('nav-prev-btn');
+  const nextBtn = document.getElementById('nav-next-btn');
+  if (!prevBtn || !nextBtn) return;
+  const curIdx = _SCREEN_ORDER.indexOf(CURRENT);
+  prevBtn.style.display = _screenHistory.length > 0 ? '' : 'none';
+  nextBtn.style.display = (curIdx >= 0 && curIdx < _SCREEN_ORDER.length - 1) ? '' : 'none';
+}
+
+function _navPrev() {
+  if (_screenHistory.length) showScreen(_screenHistory.pop(), true);
+}
+
+function _navNext() {
+  const curIdx = _SCREEN_ORDER.indexOf(CURRENT);
+  if (curIdx >= 0 && curIdx < _SCREEN_ORDER.length - 1) showScreen(_SCREEN_ORDER[curIdx + 1]);
+}
+
+function showScreen(id, _isBack) {
+  if (CURRENT === 'ce_live' && id !== 'ce_live') _liveStop();
+  if (!_isBack && CURRENT && CURRENT !== id) _screenHistory.push(CURRENT);
   CURRENT = id;
   const fn = SCREENS[id];
   document.getElementById('main').innerHTML = fn ? fn() : '<div style="padding:40px;color:var(--muted)">Screen not found.</div>';
-  if (id === 'ce0') _loadBillingDashboard();
+  if (id === 'ce0') { _screenHistory = []; _loadBillingDashboard(); }
   if (id === 'ce4' && !_ce4Fetching) _ce4Load();
+  _navUpdateButtons();
 }
 
 async function _loadBillingDashboard() {
@@ -482,7 +512,7 @@ async function _loadBillingDashboard() {
     const phaseCache = JSON.parse(sessionStorage.getItem('billing_phase_cache') || '{}');
 
     const _buildRow = p => {
-          const name           = _bilName(p.hadm_id);
+          const name           = p.patient_name || _bilName(p.hadm_id);
           const isFinalBill    = p.phase === 'final_bill';
           const isDischarge    = p.phase === 'discharge';
           const phaseBadge     = isFinalBill
@@ -497,11 +527,14 @@ async function _loadBillingDashboard() {
                             : 'bd-t2';
           const statusBadge = `<span class="bd ${statusColor}">${statusText}</span>`;
           const insurance   = _bilInsurance(p.hadm_id, p.insurance_co, p.payment_mode, p.is_ab_beneficiary, p.ab_scheme);
+          const hasEstimate = !!(p.billing_phase || p.expected_est);
           const actionBtn   = isFinalBill
             ? `<button class="btn btn-sec btn-sm" onclick="event.stopPropagation();_ceFinalBillView(${p.hadm_id})">View Final Bill →</button>`
             : isDischarge
               ? `<button class="btn btn-warn btn-sm" onclick="event.stopPropagation();_ceSelectPatient(${p.hadm_id},'discharge')">Reconcile →</button>`
-              : `<button class="btn btn-pri btn-sm" onclick="event.stopPropagation();_ceSelectPatient(${p.hadm_id},'admission')">New Estimate →</button>`;
+              : hasEstimate
+                ? `<button class="btn btn-pri btn-sm" onclick="event.stopPropagation();_ceSelectPatient(${p.hadm_id},'admission')">Live Bill →</button>`
+                : `<button class="btn btn-pri btn-sm" onclick="event.stopPropagation();_ceSelectPatient(${p.hadm_id},'admission')">New Estimate →</button>`;
           return `<tr style="cursor:pointer" onclick="${isFinalBill ? `_ceFinalBillView(${p.hadm_id})` : `_ceSelectPatient(${p.hadm_id},'${p.phase}')`}">
             <td><b>${name}</b></td>
             <td class="mono" style="font-size:11.5px">${p.mrn}</td>
@@ -534,7 +567,7 @@ async function _loadBillingDashboard() {
     const completedEl = document.getElementById('ce0-completed-table');
     if (completedEl) {
       const sharedRows = sharedPts.map(p => {
-        const name    = _bilName(p.hadm_id);
+        const name    = p.patient_name || _bilName(p.hadm_id);
         const amt     = p.expected_est || 0;
         const phaseLbl = p.phase === 'final_bill'
           ? `<span class="bd bd-gray">Final Bill</span>`
@@ -568,7 +601,7 @@ async function _loadBillingDashboard() {
         reconciledEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);font-size:12px">No completed reconciliations yet. Reconciliations appear here after CE4 final bill is generated.</div>';
       } else {
         const reconRows = post_discharge.map(p => {
-          const name = _bilName(p.hadm_id);
+          const name = p.patient_name || _bilName(p.hadm_id);
           const estTotal = p.expected_est || 0;
           const actTotal = p.actual_charges || 0;
           const variance = estTotal && actTotal ? ((actTotal - estTotal) / estTotal * 100).toFixed(1) : null;
@@ -1460,7 +1493,7 @@ ce0: () => `
   <div id="ce0-reconciled-table" style="color:var(--muted);padding:16px;font-size:12px">Loading…</div>
 </div>
 <div style="display:flex;gap:8px;margin-top:12px">
-  <button class="btn btn-pri" onclick="showScreen('ce1')">+ Manual New Estimate</button>
+  <button class="btn btn-pri" onclick="_ceReset();showScreen('ce1')">+ Manual New Estimate</button>
 </div>`,
 
 /* ════════════════════════════════════
@@ -2284,6 +2317,222 @@ const MODALS = {
   if (nameEl && user.full_name) nameEl.textContent = user.full_name;
   showScreen('ce0');
 })();
+
+/* ════════════════════════════════════════════════════════════════════
+   CE_LIVE — Live Bill Tracker (Admission Phase)
+   Polls /api/billing/live-charges/{hadm_id} every 20s.
+   When billing_phase becomes reconciliation_pending → auto-switches to CE4.
+════════════════════════════════════════════════════════════════════ */
+let _liveData       = null;
+let _liveShown      = 0;   // how many charges have been "revealed" so far
+let _liveTimer      = null;
+let _livePhaseTimer = null;
+const _LIVE_REVEAL_INTERVAL = 3200; // ms between each charge appearing
+
+let _liveWaiting = false; // true = no charges yet, polling fast
+
+async function _liveFetch() {
+  if (!_CE.hadm_id) return;
+  const base = window.FOQAL_API_BASE || 'http://localhost:7005';
+  try {
+    const res = await fetch(`${base}/api/billing/live-charges/${_CE.hadm_id}`);
+    if (!res.ok) return;
+    const fresh = await res.json();
+    const hadCharges = (_liveData?.charges || []).length > 0;
+    const nowHasCharges = (fresh.charges || []).length > 0;
+    _liveData = fresh;
+
+    if (CURRENT !== 'ce_live') return;
+
+    const feed = document.getElementById('live-feed');
+
+    if (!nowHasCharges) {
+      // Still waiting — show "no activity yet" placeholder and poll fast
+      if (feed && !feed.querySelector('[data-waiting]')) {
+        feed.innerHTML = `<div data-waiting="1" style="padding:48px 24px;text-align:center">
+          <div style="font-size:32px;margin-bottom:12px;animation:livePulse 2s ease-in-out infinite">🏥</div>
+          <div style="font-size:14px;font-weight:600;color:#374151;margin-bottom:6px">No procedures recorded yet</div>
+          <div style="font-size:12px;color:#9ca3af">Charges will appear here as activity is logged</div>
+          <div style="margin-top:16px;display:flex;justify-content:center;gap:6px">
+            <span style="width:8px;height:8px;border-radius:50%;background:#d1d5db;animation:liveDot 1.4s ease-in-out infinite"></span>
+            <span style="width:8px;height:8px;border-radius:50%;background:#d1d5db;animation:liveDot 1.4s ease-in-out .2s infinite"></span>
+            <span style="width:8px;height:8px;border-radius:50%;background:#d1d5db;animation:liveDot 1.4s ease-in-out .4s infinite"></span>
+          </div>
+        </div>`;
+      }
+      _liveWaiting = true;
+      _liveSchedulePoll(5000); // poll every 5s while waiting
+    } else {
+      if (_liveWaiting || !hadCharges) {
+        // Charges just appeared — clear placeholder, kick off reveal
+        _liveWaiting = false;
+        _liveShown = 0;
+        if (feed) feed.innerHTML = '';
+        clearInterval(_liveTimer);
+        _liveTimer = setInterval(_liveRevealNext, _LIVE_REVEAL_INTERVAL);
+        _liveRevealNext();
+        _liveSchedulePoll(20000); // back to slow poll
+      } else {
+        // Normal refresh — just update header
+        _liveRevealNext();
+      }
+    }
+
+    _liveUpdateHeader();
+
+    // Auto-transition if reconciliation is ready
+    if (_liveData.billing_phase === 'reconciliation_pending') {
+      clearInterval(_liveTimer);
+      clearInterval(_livePhaseTimer);
+      setTimeout(() => showScreen('ce4'), 1200);
+    }
+  } catch(e) {}
+}
+
+function _liveSchedulePoll(ms) {
+  clearInterval(_livePhaseTimer);
+  _livePhaseTimer = setInterval(_liveFetch, ms);
+}
+
+function _liveStart() {
+  _liveShown   = 0;
+  _liveWaiting = false;
+  clearInterval(_liveTimer);
+  clearInterval(_livePhaseTimer);
+  _liveFetch();
+  _liveTimer = setInterval(_liveRevealNext, _LIVE_REVEAL_INTERVAL);
+  _liveSchedulePoll(20000);
+}
+
+function _liveStop() {
+  clearInterval(_liveTimer);
+  clearInterval(_livePhaseTimer);
+}
+
+function _liveUpdateHeader() {
+  if (!_liveData) return;
+  const totalEl = document.getElementById('live-running-total');
+  const barEl   = document.getElementById('live-progress-bar');
+  const phaseEl = document.getElementById('live-phase-badge');
+  if (!totalEl) return;
+
+  const charged = (_liveData.charges || []).slice(0, _liveShown).reduce((s,c)=>s+c.cost,0);
+  const est     = _liveData.estimate_total || 0;
+
+  totalEl.textContent = '₹' + charged.toLocaleString('en-IN');
+  // Hide progress bar if no estimate was saved yet
+  const barWrap = barEl?.parentElement;
+  if (barWrap) barWrap.style.display = est > 0 ? '' : 'none';
+  if (barEl && est > 0) {
+    const pct = Math.min(100, Math.round(charged / est * 100));
+    barEl.style.width = pct + '%';
+    barEl.style.background = pct > 90 ? '#dc2626' : pct > 70 ? '#d97706' : '#059669';
+  }
+  if (phaseEl) {
+    const phase = _liveData.billing_phase || 'initial_estimate';
+    const phaseMap = { initial_estimate:'Estimate Saved', estimate_shared:'Estimate Shared', reconciliation_pending:'Ready for Reconciliation' };
+    phaseEl.textContent = phaseMap[phase] || phase;
+    phaseEl.style.background = phase === 'reconciliation_pending' ? '#059669' : '#0369a1';
+  }
+}
+
+function _liveRevealNext() {
+  if (!_liveData) return;
+  const charges = _liveData.charges || [];
+  if (_liveShown >= charges.length) { clearInterval(_liveTimer); return; }
+
+  const c    = charges[_liveShown];
+  _liveShown++;
+  const feed = document.getElementById('live-feed');
+  if (!feed) return;
+
+  const icons = { medication:'💊', procedure:'🔬', procedure_event:'⚕️' };
+  const colors = { medication:'#0369a1', procedure:'#7c3aed', procedure_event:'#059669' };
+  const ic   = icons[c.type]  || '📋';
+  const col  = colors[c.type] || '#374151';
+
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;align-items:center;gap:12px;padding:10px 14px;background:#fff;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:8px;animation:fadeSlideIn .4s ease;border-left:3px solid ' + col;
+  row.innerHTML = `
+    <span style="font-size:18px;flex-shrink:0">${ic}</span>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:13px;font-weight:700;color:#111827">${c.name}</div>
+      <div style="font-size:11px;color:#6b7280;margin-top:1px">${c.detail || ''} · ${(c.time||'').slice(0,16)}</div>
+    </div>
+    <div style="text-align:right;flex-shrink:0">
+      <div style="font-size:14px;font-weight:800;color:${col}">₹${c.cost.toLocaleString('en-IN')}</div>
+      <div style="font-size:10px;color:#9ca3af">Running: ₹${((_liveData.charges||[]).slice(0,_liveShown).reduce((s,x)=>s+x.cost,0)).toLocaleString('en-IN')}</div>
+    </div>`;
+  feed.prepend(row);
+  _liveUpdateHeader();
+}
+
+// Add fadeSlideIn keyframe once
+(function() {
+  if (!document.getElementById('live-style')) {
+    const s = document.createElement('style');
+    s.id = 'live-style';
+    s.textContent = '@keyframes fadeSlideIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}} @keyframes livePulse{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:1;transform:scale(1.12)}} @keyframes liveDot{0%,80%,100%{transform:scale(0);background:#d1d5db}40%{transform:scale(1);background:#6366f1}}';
+    document.head.appendChild(s);
+  }
+})();
+
+SCREENS['ce_live'] = function() {
+  const name  = _liveData?.patient_name || _CE.patientName || '—';
+  const diag  = _liveData?.diagnosis    || _CE.diagnosis   || '—';
+  const admit = _liveData?.admit_time   || _CE.admitDate   || '—';
+  const est   = (_liveData?.estimate_total || 0);
+  const phase = _liveData?.billing_phase || '—';
+  const isReconcReady = phase === 'reconciliation_pending';
+
+  setTimeout(_liveStart, 0);
+
+  return `
+<div class="sh" style="margin-bottom:12px">
+  <div>
+    <h1 class="sh-title" style="margin-bottom:2px">Live Bill — ${name}</h1>
+    <div style="font-size:12px;color:var(--muted)">${diag} · Admitted ${admit}</div>
+  </div>
+  <div class="sh-actions">
+    <span id="live-phase-badge" style="padding:4px 12px;border-radius:12px;font-size:11px;font-weight:700;color:#fff;background:#0369a1">${phase}</span>
+    ${isReconcReady ? `<button class="btn btn-warn" onclick="_bilAck(${_CE.hadm_id});_ceSelectPatient(${_CE.hadm_id},'discharge')">Open Reconciliation →</button>` : ''}
+  </div>
+</div>
+
+<!-- Running total + progress bar -->
+<div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:18px 22px;margin-bottom:16px">
+  <div style="display:flex;align-items:flex-end;gap:24px;margin-bottom:12px;flex-wrap:wrap">
+    <div>
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Charges Accrued</div>
+      <div id="live-running-total" style="font-size:34px;font-weight:900;color:var(--ink);font-variant-numeric:tabular-nums">₹0</div>
+    </div>
+  </div>
+  <div style="background:#f3f4f6;border-radius:99px;height:8px;overflow:hidden">
+    <div id="live-progress-bar" style="height:100%;width:0%;background:#059669;border-radius:99px;transition:width .6s ease,background .3s"></div>
+  </div>
+</div>
+
+<!-- Estimate line items breakdown -->
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+  ${(_liveData?.estimate_line_items||[]).map(li=>`
+    <div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:8px;padding:8px 14px;min-width:140px">
+      <div style="font-size:10px;color:#7c3aed;font-weight:700;text-transform:uppercase;letter-spacing:.4px">${li.name}</div>
+      <div style="font-size:15px;font-weight:800;color:#111827;margin-top:2px">₹${(li.amount||0).toLocaleString('en-IN')}</div>
+      <div style="font-size:10px;color:#9ca3af">${li.pct||0}% of total</div>
+    </div>`).join('')}
+</div>
+
+<!-- Live charge feed -->
+<div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">
+  Live Charge Feed <span style="font-weight:400;color:#9ca3af;font-size:11px">(most recent first)</span>
+</div>
+<div id="live-feed" style="max-height:420px;overflow-y:auto;padding-right:4px">
+  <div data-loading="1" style="padding:40px;text-align:center;color:var(--muted);font-size:13px">
+    <div style="font-size:28px;margin-bottom:8px">⏳</div>
+    Loading charges…
+  </div>
+</div>`;
+};
 
 function _ce3PrintHtml() {
   const est   = _CE.estimateData;

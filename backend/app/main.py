@@ -693,6 +693,7 @@ def billing_dashboard():
 
     _COLS = """
         ap.hadm_id, ap.subject_id, ap.gender, ap.anchor_age,
+        ap.patient_name,
         ap.admit_time, ap.discharge_time, ap.los_days,
         ap.primary_diagnosis_title,
         br.insurance_co, br.payment_mode,
@@ -768,6 +769,7 @@ def billing_dashboard():
             "hadm_id":        p["hadm_id"],
             "mrn":            f"PT-{p['hadm_id']}",
             "subject_id":     p["subject_id"],
+            "patient_name":   p.get("patient_name") or None,
             "admit_date":     _fmt(p.get("admit_time")),
             "discharge_date": _fmt(p.get("discharge_time")),
             "insurance_co":   p.get("insurance_co") or "",
@@ -1183,6 +1185,12 @@ def generate_billing_estimate(req: GenerateEstimateRequest):
                 """), {"h": req.hadm_id, "diag": pkg["name"], "wloc": _ward_loc, "wname": _ward_name,
                        "pname": req.patient_name or _synth_name(req.hadm_id)})
             ward_admitted = True
+            # Also ensure app_encounters row exists so billing dashboard shows patient
+            try:
+                if not gdb.get_encounter_by_hadm(req.hadm_id):
+                    gdb.create_encounter(req.hadm_id, status="Pending Ingestion")
+            except Exception as _ee:
+                log.warning("billing→encounter auto-create failed for hadm %s: %s", req.hadm_id, _ee)
         except Exception as _wp:
             log.warning("billing→ward provision failed for hadm %s: %s", req.hadm_id, _wp)
 
@@ -1263,6 +1271,177 @@ def get_billing_record(hadm_id: int):
         raise HTTPException(status_code=404, detail="No billing record for this patient")
     return dict(row._mapping)
 
+@app.get("/api/billing/live-charges/{hadm_id}")
+def get_live_charges(hadm_id: int):
+    """Live bill tracker — uses real MIMIC meds/procedures/labs when available, synthetic fallback otherwise."""
+    import json as _json, random as _random
+    from datetime import datetime as _dt, timedelta as _td
+    from sqlalchemy import text as _text
+    from .cloud_sql_db import get_engine as _get_engine
+
+    _rng = _random.Random(hadm_id)
+
+    with _get_engine().connect() as conn:
+        br = conn.execute(_text(
+            "SELECT billing_phase, expected_est AS total_estimate, line_items FROM billing_records WHERE hadm_id = :h"
+        ), {"h": hadm_id}).fetchone()
+        pt = conn.execute(_text(
+            "SELECT patient_name, anchor_age, gender, admit_time, primary_diagnosis_title FROM active_patients WHERE hadm_id = :h"
+        ), {"h": hadm_id}).fetchone()
+
+        # Real MIMIC data for this patient
+        meds = conn.execute(_text(
+            "SELECT drug, starttime, dose_val_rx, dose_unit_rx, route FROM ap_prescriptions"
+            " WHERE hadm_id = :h AND drug IS NOT NULL ORDER BY starttime LIMIT 80"
+        ), {"h": hadm_id}).fetchall()
+        procs = conn.execute(_text(
+            "SELECT long_title, chartdate FROM ap_procedures"
+            " WHERE hadm_id = :h AND long_title IS NOT NULL ORDER BY chartdate LIMIT 30"
+        ), {"h": hadm_id}).fetchall()
+        labs = conn.execute(_text(
+            "SELECT charttime FROM ap_labevents"
+            " WHERE hadm_id = :h AND charttime IS NOT NULL ORDER BY charttime LIMIT 50"
+        ), {"h": hadm_id}).fetchall()
+
+    br_data = dict(br._mapping) if br else {}
+    try:
+        line_items = _json.loads(br_data["line_items"]) if br_data.get("line_items") else []
+    except Exception:
+        line_items = []
+
+    estimate_total = br_data.get("total_estimate") or 0
+
+    # Admission start time
+    admit_base = _dt.now() - _td(days=3)
+    if pt and pt[3]:
+        try:
+            admit_base = _dt.fromisoformat(str(pt[3])[:19])
+        except Exception:
+            pass
+
+    charges = []
+    has_real_data = bool(meds or procs or labs)
+
+    if has_real_data:
+        # ── Use real MIMIC data ────────────────────────────────────────────
+        _LAB_NAMES = [
+            "CBC + Differential", "Serum Electrolytes", "Liver Function Test",
+            "Renal Function Test", "Coagulation Profile", "Serum Troponin I",
+            "Blood Culture", "ABG Analysis", "Urine Culture", "ECG 12-Lead",
+            "Chest X-Ray PA View", "2D Echocardiogram", "CT Scan with Contrast",
+            "Serum Lactate", "Lipid Profile", "HbA1c", "Thyroid Function Test",
+        ]
+
+        for m in meds:
+            drug = (m[0] or "Medication").title()
+            cost = _rng.randint(180, 2800)
+            try:
+                t = _dt.fromisoformat(str(m[1])[:19])
+            except Exception:
+                t = admit_base + _td(hours=_rng.randint(1, 72))
+            detail_parts = []
+            if m[2]: detail_parts.append(f"{m[2]} {(m[3] or '').strip()}")
+            if m[4]: detail_parts.append(m[4])
+            charges.append({
+                "type":     "medication",
+                "name":     drug,
+                "detail":   " · ".join(detail_parts) if detail_parts else "Medication",
+                "time":     t.strftime("%Y-%m-%d %H:%M"),
+                "cost":     cost,
+                "category": "Medications",
+            })
+
+        for p in procs:
+            title = (p[0] or "Procedure")[:70]
+            cost = _rng.randint(4000, 28000)
+            try:
+                t = _dt.fromisoformat(str(p[1])[:10]) + _td(hours=_rng.randint(7, 20), minutes=_rng.randint(0, 59))
+            except Exception:
+                t = admit_base + _td(hours=_rng.randint(6, 72))
+            charges.append({
+                "type":     "procedure",
+                "name":     title,
+                "detail":   "Procedure",
+                "time":     t.strftime("%Y-%m-%d %H:%M"),
+                "cost":     cost,
+                "category": "Procedures",
+            })
+
+        for i, lab in enumerate(labs):
+            cost = _rng.randint(350, 4000)
+            try:
+                t = _dt.fromisoformat(str(lab[0])[:19])
+            except Exception:
+                t = admit_base + _td(hours=_rng.randint(1, 72))
+            charges.append({
+                "type":     "procedure",
+                "name":     _LAB_NAMES[i % len(_LAB_NAMES)],
+                "detail":   "Investigation",
+                "time":     t.strftime("%Y-%m-%d %H:%M"),
+                "cost":     cost,
+                "category": "Investigations",
+            })
+
+    else:
+        # ── Synthetic fallback from estimate line_items ────────────────────
+        if not line_items and estimate_total > 0:
+            est = estimate_total
+            line_items = [
+                {"name": "Room & Nursing",    "amount": round(est * 0.28)},
+                {"name": "Medications",       "amount": round(est * 0.22)},
+                {"name": "Investigations",    "amount": round(est * 0.18)},
+                {"name": "Procedures",        "amount": round(est * 0.14)},
+                {"name": "Consumables",       "amount": round(est * 0.10)},
+                {"name": "ICU / HDU Charges", "amount": round(est * 0.08)},
+            ]
+        _MED_POOLS = {
+            "Consumables":       ["IV Cannula 18G", "Syringe 5ml", "IV Set", "Sterile Gloves", "Wound Dressing", "Foley Catheter"],
+            "Investigations":    ["CBC + Differential", "Serum Electrolytes", "Liver Function Test", "Renal Function Test", "Serum Troponin I", "Blood Culture", "ABG Analysis", "ECG 12-Lead", "Chest X-Ray PA View", "2D Echocardiogram"],
+            "Procedures":        ["Central Line Insertion", "Arterial Line Placement", "Endotracheal Intubation", "Pleural Tap", "Cardiac Monitoring Setup"],
+            "Medications":       ["Furosemide 40mg IV", "Metoprolol 25mg PO", "Heparin Infusion 25000U", "Amiodarone 200mg IV", "Aspirin 75mg PO", "Atorvastatin 40mg PO", "Pantoprazole 40mg IV", "Paracetamol 500mg PO"],
+        }
+        cursor = admit_base
+        for item in line_items:
+            name = item.get("name", "Service")
+            amt  = item.get("amount", 0)
+            if not amt:
+                continue
+            pool = _MED_POOLS.get(name, [])
+            n_events = min(8, max(1, amt // 3000))
+            unit_cost = amt // n_events
+            for _ in range(n_events):
+                cursor = cursor + _td(hours=_rng.randint(1, 18), minutes=_rng.randint(0, 59))
+                sub_name = _rng.choice(pool) if pool else name
+                charges.append({
+                    "type":     "procedure" if name in ("Investigations", "Procedures", "Surgery") else "medication",
+                    "name":     sub_name,
+                    "detail":   name,
+                    "time":     cursor.strftime("%Y-%m-%d %H:%M"),
+                    "cost":     unit_cost + _rng.randint(-200, 200) if unit_cost > 300 else unit_cost,
+                    "category": name,
+                })
+
+    charges.sort(key=lambda x: x["time"])
+    running = 0
+    for c in charges:
+        running += c["cost"]
+        c["running_total"] = running
+
+    return {
+        "hadm_id":             hadm_id,
+        "patient_name":        (pt[0] if pt else None),
+        "anchor_age":          (pt[1] if pt else None),
+        "gender":              (pt[2] if pt else None),
+        "admit_time":          (str(pt[3])[:10] if pt and pt[3] else None),
+        "diagnosis":           (pt[4] if pt else None),
+        "billing_phase":       br_data.get("billing_phase"),
+        "estimate_total":      estimate_total,
+        "estimate_line_items": line_items,
+        "charges":             charges,
+        "total_charged":       running,
+    }
+
+
 @app.post("/api/billing/records/{hadm_id}")
 def upsert_billing_record(hadm_id: int, req: BillingRecordUpsert):
     import json as _json
@@ -1307,6 +1486,13 @@ def upsert_billing_record(hadm_id: int, req: BillingRecordUpsert):
         row = conn.execute(
             _text("SELECT * FROM billing_records WHERE hadm_id = :h"), {"h": hadm_id}
         ).fetchone()
+    # Ensure app_encounters row exists so billing dashboard JOIN finds this patient
+    try:
+        existing_enc = gdb.get_encounter_by_hadm(hadm_id)
+        if not existing_enc:
+            gdb.create_encounter(hadm_id, status="Pending Ingestion")
+    except Exception as _ee:
+        log.warning("billing upsert — encounter auto-create failed for %s: %s", hadm_id, _ee)
     return dict(row._mapping)
 
 @app.get("/api/billing/patient/{hadm_id}")

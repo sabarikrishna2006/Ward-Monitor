@@ -43,7 +43,7 @@ SCREEN_RENDERERS["amendment"] = function renderAmendment() {
   const displayId = rd.encounter?.display_id || rd.hadmId || "—";
   const version  = `v${rd.docVersion || 1}.0`;
 
-  const canSubmit = _amd.reason && _amd.section && _amd.details.trim().length >= 10;
+  const canSubmit = _amd.reason && _amd.details.trim().length >= 10;
 
   const _RADIO = (r) => {
     const active = _amd.reason === r.value;
@@ -86,17 +86,6 @@ SCREEN_RENDERERS["amendment"] = function renderAmendment() {
           <div style="display:flex;flex-direction:column;gap:7px" id="amd-reason-group">
             ${_amdReasons.map(_RADIO).join('')}
           </div>
-        </div>
-
-        <!-- Section -->
-        <div style="background:#fff;border:1.5px solid #e5e7eb;border-radius:12px;padding:22px;margin-bottom:16px">
-          <div style="font-size:13.5px;font-weight:700;color:#111827;margin-bottom:12px">
-            Section to Amend <span style="color:#DC2626">*</span>
-          </div>
-          <select id="amd-section" style="width:100%;padding:10px 12px;border:1.5px solid ${_amd.section ? '#EA580C' : '#e5e7eb'};border-radius:8px;font-size:13px;color:#111827;background:#fff;font-family:inherit;outline:none;cursor:pointer">
-            <option value="">Select a section…</option>
-            ${_amdSections.map(s => `<option value="${s}" ${_amd.section === s ? 'selected' : ''}>${s}</option>`).join('')}
-          </select>
         </div>
 
         <!-- Details -->
@@ -157,15 +146,11 @@ SCREEN_SETUP["amendment"] = function setupAmendment() {
     radio.addEventListener("change", e => { _amd.reason = e.target.value; renderApp(); });
   });
 
-  document.getElementById("amd-section")?.addEventListener("change", e => {
-    _amd.section = e.target.value; renderApp();
-  });
-
   document.getElementById("amd-details")?.addEventListener("input", e => {
     _amd.details = e.target.value;
     const btn = document.getElementById("amd-submit");
     if (btn) {
-      const can = _amd.reason && _amd.section && e.target.value.trim().length >= 10;
+      const can = _amd.reason && e.target.value.trim().length >= 10;
       btn.disabled = !can;
       btn.style.background  = can ? "#EA580C" : "#f3f4f6";
       btn.style.color       = can ? "#fff"    : "#9ca3af";
@@ -186,7 +171,7 @@ SCREEN_SETUP["amendment"] = function setupAmendment() {
   });
 
   document.getElementById("amd-submit")?.addEventListener("click", async () => {
-    if (!(_amd.reason && _amd.section && _amd.details.trim().length >= 10)) return;
+    if (!(_amd.reason && _amd.details.trim().length >= 10)) return;
     _amd.submitting = true; _amd.error = ""; renderApp();
 
     try {
@@ -298,12 +283,9 @@ SCREEN_RENDERERS["amendment-submitted"] = function renderAmendmentSubmitted() {
         </div>
 
         <!-- Actions -->
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+        <div style="display:flex;align-items:center;gap:12px">
           <button onclick="window.location.href='/doctor-queue.html'" style="display:inline-flex;align-items:center;gap:6px;padding:11px 20px;border:1.5px solid #e5e7eb;border-radius:8px;background:#fff;font-size:13.5px;font-weight:600;color:#374151;cursor:pointer">
             ← My Queue
-          </button>
-          <button id="amdsub-resign" style="display:inline-flex;align-items:center;gap:7px;padding:11px 24px;border:none;border-radius:8px;background:linear-gradient(135deg,#800080,#A020A0);color:#fff;font-size:13.5px;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(128,0,128,.3)">
-            Re-sign ${amd.version || 'v1.1'} →
           </button>
         </div>
 
@@ -323,8 +305,4 @@ SCREEN_SETUP["amendment-submitted"] = function setupAmendmentSubmitted() {
       .catch(() => {});
   }
 
-  document.getElementById("amdsub-resign")?.addEventListener("click", () => {
-    _amd = { reason:"", section:"", details:"", docName:"", submitting:false, error:"" };
-    navigate("review");
-  });
 };

@@ -170,6 +170,10 @@ a{color:inherit;text-decoration:none}
 .cb-charge{background:#dc2626}
 .cb-res{background:#0369a1}
 .cb-bill{background:#92400e}
+.cb-attend{background:#b45309}
+.cb-ward{background:#0f766e}
+.cb-cmo{background:#1d4ed8}
+.cb-super{background:#6b21a8}
 .cred-name{font-size:12px;font-weight:600;color:var(--ink);flex:1}
 .cred-fill-hint{font-size:10.5px;color:var(--p);font-weight:600}
 
@@ -260,6 +264,26 @@ a{color:inherit;text-decoration:none}
         <span class="cred-name">Ravi Kumar</span>
         <span class="cred-fill-hint">Fill →</span>
       </div>
+      <div class="cred-row" onclick="fillCreds('dr.attending@foqal.in','Attending@2026')">
+        <span class="cred-badge cb-attend">Attending</span>
+        <span class="cred-name">Dr. Raj Mehta</span>
+        <span class="cred-fill-hint">Fill →</span>
+      </div>
+      <div class="cred-row" onclick="fillCreds('ward123','12345678')">
+        <span class="cred-badge cb-ward">Ward Admin</span>
+        <span class="cred-name">Arun Pillai</span>
+        <span class="cred-fill-hint">Fill →</span>
+      </div>
+      <div class="cred-row" onclick="fillCreds('cmo','zxcvbnm')">
+        <span class="cred-badge cb-cmo">CMO</span>
+        <span class="cred-name">Dr. Nitin Gupta</span>
+        <span class="cred-fill-hint">Fill →</span>
+      </div>
+      <div class="cred-row" onclick="fillCreds('super','12345678')">
+        <span class="cred-badge cb-super">Super Admin</span>
+        <span class="cred-name">Super Admin</span>
+        <span class="cred-fill-hint">Fill →</span>
+      </div>
     </div>
   </div>
 </div>
@@ -324,6 +348,14 @@ a{color:inherit;text-decoration:none}
       sessionStorage.setItem('foqal_token', 'billing-local');
       sessionStorage.setItem('foqal_user', JSON.stringify({ full_name: 'Ravi Kumar', role: 'billing', email: 'bill' }));
       window.location.href = '/billing.html';
+      return;
+    }
+
+    // Local Attending Doctor credentials — bypasses API
+    if ((email === 'dr.attending' || email === 'dr.attending@foqal.in') && pw === 'Attending@2026') {
+      sessionStorage.setItem('foqal_token', 'attending-local');
+      sessionStorage.setItem('foqal_user', JSON.stringify({ full_name: 'Dr. Raj Mehta', role: 'doctor', email: 'dr.attending@foqal.in' }));
+      window.location.href = '/doctor-queue.html';
       return;
     }
 
