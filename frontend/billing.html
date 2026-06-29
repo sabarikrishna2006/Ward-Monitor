@@ -245,8 +245,10 @@ function _bilAck(hadmId) {
 function _bilRenderNotifBar(pending) {
   _bilLastPending = pending;
   const bar = document.getElementById('bil-notif-bar');
-  if (bar) { bar.style.display = 'none'; bar.innerHTML = ''; }
-  return; // notification bar suppressed
+  if (!bar) return;
+  const unacked = pending.filter(p => !_bilAcked.has(String(p.hadm_id)));
+  if (!unacked.length) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
+  bar.style.display = 'block';
   bar.style.display = 'block';
   const plural = unacked.length > 1 ? `${unacked.length} patients awaiting` : '1 patient awaiting';
   bar.innerHTML = `
@@ -281,20 +283,38 @@ function _bilRenderNotifBar(pending) {
     </div>`;
 }
 
-function _bilSignedToast(p) { /* toast suppressed */ }
+function _bilSignedToast(p) {
+  const name = p.patient_name || _bilName(p.hadm_id);
+  const isAmendment = p.billing_phase === 'amendment_pending';
+  const msg  = isAmendment
+    ? `📝 Amendment requested for ${name} — awaiting revised summary`
+    : `✅ ${name} signed off — ready for CE4 reconciliation`;
+  const bg   = isAmendment ? '#7c3aed' : '#d97706';
+  const t = document.createElement('div');
+  t.style.cssText = `position:fixed;top:24px;right:24px;background:${bg};color:#fff;padding:14px 20px;border-radius:10px;font-size:13.5px;font-weight:600;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.2);max-width:360px;line-height:1.4;cursor:pointer`;
+  t.textContent = msg;
+  t.onclick = () => t.remove();
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 6000);
+}
 
 async function _bilPoll() {
   try {
     const base = window.FOQAL_API_BASE || 'http://localhost:7005';
     const d = await (await fetch(base + '/api/billing/dashboard')).json();
     const rows = (d.pending_actions || []).concat(d.post_discharge || []);
-    const newSigned = rows.filter(function(p) {
-      return p.phase === 'discharge' && !_bilKnown.has(p.hadm_id);
+    let changed = false;
+    rows.forEach(function(p) {
+      const key = p.hadm_id + ':' + (p.billing_phase || '');
+      if (!_bilKnown.has(key)) {
+        _bilKnown.add(key);
+        if (p.phase === 'discharge') { _bilSignedToast(p); changed = true; }
+      }
     });
-    if (newSigned.length) {
-      newSigned.forEach(function(p) { _bilKnown.add(p.hadm_id); _bilSignedToast(p); });
-      _loadBillingDashboard();
-    }
+    // Also re-render notification bar with current discharge patients
+    const dischargePending = rows.filter(p => p.phase === 'discharge');
+    _bilRenderNotifBar(dischargePending);
+    if (changed) _loadBillingDashboard();
   } catch(e) {}
 }
 function _bilName(hadmId) {
@@ -630,12 +650,12 @@ async function _loadBillingDashboard() {
     if (_ce0Tab === 'completed') _switchCe0Tab('completed');
     else if (_ce0Tab === 'reconciled') _switchCe0Tab('reconciled');
 
-    // Seed known signed-off patients so first-load entries don't trigger toasts
+    // Seed known patients on first load so they don't fire toasts immediately
     (pending_actions || []).forEach(function(p) {
-      if (p.phase === 'discharge' || p.phase === 'final_bill') _bilKnown.add(p.hadm_id);
+      _bilKnown.add(p.hadm_id + ':' + (p.billing_phase || ''));
     });
     // Start polling once (30-second interval)
-    if (!_bilPollStarted) { _bilPollStarted = true; setInterval(_bilPoll, 30000); }
+    if (!_bilPollStarted) { _bilPollStarted = true; setInterval(_bilPoll, 8000); }
 
     // Show persistent notification bar for unacknowledged reconciliation_pending patients
     const _notifPending = (pending_actions || []).filter(p =>
