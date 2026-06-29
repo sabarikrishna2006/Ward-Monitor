@@ -804,7 +804,7 @@ async function _ce2Recalc() {
   const btn = document.getElementById('ce2-recalc-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Updating…'; }
 
-  const base = window.FOQAL_API_BASE || `http://${location.hostname}:3802`;
+  const base = window.FOQAL_API_BASE || `http://${location.hostname}:7005`;
   try {
     const selectedIcd = _CE.diagnosisCode || '';
     const resp = await fetch(`${base}/api/billing/generate-estimate`, {
@@ -861,7 +861,7 @@ async function _ce1Save() {
   const rrltInt        = _CE.roomRentLimit ? parseInt(_CE.roomRentLimit.replace(/[^\d]/g,'')) : null;
 
   // Generate estimate — use backend for real patients, client-side for manual entry
-  const base = window.FOQAL_API_BASE || `http://${location.hostname}:3802`;
+  const base = window.FOQAL_API_BASE || `http://${location.hostname}:7005`;
   const genBtn = document.querySelector('button[onclick="_ce1Save()"]');
   if (genBtn) { genBtn.disabled = true; genBtn.textContent = 'Generating…'; }
 
@@ -898,7 +898,7 @@ async function _ce1Save() {
           );
           // Fire single prefetch-all — runs full BQ ETL, writes all tabs to Cloud SQL,
           // then marks data_fetch_status='fetched'. Ward board and upload.html read Cloud SQL after.
-          const _dataBase = window.FOQAL_DATA_BASE || `http://${location.hostname}:3803`;
+          const _dataBase = window.FOQAL_DATA_BASE || `http://${location.hostname}:7006`;
           const _wardBase = window.FOQAL_WARD_BASE || `http://${location.hostname}:7806`;
           fetch(`${_dataBase}/api/patient/${_CE.hadm_id}/prefetch-all`, { method: 'POST' })
             .then(r => r.ok ? r.json() : null)

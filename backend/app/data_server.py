@@ -1,5 +1,5 @@
 """
-Data Server — Port 8002
+Data Server — Port 7006 (local dev)
 =======================
 Cache-aside patient data layer:
   1. Check Cloud SQL active directory  (data_fetch_status = 'fetched')

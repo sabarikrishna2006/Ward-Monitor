@@ -122,8 +122,8 @@ if hosp_row:
 print()
 if len(tables) >= 23 and errors == 0:
     print("SUCCESS — All 23 ERD tables present. Next step:")
-    print("  Start Sabari backend (port 8006), then call:")
-    print("  POST http://localhost:8006/api/admissions/provision-all")
+    print("  Start Sabari backend (port 7806), then call:")
+    print("  POST http://localhost:7806/api/admissions/provision-all")
 elif len(tables) >= 23 and errors > 0:
     print(f"PARTIAL — {len(tables)} tables present but {errors} statement(s) failed.")
     print("Tables that already existed are fine. Check the ERROR lines above.")

@@ -352,7 +352,7 @@ const S = {
   genScreen: null, genProgress: 0, gapRows: [],
   doctorSelect: false,
   doctors: [], doctorsLoading: false,
-  summaryView: false, summaryLoading: false, showSourceData: true,
+  summaryView: false, summaryLoading: false, showSourceData: true, userClosedSummary: false,
   genWarnPending: false,
   dischargeType: null,
   dcmLvef: sessionStorage.getItem('dcm_lvef_' + _hadmId) === 'true',
@@ -444,8 +444,8 @@ function seeded2(hadmId, salt, max) { return seeded(hadmId * 31 + salt, max); }
 
 /* ── API calls ── */
 const H     = `http://${location.hostname}`;
-const _API  = window.FOQAL_API_BASE  || `http://${location.hostname}:3802`;
-const _DATA = window.FOQAL_DATA_BASE || `http://${location.hostname}:3803`;
+const _API  = window.FOQAL_API_BASE  || `http://${location.hostname}:7005`;
+const _DATA = window.FOQAL_DATA_BASE || `http://${location.hostname}:7006`;
 async function apiFetch(url, timeoutMs = 30000) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
@@ -1805,7 +1805,7 @@ function renderSummaryView() {
   return `
     ${S.summaryOnly ? '' : `
     <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
-      <button class="btn-sec" onclick="S.summaryView=false;render()" style="display:inline-flex;align-items:center;gap:7px;padding:9px 18px;font-size:13px">
+      <button class="btn-sec" onclick="S.summaryView=false;S.userClosedSummary=true;render()" style="display:inline-flex;align-items:center;gap:7px;padding:9px 18px;font-size:13px">
         &larr; Back to Source Files &amp; Uploads
       </button>
     </div>`}
@@ -1867,9 +1867,10 @@ function renderSummaryView() {
 }
 
 function doRegenerate() {
-  S.summaryView    = false;
-  S.genDone        = false;
-  S.reviewSent     = false;
+  S.summaryView       = false;
+  S.userClosedSummary = false;
+  S.genDone           = false;
+  S.reviewSent        = false;
   S.doctorSelect   = false;
   S.sentTo         = null;
   S.genWarnPending = false;
@@ -2853,7 +2854,7 @@ async function cancelGeneration() {
                   // Came from "Open Summary →" banner or returning after generation:
                   // show the success card first so resident sees T1/T2/T3 stats.
                   S.genScreen = 'done';
-                } else if (_summaryExists && !['Revision Requested','Amendment Requested'].includes(S.encStatus)) {
+                } else if (_summaryExists && !['Revision Requested','Amendment Requested'].includes(S.encStatus) && !S.userClosedSummary) {
                   S.summaryView = true;
                 }
               }
