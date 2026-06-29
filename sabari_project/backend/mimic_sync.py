@@ -470,7 +470,7 @@ def list_dcm_patients(db: Session) -> list[dict]:
             ad.long_title,
             ap.status,
             ap.data_fetch_status,
-            ap.nyha_class
+            NULL as nyha_class
         FROM ap_admissions aa
         JOIN ap_diagnoses ad
             ON aa.hadm_id = ad.hadm_id
@@ -512,7 +512,7 @@ def list_dcm_patients(db: Session) -> list[dict]:
             ap.patient_name,
             ap.status,
             ap.data_fetch_status,
-            ap.nyha_class
+            NULL as nyha_class
         FROM active_patients ap
         WHERE EXISTS (
             SELECT 1 FROM ews_vitals_timeseries v WHERE v.hadm_id = ap.hadm_id
