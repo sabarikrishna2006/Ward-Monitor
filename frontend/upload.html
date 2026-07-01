@@ -238,14 +238,18 @@ function seeded(id, max) {
   return Math.abs(h) % max;
 }
 function seeded2(id, salt, max) { return seeded(id * 31 + salt, max); }
-const _NAMES_M = ['Rajesh Kumar','Mohan Singh','Dinesh Joshi','Arun Verma','Suresh Patel',
-                  'Vijay Malhotra','Sanjay Gupta','Ramesh Sharma','Deepak Rao','Nitin Jain'];
-const _NAMES_F = ['Priya Sharma','Kavita Patel','Sunita Rao','Anjali Desai','Leela Varma',
-                  'Rekha Devi','Suman Jain','Anita Gupta','Meena Singh','Geeta Mehta'];
+const _NAMES_M = ['Rajesh','Mohan','Dinesh','Arun','Suresh','Vijay','Sanjay','Ramesh','Deepak','Nitin',
+                  'Ashok','Prakash','Anil','Manoj','Rakesh','Vinod','Sunil','Ravi','Ajay','Amit'];
+const _NAMES_F = ['Priya','Kavita','Sunita','Anjali','Leela','Rekha','Suman','Anita','Meena','Geeta',
+                  'Pooja','Neha','Divya','Shalini','Radha','Usha','Lata','Nisha','Swati','Kiran'];
+const _SURNAMES = ['Kumar','Singh','Joshi','Verma','Patel','Malhotra','Gupta','Sharma','Rao','Jain',
+                   'Iyer','Menon','Nair','Desai','Varma','Devi','Reddy','Chatterjee','Mehta','Kapoor',
+                   'Choudhary','Pillai','Krishnan','Bose','Agarwal','Bhatia','Saxena','Trivedi','Bhosale','Kulkarni'];
 const _isMale    = seeded(_hadmId, 2) === 0;
-const _synthName = _isMale
+const _synthFirst = _isMale
   ? _NAMES_M[seeded(_hadmId, _NAMES_M.length)]
   : _NAMES_F[seeded2(_hadmId, 7, _NAMES_F.length)];
+const _synthName = `${_synthFirst} ${_SURNAMES[seeded2(_hadmId, 17, _SURNAMES.length)]}`;
 
 /* ── DPDPA consent state ── */
 let _consented = false;

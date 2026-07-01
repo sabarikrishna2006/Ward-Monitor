@@ -26,7 +26,7 @@ from . import cloud_sql_app_db as gdb
 # Data server URL — BigQuery + Cloud SQL data layer (local dev: 7016)
 DATA_SERVER = os.environ.get("DATA_SERVER_URL", "http://127.0.0.1:7016")
 
-load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '.env'))
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '.env'), override=True)
 
 app = FastAPI(title="Discharge Summary AI API")
 
@@ -91,7 +91,8 @@ async def startup_event():
         CREATE INDEX IF NOT EXISTS idx_error_log_created ON error_log (created_at DESC)
     """
     _migration_002_view = """
-        CREATE OR REPLACE VIEW tier3_rolling_7d AS
+        DROP VIEW IF EXISTS tier3_rolling_7d;
+        CREATE VIEW tier3_rolling_7d AS
         SELECT
             COUNT(*) FILTER (WHERE el.error_tier = 3)   AS tier3_count,
             COUNT(*)                                     AS total_errors,
@@ -692,6 +693,7 @@ def billing_dashboard():
 
     _COLS = """
         ap.hadm_id, ap.subject_id, ap.gender, ap.anchor_age,
+        ap.patient_name,
         ap.admit_time, ap.discharge_time, ap.los_days,
         ap.primary_diagnosis_title,
         br.insurance_co, br.payment_mode,
@@ -717,7 +719,14 @@ def billing_dashboard():
                 'Ready for Review','Awaiting Review',
                 'Awaiting Confirmation','Verifying Claims','Revision Requested'
             )
-            ORDER BY ae.created_at DESC LIMIT 100
+            UNION ALL
+            SELECT {_COLS}
+            FROM active_patients ap
+            JOIN app_encounters ae ON ae.hadm_id = ap.hadm_id
+            LEFT JOIN billing_records br ON br.hadm_id = ap.hadm_id
+            WHERE ae.status = 'Signed Off'
+              AND br.billing_phase = 'amendment_pending'
+            ORDER BY enc_created_at DESC LIMIT 100
         """)).fetchall()
 
         discharge_rows = conn.execute(_text(f"""
@@ -729,7 +738,7 @@ def billing_dashboard():
             LEFT JOIN app_users au ON au.id = aps.signed_by
             WHERE ae.status = 'Signed Off'
               AND (br.billing_phase IS NULL
-                   OR br.billing_phase NOT IN ('final_bill_generated','claim_submitted','tpa_settled','paid'))
+                   OR br.billing_phase NOT IN ('amendment_pending','final_bill_generated','claim_submitted','tpa_settled','paid'))
             ORDER BY ae.updated_at DESC LIMIT 100
         """)).fetchall()
 
@@ -761,12 +770,15 @@ def billing_dashboard():
             status = "Final Bill Overdue"
         elif phase == "discharge":
             status = "Reconciliation Due"
+        elif bp == "amendment_pending":
+            status = "Amendment Requested"
         else:
             status = "Estimate Pending"
         return {
             "hadm_id":        p["hadm_id"],
             "mrn":            f"PT-{p['hadm_id']}",
             "subject_id":     p["subject_id"],
+            "patient_name":   p.get("patient_name") or None,
             "admit_date":     _fmt(p.get("admit_time")),
             "discharge_date": _fmt(p.get("discharge_time")),
             "insurance_co":   p.get("insurance_co") or "",
@@ -1014,6 +1026,7 @@ class GenerateEstimateRequest(BaseModel):
     icd_override:      Optional[str]  = None   # frontend dropdown selection
     is_ab_beneficiary: bool = False
     ab_scheme:         Optional[str]  = None
+    patient_name:      Optional[str]  = None   # deterministic synthetic name from billing UI
     # Insurance fields — used to compute patient-facing liability in the estimate
     payment_mode:      Optional[str]  = None
     copay_pct:         Optional[float]= None
@@ -1137,6 +1150,82 @@ def generate_billing_estimate(req: GenerateEstimateRequest):
             # Reimbursement / self-pay — patient pays full gross upfront
             patient_pays_estimate = expected
 
+    # Provision patient into active_patients so they appear on Sabari's ward board.
+    # Map billing ward_type → ward_location used by the ward board filter.
+    _ward_loc  = "GENERAL_WARD" if req.ward_type == "General Ward" else "CCU"
+    _ward_name = "General Ward" if _ward_loc == "GENERAL_WARD" else "Ward 4B"
+
+    # Deterministic synthetic name — same first-name x surname seed as billing.html JS _bilName()
+    def _synth_name(hadm_id: int) -> str:
+        _FIRST_M = ['Rajesh','Mohan','Dinesh','Arun','Suresh','Vijay','Sanjay','Ramesh','Deepak','Nitin',
+                    'Ashok','Prakash','Anil','Manoj','Rakesh','Vinod','Sunil','Ravi','Ajay','Amit']
+        _FIRST_F = ['Priya','Kavita','Sunita','Anjali','Leela','Rekha','Suman','Anita','Meena','Geeta',
+                    'Pooja','Neha','Divya','Shalini','Radha','Usha','Lata','Nisha','Swati','Kiran']
+        _LAST = ['Kumar','Singh','Joshi','Verma','Patel','Malhotra','Gupta','Sharma','Rao','Jain',
+                 'Iyer','Menon','Nair','Desai','Varma','Devi','Reddy','Chatterjee','Mehta','Kapoor',
+                 'Choudhary','Pillai','Krishnan','Bose','Agarwal','Bhatia','Saxena','Trivedi','Bhosale','Kulkarni']
+
+        def _to_i32(x) -> int:
+            # Replicates JS ToInt32 (truncate, wrap to 32-bit signed) — needed because
+            # the JS reference impl (seeded/_bilSeeded in the frontend) loses precision
+            # through float multiplication at each step; matching bit-for-bit requires
+            # doing the same float math here, not exact-integer Python math.
+            xi = int(x) & 0xFFFFFFFF
+            return xi - 0x100000000 if xi >= 0x80000000 else xi
+
+        def _seed(n: int, mod: int) -> int:
+            h = _to_i32(n)
+            h = _to_i32((h >> 16) ^ h)
+            h = float(h) * 0x45d9f3b
+            h = _to_i32(h)
+            h = _to_i32((h >> 16) ^ h)
+            h = float(h) * 0x45d9f3b
+            h = _to_i32(h)
+            h = _to_i32((h >> 16) ^ h)
+            return abs(h) % mod
+
+        hid     = int(hadm_id)
+        is_male = _seed(hid, 2) == 0
+        first   = _FIRST_M[_seed(hid, len(_FIRST_M))] if is_male else _FIRST_F[_seed(hid * 31 + 7, len(_FIRST_F))]
+        last    = _LAST[_seed(hid * 31 + 17, len(_LAST))]
+        return f"{first} {last}"
+
+    ward_admitted = False
+    if req.hadm_id is not None:
+        try:
+            with _get_engine().begin() as _conn:
+                # data_fetch_status='pending': BQ hasn't run yet — ward board shows "Data Loading"
+                # until billing.html's prefetch-all call completes and sets it to 'fetched'.
+                _conn.execute(_text("""
+                    INSERT INTO active_patients (hadm_id, subject_id, status, ward_location, ward,
+                                                 data_fetch_status, primary_diagnosis_title,
+                                                 patient_name, admit_time)
+                    VALUES (:h, :h, 'active', :wloc, :wname, 'pending', :diag, :pname, NOW())
+                    ON CONFLICT (hadm_id) DO UPDATE
+                        SET status = CASE WHEN active_patients.status IN ('signed_off','archived')
+                                          THEN 'active'
+                                          ELSE active_patients.status END,
+                            ward_location = EXCLUDED.ward_location,
+                            ward          = EXCLUDED.ward,
+                            data_fetch_status = CASE
+                                WHEN active_patients.data_fetch_status IN ('fetched','fetching','partial')
+                                THEN active_patients.data_fetch_status
+                                ELSE 'pending' END,
+                            patient_name = COALESCE(active_patients.patient_name, EXCLUDED.patient_name),
+                            primary_diagnosis_title = COALESCE(active_patients.primary_diagnosis_title, EXCLUDED.primary_diagnosis_title),
+                            updated_at = NOW()
+                """), {"h": req.hadm_id, "diag": pkg["name"], "wloc": _ward_loc, "wname": _ward_name,
+                       "pname": req.patient_name or _synth_name(req.hadm_id)})
+            ward_admitted = True
+            # Also ensure app_encounters row exists so billing dashboard shows patient
+            try:
+                if not gdb.get_encounter_by_hadm(req.hadm_id):
+                    gdb.create_encounter(req.hadm_id, status="Pending Ingestion")
+            except Exception as _ee:
+                log.warning("billing→encounter auto-create failed for hadm %s: %s", req.hadm_id, _ee)
+        except Exception as _wp:
+            log.warning("billing→ward provision failed for hadm %s: %s", req.hadm_id, _wp)
+
     return {
         "hbp_code":             hbp_code,
         "hbp_package_name":     pkg["name"],
@@ -1155,6 +1244,7 @@ def generate_billing_estimate(req: GenerateEstimateRequest):
         "patient_pays_estimate":patient_pays_estimate,
         "room_rent_excess":     room_rent_excess_est,
         "scheme_note":          scheme_note,
+        "ward_admitted":        ward_admitted,
     }
 
 
@@ -1213,6 +1303,177 @@ def get_billing_record(hadm_id: int):
         raise HTTPException(status_code=404, detail="No billing record for this patient")
     return dict(row._mapping)
 
+@app.get("/api/billing/live-charges/{hadm_id}")
+def get_live_charges(hadm_id: int):
+    """Live bill tracker — uses real MIMIC meds/procedures/labs when available, synthetic fallback otherwise."""
+    import json as _json, random as _random
+    from datetime import datetime as _dt, timedelta as _td
+    from sqlalchemy import text as _text
+    from .cloud_sql_db import get_engine as _get_engine
+
+    _rng = _random.Random(hadm_id)
+
+    with _get_engine().connect() as conn:
+        br = conn.execute(_text(
+            "SELECT billing_phase, expected_est AS total_estimate, line_items FROM billing_records WHERE hadm_id = :h"
+        ), {"h": hadm_id}).fetchone()
+        pt = conn.execute(_text(
+            "SELECT patient_name, anchor_age, gender, admit_time, primary_diagnosis_title FROM active_patients WHERE hadm_id = :h"
+        ), {"h": hadm_id}).fetchone()
+
+        # Real MIMIC data for this patient
+        meds = conn.execute(_text(
+            "SELECT drug, starttime, dose_val_rx, dose_unit_rx, route FROM ap_prescriptions"
+            " WHERE hadm_id = :h AND drug IS NOT NULL ORDER BY starttime LIMIT 80"
+        ), {"h": hadm_id}).fetchall()
+        procs = conn.execute(_text(
+            "SELECT long_title, chartdate FROM ap_procedures"
+            " WHERE hadm_id = :h AND long_title IS NOT NULL ORDER BY chartdate LIMIT 30"
+        ), {"h": hadm_id}).fetchall()
+        labs = conn.execute(_text(
+            "SELECT charttime FROM ap_labevents"
+            " WHERE hadm_id = :h AND charttime IS NOT NULL ORDER BY charttime LIMIT 50"
+        ), {"h": hadm_id}).fetchall()
+
+    br_data = dict(br._mapping) if br else {}
+    try:
+        line_items = _json.loads(br_data["line_items"]) if br_data.get("line_items") else []
+    except Exception:
+        line_items = []
+
+    estimate_total = br_data.get("total_estimate") or 0
+
+    # Admission start time
+    admit_base = _dt.now() - _td(days=3)
+    if pt and pt[3]:
+        try:
+            admit_base = _dt.fromisoformat(str(pt[3])[:19])
+        except Exception:
+            pass
+
+    charges = []
+    has_real_data = bool(meds or procs or labs)
+
+    if has_real_data:
+        # ── Use real MIMIC data ────────────────────────────────────────────
+        _LAB_NAMES = [
+            "CBC + Differential", "Serum Electrolytes", "Liver Function Test",
+            "Renal Function Test", "Coagulation Profile", "Serum Troponin I",
+            "Blood Culture", "ABG Analysis", "Urine Culture", "ECG 12-Lead",
+            "Chest X-Ray PA View", "2D Echocardiogram", "CT Scan with Contrast",
+            "Serum Lactate", "Lipid Profile", "HbA1c", "Thyroid Function Test",
+        ]
+
+        for m in meds:
+            drug = (m[0] or "Medication").title()
+            cost = _rng.randint(180, 2800)
+            try:
+                t = _dt.fromisoformat(str(m[1])[:19])
+            except Exception:
+                t = admit_base + _td(hours=_rng.randint(1, 72))
+            detail_parts = []
+            if m[2]: detail_parts.append(f"{m[2]} {(m[3] or '').strip()}")
+            if m[4]: detail_parts.append(m[4])
+            charges.append({
+                "type":     "medication",
+                "name":     drug,
+                "detail":   " · ".join(detail_parts) if detail_parts else "Medication",
+                "time":     t.strftime("%Y-%m-%d %H:%M"),
+                "cost":     cost,
+                "category": "Medications",
+            })
+
+        for p in procs:
+            title = (p[0] or "Procedure")[:70]
+            cost = _rng.randint(4000, 28000)
+            try:
+                t = _dt.fromisoformat(str(p[1])[:10]) + _td(hours=_rng.randint(7, 20), minutes=_rng.randint(0, 59))
+            except Exception:
+                t = admit_base + _td(hours=_rng.randint(6, 72))
+            charges.append({
+                "type":     "procedure",
+                "name":     title,
+                "detail":   "Procedure",
+                "time":     t.strftime("%Y-%m-%d %H:%M"),
+                "cost":     cost,
+                "category": "Procedures",
+            })
+
+        for i, lab in enumerate(labs):
+            cost = _rng.randint(350, 4000)
+            try:
+                t = _dt.fromisoformat(str(lab[0])[:19])
+            except Exception:
+                t = admit_base + _td(hours=_rng.randint(1, 72))
+            charges.append({
+                "type":     "procedure",
+                "name":     _LAB_NAMES[i % len(_LAB_NAMES)],
+                "detail":   "Investigation",
+                "time":     t.strftime("%Y-%m-%d %H:%M"),
+                "cost":     cost,
+                "category": "Investigations",
+            })
+
+    else:
+        # ── Synthetic fallback from estimate line_items ────────────────────
+        if not line_items and estimate_total > 0:
+            est = estimate_total
+            line_items = [
+                {"name": "Room & Nursing",    "amount": round(est * 0.28)},
+                {"name": "Medications",       "amount": round(est * 0.22)},
+                {"name": "Investigations",    "amount": round(est * 0.18)},
+                {"name": "Procedures",        "amount": round(est * 0.14)},
+                {"name": "Consumables",       "amount": round(est * 0.10)},
+                {"name": "ICU / HDU Charges", "amount": round(est * 0.08)},
+            ]
+        _MED_POOLS = {
+            "Consumables":       ["IV Cannula 18G", "Syringe 5ml", "IV Set", "Sterile Gloves", "Wound Dressing", "Foley Catheter"],
+            "Investigations":    ["CBC + Differential", "Serum Electrolytes", "Liver Function Test", "Renal Function Test", "Serum Troponin I", "Blood Culture", "ABG Analysis", "ECG 12-Lead", "Chest X-Ray PA View", "2D Echocardiogram"],
+            "Procedures":        ["Central Line Insertion", "Arterial Line Placement", "Endotracheal Intubation", "Pleural Tap", "Cardiac Monitoring Setup"],
+            "Medications":       ["Furosemide 40mg IV", "Metoprolol 25mg PO", "Heparin Infusion 25000U", "Amiodarone 200mg IV", "Aspirin 75mg PO", "Atorvastatin 40mg PO", "Pantoprazole 40mg IV", "Paracetamol 500mg PO"],
+        }
+        cursor = admit_base
+        for item in line_items:
+            name = item.get("name", "Service")
+            amt  = item.get("amount", 0)
+            if not amt:
+                continue
+            pool = _MED_POOLS.get(name, [])
+            n_events = min(8, max(1, amt // 3000))
+            unit_cost = amt // n_events
+            for _ in range(n_events):
+                cursor = cursor + _td(hours=_rng.randint(1, 18), minutes=_rng.randint(0, 59))
+                sub_name = _rng.choice(pool) if pool else name
+                charges.append({
+                    "type":     "procedure" if name in ("Investigations", "Procedures", "Surgery") else "medication",
+                    "name":     sub_name,
+                    "detail":   name,
+                    "time":     cursor.strftime("%Y-%m-%d %H:%M"),
+                    "cost":     unit_cost + _rng.randint(-200, 200) if unit_cost > 300 else unit_cost,
+                    "category": name,
+                })
+
+    charges.sort(key=lambda x: x["time"])
+    running = 0
+    for c in charges:
+        running += c["cost"]
+        c["running_total"] = running
+
+    return {
+        "hadm_id":             hadm_id,
+        "patient_name":        (pt[0] if pt else None),
+        "anchor_age":          (pt[1] if pt else None),
+        "gender":              (pt[2] if pt else None),
+        "admit_time":          (str(pt[3])[:10] if pt and pt[3] else None),
+        "diagnosis":           (pt[4] if pt else None),
+        "billing_phase":       br_data.get("billing_phase"),
+        "estimate_total":      estimate_total,
+        "estimate_line_items": line_items,
+        "charges":             charges,
+        "total_charged":       running,
+    }
+
+
 @app.post("/api/billing/records/{hadm_id}")
 def upsert_billing_record(hadm_id: int, req: BillingRecordUpsert):
     import json as _json
@@ -1257,6 +1518,13 @@ def upsert_billing_record(hadm_id: int, req: BillingRecordUpsert):
         row = conn.execute(
             _text("SELECT * FROM billing_records WHERE hadm_id = :h"), {"h": hadm_id}
         ).fetchone()
+    # Ensure app_encounters row exists so billing dashboard JOIN finds this patient
+    try:
+        existing_enc = gdb.get_encounter_by_hadm(hadm_id)
+        if not existing_enc:
+            gdb.create_encounter(hadm_id, status="Pending Ingestion")
+    except Exception as _ee:
+        log.warning("billing upsert — encounter auto-create failed for %s: %s", hadm_id, _ee)
     return dict(row._mapping)
 
 @app.get("/api/billing/patient/{hadm_id}")
@@ -2797,6 +3065,83 @@ def _labs_to_prose(labs: list) -> str:
     return " ".join(sentences) if sentences else "No laboratory investigations available."
 
 
+def _has_real_clinical_data(hadm_id: int) -> bool:
+    """True if real MIMIC clinical rows exist for this admission. Used to block
+    discharge-summary generation for patients with no loaded data, so a fabricated
+    (synthetic-fallback) summary can never reach a doctor."""
+    from .cloud_sql_db import get_engine as _get_engine
+    from sqlalchemy import text as _t
+    try:
+        with _get_engine().connect() as conn:
+            n = conn.execute(_t(
+                "SELECT (SELECT COUNT(*) FROM ap_chartevents WHERE hadm_id=:h) + "
+                "       (SELECT COUNT(*) FROM ap_labevents  WHERE hadm_id=:h)"
+            ), {"h": hadm_id}).scalar()
+        return bool(n and n > 0)
+    except Exception:
+        return False
+
+
+def _ews_overlay_lines(hadm_id: int) -> list:
+    """Pull EWS-generated clinical activity (NOT present in MIMIC) so it flows into
+    the discharge summary with explicit ward provenance. Covers NEWS2 escalations,
+    Drug-Lab safety actions (NABH DL2 trail), CCU->GW step-down, and the nurse
+    observation window. Read-only on the shared Cloud SQL DB; degrades gracefully."""
+    from .cloud_sql_db import get_engine as _get_engine
+    from sqlalchemy import text as _text
+    try:
+        with _get_engine().connect() as conn:
+            esc = conn.execute(_text("""
+                SELECT escalated_at, news2_score, level, observations, interventions,
+                       status, resolution_notes
+                FROM ews_escalations WHERE hadm_id = :h ORDER BY escalated_at
+            """), {"h": hadm_id}).fetchall()
+            dl = conn.execute(_text("""
+                SELECT recorded_at, rule_name, severity, action_taken, justification,
+                       recorded_by, cosigned_by
+                FROM ews_drug_lab_actions WHERE hadm_id = :h ORDER BY recorded_at
+            """), {"h": hadm_id}).fetchall()
+            tr = conn.execute(_text("""
+                SELECT submitted_at, rationale, news2_at_submit, stable_window_hours,
+                       target_ward, status, decided_by
+                FROM ews_ccu_transfers WHERE hadm_id = :h ORDER BY submitted_at
+            """), {"h": hadm_id}).fetchall()
+            vit = conn.execute(_text("""
+                SELECT COUNT(*), MIN(chart_time), MAX(chart_time),
+                       MIN(spo2), MAX(heart_rate), MAX(resp_rate), MIN(sbp), MAX(temperature)
+                FROM ews_vitals_timeseries WHERE hadm_id = :h
+            """), {"h": hadm_id}).fetchone()
+    except Exception as _e:
+        return ["\n[WARD-GENERATED — EWS]", f"  EWS overlay unavailable ({_e})"]
+
+    out = ["\n[WARD-GENERATED — EWS] — Early-warning ward activity "
+           "(provenance: Foqal EWS, not MIMIC source data)"]
+    if vit and vit[0]:
+        out.append(f"  Ward observation window: {vit[0]} nurse-charted vital sets "
+                   f"({str(vit[1])[:16]} → {str(vit[2])[:16]})")
+        out.append(f"    Extremes — min SpO2 {vit[3]}, max HR {vit[4]}, max RR {vit[5]}, "
+                   f"min SBP {vit[6]}, max Temp {vit[7]}")
+    else:
+        out.append("  Ward observation window: no nurse-charted vitals recorded")
+    out.append(f"  NEWS2 escalations: {len(esc)}")
+    for e in esc:
+        out.append(f"    - {str(e[0])[:16]} NEWS2={e[1]} [{e[2]}] status={e[5]}")
+        if e[3]: out.append(f"        Obs: {e[3]}")
+        if e[4]: out.append(f"        Intervention: {e[4]}")
+        if e[6]: out.append(f"        Resolution: {e[6]}")
+    out.append(f"  Drug–Lab safety actions (NABH DL2): {len(dl)}")
+    for d in dl:
+        out.append(f"    - {str(d[0])[:16]} {d[1]} [{d[2]}] action={d[3]} by {d[5]}"
+                   + (f", cosigned {d[6]}" if d[6] else ""))
+        if d[4]: out.append(f"        Justification: {d[4]}")
+    out.append(f"  CCU→GW step-down events: {len(tr)}")
+    for t in tr:
+        out.append(f"    - {str(t[0])[:16]} → {t[4]} NEWS2@submit={t[2]} "
+                   f"stable {t[3]}h status={t[5]}" + (f" by {t[6]}" if t[6] else ""))
+        if t[1]: out.append(f"        Rationale: {t[1]}")
+    return out
+
+
 def build_clinical_context(hadm_id: int, data: Dict[str, Any]) -> str:
     """
     Build a compact, clinically summarised context for the LLM.
@@ -2811,15 +3156,11 @@ def build_clinical_context(hadm_id: int, data: Dict[str, Any]) -> str:
     admit_date = (adm.get("admittime") or "N/A")[:10]
     disch_date = (adm.get("dischtime") or "N/A")[:10]
     lines.append("[PATIENT & ADMISSION]")
-    _pat_name = (pat.get('full_name') or pat.get('patient_name') or pat.get('name')
-                 or adm.get('full_name') or adm.get('patient_name') or 'Not recorded')
-    _pat_age  = pat.get('anchor_age') or adm.get('anchor_age') or '?'
-    _pat_sex  = pat.get('gender') or adm.get('gender') or '?'
     lines += [
-        f"  Name:            {_pat_name}",
-        f"  Age / Gender:    {_pat_age} yrs / {_pat_sex}",
-        f"  Blood Group:     {pat.get('blood_group') or adm.get('blood_group') or 'Not recorded'}",
-        f"  Ward:            {pat.get('ward') or adm.get('ward') or 'Not recorded'}",
+        f"  Name:            {pat.get('full_name') or 'Not recorded'}",
+        f"  Age / Gender:    {pat.get('anchor_age') or '?'} yrs / {pat.get('gender') or '?'}",
+        f"  Blood Group:     {pat.get('blood_group') or 'Not recorded'}",
+        f"  Ward:            {pat.get('ward') or 'Not recorded'}",
         f"  HADM ID:         {hadm_id}",
         f"  Admission Date:  {admit_date}",
         f"  Discharge Date:  {disch_date}",
@@ -2827,8 +3168,6 @@ def build_clinical_context(hadm_id: int, data: Dict[str, Any]) -> str:
         f"  From:            {adm.get('admission_location') or 'N/A'}",
         f"  Discharged To:   {adm.get('discharge_location') or 'N/A'}",
         f"  Marital Status:  {adm.get('marital_status') or 'N/A'}",
-        f"  Insurance/TPA:   {adm.get('insurance') or 'N/A'}",
-        f"  Race:            {adm.get('race') or 'N/A'}",
         f"  Expired in stay: {'YES' if adm.get('hospital_expire_flag') == 1 else 'No'}",
     ]
 
@@ -3149,6 +3488,13 @@ def build_clinical_context(hadm_id: int, data: Dict[str, Any]) -> str:
     else:
         lines.append("  Data not available")
 
+    # ── Ward-generated EWS overlay (escalations, drug-lab, step-down) ──────────
+    # Makes the EWS clinical work flow end-to-end into the discharge summary.
+    try:
+        lines += _ews_overlay_lines(hadm_id)
+    except Exception:
+        pass
+
     return "\n".join(lines)
 
 
@@ -3410,9 +3756,6 @@ class GenerateSummaryRequest(BaseModel):
     discharge_type:    Optional[str] = None  # Standard | LAMA | DAMA | Death | Referral
     rejection_context: Optional[str] = None  # injected by trigger_regeneration
     nyha_class:        Optional[str] = None
-    patient_name:      Optional[str] = None  # synthetic name from frontend (not in BQ)
-    patient_age:       Optional[int] = None  # from frontend state
-    patient_sex:       Optional[str] = None  # "M" or "F" from frontend state
 
 
 import re as _re_module
@@ -3446,11 +3789,6 @@ D. vital_signs_trend: Summarise the VITAL SIGNS document as a prose paragraph co
 E. omr_measurements: Extract all values from [OUTPATIENT MEASUREMENTS (OMR)] as key-value pairs.
 F. labs (named fields): Also populate the named lab fields below as a cross-reference — these are a subset of all_labs.
 G. imaging_reports: From [PHYSICIAN ORDERS (POE)], [CLINICAL NOTES], and [DISCHARGE NOTE] documents, extract ALL imaging studies — X-rays, EKGs, CT scans, MRIs, ultrasounds, nuclear studies. For each entry: state the study type and date. If findings/results are documented, include them. If only an order exists with no report, write "Ordered [date] — report not available in source documents". Format as a prose paragraph. Return null if no imaging of any kind appears. Do NOT duplicate findings already captured in ecg_findings or echo fields.
-H. diagnoses_procedures_medications — CRITICAL for non-MIMIC patients that have no clinical notes: extract from structured sections:
-   (a) From [DIAGNOSES] section: Set discharge_diagnosis_clinical to the title of the diagnosis labelled "PRIMARY". Populate icd10_codes as an array of all ICD code strings visible (e.g. ["I50.9","I48.0"]). If chief_complaint is still null and the primary diagnosis implies a clinical presentation, derive a brief chief_complaint (e.g. "PRIMARY: Dilated cardiomyopathy" → "Breathlessness and easy fatiguability with dilated cardiomyopathy").
-   (b) From [PROCEDURES PERFORMED] section: Populate procedures array — each entry: {"name": <title>, "date": <date or null>, "operator": null, "outcome": null, "icd_pcs_code": <code or null>}. Populate icd10_pcs_codes as array of code strings.
-   (c) From [MEDICATIONS/PRESCRIPTIONS] or [PHARMACY] sections: Populate discharge_medications — each entry: {"drug_name_source": <name>, "dose": <dose or null>, "frequency": <freq or null>, "route": <route or null>, "duration": null, "high_risk_flag": null}.
-   (d) From [PATIENT & ADMISSION] section: patient.age = integer from "X yrs". patient.sex = "Male" if "M" else "Female". patient.admission_date from "Admission Date:". patient.discharge_date from "Discharge Date:". patient.insurance_tpa from "Insurance/TPA:". patient.admission_mode from "Admission Type:". patient.name from "Name:" field if the value is not "Not recorded".
 
 Output format: Valid JSON matching the schema below. Nothing else. No preamble. No explanation. No markdown code blocks. Raw JSON only.
 
@@ -3924,6 +4262,21 @@ async def generate_summary(hadm_id: int, source: str = "bq",
     else:
         _skip_to_pass2 = False
 
+    # Guard: never generate a discharge summary for a patient with no real clinical
+    # data — it would otherwise fabricate from synthetic fallbacks. Demo patients
+    # (9900001–9900005) are exempt (handled above via _skip_to_pass2).
+    if not _skip_to_pass2 and not _has_real_clinical_data(hadm_id):
+        if _enc_id_for_reset:
+            try:
+                gdb.update_encounter(_enc_id_for_reset, {"status": "Pending Ingestion"})
+            except Exception:
+                pass
+        raise HTTPException(
+            status_code=409,
+            detail="Clinical data not loaded for this patient. Admit via billing and "
+                   "wait for MIMIC sync to complete before generating the discharge summary.",
+        )
+
     # 1. Fetch all data — display + lazy tabs in parallel (uses disk cache, fast if warm)
     if not _skip_to_pass2 and source == "db":
         data = fetch_all_patient_data(hadm_id)
@@ -3987,7 +4340,6 @@ async def generate_summary(hadm_id: int, source: str = "bq",
             ("fluids",       "inputevents"),
             ("vitals",       "chartevents"),
             ("icu",          "procevents"),
-            ("notes",        "noteevents"),  # uploaded clinical notes → noteevents for narrative
         ]
         try:
             uploaded = await run_in_threadpool(gdb.fetch_all_uploaded_clinical_data, hadm_id)
@@ -4043,16 +4395,6 @@ async def generate_summary(hadm_id: int, source: str = "bq",
 
     # 2. Build context (skipped for synthetic demo patients — clinical_context pre-set above)
     if not _skip_to_pass2:
-        # Patch patient name from frontend-supplied value (not stored in BQ for MIMIC patients)
-        if req and req.patient_name:
-            data.setdefault("patient", {})["full_name"]    = req.patient_name
-            data.setdefault("patient", {})["patient_name"] = req.patient_name
-            if data.get("admission") is data.get("patient"):  # both point to same dict
-                data["admission"]["full_name"] = req.patient_name
-        if req and req.patient_age and not (data.get("patient") or {}).get("anchor_age"):
-            data.setdefault("patient", {})["anchor_age"] = req.patient_age
-        if req and req.patient_sex and not (data.get("patient") or {}).get("gender"):
-            data.setdefault("patient", {})["gender"] = req.patient_sex
         clinical_context = build_clinical_context(hadm_id, data)
         log.info(f"Clinical context: {len(clinical_context):,} chars across {total_tables} tables")
     else:
@@ -4113,11 +4455,6 @@ D. vital_signs_trend: Summarise the VITAL SIGNS document as a prose paragraph co
 E. omr_measurements: Extract all values from [OUTPATIENT MEASUREMENTS (OMR)] as key-value pairs.
 F. labs (named fields): Also populate the named lab fields below as a cross-reference — these are a subset of all_labs.
 G. imaging_reports: From [PHYSICIAN ORDERS (POE)], [CLINICAL NOTES], and [DISCHARGE NOTE] documents, extract ALL imaging studies — X-rays, EKGs, CT scans, MRIs, ultrasounds, nuclear studies. For each entry: state the study type and date. If findings/results are documented, include them. If only an order exists with no report, write "Ordered [date] — report not available in source documents". Format as a prose paragraph. Return null if no imaging of any kind appears. Do NOT duplicate findings already captured in ecg_findings or echo fields.
-H. diagnoses_procedures_medications — CRITICAL for non-MIMIC patients that have no clinical notes: extract from structured sections:
-   (a) From [DIAGNOSES] section: Set discharge_diagnosis_clinical to the title of the diagnosis labelled "PRIMARY". Populate icd10_codes as an array of all ICD code strings visible (e.g. ["I50.9","I48.0"]). If chief_complaint is still null and the primary diagnosis implies a clinical presentation, derive a brief chief_complaint (e.g. "PRIMARY: Dilated cardiomyopathy" → "Breathlessness and easy fatiguability with dilated cardiomyopathy").
-   (b) From [PROCEDURES PERFORMED] section: Populate procedures array — each entry: {"name": <title>, "date": <date or null>, "operator": null, "outcome": null, "icd_pcs_code": <code or null>}. Populate icd10_pcs_codes as array of code strings.
-   (c) From [MEDICATIONS/PRESCRIPTIONS] or [PHARMACY] sections: Populate discharge_medications — each entry: {"drug_name_source": <name>, "dose": <dose or null>, "frequency": <freq or null>, "route": <route or null>, "duration": null, "high_risk_flag": null}.
-   (d) From [PATIENT & ADMISSION] section: patient.age = integer from "X yrs". patient.sex = "Male" if "M" else "Female". patient.admission_date from "Admission Date:". patient.discharge_date from "Discharge Date:". patient.insurance_tpa from "Insurance/TPA:". patient.admission_mode from "Admission Type:". patient.name from "Name:" field if the value is not "Not recorded".
 
 Output format: Valid JSON matching the schema below. Nothing else. No preamble. No explanation. No markdown code blocks. Raw JSON only.
 
@@ -4267,118 +4604,6 @@ Schema:
             clinical_json = _json2.dumps(_jdict)
     except Exception as exc:
         log.warning(f"Failed to override request parameters in clinical_json: {exc}")
-
-    # Post-Pass-1 enrichment: supplement null JSON fields from structured data and frontend params.
-    # Pass 1 (LLM) focuses on notes/labs/vitals. For patients without clinical notes (non-MIMIC),
-    # structured fields like diagnoses, procedures, medications must be filled programmatically.
-    if not _skip_to_pass2 and data:
-        try:
-            import json as _json3
-            _jd = _json3.loads(clinical_json)
-
-            # ── Patient demographics from frontend (patient_name not stored in BQ) ───
-            _pat_j = _jd.setdefault("patient", {})
-            if req and req.patient_name and not _pat_j.get("name"):
-                _pat_j["name"] = req.patient_name
-            if req and req.patient_age and not _pat_j.get("age"):
-                _pat_j["age"] = req.patient_age
-            if req and req.patient_sex and not _pat_j.get("sex"):
-                _pat_j["sex"] = "Male" if str(req.patient_sex).upper().startswith("M") else "Female"
-
-            # ── Patient demographics from data dict (anchor_age, gender, insurance) ─
-            _adm_d = data.get("admission") or {}
-            _pat_d = data.get("patient") or {}
-            if not _pat_j.get("age"):
-                _a = _pat_d.get("anchor_age") or _adm_d.get("anchor_age")
-                if _a:
-                    _pat_j["age"] = int(_a)
-            if not _pat_j.get("sex"):
-                _g = _pat_d.get("gender") or _adm_d.get("gender")
-                if _g:
-                    _pat_j["sex"] = "Male" if str(_g).upper().startswith("M") else "Female"
-            if not _pat_j.get("admission_date") and _adm_d.get("admittime"):
-                _pat_j["admission_date"] = str(_adm_d["admittime"])[:10]
-            if not _pat_j.get("discharge_date") and _adm_d.get("dischtime"):
-                _pat_j["discharge_date"] = str(_adm_d["dischtime"])[:10]
-            if not _pat_j.get("insurance_tpa") and _adm_d.get("insurance"):
-                _pat_j["insurance_tpa"] = _adm_d["insurance"]
-            if not _pat_j.get("admission_mode") and _adm_d.get("admission_type"):
-                _pat_j["admission_mode"] = _adm_d["admission_type"]
-
-            # ── Diagnoses → discharge_diagnosis_clinical + icd10_codes ────────────
-            _diags = data.get("diagnoses") or []
-            if _diags:
-                _sorted_diags = sorted(_diags, key=lambda x: x.get("seq_num") or 99)
-                if not _jd.get("discharge_diagnosis_clinical"):
-                    _primary = _sorted_diags[0]
-                    _jd["discharge_diagnosis_clinical"] = (
-                        _primary.get("long_title") or _primary.get("icd_code") or ""
-                    )
-                if not _jd.get("icd10_codes"):
-                    _jd["icd10_codes"] = [
-                        d.get("icd_code") for d in _sorted_diags if d.get("icd_code")
-                    ]
-                # Derive chief_complaint from primary diagnosis when notes are absent
-                if not _jd.get("chief_complaint") and _jd.get("discharge_diagnosis_clinical"):
-                    _jd["chief_complaint"] = (
-                        f"Patient presented with clinical features consistent with "
-                        f"{_jd['discharge_diagnosis_clinical']}"
-                    )
-
-            # ── Procedures → procedures + icd10_pcs_codes ─────────────────────────
-            _procs = data.get("procedures_icd") or []
-            if _procs and (not _jd.get("procedures") or _jd["procedures"] == [{"name": None, "date": None, "operator": None, "outcome": None, "icd_pcs_code": None}]):
-                _jd["procedures"] = [
-                    {
-                        "name": p.get("long_title") or p.get("icd_code"),
-                        "date": p.get("chartdate"),
-                        "operator": None,
-                        "outcome": None,
-                        "icd_pcs_code": p.get("icd_code"),
-                    }
-                    for p in _procs if p.get("long_title") or p.get("icd_code")
-                ][:20]
-            if _procs and not _jd.get("icd10_pcs_codes"):
-                _jd["icd10_pcs_codes"] = [
-                    p.get("icd_code") for p in _procs if p.get("icd_code")
-                ][:20]
-
-            # ── Medications → discharge_medications ───────────────────────────────
-            _meds = data.get("prescriptions") or data.get("meds") or []
-            if _meds and (not _jd.get("discharge_medications") or _jd["discharge_medications"] == [{"drug_name_source": None, "dose": None, "frequency": None, "route": None, "duration": None, "high_risk_flag": None}]):
-                _jd["discharge_medications"] = [
-                    {
-                        "drug_name_source": m.get("drug") or m.get("drug_name") or m.get("drug_name_source"),
-                        "dose": m.get("dose_val_rx") or m.get("dose"),
-                        "frequency": m.get("freq") or m.get("frequency"),
-                        "route": m.get("route"),
-                        "duration": None,
-                        "high_risk_flag": None,
-                    }
-                    for m in _meds
-                    if m.get("drug") or m.get("drug_name") or m.get("drug_name_source")
-                ][:20]
-
-            # ── Lab trend summary when vital_signs_trend is null ──────────────────
-            _charts = data.get("chartevents") or []
-            if _charts and not _jd.get("vital_signs_trend"):
-                _bp = [c for c in _charts if "blood pressure" in (c.get("label") or "").lower()]
-                _hr = [c for c in _charts if "heart rate" in (c.get("label") or "").lower()]
-                _spo2 = [c for c in _charts if "o2 sat" in (c.get("label") or "").lower() or "spo2" in (c.get("label") or "").lower()]
-                _parts = []
-                if _bp:
-                    _parts.append(f"{len(_bp)} BP readings available")
-                if _hr:
-                    _parts.append(f"{len(_hr)} heart rate readings available")
-                if _spo2:
-                    _parts.append(f"{len(_spo2)} SpO2 readings available")
-                if _parts:
-                    _jd["vital_signs_trend"] = "Monitoring data available: " + "; ".join(_parts) + "."
-
-            clinical_json = _json3.dumps(_jd)
-            log.info(f"[enrich] Post-Pass-1 enrichment applied — json now {len(clinical_json)} chars")
-        except Exception as _enrich_err:
-            log.warning(f"Post-Pass-1 enrichment failed: {_enrich_err}")
 
     # ── Pass 2: NABH Narrative Generation from JSON ───────────────────────────
     # Apply CIMS drug name mapping: translate US generic names → Indian brand names
@@ -5448,6 +5673,14 @@ def create_amendment(encounter_id: str, req: AmendmentRequest):
         gdb.log_action("AMENDMENT_SUBMITTED", hadm_id=hadm_id, details={
             "amendment_ref": amendment_ref, "section": req.section
         })
+    except Exception:
+        pass
+    try:
+        with _get_engine().begin() as _conn:
+            _conn.execute(
+                _text("UPDATE billing_records SET billing_phase='amendment_pending', updated_at=NOW() WHERE hadm_id=:h AND billing_phase='reconciliation_pending'"),
+                {"h": hadm_id}
+            )
     except Exception:
         pass
     return {"ok": True, "amendment_ref": amendment_ref, "id": row.get("id"), "created_at": row.get("created_at")}

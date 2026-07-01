@@ -217,10 +217,13 @@ function seeded2(hadmId, salt, max) {
   return seeded(hadmId * 31 + salt, max);
 }
 
-const NAMES_M = ['Rajesh Kumar','Mohan Singh','Dinesh Joshi','Arun Verma','Suresh Patel',
-                 'Vijay Malhotra','Sanjay Gupta','Ramesh Sharma','Deepak Rao','Nitin Jain'];
-const NAMES_F = ['Priya Sharma','Kavita Patel','Sunita Rao','Anjali Desai','Leela Varma',
-                 'Rekha Devi','Suman Jain','Anita Gupta','Meena Singh','Geeta Mehta'];
+const NAMES_M = ['Rajesh','Mohan','Dinesh','Arun','Suresh','Vijay','Sanjay','Ramesh','Deepak','Nitin',
+                  'Ashok','Prakash','Anil','Manoj','Rakesh','Vinod','Sunil','Ravi','Ajay','Amit'];
+const NAMES_F = ['Priya','Kavita','Sunita','Anjali','Leela','Rekha','Suman','Anita','Meena','Geeta',
+                  'Pooja','Neha','Divya','Shalini','Radha','Usha','Lata','Nisha','Swati','Kiran'];
+const SURNAMES = ['Kumar','Singh','Joshi','Verma','Patel','Malhotra','Gupta','Sharma','Rao','Jain',
+                   'Iyer','Menon','Nair','Desai','Varma','Devi','Reddy','Chatterjee','Mehta','Kapoor',
+                   'Choudhary','Pillai','Krishnan','Bose','Agarwal','Bhatia','Saxena','Trivedi','Bhosale','Kulkarni'];
 const DIAGNOSES = [
   'Dilated Cardiomyopathy','STEMI — Post PCI','Congestive Heart Failure',
   'Hypertensive Emergency','Atrial Fibrillation w/ RVR','Complete Heart Block',
@@ -232,8 +235,10 @@ const RESIDENTS = ['Dr. R. Nair','Dr. D. Rao','Dr. A. Mehta','Dr. K. Singh'];
 
 function synth(hadmId) {
   const isMale   = seeded(hadmId, 2) === 0;
-  const name     = isMale ? NAMES_M[seeded(hadmId, NAMES_M.length)]
+  const first    = isMale ? NAMES_M[seeded(hadmId, NAMES_M.length)]
                            : NAMES_F[seeded2(hadmId, 7, NAMES_F.length)];
+  const last     = SURNAMES[seeded2(hadmId, 17, SURNAMES.length)];
+  const name     = `${first} ${last}`;
   const age      = 38 + seeded2(hadmId, 13, 38);           // 38–75
   const gender   = isMale ? 'M' : 'F';
   const diagnosis= DIAGNOSES[seeded2(hadmId, 3, DIAGNOSES.length)];

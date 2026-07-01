@@ -225,8 +225,13 @@ function _bilSeeded(id, max) {
   return Math.abs(h) % max;
 }
 function _bilSeeded2(id, salt, max) { return _bilSeeded(id * 31 + salt, max); }
-const _BIL_M = ['Rajesh Kumar','Mohan Singh','Dinesh Joshi','Arun Verma','Suresh Patel','Vijay Malhotra','Sanjay Gupta','Ramesh Sharma','Deepak Rao','Nitin Jain'];
-const _BIL_F = ['Priya Sharma','Kavita Patel','Sunita Rao','Anjali Desai','Leela Varma','Rekha Devi','Suman Jain','Anita Gupta','Meena Singh','Geeta Mehta'];
+const _BIL_M = ['Rajesh','Mohan','Dinesh','Arun','Suresh','Vijay','Sanjay','Ramesh','Deepak','Nitin',
+                'Ashok','Prakash','Anil','Manoj','Rakesh','Vinod','Sunil','Ravi','Ajay','Amit'];
+const _BIL_F = ['Priya','Kavita','Sunita','Anjali','Leela','Rekha','Suman','Anita','Meena','Geeta',
+                'Pooja','Neha','Divya','Shalini','Radha','Usha','Lata','Nisha','Swati','Kiran'];
+const _BIL_LAST = ['Kumar','Singh','Joshi','Verma','Patel','Malhotra','Gupta','Sharma','Rao','Jain',
+                    'Iyer','Menon','Nair','Desai','Varma','Devi','Reddy','Chatterjee','Mehta','Kapoor',
+                    'Choudhary','Pillai','Krishnan','Bose','Agarwal','Bhatia','Saxena','Trivedi','Bhosale','Kulkarni'];
 
 // Tracks hadm_ids already shown as signed-off so we only toast genuinely new ones
 let _bilKnown = new Set();
@@ -320,8 +325,10 @@ async function _bilPoll() {
 }
 function _bilName(hadmId) {
   const isMale = _bilSeeded(hadmId, 2) === 0;
-  return isMale ? _BIL_M[_bilSeeded(hadmId, _BIL_M.length)]
-                : _BIL_F[_bilSeeded2(hadmId, 7, _BIL_F.length)];
+  const first   = isMale ? _BIL_M[_bilSeeded(hadmId, _BIL_M.length)]
+                         : _BIL_F[_bilSeeded2(hadmId, 7, _BIL_F.length)];
+  const last    = _BIL_LAST[_bilSeeded2(hadmId, 17, _BIL_LAST.length)];
+  return `${first} ${last}`;
 }
 const _BIL_INSURERS = ['Star Health','HDFC Ergo','ICICI Lombard','New India Assurance','Bajaj Allianz','Niva Bupa','United India'];
 const _BIL_MODES    = ['Cashless','Cashless','Cashless','Reimbursement','Self-pay'];

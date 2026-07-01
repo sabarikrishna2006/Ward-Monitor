@@ -9,12 +9,19 @@ function _ddSeeded(hadmId, max) {
   return Math.abs(h) % max;
 }
 function _ddSeeded2(hadmId, salt, max) { return _ddSeeded(hadmId * 31 + salt, max); }
-const _DD_NAMES_M = ['Rajesh Kumar','Mohan Singh','Dinesh Joshi','Arun Verma','Suresh Patel','Vijay Malhotra','Sanjay Gupta','Ramesh Sharma','Deepak Rao','Nitin Jain'];
-const _DD_NAMES_F = ['Priya Sharma','Kavita Patel','Sunita Rao','Anjali Desai','Leela Varma','Rekha Devi','Suman Jain','Anita Gupta','Meena Singh','Geeta Mehta'];
+const _DD_NAMES_M = ['Rajesh','Mohan','Dinesh','Arun','Suresh','Vijay','Sanjay','Ramesh','Deepak','Nitin',
+                     'Ashok','Prakash','Anil','Manoj','Rakesh','Vinod','Sunil','Ravi','Ajay','Amit'];
+const _DD_NAMES_F = ['Priya','Kavita','Sunita','Anjali','Leela','Rekha','Suman','Anita','Meena','Geeta',
+                     'Pooja','Neha','Divya','Shalini','Radha','Usha','Lata','Nisha','Swati','Kiran'];
+const _DD_SURNAMES = ['Kumar','Singh','Joshi','Verma','Patel','Malhotra','Gupta','Sharma','Rao','Jain',
+                      'Iyer','Menon','Nair','Desai','Varma','Devi','Reddy','Chatterjee','Mehta','Kapoor',
+                      'Choudhary','Pillai','Krishnan','Bose','Agarwal','Bhatia','Saxena','Trivedi','Bhosale','Kulkarni'];
 function _ddSynthName(hadmId) {
   const isMale = _ddSeeded(hadmId, 2) === 0;
-  return isMale ? _DD_NAMES_M[_ddSeeded(hadmId, _DD_NAMES_M.length)]
-                : _DD_NAMES_F[_ddSeeded2(hadmId, 7, _DD_NAMES_F.length)];
+  const first   = isMale ? _DD_NAMES_M[_ddSeeded(hadmId, _DD_NAMES_M.length)]
+                         : _DD_NAMES_F[_ddSeeded2(hadmId, 7, _DD_NAMES_F.length)];
+  const last    = _DD_SURNAMES[_ddSeeded2(hadmId, 17, _DD_SURNAMES.length)];
+  return `${first} ${last}`;
 }
 
 let _dd = { encounters: null, loading: false, error: null, attempt: 0, errorStats: null, tab: 'queue', dlPanelHadmId: null, statusFilter: 'all' };
