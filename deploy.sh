@@ -56,34 +56,34 @@ screen -S data      -X quit 2>/dev/null && echo "         Stopped data"      || 
 screen -S frontend  -X quit 2>/dev/null && echo "         Stopped frontend"  || true
 sleep 1
 
-echo "[ASHMIT] Starting backend main API (port 3802)..."
+echo "[ASHMIT] Starting backend main API (port 7015)..."
 screen -dmS main bash -c "
     cd '$ASHMIT_DIR'
     source .venv/bin/activate
     while true; do
-        uvicorn backend.app.main:app --host 0.0.0.0 --port 3802
+        uvicorn backend.app.main:app --host 0.0.0.0 --port 7015
         echo '[main] crashed, restarting in 8s...'; sleep 8
     done
 "
 
-echo "[ASHMIT] Starting data server (port 3803)..."
+echo "[ASHMIT] Starting data server (port 7016)..."
 screen -dmS data bash -c "
     cd '$ASHMIT_DIR'
     source .venv/bin/activate
     while true; do
-        uvicorn backend.app.data_server:app --host 0.0.0.0 --port 3803
+        uvicorn backend.app.data_server:app --host 0.0.0.0 --port 7016
         echo '[data] crashed, restarting in 8s...'; sleep 8
     done
 "
 
-echo "[ASHMIT] Starting frontend Vite dev server (port 4980)..."
+echo "[ASHMIT] Starting frontend Vite dev server (port 4990)..."
 screen -dmS frontend bash -c "
     export NVM_DIR=\"\$HOME/.nvm\"
     [ -s \"\$NVM_DIR/nvm.sh\" ] && \. \"\$NVM_DIR/nvm.sh\"
     cd '$ASHMIT_DIR/frontend'
     npm install --silent
     while true; do
-        npm run dev -- --host 0.0.0.0 --port 4980
+        npm run dev -- --host 0.0.0.0 --port 4990
         echo '[frontend] crashed, restarting in 5s...'; sleep 5
     done
 "
@@ -112,25 +112,25 @@ screen -S ward-api      -X quit 2>/dev/null && echo "         Stopped ward-api" 
 screen -S ward-frontend -X quit 2>/dev/null && echo "         Stopped ward-frontend" || true
 sleep 1
 
-echo "[SABARI] Starting Ward Monitor backend (port 7806)..."
+echo "[SABARI] Starting Ward Monitor backend (port 7816)..."
 screen -dmS ward-api bash -c "
     cd '$SABARI_DIR/backend'
     source '$SABARI_DIR/.venv/bin/activate'
     while true; do
-        uvicorn main:app --host 0.0.0.0 --port 7806
+        uvicorn main:app --host 0.0.0.0 --port 7816
         echo '[ward-api] crashed, restarting in 5s...'; sleep 5
     done
 "
 
-echo "[SABARI] Starting Ward Monitor frontend (port 4975)..."
+echo "[SABARI] Starting Ward Monitor frontend (port 4985)..."
 screen -dmS ward-frontend bash -c "
     export NVM_DIR=\"\$HOME/.nvm\"
     [ -s \"\$NVM_DIR/nvm.sh\" ] && \. \"\$NVM_DIR/nvm.sh\"
     cd '$SABARI_DIR'
     npm install --silent
     while true; do
-        VITE_PORT=4975 VITE_HOST=0.0.0.0 VITE_API_URL=http://localhost:7806 \
-            npm run dev -- --host 0.0.0.0 --port 4975
+        VITE_PORT=4985 VITE_HOST=0.0.0.0 VITE_API_URL=http://localhost:7816 \
+            npm run dev -- --host 0.0.0.0 --port 4985
         echo '[ward-frontend] crashed, restarting in 5s...'; sleep 5
     done
 "
@@ -139,12 +139,12 @@ echo ""
 echo "==================================================="
 echo " ✅ All services started!"
 echo ""
-echo " Ashmit's App (main login) : http://72.60.102.196:4980/"
-echo " Ashmit's API              : http://72.60.102.196:3802/docs"
-echo " Ashmit's Data Server      : http://72.60.102.196:3803/docs"
+echo " Ashmit's App (main login) : http://72.60.102.196:4990/"
+echo " Ashmit's API              : http://72.60.102.196:7015/docs"
+echo " Ashmit's Data Server      : http://72.60.102.196:7016/docs"
 echo ""
-echo " Sabari's Ward Monitor     : http://72.60.102.196:4975/"
-echo " Sabari's API              : http://72.60.102.196:7806/docs"
+echo " Sabari's Ward Monitor     : http://72.60.102.196:4985/"
+echo " Sabari's API              : http://72.60.102.196:7816/docs"
 echo ""
 echo " Login as ward/charge nurse from Ashmit's page and you"
 echo " will be redirected instantly to Sabari's Ward Monitor."

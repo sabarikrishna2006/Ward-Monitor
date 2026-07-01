@@ -45,10 +45,10 @@ bash deploy.sh
 ```
 
 **Services Started by `deploy.sh`:**
-*   **Main Hospital App:** `http://localhost:4980/`
-*   **Main Hospital API (Swagger):** `http://localhost:3802/docs`
-*   **EWS Ward Monitor App:** `http://localhost:4975/`
-*   **EWS API (Swagger):** `http://localhost:7806/docs`
+*   **Main Hospital App:** `http://localhost:4990/`
+*   **Main Hospital API (Swagger):** `http://localhost:7015/docs`
+*   **EWS Ward Monitor App:** `http://localhost:4985/`
+*   **EWS API (Swagger):** `http://localhost:7816/docs`
 
 *(Note: The deployment script maps these to specific IPs in production environments. Please check the terminal output for exact URLs upon running).*
 

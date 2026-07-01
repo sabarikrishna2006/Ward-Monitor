@@ -29,10 +29,10 @@ uvicorn main:app --reload  # runs on port 8000
 # 2. In another terminal, start the frontend
 cd ..   # back to sabari_project root
 npm install
-npm run dev                # runs on port 5174
+npm run dev                # runs on port 5184
 ```
 
-Open `http://localhost:5174/`
+Open `http://localhost:5184/`
 
 ---
 
