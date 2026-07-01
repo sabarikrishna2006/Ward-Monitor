@@ -1980,7 +1980,7 @@ SCREEN_RENDERERS["review"] = function renderReviewV2() {
     const _dn   = /^Dr\.?\s/i.test(_rawN) ? _rawN : `Dr. ${_rawN}`;
     const _mci  = _u?.mci_number || _u?.registration_number || "";
     const _pat  = (APP.reviewData?.patient?.full_name) || "Patient";
-    const _eid  = APP.reviewData?.encounter?.display_id || APP.reviewData?.hadmId || "—";
+    const _eid  = APP.reviewData?.hadmId ? fmtPid(APP.reviewData.hadmId) : "—";
     return `
     <div id="rv2-esign-overlay" style="position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,0.7);display:flex;align-items:center;justify-content:center;padding:20px">
       <div style="background:#fff;border-radius:14px;width:500px;max-width:100%;box-shadow:0 24px 64px rgba(0,0,0,0.35);overflow:hidden">

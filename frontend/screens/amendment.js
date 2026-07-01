@@ -40,7 +40,7 @@ const _amdReasons = [
 SCREEN_RENDERERS["amendment"] = function renderAmendment() {
   const rd       = APP.reviewData || {};
   const patName  = rd.patient?.full_name || "Patient";
-  const displayId = rd.encounter?.display_id || rd.hadmId || "—";
+  const displayId = rd.hadmId ? fmtPid(rd.hadmId) : "—";
   const version  = `v${rd.docVersion || 1}.0`;
 
   const canSubmit = _amd.reason && _amd.details.trim().length >= 10;
@@ -226,7 +226,7 @@ SCREEN_RENDERERS["amendment-submitted"] = function renderAmendmentSubmitted() {
   const amd       = APP.amendment || {};
   const rd        = APP.reviewData || {};
   const patName   = rd.patient?.full_name || "Patient";
-  const displayId = rd.encounter?.display_id || rd.hadmId || "—";
+  const displayId = rd.hadmId ? fmtPid(rd.hadmId) : "—";
   const _fmtDT    = d => d ? new Date(d).toLocaleString("en-IN", { day:"2-digit", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit", hour12:false }) + " IST" : "—";
 
   return `

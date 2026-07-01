@@ -7,7 +7,7 @@ SCREEN_RENDERERS["signed"] = function renderSigned() {
   const pat  = rd.patient   || {};
 
   const patName    = pat.full_name || "Patient";
-  const displayId  = rd.encounter?.display_id || rd.hadmId || "—";
+  const displayId  = rd.hadmId ? fmtPid(rd.hadmId) : "—";
 
   // Doctor name: prefer what was persisted on sign-off, fall back to current user
   const _rawName   = rd.encounter?.summary?.saved_by_name || user?.full_name || user?.name || "Doctor";
@@ -146,7 +146,7 @@ SCREEN_SETUP["signed"] = async function setupSigned() {
       ? new Date(rd.signedAt).toLocaleString('en-IN', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:false }) + ' IST'
       : '—';
     const version   = `v${rd.docVersion || 1}.0`;
-    const displayId = rd.encounter?.display_id || rd.hadmId || '—';
+    const displayId = rd.hadmId ? fmtPid(rd.hadmId) : '—';
     const sigImg    = rd._sigDataUrl || null;
     const hashVal   = rd._contentHash || '—';
 

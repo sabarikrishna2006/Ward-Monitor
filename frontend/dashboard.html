@@ -480,6 +480,15 @@ function enrich(enc) {
   };
 }
 
+/* ── Shared visibility filter — used by both the initial load and the
+   background poll so the patient list never differs between renders ── */
+const _RELEASED_PHASES = new Set(['paid','claim_submitted','tpa_settled','final_bill_generated']);
+function _notReleased(r) { return !(r.status === 'Signed Off' && _RELEASED_PHASES.has(r.billing_phase)); }
+function _visibleRows(encs) {
+  const mine = encs.filter(function(r){ return r.assigned_to === user.id; }).filter(_notReleased);
+  return mine.length ? mine : encs.filter(_notReleased);
+}
+
 /* ── Load from backend (with auto-retry) ── */
 let _loadAttempt = 0;
 
@@ -524,10 +533,7 @@ async function loadDashboard(isRetry) {
 
     document.getElementById('err-banner').style.display = 'none';
 
-    const _released = new Set(['paid','claim_submitted','tpa_settled','final_bill_generated']);
-    const _notReleased = function(r){ return !(r.status === 'Signed Off' && _released.has(r.billing_phase)); };
-    _myRows = myEncs.filter(function(r){ return r.assigned_to === user.id; }).filter(_notReleased);
-    if (!_myRows.length) _myRows = myEncs.filter(_notReleased);
+    _myRows = _visibleRows(myEncs);
 
     if (!_myRows.length) {
       document.getElementById('s-pending').textContent = 0;
@@ -643,8 +649,7 @@ function openSummary(hadmId) {
       });
       // Refresh the table rows silently so status pills stay current
       const rows = (Array.isArray(raw) ? raw : (raw.encounters || [])).map(enrich);
-      const mine = rows.filter(function(r){ return r.assigned_to === user.id; });
-      _myRows = mine.length ? mine : rows;
+      _myRows = _visibleRows(rows);
       renderRows(_myRows);
       updateStats(_myRows);
     } catch(_e) {}

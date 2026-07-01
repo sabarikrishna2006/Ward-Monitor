@@ -12,8 +12,9 @@ window.FOQAL_API_BASE  = `http://${_h}:${window.FOQAL_CONFIG.API_PORT}`;
 window.FOQAL_DATA_BASE = `http://${_h}:${window.FOQAL_CONFIG.DATA_PORT}`;
 
 // ── Patient ID formatter ───────────────────────────────────────────────────────
-// Uses display_id from encounter (e.g. PT-24-0087) when available.
-// Falls back to HADM-XXXXXXX for backward compatibility.
+// Always PT-{hadm_id} — the real hospital admission ID, not the internal
+// sequential display_id counter, so it stays identical to what was used at
+// GW/billing admission.
 window.fmtPid = function(hadmId, displayId) {
-  return displayId || ('HADM-' + hadmId);
+  return 'PT-' + hadmId;
 };

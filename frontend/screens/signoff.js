@@ -234,7 +234,7 @@ SCREEN_RENDERERS["signoff"] = function renderSignoff() {
     </div>`;
 
   const patName   = rd.patient?.full_name || 'Patient';
-  const displayId = rd.encounter?.display_id || rd.hadmId || '—';
+  const displayId = rd.hadmId ? fmtPid(rd.hadmId) : '—';
 
   return `
     <div style="min-height:100vh;background:#f9fafb;font-family:system-ui,-apple-system,'Segoe UI',sans-serif">
