@@ -418,6 +418,68 @@ async def startup_event():
     except Exception as _e:
         log.warning(f"Migration 023 skipped: {_e}")
 
+    # Migration 024 — Super Admin backend: module toggles, NEWS2 thresholds, drug-lab rules
+    _migration_024_stmts = [
+        "ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS module_toggles JSONB",
+        "ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS news2_thresholds JSONB",
+        """UPDATE app_settings SET module_toggles = '{
+            "module_a_discharge_summary": true,
+            "module_b_cost_estimator": true,
+            "module_c_early_warning": true,
+            "module_d_drug_lab_engine": true,
+            "llm_integration": true,
+            "dpdpa_consent_gate": true,
+            "push_notifications": true
+        }'::jsonb WHERE id = 1 AND module_toggles IS NULL""",
+        """UPDATE app_settings SET news2_thresholds = '{
+            "spo2":  {"label": "SpO₂",            "low": 88,   "high": null, "action": "< 90% → Escalate"},
+            "rr":    {"label": "Respiratory Rate", "low": 8,    "high": 25,   "action": "> 20 → Alert"},
+            "hr":    {"label": "Heart Rate",        "low": 40,   "high": 130,  "action": "< 50 or > 120 → Alert"},
+            "sbp":   {"label": "Systolic BP",       "low": 90,   "high": null, "action": "< 90 → Escalate"},
+            "temp":  {"label": "Temperature",       "low": 35.0, "high": 39.0, "action": "< 35.5 or > 38.5 → Alert"},
+            "avpu":  {"label": "AVPU",               "low": null, "high": null, "action": "Any V,P,U → Escalate"},
+            "news2": {"label": "NEWS2 Score",       "low": null, "high": 7,    "action": "> 5 → Doctor alert"}
+        }'::jsonb WHERE id = 1 AND news2_thresholds IS NULL""",
+        """CREATE TABLE IF NOT EXISTS drug_lab_rules (
+            id                 SERIAL PRIMARY KEY,
+            rule_code          VARCHAR(20) UNIQUE NOT NULL,
+            agent_a            VARCHAR(120),
+            agent_b            VARCHAR(120) NOT NULL,
+            interaction_type   VARCHAR(10) NOT NULL CHECK (interaction_type IN ('DDI','DLI','LI')),
+            severity           VARCHAR(5)  NOT NULL CHECK (severity IN ('T1','T2')),
+            action_required    TEXT NOT NULL,
+            evidence           TEXT,
+            is_active          BOOLEAN NOT NULL DEFAULT TRUE,
+            created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )""",
+        "CREATE INDEX IF NOT EXISTS idx_dlr_active ON drug_lab_rules(is_active) WHERE is_active = TRUE",
+        """INSERT INTO drug_lab_rules (rule_code, agent_a, agent_b, interaction_type, severity, action_required, evidence) VALUES
+            ('R-001','Warfarin','Aspirin','DDI','T1','Hold + Co-sign required','ACCP 2022'),
+            ('R-002','Digoxin','K+ < 3.0 mEq/L','DLI','T1','Alert attending immediately','ESC Heart Failure Guidelines 2023'),
+            ('R-003','ACE Inhibitor','K+ supplement','DDI','T2','Monitor K+ every 48h','ESC Heart Failure Guidelines 2023'),
+            ('R-004','Statins','Amiodarone','DDI','T2','Myopathy risk - CK monitoring','ACCP 2022'),
+            ('R-005','Heparin','NSAID','DDI','T1','Bleeding risk - hold NSAID','ACCP 2022'),
+            ('R-006','Beta-blocker','Verapamil','DDI','T1','Heart block risk - ECG monitoring','ESC Heart Failure Guidelines 2023'),
+            ('R-007','Clopidogrel','Omeprazole','DDI','T2','CYP2C19 interaction - switch PPI','ACCP 2022'),
+            ('R-008','Vancomycin','Creatinine > 1.5','DLI','T2','Renal dose adjustment required','ICMR'),
+            ('R-009','Metformin','Contrast dye','DDI','T1','Hold 48h pre/post contrast','ESC Heart Failure Guidelines 2023'),
+            ('R-010','Amiodarone','Warfarin','DDI','T2','INR monitoring - target 2.0-3.0','ACCP 2022'),
+            ('R-011','Furosemide','K+ < 3.2 mEq/L','DLI','T2','K+ replacement - 40 mEq/day','ESC Heart Failure Guidelines 2023'),
+            ('R-012',NULL,'Troponin > 0.4 ug/L','LI','T1','STEMI protocol - cath lab alert','ESC Heart Failure Guidelines 2023'),
+            ('R-013','Haloperidol','QTc > 460ms','DLI','T1','Hold haloperidol - ECG monitoring','FDA')
+        ON CONFLICT (rule_code) DO NOTHING""",
+    ]
+    _m024_ok = 0
+    for _stmt in _migration_024_stmts:
+        try:
+            with _get_engine().begin() as _conn:
+                _conn.execute(_text(_stmt))
+            _m024_ok += 1
+        except Exception as _e:
+            log.warning(f"Migration 024 stmt skipped ({_stmt[:60]}…): {_e}")
+    log.info(f"Migration 024: {_m024_ok}/{len(_migration_024_stmts)} statements applied")
+
 @app.on_event("shutdown")
 async def shutdown_event():
     await _data_client.aclose()
@@ -5844,6 +5906,117 @@ def get_prompt_version_log():
         return {"versions": [], "current": {"pass1": PASS1_VERSION, "pass2": PASS2_VERSION}}
 
 
+@app.get("/api/cmo/metrics")
+def get_cmo_metrics():
+    """Real, computed CMO pilot-dashboard data — replaces the hardcoded values that used
+    to live directly in cmo.html. Baseline (pre-pilot) figures have no live data source
+    (they're a one-time historical measurement) and stay as fixed reference constants;
+    everything under "pilot" is computed live from the DB."""
+    from sqlalchemy import text as _text
+    from .cloud_sql_db import get_engine as _get_engine
+
+    BASELINE_DOC_TIME_MIN = 192        # 3.2h — pre-pilot manual documentation time
+    BASELINE_NABH_PCT     = 71.0       # pre-pilot NABH compliance average
+
+    with _get_engine().connect() as conn:
+        core = conn.execute(_text("""
+            SELECT
+                COUNT(*) FILTER (WHERE e.status = 'Signed Off')                          AS signed_count,
+                COUNT(*)                                                                  AS total_summaries,
+                COUNT(*) FILTER (WHERE s.gap_t1 > 0)                                      AS t1_flagged,
+                AVG(EXTRACT(EPOCH FROM (s.signed_at - e.created_at)))
+                    FILTER (WHERE s.signed_at IS NOT NULL)                                AS avg_doc_time_s
+            FROM app_summaries s
+            JOIN app_encounters e ON e.id = s.encounter_id
+        """)).fetchone()
+
+        rej = conn.execute(_text("""
+            SELECT
+                COUNT(*)                                                                  AS rejections,
+                AVG(EXTRACT(EPOCH FROM (signed_at - rejected_at)))
+                    FILTER (WHERE signed_at IS NOT NULL)                                  AS avg_resign_s
+            FROM rejection_log
+        """)).fetchone()
+
+        section_rows = conn.execute(_text("""
+            SELECT
+                nabh_section,
+                COUNT(*) FILTER (WHERE error_tier = 1) AS t1,
+                COUNT(*) FILTER (WHERE error_tier = 2) AS t2
+            FROM error_log
+            WHERE nabh_section IS NOT NULL
+            GROUP BY nabh_section
+            ORDER BY nabh_section
+        """)).fetchall()
+
+    total_summaries = int(core[1] or 0)
+    denom = max(total_summaries, 1)
+
+    sections = []
+    for sec, t1, t2 in section_rows:
+        t1_rate = round(t1 / denom * 100, 1)
+        t2_rate = round(t2 / denom * 100, 1)
+        sections.append({
+            "section": sec,
+            "section_label": _PASS3_SECTION_LABELS.get(sec, sec),
+            "accuracy_pct": round(max(0.0, 100 - t1_rate - t2_rate), 1),
+            "t1_rate_pct": t1_rate,
+            "t2_rate_pct": t2_rate,
+        })
+    nabh_compliance_pct = round(
+        sum(s["accuracy_pct"] for s in sections) / len(sections), 1
+    ) if sections else None
+
+    avg_doc_time_s = core[3]
+    avg_doc_time_min = round(avg_doc_time_s / 60, 0) if avg_doc_time_s else None
+    doc_time_delta_pct = (
+        round((avg_doc_time_min - BASELINE_DOC_TIME_MIN) / BASELINE_DOC_TIME_MIN * 100, 0)
+        if avg_doc_time_min is not None else None
+    )
+    nabh_delta_pct = (
+        round(nabh_compliance_pct - BASELINE_NABH_PCT, 0) if nabh_compliance_pct is not None else None
+    )
+
+    avg_resign_s = rej[1]
+    avg_resign_min = round(avg_resign_s / 60) if avg_resign_s else None
+
+    try:
+        usability = gdb.get_usability_stats()
+    except Exception:
+        usability = {"total_ratings": 0, "avg_rating": 0.0, "distribution": {}}
+
+    return {
+        "pilot": {
+            "total_summaries":       total_summaries,
+            "signed_count":          int(core[0] or 0),
+            "avg_doc_time_minutes":  avg_doc_time_min,
+            "nabh_compliance_pct":   nabh_compliance_pct,
+            "t1_flag_rate_pct":      round((core[2] or 0) / denom * 100, 1),
+            "rejections":            int(rej[0] or 0),
+            "avg_resign_minutes":    avg_resign_min,
+            "usability_avg_rating":  usability.get("avg_rating", 0.0),
+            "usability_total_ratings": usability.get("total_ratings", 0),
+            "usability_recommend_pct": round(
+                (usability["distribution"].get("5", 0) + usability["distribution"].get("4", 0))
+                / max(usability.get("total_ratings", 0), 1) * 100, 0
+            ) if usability.get("total_ratings") else None,
+        },
+        "baseline": {
+            "doc_time_minutes": BASELINE_DOC_TIME_MIN,
+            "nabh_compliance_pct": BASELINE_NABH_PCT,
+        },
+        "deltas": {
+            "doc_time_pct":  doc_time_delta_pct,
+            "nabh_pct_pts":  nabh_delta_pct,
+        },
+        "section_accuracy": sections,
+        "not_tracked": {
+            "phi_breaches": "No PHI-breach logging table exists — no incidents logged, not actively monitored.",
+            "dpdpa_consent_rate": "Consent checkbox is client-side only (upload.html) and not persisted to the DB.",
+        },
+    }
+
+
 @app.get("/api/demo/cases")
 def get_demo_cases():
     """List all synthetic Indian demo patients available for offline/always-on demo."""
@@ -5859,6 +6032,144 @@ def get_users(role: Optional[str] = None):
 @app.get("/api/users/doctors")
 def get_doctors():
     return gdb.list_users(role="Doctor")
+
+
+# ── Super Admin — User Management ─────────────────────────────────────────────
+_ADMIN_CREATABLE_ROLES = {
+    "Doctor", "Admin Staff", "Billing Staff", "Super Admin",
+    "Ward Nurse", "Charge Nurse", "GW Nurse", "Resident",
+}
+
+class AdminCreateUserRequest(BaseModel):
+    full_name:       str
+    hospital_email:  str
+    password:        str
+    role:            str
+    ward_assignment: Optional[str] = None
+
+@app.post("/api/admin/users")
+def admin_create_user(req: AdminCreateUserRequest):
+    if req.role not in _ADMIN_CREATABLE_ROLES:
+        raise HTTPException(status_code=400,
+            detail=f"role must be one of: {', '.join(sorted(_ADMIN_CREATABLE_ROLES))}")
+    if gdb.user_exists(req.hospital_email):
+        raise HTTPException(status_code=409, detail="Email already registered")
+    hashed = _bcrypt.hashpw(req.password.encode(), _bcrypt.gensalt()).decode()
+    created = gdb.create_user(
+        email=req.hospital_email, password_hash=hashed,
+        role=req.role, full_name=req.full_name,
+    )
+    if req.ward_assignment:
+        created = gdb.update_user(created["id"], {"ward_assignment": req.ward_assignment}) or created
+    return created
+
+@app.post("/api/admin/users/{user_id}/deactivate")
+def admin_deactivate_user(user_id: str):
+    updated = gdb.update_user(user_id, {"is_active": False})
+    if not updated:
+        raise HTTPException(status_code=404, detail="User not found")
+    return updated
+
+
+# ── Super Admin — Settings (NEWS2 thresholds + module toggles) ───────────────
+@app.get("/api/admin/settings")
+def admin_get_settings():
+    from sqlalchemy import text as _text
+    from .cloud_sql_db import get_engine as _get_engine
+    with _get_engine().connect() as conn:
+        row = conn.execute(_text(
+            "SELECT module_toggles, news2_thresholds FROM app_settings WHERE id = 1"
+        )).fetchone()
+    if not row:
+        raise HTTPException(status_code=500, detail="app_settings row missing")
+    return {"module_toggles": row[0] or {}, "news2_thresholds": row[1] or {}}
+
+class AdminSettingsUpdateRequest(BaseModel):
+    module_toggles:   Optional[Dict[str, Any]] = None
+    news2_thresholds: Optional[Dict[str, Any]] = None
+
+@app.patch("/api/admin/settings")
+def admin_update_settings(req: AdminSettingsUpdateRequest):
+    import json as _json
+    from sqlalchemy import text as _text
+    from .cloud_sql_db import get_engine as _get_engine
+    set_parts, params = [], {}
+    if req.module_toggles is not None:
+        set_parts.append("module_toggles = module_toggles || CAST(:mt AS jsonb)")
+        params["mt"] = _json.dumps(req.module_toggles)
+    if req.news2_thresholds is not None:
+        set_parts.append("news2_thresholds = news2_thresholds || CAST(:nt AS jsonb)")
+        params["nt"] = _json.dumps(req.news2_thresholds)
+    if not set_parts:
+        return admin_get_settings()
+    with _get_engine().begin() as conn:
+        conn.execute(_text(f"UPDATE app_settings SET {', '.join(set_parts)}, updated_at = NOW() WHERE id = 1"), params)
+    return admin_get_settings()
+
+
+# ── Super Admin — Drug-Lab Interaction Rules ──────────────────────────────────
+@app.get("/api/admin/drug-lab-rules")
+def admin_list_drug_lab_rules():
+    from sqlalchemy import text as _text
+    from .cloud_sql_db import get_engine as _get_engine
+    with _get_engine().connect() as conn:
+        rows = conn.execute(_text(
+            "SELECT * FROM drug_lab_rules ORDER BY rule_code"
+        )).fetchall()
+    return [dict(r._mapping) for r in rows]
+
+class DrugLabRuleRequest(BaseModel):
+    agent_a:          Optional[str] = None
+    agent_b:           str
+    interaction_type:  str   # DDI | DLI | LI
+    severity:           str  # T1 | T2
+    action_required:   str
+    evidence:          Optional[str] = None
+    is_active:         bool = True
+
+@app.post("/api/admin/drug-lab-rules")
+def admin_create_drug_lab_rule(req: DrugLabRuleRequest):
+    from sqlalchemy import text as _text
+    from .cloud_sql_db import get_engine as _get_engine
+    with _get_engine().begin() as conn:
+        next_num = conn.execute(_text(
+            "SELECT COALESCE(MAX(CAST(SUBSTRING(rule_code FROM 3) AS INTEGER)), 0) + 1 FROM drug_lab_rules"
+        )).scalar()
+        rule_code = f"R-{next_num:03d}"
+        row = conn.execute(_text("""
+            INSERT INTO drug_lab_rules (rule_code, agent_a, agent_b, interaction_type, severity, action_required, evidence, is_active)
+            VALUES (:code, :a, :b, :type, :sev, :action, :ev, :active)
+            RETURNING *
+        """), {"code": rule_code, "a": req.agent_a, "b": req.agent_b, "type": req.interaction_type,
+               "sev": req.severity, "action": req.action_required, "ev": req.evidence, "active": req.is_active}).fetchone()
+    return dict(row._mapping)
+
+@app.patch("/api/admin/drug-lab-rules/{rule_id}")
+def admin_update_drug_lab_rule(rule_id: int, req: DrugLabRuleRequest):
+    from sqlalchemy import text as _text
+    from .cloud_sql_db import get_engine as _get_engine
+    with _get_engine().begin() as conn:
+        row = conn.execute(_text("""
+            UPDATE drug_lab_rules
+            SET agent_a = :a, agent_b = :b, interaction_type = :type, severity = :sev,
+                action_required = :action, evidence = :ev, is_active = :active, updated_at = NOW()
+            WHERE id = :id
+            RETURNING *
+        """), {"id": rule_id, "a": req.agent_a, "b": req.agent_b, "type": req.interaction_type,
+               "sev": req.severity, "action": req.action_required, "ev": req.evidence, "active": req.is_active}).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Rule not found")
+    return dict(row._mapping)
+
+@app.delete("/api/admin/drug-lab-rules/{rule_id}")
+def admin_delete_drug_lab_rule(rule_id: int):
+    from sqlalchemy import text as _text
+    from .cloud_sql_db import get_engine as _get_engine
+    with _get_engine().begin() as conn:
+        result = conn.execute(_text("DELETE FROM drug_lab_rules WHERE id = :id"), {"id": rule_id})
+    if result.rowcount == 0:
+        raise HTTPException(status_code=404, detail="Rule not found")
+    return {"status": "deleted", "id": rule_id}
 
 
 # ── Encounters (extended) ─────────────────────────────────────────────────────

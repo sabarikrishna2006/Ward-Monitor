@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=1440">
 <title>Foqal CareOS · CMO Dashboard</title>
+<script src="/config.js"></script>
 <style>
 :root{
   --p:#800080;--pl:#f7edf7;
@@ -55,6 +56,7 @@ button{cursor:pointer;font-family:inherit;font-size:inherit}
 .alert{padding:10px 14px;border-radius:6px;display:flex;align-items:center;gap:8px;
   font-size:12.5px;margin-bottom:20px;line-height:1.5;border:1px solid}
 .al-ok{background:var(--t3b);color:#065f46;border-color:#6ee7b7}
+.al-warn{background:var(--t2b);color:#92400e;border-color:#fcd34d}
 
 /* ── METRIC CARDS ── */
 .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
@@ -138,33 +140,17 @@ tr:hover td{background:#fcfcfc}
       </div>
     </div>
 
-    <div class="alert al-ok">
+    <div class="alert al-ok" id="cmo-alert">
       <span style="font-size:14px">✅</span>
-      <span><b>Pilot Week 1 of 8</b> · Jun 1–2, 2026 · Ward 4B/4C · 28 summaries processed</span>
+      <span id="cmo-alert-text">Loading pilot metrics…</span>
     </div>
 
     <!-- METRIC CARDS -->
-    <div class="metrics">
-      <div class="mc">
-        <div class="mc-val green">-71%</div>
-        <div class="mc-lbl">Documentation Time</div>
-        <div class="mc-sub">3.2h → 55 min avg</div>
-      </div>
-      <div class="mc">
-        <div class="mc-val">+17%</div>
-        <div class="mc-lbl">NABH Compliance Score</div>
-        <div class="mc-sub">71% → 88% average</div>
-      </div>
-      <div class="mc">
-        <div class="mc-val">22%</div>
-        <div class="mc-lbl">Cases with T1 Flags Auto-detected</div>
-        <div class="mc-sub">All resolved pre-sign</div>
-      </div>
-      <div class="mc">
-        <div class="mc-val">NPS 61</div>
-        <div class="mc-lbl">Attending Satisfaction</div>
-        <div class="mc-sub">96% would recommend</div>
-      </div>
+    <div class="metrics" id="cmo-metric-cards">
+      <div class="mc"><div class="mc-val">—</div><div class="mc-lbl">Documentation Time</div><div class="mc-sub">Loading…</div></div>
+      <div class="mc"><div class="mc-val">—</div><div class="mc-lbl">NABH Compliance Score</div><div class="mc-sub">Loading…</div></div>
+      <div class="mc"><div class="mc-val">—</div><div class="mc-lbl">Cases with T1 Flags Auto-detected</div><div class="mc-sub">Loading…</div></div>
+      <div class="mc"><div class="mc-val">—</div><div class="mc-lbl">Attending Satisfaction</div><div class="mc-sub">Loading…</div></div>
     </div>
 
     <!-- TWO COLUMN BELOW -->
@@ -183,61 +169,8 @@ tr:hover td{background:#fcfcfc}
                 <th>T2 Rate</th>
               </tr>
             </thead>
-            <tbody>
-              <tr>
-                <td>§1 Patient Identification</td>
-                <td style="color:var(--t3);font-weight:600">99.8%</td>
-                <td style="color:var(--muted)">0%</td>
-                <td style="color:var(--muted)">0.2%</td>
-              </tr>
-              <tr>
-                <td>§2 Chief Complaint</td>
-                <td style="color:var(--t3);font-weight:600">96.4%</td>
-                <td style="color:var(--muted)">0%</td>
-                <td style="color:var(--muted)">3.6%</td>
-              </tr>
-              <tr>
-                <td>§4 Clinical Examination</td>
-                <td style="color:var(--t3);font-weight:600">98.2%</td>
-                <td style="color:var(--muted)">0%</td>
-                <td style="color:var(--muted)">1.8%</td>
-              </tr>
-              <tr>
-                <td>§5 Investigations</td>
-                <td style="color:var(--t2);font-weight:600">89.3%</td>
-                <td style="color:var(--t1);font-weight:600">10.7%</td>
-                <td style="color:var(--muted)">14.2%</td>
-              </tr>
-              <tr>
-                <td>§6 Diagnosis</td>
-                <td style="color:var(--t2);font-weight:600">91.1%</td>
-                <td style="color:var(--muted)">8.9%</td>
-                <td style="color:var(--muted)">11.4%</td>
-              </tr>
-              <tr>
-                <td>§7 Medications</td>
-                <td style="color:var(--t2);font-weight:600">94.7%</td>
-                <td style="color:var(--muted)">5.3%</td>
-                <td style="color:var(--muted)">8.9%</td>
-              </tr>
-              <tr>
-                <td>§11 Discharge Condition</td>
-                <td style="color:var(--t2);font-weight:600">87.6%</td>
-                <td style="color:var(--t1);font-weight:600">12.4%</td>
-                <td style="color:var(--muted)">9.3%</td>
-              </tr>
-              <tr>
-                <td>§12 Discharge Meds</td>
-                <td style="color:var(--t2);font-weight:600">93.2%</td>
-                <td style="color:var(--muted)">6.8%</td>
-                <td style="color:var(--muted)">12.1%</td>
-              </tr>
-              <tr>
-                <td>§15 Complications</td>
-                <td style="color:var(--t1);font-weight:600">85.4%</td>
-                <td style="color:var(--t1);font-weight:600">14.6%</td>
-                <td style="color:var(--t2);font-weight:600">18.2%</td>
-              </tr>
+            <tbody id="cmo-section-body">
+              <tr><td colspan="4" class="muted" style="text-align:center;padding:20px">Loading…</td></tr>
             </tbody>
           </table>
         </div>
@@ -247,57 +180,15 @@ tr:hover td{background:#fcfcfc}
       <div>
         <div class="card" style="margin-bottom:14px">
           <div class="card-title">Rejection &amp; Resolution Stats</div>
-          <table class="kv-table">
-            <tr>
-              <td class="key">Total summaries signed</td>
-              <td class="val">28</td>
-            </tr>
-            <tr>
-              <td class="key">Rejections</td>
-              <td class="val">3</td>
-            </tr>
-            <tr>
-              <td class="key">Avg re-sign time</td>
-              <td class="val green">2h 14m</td>
-            </tr>
-            <tr>
-              <td class="key">PHI breaches</td>
-              <td class="val green">0</td>
-            </tr>
-            <tr>
-              <td class="key">DPDPA consent rate</td>
-              <td class="val green">100%</td>
-            </tr>
+          <table class="kv-table" id="cmo-rejection-stats">
+            <tr><td class="key">Loading…</td><td class="val"></td></tr>
           </table>
         </div>
 
         <div class="card">
           <div class="card-title">Baseline vs. Pilot</div>
-          <table class="bl-table">
-            <tr>
-              <td class="metric">Documentation time</td>
-              <td class="base">3.2 hours</td>
-              <td class="pilot">55 minutes</td>
-              <td class="delta" style="color:var(--t3)">-71%</td>
-            </tr>
-            <tr>
-              <td class="metric">NABH compliance</td>
-              <td class="base">71% avg</td>
-              <td class="pilot">88% avg</td>
-              <td class="delta" style="color:var(--t3)">+17%</td>
-            </tr>
-            <tr>
-              <td class="metric">T1 flag detection</td>
-              <td class="base">Manual review</td>
-              <td class="pilot">Auto-detected</td>
-              <td class="delta" style="color:var(--p)">100% catch rate</td>
-            </tr>
-            <tr>
-              <td class="metric">Re-admission risk flag</td>
-              <td class="base">Not flagged</td>
-              <td class="pilot">LLM flagged</td>
-              <td class="delta" style="color:var(--p)">New capability</td>
-            </tr>
+          <table class="bl-table" id="cmo-baseline-table">
+            <tr><td class="metric">Loading…</td><td class="base"></td><td class="pilot"></td><td class="delta"></td></tr>
           </table>
         </div>
       </div>
@@ -313,6 +204,113 @@ function doLogout() {
   window.location.href = '/';
 }
 
+function fmtMinutes(min) {
+  if (min === null || min === undefined) return '—';
+  if (min < 60) return `${min} min`;
+  const h = Math.floor(min / 60), m = Math.round(min % 60);
+  return m ? `${h}h ${m}m` : `${h}h`;
+}
+function fmtDelta(v, suffix) {
+  if (v === null || v === undefined) return '—';
+  return `${v > 0 ? '+' : ''}${v}${suffix || '%'}`;
+}
+function deltaColor(v, goodIsNegative) {
+  if (v === null || v === undefined) return 'var(--muted)';
+  const good = goodIsNegative ? v < 0 : v > 0;
+  return good ? 'var(--t3)' : (v === 0 ? 'var(--muted)' : 'var(--t1)');
+}
+function accColor(pct) {
+  if (pct >= 95) return 'var(--t3)';
+  if (pct >= 85) return 'var(--t2)';
+  return 'var(--t1)';
+}
+
+async function loadCmoMetrics() {
+  const API = window.FOQAL_API_BASE || `http://${location.hostname}:7015`;
+  try {
+    const res = await fetch(`${API}/api/cmo/metrics`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    renderCmoMetrics(data);
+  } catch (e) {
+    document.getElementById('cmo-alert-text').textContent = 'Could not load live metrics — showing unavailable state.';
+    document.getElementById('cmo-alert').classList.add('al-warn');
+  }
+}
+
+function renderCmoMetrics(data) {
+  const p = data.pilot, b = data.baseline, d = data.deltas;
+
+  document.getElementById('cmo-alert-text').innerHTML =
+    `<b>Live pilot metrics</b> · ${p.total_summaries} summaries processed · ${p.signed_count} signed off`;
+
+  document.getElementById('cmo-metric-cards').innerHTML = `
+    <div class="mc">
+      <div class="mc-val" style="color:${deltaColor(d.doc_time_pct, true)}">${fmtDelta(d.doc_time_pct)}</div>
+      <div class="mc-lbl">Documentation Time</div>
+      <div class="mc-sub">${fmtMinutes(b.doc_time_minutes)} → ${fmtMinutes(p.avg_doc_time_minutes)} avg</div>
+    </div>
+    <div class="mc">
+      <div class="mc-val" style="color:${deltaColor(d.nabh_pct_pts, false)}">${fmtDelta(d.nabh_pct_pts, ' pts')}</div>
+      <div class="mc-lbl">NABH Compliance Score</div>
+      <div class="mc-sub">${b.nabh_compliance_pct}% → ${p.nabh_compliance_pct != null ? p.nabh_compliance_pct + '%' : '—'} average</div>
+    </div>
+    <div class="mc">
+      <div class="mc-val">${p.t1_flag_rate_pct}%</div>
+      <div class="mc-lbl">Cases with T1 Flags Auto-detected</div>
+      <div class="mc-sub">Flagged pre-sign for review</div>
+    </div>
+    <div class="mc">
+      <div class="mc-val">${p.usability_total_ratings ? 'Avg ' + p.usability_avg_rating + '/5' : '—'}</div>
+      <div class="mc-lbl">Attending Satisfaction</div>
+      <div class="mc-sub">${p.usability_recommend_pct != null ? p.usability_recommend_pct + '% would recommend' : p.usability_total_ratings + ' ratings so far'}</div>
+    </div>`;
+
+  const sections = data.section_accuracy || [];
+  document.getElementById('cmo-section-body').innerHTML = sections.length
+    ? sections.map(s => `
+      <tr>
+        <td>${s.section_label}</td>
+        <td style="color:${accColor(s.accuracy_pct)};font-weight:600">${s.accuracy_pct}%</td>
+        <td style="color:${s.t1_rate_pct > 0 ? 'var(--t1)' : 'var(--muted)'};font-weight:${s.t1_rate_pct > 0 ? 600 : 400}">${s.t1_rate_pct}%</td>
+        <td style="color:${s.t2_rate_pct > 0 ? 'var(--t2)' : 'var(--muted)'};font-weight:${s.t2_rate_pct > 0 ? 600 : 400}">${s.t2_rate_pct}%</td>
+      </tr>`).join('')
+    : `<tr><td colspan="4" class="muted" style="text-align:center;padding:20px">No section-level errors logged yet.</td></tr>`;
+
+  document.getElementById('cmo-rejection-stats').innerHTML = `
+    <tr><td class="key">Total summaries signed</td><td class="val">${p.signed_count}</td></tr>
+    <tr><td class="key">Rejections</td><td class="val">${p.rejections}</td></tr>
+    <tr><td class="key">Avg re-sign time</td><td class="val green">${fmtMinutes(p.avg_resign_minutes)}</td></tr>
+    <tr><td class="key">PHI breaches</td><td class="val green">0 <span class="small muted">(not actively monitored)</span></td></tr>
+    <tr><td class="key">DPDPA consent rate</td><td class="val muted small">Not tracked server-side</td></tr>`;
+
+  document.getElementById('cmo-baseline-table').innerHTML = `
+    <tr>
+      <td class="metric">Documentation time</td>
+      <td class="base">${fmtMinutes(b.doc_time_minutes)}</td>
+      <td class="pilot">${fmtMinutes(p.avg_doc_time_minutes)}</td>
+      <td class="delta" style="color:${deltaColor(d.doc_time_pct, true)}">${fmtDelta(d.doc_time_pct)}</td>
+    </tr>
+    <tr>
+      <td class="metric">NABH compliance</td>
+      <td class="base">${b.nabh_compliance_pct}% avg</td>
+      <td class="pilot">${p.nabh_compliance_pct != null ? p.nabh_compliance_pct + '% avg' : '—'}</td>
+      <td class="delta" style="color:${deltaColor(d.nabh_pct_pts, false)}">${fmtDelta(d.nabh_pct_pts, ' pts')}</td>
+    </tr>
+    <tr>
+      <td class="metric">T1 flag detection</td>
+      <td class="base">Manual review</td>
+      <td class="pilot">Auto-detected</td>
+      <td class="delta" style="color:var(--p)">${p.t1_flag_rate_pct}% of cases</td>
+    </tr>
+    <tr>
+      <td class="metric">Re-admission risk flag</td>
+      <td class="base">Not flagged</td>
+      <td class="pilot">LLM flagged</td>
+      <td class="delta" style="color:var(--p)">New capability</td>
+    </tr>`;
+}
+
 (function init() {
   const token = sessionStorage.getItem('foqal_token');
   const user  = JSON.parse(sessionStorage.getItem('foqal_user') || '{}');
@@ -322,6 +320,7 @@ function doLogout() {
   }
   const nameEl = document.getElementById('cmo-name');
   if (nameEl && user.full_name) nameEl.textContent = user.full_name;
+  loadCmoMetrics();
 })();
 </script>
 </body>

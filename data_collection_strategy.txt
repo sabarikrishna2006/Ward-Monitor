@@ -1,0 +1,37 @@
+Data Collection & Preparation Strategy: Itemized Billing Mapping for DCM Cohort
+
+1. The Data Source Challenge
+- We need rich, day-by-day clinical timelines (which public billing datasets lack).
+- We need realistic financial costs (which clinical datasets like MIMIC-IV lack due to privacy).
+- We cannot randomly merge datasets at the patient level because of "Data Mismatch" (e.g., a broken leg patient receiving a chemotherapy bill).
+
+2. Our Solution: Itemized Procedure Mapping
+Since we are focusing specifically on the Dilated Cardiomyopathy (DCM) cohort, we will use MIMIC-IV for the comprehensive clinical timeline, and treat the Kaggle dataset as our "Hospital Charge Master" (Price List).
+
+3. The "Billing Aggregation" Strategy (Solving Data Bloat)
+MIMIC tracks millions of micro-events (every fluid drop, every vital sign). We cannot price each one individually. Instead, we map MIMIC tables into 4 standard Hospital Billing Buckets:
+
+Bucket A: The "Room & Board" Bucket (ICU Stays & Wards)
+- MIMIC Tables: `icustays`, `transfers`, `chartevents` (vitals), `inputevents` (fluids).
+- Strategy: We do NOT price vitals or fluids individually. If a patient is in the ICU (`icustays`), they are charged the daily ICU Rate (e.g., ₹15,000/day). This massive daily cost automatically bundles all nursing care, vitals, and basic physician orders for that day.
+
+Bucket B: The "Itemized Big-Ticket" Bucket (Procedures & Imaging)
+- MIMIC Tables: `procedures_icd`, `hcpcsevents`.
+- Strategy: Major events (Echocardiograms, MRIs, Cardiac Catheterization, Pacemaker implants) are explicitly mapped to Kaggle prices.
+
+Bucket C: The "Pharmacy & Labs" Bucket
+- MIMIC Tables: `prescriptions`, `labevents`, `microbiologyevents`.
+- Strategy: We group standard labs into a generic "Daily Lab Charge". We only create specific price mappings for the Top 20 most critical Cardiology medications (e.g., expensive beta-blockers or blood thinners).
+
+Bucket D: The "Baseline" Bucket (Diagnosis)
+- MIMIC Tables: `diagnoses_icd`.
+- Strategy: The primary diagnosis sets the PM-JAY package base rate.
+
+4. The Step-by-Step Mapping Process
+- Step 1 (Extract Timeline): Extract the daily sequence of the 4 buckets above for DCM patients in MIMIC-IV (using hadm_id).
+- Step 2 (Code Translation): Create Python mapping dictionaries to group complex MIMIC codes (ICD/HCPCS) into the broader Kaggle billing categories.
+- Step 3 (Daily Aggregation): For every day of the patient's stay, sum up the ICU/Ward rate, the specific procedures, and the labs.
+- Step 4 (Target Generation): This automatically generates a perfectly accurate, realistic daily cost trajectory and a "Final Real Cost" for every DCM patient.
+
+5. Why this proves ML maturity
+This mimics real-world "Fee-for-Service" and "Bundled" hospital billing. By aggregating noisy clinical data into structured financial buckets, we ensure our ML model learns mathematically sound cost trajectories without violating privacy laws.

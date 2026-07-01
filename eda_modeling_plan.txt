@@ -1,0 +1,20 @@
+EDA & Modeling Plan: Dynamic Cost Variance Prediction
+
+1. Exploratory Data Analysis (EDA) Strategy
+Before training the model, we need to understand what drives costs for Dilated Cardiomyopathy (DCM) patients. Our EDA will focus on:
+- Cost Distribution Analysis: Plot a histogram of the "Final Real Cost" across all DCM patients to identify expensive outliers.
+- The "Cost Drivers" Heatmap: A correlation matrix showing which clinical events (e.g., ICU days vs. Ward days, Cardiac MRIs vs. standard Labs) have the highest correlation with massive bill spikes.
+- Trajectory Plotting: A line chart showing the average cumulative cost day-by-day. We want to see exactly on which day (e.g., Day 3 or Day 4) the costs suddenly spike for patients who experience complications.
+- Variance Analysis: Plot the initial Day 0 estimated cost versus the Final Real Cost to prove that static estimates are currently failing the hospital.
+
+2. Machine Learning Modeling Strategy
+Since Gautam Sir specifically requested predicting "kya hua day 1 pe for day 2 pe", we cannot use a simple static model. We will use Sequential/Time-Series approaches:
+- Baseline Model (To prove a point): We will first train a basic Linear Regression using only Day 0 features (Age, Diagnosis). We will show that its predictions are terrible because it ignores the daily clinical timeline.
+- The Real Model (Rolling XGBoost / LightGBM): We will use gradient boosting trees with "Rolling Features". 
+  - Features at Day $t$: `cumulative_icu_days_so_far`, `procedures_done_today`, `total_meds_given`, `day_of_stay`.
+  - Every day, the model ingests the new daily features and outputs an updated prediction for the Final Cost.
+- Advanced Approach (Optional LSTM/RNN): If required, we can use a Long Short-Term Memory (LSTM) neural network, which is the industry standard for time-series medical sequences.
+
+3. Evaluation Metrics (How we prove it works to the PM)
+- MAE (Mean Absolute Error) in INR: We will show the PM exactly how much money our prediction is off by (e.g., "Our model predicts the final bill with an average error of only ₹2,000").
+- Day-Wise Convergence Curve: We will show a graph proving that as the patient's stay progresses (from Day 1 to Day 5), our model's prediction gets closer and closer to the actual final bill, eliminating surprise variances.
