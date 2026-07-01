@@ -1,5 +1,5 @@
 """
-Data Server — Port 7006 (local dev)
+Data Server — Port 7016 (local dev)
 =======================
 Cache-aside patient data layer:
   1. Check Cloud SQL active directory  (data_fetch_status = 'fetched')
@@ -775,7 +775,7 @@ async def prefetch_all_tabs(hadm_id: int):
     # no longer depends on billing.html's fire-and-forget chain. Idempotent: the
     # ward sync only flips status 'partial'/'fetching'/'pending' → 'fetched'.
     ews_synced = False
-    ward_base = os.environ.get("WARD_API_BASE", "http://localhost:7806")
+    ward_base = os.environ.get("WARD_API_BASE", "http://localhost:7816")
     try:
         import httpx
         async with httpx.AsyncClient(

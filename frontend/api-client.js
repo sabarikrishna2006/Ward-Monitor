@@ -1,12 +1,12 @@
 // API Client — split backend architecture
-// UI Server  (port 8001): auth, encounters CRUD, generate summary, settings
-// Data Server (port 8002): patient data, lazy tabs, MIMIC browse, caching
-// On server: data calls go through /data-proxy/ on port 8001 (8002 may be firewalled)
+// UI Server  (port 7015): auth, encounters CRUD, generate summary, settings
+// Data Server (port 7016): patient data, lazy tabs, MIMIC browse, caching
+// On server: data calls go through /data-proxy/ on port 7015 (7016 may be firewalled)
 
 const _local    = location.hostname === "localhost" || location.hostname === "127.0.0.1";
-const API_BASE  = (window.FOQAL_API_BASE)  || `http://${location.hostname}:7005`;
+const API_BASE  = (window.FOQAL_API_BASE)  || `http://${location.hostname}:7015`;
 const DATA_BASE = _local
-  ? ((window.FOQAL_DATA_BASE) || `http://${location.hostname}:7006`)
+  ? ((window.FOQAL_DATA_BASE) || `http://${location.hostname}:7016`)
   : `${API_BASE}/data-proxy`;
 // Expose for SPA screen scripts that can't import modules
 window.API_BASE  = API_BASE;

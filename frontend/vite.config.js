@@ -4,7 +4,7 @@ export default defineConfig({
   // No React plugin needed — we're using Babel standalone in the browser
   // Vite serves index.html and static assets as-is
   server: {
-    port: 5173,
+    port: 5183,
     open: true,
   },
   // Prevent Vite from trying to process the .jsx files as modules
