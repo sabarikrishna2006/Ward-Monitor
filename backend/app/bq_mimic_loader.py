@@ -21,7 +21,7 @@ log = logging.getLogger(__name__)
 # ── Configuration ─────────────────────────────────────────────────────────────
 _CLOUD_SQL_INSTANCE = os.getenv(
     "CLOUD_SQL_INSTANCE",
-    "healthcare-project-496207:asia-south1:healthcare-project-496207-instance"
+    "healthcare-project-496207:us-central1:foqal-healthcare-cloud-sql-db"
 )
 _DEFAULT_BQ_PROJECT = _CLOUD_SQL_INSTANCE.split(":")[0]
 

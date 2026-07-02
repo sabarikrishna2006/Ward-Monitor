@@ -11,9 +11,9 @@ os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "..", "..", "healthcare-project-db-creds.json"
 )
 
-INSTANCE = "healthcare-project-496207:asia-south1:healthcare-project-496207-instance"
+INSTANCE = "healthcare-project-496207:us-central1:foqal-healthcare-cloud-sql-db"
 DB_USER = "postgres"
-DB_PASS = "Vo(QNIe]S2rCg`.("
+DB_PASS = "foqalAnalyticsHealthcareDB2026"
 DB_NAME = "postgres"
 
 connector = Connector()

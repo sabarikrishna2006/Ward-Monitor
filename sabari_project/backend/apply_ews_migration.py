@@ -11,12 +11,12 @@ os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "..", "..", "healthcare-project-db-creds.json"
 )
 
-INSTANCE = "healthcare-project-496207:asia-south1:healthcare-project-496207-instance"
+INSTANCE = "healthcare-project-496207:us-central1:foqal-healthcare-cloud-sql-db"
 connector = Connector()
 
 def get_conn():
     return connector.connect(INSTANCE, "pg8000", user="postgres",
-                             password="Vo(QNIe]S2rCg`.(", db="postgres",
+                             password="foqalAnalyticsHealthcareDB2026", db="postgres",
                              ip_type=IPTypes.PUBLIC)
 
 engine = sqlalchemy.create_engine("postgresql+pg8000://", creator=get_conn)

@@ -1,7 +1,7 @@
 """
 Cloud SQL (PostgreSQL 18) connection pool.
 Uses cloud-sql-python-connector + pg8000 + SQLAlchemy.
-Instance: healthcare-project-496207:asia-south1:healthcare-project-496207-instance
+Instance: healthcare-project-496207:us-central1:foqal-healthcare-cloud-sql-db
 """
 import os
 from google.oauth2 import service_account
@@ -17,11 +17,11 @@ _CREDS_PATH   = os.getenv(
 )
 _INSTANCE     = os.getenv(
     "CLOUD_SQL_INSTANCE",
-    "healthcare-project-496207:asia-south1:healthcare-project-496207-instance"
+    "healthcare-project-496207:us-central1:foqal-healthcare-cloud-sql-db"
 )
 _DB_NAME      = os.getenv("CLOUD_SQL_DB",   "postgres")
 _DB_USER      = os.getenv("CLOUD_SQL_USER", "postgres")
-_DB_PASS      = os.getenv("CLOUD_SQL_PASS", "Vo(QNIe]S2rCg`.(")
+_DB_PASS      = os.getenv("CLOUD_SQL_PASS", "foqalAnalyticsHealthcareDB2026")
 
 # ── module-level singletons ───────────────────────────────────────────────────
 _connector: Connector | None = None
