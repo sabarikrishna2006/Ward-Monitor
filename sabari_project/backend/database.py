@@ -7,9 +7,9 @@ from sqlalchemy.orm import sessionmaker
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _CREDS_PATH = os.path.join(_HERE, "..", "..", "healthcare-project-db-creds.json")
 
-_INSTANCE = "healthcare-project-496207:us-central1:foqal-healthcare-cloud-sql-db"
+_INSTANCE = "healthcare-project-496207:asia-south1:healthcare-project-496207-instance"
 _DB_USER  = "postgres"
-_DB_PASS  = "foqalAnalyticsHealthcareDB2026"
+_DB_PASS  = "Vo(QNIe]S2rCg`.("
 _DB_NAME  = "postgres"
 
 _sa_credentials = service_account.Credentials.from_service_account_file(
