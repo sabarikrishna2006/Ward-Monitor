@@ -7,6 +7,7 @@ LLM validation is invoked only when the top embedding score is below a threshold
 """
 
 import os, json, time
+from concurrent.futures import ThreadPoolExecutor
 import pandas as pd
 import numpy as np
 from sentence_transformers import SentenceTransformer
@@ -30,6 +31,20 @@ GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]
 genai.configure(api_key=GEMINI_API_KEY)
 llm_flash = genai.GenerativeModel("gemini-flash-latest")
 llm_pro   = genai.GenerativeModel("gemini-pro-latest")
+
+# The SDK's request_options={"timeout": N} is not always honored (observed a real
+# hang that blocked the whole pipeline indefinitely on one item) — enforce a hard
+# timeout from our side via a worker thread so a stuck call can never block
+# progress past its retry budget.
+_llm_executor = ThreadPoolExecutor(max_workers=2)
+
+def _generate_with_hard_timeout(model, prompt, timeout=30):
+    fut = _llm_executor.submit(
+        model.generate_content, prompt,
+        generation_config={"temperature": 0.0, "response_mime_type": "application/json"},
+        request_options={"timeout": timeout},
+    )
+    return fut.result(timeout=timeout + 5)
 
 DL = r"c:\Users\ASUS\Downloads"
 VERSION   = config["versions"]["lab_mapping"]
@@ -152,7 +167,7 @@ def main():
             llm_json = {}
             for attempt in range(3):
                 try:
-                    r = llm_pro.generate_content(prompt, generation_config={"temperature":0.0,"response_mime_type":"application/json"}, request_options={"timeout": 30})
+                    r = _generate_with_hard_timeout(llm_pro, prompt, timeout=30)
                     llm_raw  = r.text
                     llm_json = json.loads(llm_raw)
                     break

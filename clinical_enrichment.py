@@ -180,14 +180,33 @@ def normalize(title: str, domain: str = "procedure") -> str:
 
 # ─── Cache helpers ─────────────────────────────────────────────────────────────
 def load_cache(path: str) -> dict:
-    if os.path.exists(path):
-        with open(path, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    return {}
+    if not os.path.exists(path):
+        return {}
+    with open(path, 'r', encoding='utf-8') as f:
+        raw = f.read()
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        # A prior process kill mid-write can truncate this file. Salvage
+        # every complete top-level entry instead of losing the whole cache.
+        idx = raw.rfind('\n  },\n')
+        if idx == -1:
+            print(f"   WARNING: {path} is corrupted and unrecoverable — starting with an empty cache")
+            return {}
+        repaired = raw[:idx] + '\n  }\n}\n'
+        data = json.loads(repaired)
+        print(f"   WARNING: {path} was truncated (likely a prior kill) — recovered {len(data)} entries, resaving repaired copy")
+        save_cache(path, data)
+        return data
 
 def save_cache(path: str, data: dict):
-    with open(path, 'w', encoding='utf-8') as f:
+    # Write to a temp file then atomically replace — a kill mid-write to the
+    # real path was leaving enrichment_cache.json truncated/corrupted, which
+    # crashes every subsequent restart's load_cache() with a JSONDecodeError.
+    tmp_path = path + ".tmp"
+    with open(tmp_path, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
+    os.replace(tmp_path, path)
 
 # ─── Resumable embedding ────────────────────────────────────────────────────────
 def embed_resumable(embedder, texts: list, cache_path: str,
