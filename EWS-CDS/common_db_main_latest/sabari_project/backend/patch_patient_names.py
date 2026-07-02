@@ -11,7 +11,7 @@ from google.cloud.sql.connector import Connector, IPTypes
 import sqlalchemy
 from sqlalchemy import text
 
-INSTANCE = "healthcare-project-496207:us-central1:foqal-healthcare-cloud-sql-db"
+INSTANCE = "healthcare-project-496207:asia-south1:healthcare-project-496207-instance"
 connector = Connector()
 def get_conn():
     return connector.connect(INSTANCE, "pg8000", user="postgres",

@@ -2,7 +2,7 @@
 -- EWS Schema Migration for Foqal CareOS
 -- Run ONCE against Cloud SQL (postgres database)
 -- Adds EWS columns to active_patients + creates 6 ews_* tables
--- Instance: healthcare-project-496207:us-central1:foqal-healthcare-cloud-sql-db
+-- Instance: healthcare-project-496207:asia-south1:healthcare-project-496207-instance
 -- =============================================================================
 
 -- ---------------------------------------------------------------------------
