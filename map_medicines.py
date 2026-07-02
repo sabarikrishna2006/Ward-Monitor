@@ -5,7 +5,6 @@ Uses shared clinical_enrichment.py engine.
 """
 
 import os, json, time
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as _FutTimeoutError
 import pandas as pd
 import numpy as np
 from sentence_transformers import SentenceTransformer
@@ -29,20 +28,6 @@ GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]
 genai.configure(api_key=GEMINI_API_KEY)
 llm_flash = genai.GenerativeModel("gemini-flash-latest")
 llm_pro   = genai.GenerativeModel("gemini-pro-latest")
-
-# The SDK's own request_options={"timeout": N} is not always honored (observed a
-# real hang past 30s on one item that blocked the whole pipeline indefinitely) —
-# enforce a hard timeout from our side via a worker thread so a stuck call can
-# never block progress past its retry budget.
-_llm_executor = ThreadPoolExecutor(max_workers=2)
-
-def _generate_with_hard_timeout(model, prompt, timeout=30):
-    fut = _llm_executor.submit(
-        model.generate_content, prompt,
-        generation_config={"temperature": 0.0, "response_mime_type": "application/json"},
-        request_options={"timeout": timeout},
-    )
-    return fut.result(timeout=timeout + 5)
 
 DL = r"c:\Users\ASUS\Downloads"
 VERSION   = config["versions"]["medicine_mapping"]
@@ -121,25 +106,8 @@ def main():
     print(f"\n[1] Embedding raw Indian medicine corpus ({len(indian_names)} medicines)...")
     print("    (No Gemini enrichment on corpus — too large. Raw names embedded directly.)")
     embedder = SentenceTransformer('ncbi/MedCPT-Query-Encoder')
-    norm_cache = os.path.join(DL, f"indian_med_emb_{VERSION}_normalized.npy")
-    if os.path.exists(norm_cache):
-        print("    loading pre-normalized embedding cache (skips the 254k-row renormalization)")
-        indian_emb_n = np.load(norm_cache)
-    else:
-        indian_emb = embed_resumable(embedder, indian_names, os.path.join(DL, f"indian_med_emb_{VERSION}.npy"), save_every=2000)
-        # Normalize in chunks rather than one 254k-row op, and cache the result —
-        # this single-shot division is the exact point the process kept getting
-        # killed at on every restart (repeatedly redone for no reason once the
-        # raw embeddings were already cached).
-        indian_emb_n = np.empty(indian_emb.shape, dtype=np.float32)
-        CHUNK = 20000
-        for _i in range(0, indian_emb.shape[0], CHUNK):
-            _j = min(_i + CHUNK, indian_emb.shape[0])
-            _block = np.asarray(indian_emb[_i:_j])
-            _norms = np.linalg.norm(_block, axis=1, keepdims=True)
-            _norms[_norms == 0] = 1.0
-            indian_emb_n[_i:_j] = _block / _norms
-        np.save(norm_cache, indian_emb_n)
+    indian_emb = embed_resumable(embedder, indian_names, os.path.join(DL, f"indian_med_emb_{VERSION}.npy"), save_every=2000)
+    indian_emb_n = indian_emb / np.linalg.norm(indian_emb, axis=1, keepdims=True)
 
     df_sample = df_meds
     print(f"\n[2] Enriching {len(df_sample)} MIMIC medications with Gemini Flash...")
@@ -178,7 +146,7 @@ def main():
         llm_raw, llm_json = "{}", {}
         for attempt in range(3):
             try:
-                r = _generate_with_hard_timeout(llm_pro, prompt, timeout=30)
+                r = llm_pro.generate_content(prompt, generation_config={"temperature":0.0,"response_mime_type":"application/json"}, request_options={"timeout": 30})
                 llm_raw  = r.text
                 llm_json = json.loads(llm_raw)
                 break
