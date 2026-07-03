@@ -228,7 +228,7 @@ window.submitFalseAlarm = async function(patientId, reason) {
       showToast('critical', 'Action Failed', { detail: 'Failed to mark false alarm — check backend.' });
     }
   } catch (e) { showToast('critical', 'Network Error', { detail: e.message }); }
-}
+};
 
 /* ─── HOSPITAL TOAST SYSTEM ─── */
 (function() {
