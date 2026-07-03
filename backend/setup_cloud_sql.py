@@ -21,8 +21,8 @@ def main():
 
     if not ping():
         print("\nERROR: Cannot reach Cloud SQL.")
-        print("  → Go to GCP Console → SQL → foqal-healthcare-cloud-sql-db")
-        print("    → Users → postgres → Edit → set password: Vo(QNIe]S2rCg`.(")
+        print("  → Go to GCP Console → SQL → healthcare-project-496207-instance")
+        print("    → Users → postgres → check CLOUD_SQL_PASS env var matches the set password")
         sys.exit(1)
     print("Connection : OK\n")
 

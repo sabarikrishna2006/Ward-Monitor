@@ -21,7 +21,7 @@ _INSTANCE     = os.getenv(
 )
 _DB_NAME      = os.getenv("CLOUD_SQL_DB",   "postgres")
 _DB_USER      = os.getenv("CLOUD_SQL_USER", "postgres")
-_DB_PASS      = os.getenv("CLOUD_SQL_PASS", "Vo(QNIe]S2rCg`.(")
+_DB_PASS      = os.environ["CLOUD_SQL_PASS"]
 
 # ── module-level singletons ───────────────────────────────────────────────────
 _connector: Connector | None = None

@@ -13,7 +13,7 @@ os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.path.join(
 
 INSTANCE = "healthcare-project-496207:asia-south1:healthcare-project-496207-instance"
 DB_USER = "postgres"
-DB_PASS = "Vo(QNIe]S2rCg`.("
+DB_PASS = os.environ["CLOUD_SQL_PASS"]
 DB_NAME = "postgres"
 
 connector = Connector()

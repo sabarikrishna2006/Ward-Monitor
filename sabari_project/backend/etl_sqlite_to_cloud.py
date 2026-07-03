@@ -26,7 +26,7 @@ connector = Connector()
 def get_conn():
     return connector.connect(
         INSTANCE, "pg8000",
-        user="postgres", password="Vo(QNIe]S2rCg`.(",
+        user="postgres", password=os.environ["CLOUD_SQL_PASS"],
         db="postgres", ip_type=IPTypes.PUBLIC,
     )
 

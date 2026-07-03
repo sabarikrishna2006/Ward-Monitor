@@ -16,7 +16,7 @@ connector = Connector()
 
 def get_conn():
     return connector.connect(INSTANCE, "pg8000", user="postgres",
-                             password="Vo(QNIe]S2rCg`.(", db="postgres",
+                             password=os.environ["CLOUD_SQL_PASS"], db="postgres",
                              ip_type=IPTypes.PUBLIC)
 
 engine = sqlalchemy.create_engine("postgresql+pg8000://", creator=get_conn)
