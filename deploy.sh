@@ -13,6 +13,17 @@ REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 ASHMIT_DIR="$REPO_DIR"            # Hospital_Efficiency root
 SABARI_DIR="$REPO_DIR/sabari_project"
 
+# ── Local secrets (never committed — see .env.secrets.example) ──────────────
+# Exported here so every screen session below inherits them automatically.
+if [ -f "$REPO_DIR/.env.secrets" ]; then
+    set -a
+    source "$REPO_DIR/.env.secrets"
+    set +a
+    echo "Loaded secrets from .env.secrets"
+else
+    echo "WARNING: $REPO_DIR/.env.secrets not found — CLOUD_SQL_PASS must already be exported in this shell, or the backends will crash-loop."
+fi
+
 echo ""
 echo "==================================================="
 echo " Foqal CareOS · Integrated Hospital — Full Deploy"
