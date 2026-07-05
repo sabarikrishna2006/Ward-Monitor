@@ -104,12 +104,18 @@ async function nav(id, param = null) {
       const res = await fetch(`/api/patients/${APP.currentPatientId}`);
       if (res.ok) APP.data.n1b = await res.json();
     } else if (id === 'n_vitals' && APP.currentPatientId) {
+      // Performance fix: serve patient info from ward cache if available, only fetch vitals/latest
+      const cached = (APP.data.n1?.patients || []).find(p => String(p.id) === String(APP.currentPatientId));
+      if (cached) {
+        APP.data.n_vitals_patient = { id: cached.id, name: cached.name, patient_code: cached.patient_code, ward: cached.ward };
+      } else {
+        try {
+          const pRes = await fetch(`/api/patients/${APP.currentPatientId}`);
+          if (pRes.ok) APP.data.n_vitals_patient = await pRes.json();
+        } catch { APP.data.n_vitals_patient = null; }
+      }
       try {
-        const [pRes, vRes] = await Promise.all([
-          fetch(`/api/patients/${APP.currentPatientId}`),
-          fetch(`/api/patients/${APP.currentPatientId}/vitals/latest`)
-        ]);
-        if (pRes.ok) APP.data.n_vitals_patient = await pRes.json();
+        const vRes = await fetch(`/api/patients/${APP.currentPatientId}/vitals/latest`);
         if (vRes.ok) APP.data.n_vitals_latest = await vRes.json();
         else APP.data.n_vitals_latest = null;
       } catch { APP.data.n_vitals_latest = null; }
@@ -134,6 +140,19 @@ async function nav(id, param = null) {
       if (await autoReescalateBreaches()) {
         const r = await fetch('/api/escalations');
         if (r.ok) APP.data.n5 = await r.json();
+      }
+    } else if (id === 'n6') {
+      // Load nurse list for handoff picker
+      const nRes = await fetch('/api/nurses-on-shift');
+      if (nRes.ok) APP.data.n6_nurses = (await nRes.json()).nurses || [];
+      // Reset handoff form state
+      APP.data.n6_form = { notes: '', tasks: {} };
+    } else if (id === 'n6b') {
+      // If no in-session handoff, try fetching latest from backend
+      if (!APP.lastHandoff) {
+        const ward = APP.user ? APP.user.ward : 'Ward 4B/4C';
+        const hRes = await fetch('/api/shift-handoffs/latest?ward=' + encodeURIComponent(ward));
+        if (hRes.ok) APP.lastHandoff = await hRes.json();
       }
     }
     APP.lastRefresh = new Date();
@@ -305,6 +324,8 @@ window.onFoqalLogin = function(user) {
     ward:  user.ward,
     empId: user.empId,
   };
+  // Pre-warm the ward-data cache so first dashboard load is fast
+  fetch('/api/ward-data/warmup').catch(() => {});
   // Route to the correct first screen by role (charge → escalation queue; nurses → dashboard)
   nav(user.role === 'charge' ? 'n5' : 'n1');
   startAutoRefresh();   // 15-min data refresh + SLA re-check
@@ -1070,10 +1091,10 @@ SCREENS.n2 = () => {
       </select>
     </div>
     <div class="fg"><label class="fl">Clinical Observations</label>
-      <textarea class="fi" id="esc-obs" rows="3" placeholder="Patient increasingly short of breath, oxygen requirement escalating. Responsive to voice but lethargic."></textarea>
+      <textarea class="fi" id="esc-obs" rows="3" placeholder="Enter patient symptoms and condition... (e.g., Shortness of breath, escalating O2 req)"></textarea>
     </div>
     <div class="fg"><label class="fl">Interventions Already Taken</label>
-      <textarea class="fi" id="esc-int" rows="2" placeholder="O₂ titrated. Head of bed elevated 45°."></textarea>
+      <textarea class="fi" id="esc-int" rows="2" placeholder="List actions taken prior to escalation..."></textarea>
     </div>
     <div style="display:flex;gap:8px;margin-top:12px">
       <button class="btn btn-sec" onclick="nav('n1')">Cancel</button>
@@ -1391,13 +1412,72 @@ SCREENS.n5b = () => `
   </div>
 </div>`;
 
-/* ── N6 — SHIFT HANDOFF ─────────────────────────────────────── */
+/* ── N6 — SHIFT HANDOFF (live ward data + real nurse list) ────────── */
 SCREENS.n6 = () => {
   const nurseName = APP.user ? APP.user.name : 'Nurse';
-  const timeStr = new Date().toLocaleString('en-IN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short', year: 'numeric' });
+  const shiftLabel = APP.user ? APP.user.shift || 'Day' : 'Day';
+  const ward       = APP.user ? APP.user.ward || 'Ward 4B/4C' : 'Ward 4B/4C';
+  const timeStr    = new Date().toLocaleString('en-IN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short', year: 'numeric' });
+
+  // Live patients from ward cache
+  const patients = APP.data.n1?.patients || [];
+  const critPts  = patients.filter(p => p.status === 'critical' || p.status === 'warning');
+  const allPts   = patients.length > 0 ? patients : null;
+
+  // Live nurse list from API (loaded in nav() when navigating to 'n6')
+  const nurseList = APP.data.n6_nurses || [];
+  const nurseOpts = nurseList.length > 0
+    ? nurseList.map(n => `<option value="${n.name}">${n.name}${n.shift ? ' (' + n.shift + ' Shift)' : ''}</option>`).join('')
+    : '<option value="">Loading nurses…</option>';
+
+  // Auto-generate pending tasks from critical/warning patients
+  const autoPendingTasks = critPts.map(p =>
+    `<div class="check-row"><input type="checkbox" id="task-${p.id}"> <b>${p.patient_code || p.id}</b> ${p.name ? '— ' + p.name + ':' : ':'} ${p.status === 'critical' ? '⚠ CRITICAL — continuous monitoring' : 'NEWS2 ' + p.news2 + ' — monitor closely'}</div>`
+  ).join('');
+
+  // Patient summary table (real data)
+  const ptRows = allPts
+    ? allPts.slice(0, 10).map(p => {
+        const scoreClass = p.news2 >= 7 ? 'bd-t1' : p.news2 >= 5 ? 'bd-t2' : 'bd-t3';
+        const note = p.status === 'critical' ? '⚠ Critical — requires handoff attention'
+                   : p.status === 'warning'  ? 'Elevated — watch overnight'
+                   : p.status === 'stale'    ? 'Vitals overdue — check on arrival'
+                   : 'Stable';
+        return `<tr><td><b>${p.patient_code || p.id}</b>${p.name ? ' ' + p.name.split(' ').slice(0,2).join(' ') : ''}</td><td><span class="bd ${scoreClass}" style="min-width:28px;justify-content:center">${p.news2 ?? '--'}</span></td><td class="muted small">${note}</td></tr>`;
+      }).join('')
+    : '<tr><td colspan="3" class="muted small">No patients in ward — login to dashboard first</td></tr>';
+
+  // Submit handler
+  window.submitHandoff = async function() {
+    const incoming = document.getElementById('ho-incoming')?.value || '';
+    if (!incoming) { showToast('warning', 'Select incoming nurse', { detail: 'Please select the incoming nurse before completing handoff.' }); return; }
+    const notes   = document.getElementById('ho-notes')?.value || '';
+    const tasks   = Array.from(document.querySelectorAll('.n6-task-check')).map(cb => ({ id: cb.dataset.taskId, label: cb.parentElement?.textContent?.trim() || '', checked: cb.checked }));
+    const btn     = document.getElementById('ho-submit-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+    try {
+      const res = await fetch('/api/shift-handoffs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ outgoingNurse: nurseName, incomingNurse: incoming, ward, shift: shiftLabel, notes, pendingTasks: tasks })
+      });
+      if (res.ok) {
+        APP.lastHandoff = await res.json();
+        showToast('success', 'Handoff Complete', { notified: incoming, detail: 'Shift handoff logged and persisted.' });
+        setTimeout(() => nav('n6b'), 1200);
+      } else {
+        if (btn) { btn.disabled = false; btn.textContent = 'Complete Handoff'; }
+        showToast('warning', 'Handoff Save Failed', { detail: 'Backend returned an error — please try again.' });
+      }
+    } catch (e) {
+      if (btn) { btn.disabled = false; btn.textContent = 'Complete Handoff'; }
+      showToast('critical', 'Network Error', { detail: e.message });
+    }
+  };
+
   return `
 <div class="bc"><span class="bc-link" onclick="nav('n1')">NEWS2 Dashboard</span><span class="bc-sep">/</span><span>Shift Handoff</span></div>
-<div class="sh"><h1 class="sh-title">Shift Handoff — Ward 4B/4C</h1></div>
+<div class="sh"><h1 class="sh-title">Shift Handoff — ${ward}</h1></div>
 
 <div class="grid2" style="margin-bottom:12px">
   <div class="card">
@@ -1407,50 +1487,68 @@ SCREENS.n6 = () => {
         <input class="fi" value="${nurseName}" readonly style="background:var(--surf)">
       </div>
       <div class="fg"><label class="fl">Shift</label>
-        <input class="fi" value="Day Shift" readonly style="background:var(--surf)">
+        <input class="fi" value="${shiftLabel} Shift" readonly style="background:var(--surf)">
       </div>
     </div>
-    <div class="fg"><label class="fl">Incoming Nurse</label>
-      <select class="fi"><option>Nurse Prathima M (Night Shift)</option></select>
+    <div class="fg"><label class="fl">Incoming Nurse <span style="color:var(--t1)">*</span></label>
+      <select class="fi" id="ho-incoming">
+        <option value="">— select incoming nurse —</option>
+        ${nurseOpts}
+      </select>
     </div>
     <div class="fg"><label class="fl">Handoff Time</label>
       <input class="fi" value="${timeStr}" readonly style="background:var(--surf)">
     </div>
+    <div class="fg"><label class="fl">Ward</label>
+      <input class="fi" value="${ward}" readonly style="background:var(--surf)">
+    </div>
   </div>
   <div class="card">
-    <div class="card-title">Patient Summary</div>
+    <div class="card-title">Patient Summary (${allPts ? allPts.length : 0} patients)</div>
     <div class="tw" style="border:none"><table>
       <thead><tr><th>Patient</th><th>NEWS2</th><th>Priority Note</th></tr></thead>
-      <tbody>
-        <tr class="row-warn"><td><b>PT-24-0092</b> Priya Sharma</td><td><span class="n2s med">3</span></td><td>Escalation resolved 15:10. Watch overnight.</td></tr>
-        <tr><td><b>PT-24-0087</b> Rajesh Kumar</td><td><span class="n2s med">4</span></td><td>Stable. Discharge expected tomorrow.</td></tr>
-        <tr><td><b>PT-24-0103</b> Arun Verma</td><td><span class="n2s med">6</span></td><td>Still elevated — Q2h monitoring.</td></tr>
-        <tr><td><b>PT-24-0095</b> Mohan Singh</td><td><span class="n2s lo">1</span></td><td>Stable for discharge tomorrow.</td></tr>
-      </tbody>
+      <tbody>${ptRows}</tbody>
     </table></div>
   </div>
 </div>
 
 <div class="card">
-  <div class="card-title">Pending Tasks for Night Shift</div>
-  <div class="check-row"><input type="checkbox"> PT-24-0103: Vitals every 2h per doctor order</div>
-  <div class="check-row"><input type="checkbox"> PT-24-0087: IV Furosemide dose at 22:00</div>
-  <div class="check-row"><input type="checkbox"> PT-24-0092: INR result review (lab report at 22:00)</div>
-  <div class="check-row"><input type="checkbox"> All patients: NEWS2 entry by 23:00</div>
-  <div class="fg" style="margin-top:12px"><label class="fl">Additional Handoff Notes</label>
-    <textarea class="fi" rows="3">PT-24-0092 family present overnight. Dr. Sharma on call — pager 2201. Active Drug-Lab T1 flag for PT-24-0092 — see Drug-Lab tab.</textarea>
+  <div class="card-title">Pending Tasks for Incoming Shift</div>
+  ${autoPendingTasks || '<div class="muted small">No critical/warning patients — routine handoff.</div>'}
+  <div style="margin-top:8px">
+    <div class="check-row"><input type="checkbox" class="n6-task-check" data-task-id="all-news2"> All patients: NEWS2 vitals entry before ${new Date().getHours() >= 20 ? '23:00' : '20:00'}</div>
+  </div>
+  <div class="fg" style="margin-top:12px"><label class="fl">Handoff Notes</label>
+    <textarea class="fi" id="ho-notes" rows="3" placeholder="Doctor on call, pending labs, family notes, any ongoing concerns…"></textarea>
   </div>
   <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
     <button class="btn btn-sec" onclick="nav('n1')">Cancel</button>
-    <button class="btn btn-pri" onclick="showToast('success','Shift Handoff Complete',{notified:(document.getElementById('ho-incoming')?.value||APP.user?.name||'Incoming Nurse'),detail:'Handoff logged — incoming nurse has acknowledged receipt.'});nav('n6b')">Complete Handoff</button>
+    <button class="btn btn-pri" id="ho-submit-btn" onclick="submitHandoff()">Complete Handoff</button>
   </div>
 </div>`;
 };
 
-/* ── N6b — HANDOFF COMPLETE ─────────────────────────────────── */
+/* ── N6b — HANDOFF COMPLETE (reads from APP.lastHandoff or backend) ── */
 SCREENS.n6b = () => {
-  const nurseName = APP.user ? APP.user.name : 'Nurse';
-  const timeStr = new Date().toLocaleString('en-IN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short', year: 'numeric' });
+  const ho = APP.lastHandoff;
+
+  // Guard: if navigated directly with no active handoff
+  if (!ho) {
+    return `
+<div class="bc"><span class="bc-link" onclick="nav('n6')">Shift Handoff</span><span class="bc-sep">/</span><span>Complete</span></div>
+<div class="sh"><h1 class="sh-title">Handoff Complete</h1></div>
+<div class="card" style="max-width:440px;margin:0 auto;text-align:center;padding:36px">
+  <div style="font-size:44px;margin-bottom:14px">⚠️</div>
+  <div style="font-size:16px;font-weight:700;margin-bottom:12px">No Active Handoff</div>
+  <div class="muted small" style="margin-bottom:20px">No handoff has been completed in this session. Start a new handoff from the Shift Handoff screen.</div>
+  <button class="btn btn-pri" style="width:100%;justify-content:center" onclick="nav('n6')">Go to Shift Handoff</button>
+</div>`;
+  }
+
+  const timeStr = ho.createdAt
+    ? new Date(ho.createdAt).toLocaleString('en-IN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short', year: 'numeric' })
+    : new Date().toLocaleString('en-IN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short', year: 'numeric' });
+
   return `
 <div class="bc"><span class="bc-link" onclick="nav('n6')">Shift Handoff</span><span class="bc-sep">/</span><span>Complete</span></div>
 <div class="sh"><h1 class="sh-title">Shift Handoff Complete</h1></div>
@@ -1458,15 +1556,19 @@ SCREENS.n6b = () => {
   <div style="font-size:44px;margin-bottom:14px">🤝</div>
   <div style="font-size:16px;font-weight:800;color:var(--t3);margin-bottom:16px">Handoff Complete</div>
   <div class="tw" style="text-align:left;margin-bottom:20px"><table><tbody>
-    <tr><td class="muted">Outgoing</td><td class="bold">${nurseName}</td></tr>
-    <tr><td class="muted">Incoming</td><td class="bold">Nurse Prathima M</td></tr>
+    <tr><td class="muted">Outgoing</td><td class="bold">${ho.outgoingNurse}</td></tr>
+    <tr><td class="muted">Incoming</td><td class="bold">${ho.incomingNurse}</td></tr>
+    <tr><td class="muted">Ward</td><td class="mono">${ho.ward || 'Ward 4B/4C'}</td></tr>
     <tr><td class="muted">Shift end</td><td class="mono">${timeStr}</td></tr>
-    <tr><td class="muted">Reference</td><td class="mono">HO-4B-${new Date().getTime().toString().slice(-6)}</td></tr>
-    <tr><td class="muted">Acknowledged</td><td style="color:var(--t3)">✓ Nurse Prathima M</td></tr>
+    <tr><td class="muted">Reference</td><td class="mono">${ho.referenceId}</td></tr>
+    <tr><td class="muted">Acknowledged</td><td style="color:var(--t3)">✓ ${ho.incomingNurse}</td></tr>
   </tbody></table></div>
-  <button class="btn btn-pri" style="width:100%;justify-content:center" onclick="nav('n1')">← Return to Dashboard</button>
+  ${ho.notes ? `<div class="alert al-info" style="text-align:left;margin-bottom:16px"><b>Notes handed over:</b><br>${ho.notes}</div>` : ''}
+  <button class="btn btn-pri" style="width:100%;justify-content:center" onclick="APP.lastHandoff=null;nav('n1')">← Return to Dashboard</button>
 </div>`;
 };
+
+
 
 /* ══════════════════════════════════════════════════════════════
    DRUG-LAB SCREENS
@@ -2012,8 +2114,23 @@ SCREENS['n_demo_replay'] = function() {
     '<button class="btn ' + (playing ? 'btn-danger' : 'btn-pri') + '" onclick="_replayTogglePlay(2000)">' + (playing ? '⏸ Pause' : '▶ Play (2s/frame)') + '</button>' +
     '<button class="btn btn-sec" onclick="_replayTogglePlay(800)">⚡ Fast</button>' +
     '<button class="btn btn-sec" onclick="_replayStep(1)" ' + (frame_i === frames.length - 1 ? 'disabled' : '') + '>Next →</button>' +
+    '<button class="btn btn-danger" style="margin-left:12px" onclick="_injectCritical(' + pt.hadm_id + ')">⚡ Inject Critical Vitals</button>' +
     '<span class="muted small" style="margin-left:auto">Frame ' + (frame_i + 1) + ' of ' + frames.length + ' · ' + (frame.vital_count || 0) + ' vitals</span>' +
     '</div>';
+
+  window._injectCritical = async function(hadmId) {
+    if(!confirm("Inject synthetic critical vitals to trigger a NEWS2 9 alert for this patient?")) return;
+    try {
+      const res = await fetch('/api/patients/' + hadmId + '/vitals', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ spo2:84, resp_rate:32, heart_rate:138, sbp:82, dbp:50, temperature:39.1, consciousness:'V', air_or_oxygen:'Oxygen' })
+      });
+      if(res.ok) {
+        showToast('critical', 'Critical Vitals Injected', {detail: 'NEWS2 9 triggered. Refreshing data...'});
+        setTimeout(() => nav('n1'), 1500);
+      }
+    } catch(e) { showToast('critical', 'Error', {detail: e.message}); }
+  };
 
   return '<div class="bc"><span>Demo</span><span class="bc-sep">/</span><span>Patient Arc Replay</span></div>' +
     '<div class="sh"><h1 class="sh-title">Patient Arc Replay</h1>' +

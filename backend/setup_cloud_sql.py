@@ -22,7 +22,11 @@ def main():
     if not ping():
         print("\nERROR: Cannot reach Cloud SQL.")
         print("  → Go to GCP Console → SQL → healthcare-project-496207-instance")
+<<<<<<< HEAD
         print("    → Users → postgres → check CLOUD_SQL_PASS env var matches the set password")
+=======
+        print("    → Users → postgres → Edit → set password: Foqal@Healthcare2024")
+>>>>>>> 4358b63 (Fix N2 escalation placeholders and add demo inject vitals)
         sys.exit(1)
     print("Connection : OK\n")
 

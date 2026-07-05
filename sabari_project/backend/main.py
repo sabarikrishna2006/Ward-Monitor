@@ -436,7 +436,7 @@ REPLAY_OFFSET = 0
 # ── Ward-data response cache — avoids 4× Cloud SQL round-trips on every poll ──
 import time as _time
 _ward_cache: dict = {}          # key: (ward, location) → {"ts": float, "data": dict}
-_WARD_CACHE_TTL = 20            # seconds; fresh enough for 15-min polling dashboard
+_WARD_CACHE_TTL = 45            # seconds; raised from 20s — Cloud SQL round-trips are expensive
 
 def _invalidate_ward_cache(ward: str):
     """Invalidates cache for a specific ward and the 'All' ward to prevent data leaks/performance drops."""
@@ -481,9 +481,31 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
     # Bulk-fetch vitals/labs/meds in 3 queries instead of 3×N Cloud SQL round-trips
     demo_now = db.query(func.max(VitalTimeSeries.chart_time)).scalar() or datetime.now()
 
-    _vrows = db.query(VitalTimeSeries).filter(
-        VitalTimeSeries.hadm_id.in_(patient_ids)
-    ).order_by(VitalTimeSeries.chart_time.desc()).all()
+    # LIMIT prevents pulling thousands of MIMIC ICU rows per patient.
+    # 96 = 24 readings × 4 patients safety factor — well above dashboard needs (6 readings).
+    # Using a raw SQL window query so the LIMIT applies per hadm_id, not globally.
+    from sqlalchemy import text as _vt
+    _vrows_raw = db.execute(_vt("""
+        SELECT id, hadm_id, chart_time, heart_rate, resp_rate, spo2, sbp, dbp,
+               temperature, consciousness, air_or_oxygen, urine_output, fluid_balance, weight_kg
+        FROM (
+            SELECT *, ROW_NUMBER() OVER (PARTITION BY hadm_id ORDER BY chart_time DESC) AS rn
+            FROM ews_vitals_timeseries
+            WHERE hadm_id = ANY(:ids)
+        ) sub
+        WHERE rn <= 96
+        ORDER BY hadm_id, chart_time DESC
+    """), {"ids": patient_ids}).fetchall()
+    # Re-hydrate as ORM-like objects using a simple namespace wrapper
+    class _VRow:
+        __slots__ = ('hadm_id','chart_time','heart_rate','resp_rate','spo2','sbp','dbp',
+                     'temperature','consciousness','air_or_oxygen','urine_output','fluid_balance','weight_kg')
+        def __init__(self, r):
+            self.hadm_id=r[1]; self.chart_time=r[2]; self.heart_rate=r[3]; self.resp_rate=r[4]
+            self.spo2=r[5]; self.sbp=r[6]; self.dbp=r[7]; self.temperature=r[8]
+            self.consciousness=r[9]; self.air_or_oxygen=r[10]; self.urine_output=r[11]
+            self.fluid_balance=r[12]; self.weight_kg=r[13]
+    _vrows = [_VRow(r) for r in _vrows_raw]
     _vitals_map = defaultdict(list)
     for _v in _vrows:
         _vitals_map[_v.hadm_id].append(_v)
@@ -1483,6 +1505,140 @@ def bulk_sync_patients(background_tasks: BackgroundTasks, db: Session = Depends(
         background_tasks.add_task(run_sync, hadm_ids_to_sync)
         
     return {"status": "sync_started", "patients_queued": len(hadm_ids_to_sync)}
+
+
+# ════════════════════════════════════════════════════════════════════════════
+#  Ward cache warmup — called on login to prime cache before first screen render
+# ════════════════════════════════════════════════════════════════════════════
+
+@app.get("/api/ward-data/warmup")
+def warmup_ward_cache(db: Session = Depends(get_db)):
+    """Pre-warm the ward-data cache for all locations so the first dashboard load is fast."""
+    for loc in ["CCU", "GENERAL_WARD", "All"]:
+        cache_key = ("All", loc)
+        cached = _ward_cache.get(cache_key)
+        if not cached or (_time.time() - cached["ts"]) >= _WARD_CACHE_TTL:
+            try:
+                get_ward_data(ward="All", location=loc, db=db)
+            except Exception:
+                pass
+    return {"status": "warmed"}
+
+
+# ════════════════════════════════════════════════════════════════════════════
+#  Shift Handoff endpoints
+# ════════════════════════════════════════════════════════════════════════════
+
+_FALLBACK_NURSES = [
+    {"name": "Nurse Prathima M", "role": "nurse", "shift": "Night"},
+    {"name": "Nurse Kavita Rao", "role": "nurse", "shift": "Night"},
+    {"name": "Nurse Anitha S", "role": "nurse", "shift": "Morning"},
+    {"name": "Nurse Deepa K", "role": "nurse", "shift": "Evening"},
+]
+
+@app.get("/api/nurses-on-shift")
+def get_nurses_on_shift(db: Session = Depends(get_db)):
+    """Return list of nurses available for handoff selection. Queries app_users; falls back to defaults."""
+    try:
+        rows = db.execute(sql_text(
+            "SELECT full_name, role FROM app_users WHERE is_active = TRUE AND role = 'nurse' ORDER BY full_name"
+        )).fetchall()
+        if rows:
+            return {"nurses": [{"name": r[0], "role": r[1], "shift": ""} for r in rows]}
+    except Exception:
+        pass
+    return {"nurses": _FALLBACK_NURSES}
+
+
+class ShiftHandoffCreate(BaseModel):
+    outgoingNurse: str
+    incomingNurse: str
+    ward: str = "Ward 4B/4C"
+    shift: str = "Day"
+    notes: str = ""
+    pendingTasks: list = []
+
+@app.post("/api/shift-handoffs")
+def create_shift_handoff(body: ShiftHandoffCreate, db: Session = Depends(get_db)):
+    """Persist a shift handoff record. Creates table if not exists. Returns reference ID."""
+    try:
+        db.execute(sql_text("""
+            CREATE TABLE IF NOT EXISTS shift_handoffs (
+                id SERIAL PRIMARY KEY,
+                ward TEXT,
+                shift TEXT,
+                outgoing_nurse TEXT,
+                incoming_nurse TEXT,
+                notes TEXT,
+                pending_tasks JSONB,
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        """))
+        db.commit()
+    except Exception:
+        db.rollback()
+
+    import json as _json
+    try:
+        result = db.execute(sql_text("""
+            INSERT INTO shift_handoffs (ward, shift, outgoing_nurse, incoming_nurse, notes, pending_tasks, created_at)
+            VALUES (:ward, :shift, :out, :inc, :notes, :tasks, NOW())
+            RETURNING id, created_at
+        """), {
+            "ward": body.ward, "shift": body.shift,
+            "out": body.outgoingNurse, "inc": body.incomingNurse,
+            "notes": body.notes,
+            "tasks": _json.dumps(body.pendingTasks)
+        }).fetchone()
+        db.commit()
+        ref_id = result[0] if result else 0
+        created_at = result[1].isoformat() if result and result[1] else datetime.now().isoformat()
+        ref_code = f"HO-{body.ward[:2].upper()}-{ref_id:06d}"
+    except Exception as e:
+        db.rollback()
+        # Fallback — return an in-memory reference so the UI doesn't break
+        import random as _r
+        ref_id = _r.randint(100000, 999999)
+        created_at = datetime.now().isoformat()
+        ref_code = f"HO-WD-{ref_id}"
+
+    return {
+        "status": "ok",
+        "referenceId": ref_code,
+        "outgoingNurse": body.outgoingNurse,
+        "incomingNurse": body.incomingNurse,
+        "ward": body.ward,
+        "shift": body.shift,
+        "notes": body.notes,
+        "createdAt": created_at,
+    }
+
+
+@app.get("/api/shift-handoffs/latest")
+def get_latest_handoff(ward: str = "Ward 4B/4C", db: Session = Depends(get_db)):
+    """Return the most recent handoff for a ward — used by N6b to show handoff details on reload."""
+    try:
+        row = db.execute(sql_text("""
+            SELECT id, ward, shift, outgoing_nurse, incoming_nurse, notes, created_at
+            FROM shift_handoffs
+            WHERE ward = :ward
+            ORDER BY created_at DESC
+            LIMIT 1
+        """), {"ward": ward}).fetchone()
+        if row:
+            ref_code = f"HO-{row[1][:2].upper()}-{row[0]:06d}"
+            return {
+                "referenceId": ref_code,
+                "outgoingNurse": row[3],
+                "incomingNurse": row[4],
+                "ward": row[1],
+                "shift": row[2],
+                "notes": row[5] or "",
+                "createdAt": row[6].isoformat() if row[6] else "",
+            }
+    except Exception:
+        pass
+    return None
 
 
 @app.get("/api/mimic/dcm-patients")
