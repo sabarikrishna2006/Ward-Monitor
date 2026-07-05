@@ -148,22 +148,40 @@ def _sync_vitals(hadm_id: int, db: Session) -> int:
         import random as _rnd
         _rnd.seed(hadm_id)
         now = datetime.now()
+        # Distribute patients across NEWS2 levels so demo shows full acuity spectrum:
+        # hadm_id % 3 == 0  → stable (NEWS2 0-2)
+        # hadm_id % 3 == 1  → warning (NEWS2 5-6)
+        # hadm_id % 3 == 2  → critical (NEWS2 ≥7)
+        level = hadm_id % 3
+        if level == 0:
+            # Stable patient
+            ranges = dict(hr=(62,78), rr=(13,17), spo2=(96,99), sbp=(115,130), dbp=(68,82), temp=(36.5,37.2))
+            avpu = 'A'; o2 = 'Air'
+        elif level == 1:
+            # Warning patient (NEWS2 5-6: elevated RR, slightly low SpO2, elevated HR)
+            ranges = dict(hr=(101,115), rr=(21,24), spo2=(93,95), sbp=(100,112), dbp=(62,72), temp=(37.8,38.4))
+            avpu = 'A'; o2 = 'Oxygen'
+        else:
+            # Critical patient (NEWS2 ≧7: very low SpO2, high RR, high HR, low BP)
+            ranges = dict(hr=(121,140), rr=(25,30), spo2=(86,91), sbp=(82,94), dbp=(52,62), temp=(38.5,39.5))
+            avpu = 'V'; o2 = 'Oxygen'
         for i in range(12):
             ct = now - timedelta(hours=i)
             db.execute(sql_text("""
                 INSERT INTO ews_vitals_timeseries
                     (hadm_id, chart_time, heart_rate, resp_rate, spo2, sbp, dbp,
                      temperature, consciousness, air_or_oxygen)
-                VALUES (:h, :t, :hr, :rr, :spo2, :sbp, :dbp, :temp, 'A', 'Air')
+                VALUES (:h, :t, :hr, :rr, :spo2, :sbp, :dbp, :temp, :avpu, :o2)
                 ON CONFLICT (hadm_id, chart_time) DO NOTHING
             """), {
                 "h":    hadm_id, "t": ct,
-                "hr":   round(_rnd.uniform(62, 78), 1),
-                "rr":   round(_rnd.uniform(13, 17), 1),
-                "spo2": round(_rnd.uniform(96, 99), 1),
-                "sbp":  round(_rnd.uniform(110, 130), 1),
-                "dbp":  round(_rnd.uniform(65, 80), 1),
-                "temp": round(_rnd.uniform(36.5, 37.2), 1),
+                "hr":   round(_rnd.uniform(*ranges['hr']), 1),
+                "rr":   round(_rnd.uniform(*ranges['rr']), 1),
+                "spo2": round(_rnd.uniform(*ranges['spo2']), 1),
+                "sbp":  round(_rnd.uniform(*ranges['sbp']), 1),
+                "dbp":  round(_rnd.uniform(*ranges['dbp']), 1),
+                "temp": round(_rnd.uniform(*ranges['temp']), 1),
+                "avpu": avpu, "o2": o2,
             })
         db.commit()
         return 12
@@ -388,6 +406,52 @@ def _sync_meds(hadm_id: int, db: Session) -> int:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+#  Diagnosis sync — populates diagnosis_short from MIMIC ICD codes when NULL
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _sync_diagnosis(hadm_id: int, db: Session) -> int:
+    """If active_patients.diagnosis_short is NULL, try to fill it from ap_diagnoses/ap_admissions."""
+    existing = db.execute(sql_text(
+        "SELECT diagnosis_short FROM active_patients WHERE hadm_id = :h"
+    ), {"h": hadm_id}).fetchone()
+    if existing and existing[0]:  # already populated — skip
+        return 0
+
+    # Try ap_diagnoses first (ICD codes with text descriptions)
+    try:
+        diag_row = db.execute(sql_text("""
+            SELECT long_title FROM ap_diagnoses
+            WHERE hadm_id = :h AND long_title IS NOT NULL
+            ORDER BY seq_num ASC
+            LIMIT 1
+        """), {"h": hadm_id}).fetchone()
+        if diag_row and diag_row[0]:
+            db.execute(sql_text(
+                "UPDATE active_patients SET diagnosis_short = :d WHERE hadm_id = :h AND diagnosis_short IS NULL"
+            ), {"h": hadm_id, "d": diag_row[0][:120]})
+            db.commit()
+            return 1
+    except Exception:
+        pass
+
+    # Fallback: try ap_admissions.diagnosis
+    try:
+        adm_row = db.execute(sql_text(
+            "SELECT diagnosis FROM ap_admissions WHERE hadm_id = :h LIMIT 1"
+        ), {"h": hadm_id}).fetchone()
+        if adm_row and adm_row[0]:
+            db.execute(sql_text(
+                "UPDATE active_patients SET diagnosis_short = :d WHERE hadm_id = :h AND diagnosis_short IS NULL"
+            ), {"h": hadm_id, "d": adm_row[0][:120]})
+            db.commit()
+            return 1
+    except Exception:
+        pass
+
+    return 0
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 #  Orchestrator
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -410,6 +474,7 @@ def sync_patient_from_mimic(hadm_id: int, db: Session) -> dict:
     urine_updated  = _sync_urine(hadm_id, db)
     labs_inserted  = _sync_labs(hadm_id, age, gender, db)
     meds_inserted  = _sync_meds(hadm_id, db)
+    _sync_diagnosis(hadm_id, db)   # Fill diagnosis_short if NULL
 
     # Compute NYHA from latest BNP + current LVEF
     bnp_row = db.execute(sql_text("""
