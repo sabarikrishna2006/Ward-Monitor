@@ -583,29 +583,32 @@ function _tabBody(t) {
     </table>`;
   }
   if (t==='Diagnoses') {
-    const upl = _uplTable('diagnoses');
+    // Merge freshly-uploaded rows in as normal rows (badged) instead of a separate mini-table
+    const uplDx = (S.uploadedRows.diagnoses || []).map(r => ({...r, _upl:true}));
     // Filter out any I42.x from MIMIC so we don't duplicate the injected primary row
-    const allDx = S.diagnoses.filter(d => d.icd_code);
+    const allDx = S.diagnoses.filter(d => d.icd_code).concat(uplDx.filter(d => d.icd_code));
     const seqBadge = (i) => i === 0
       ? `<span class="pill pill-blue" style="font-size:10px">Primary</span>`
       : i <= 2
         ? `<span class="pill pill-amber" style="font-size:10px">Secondary</span>`
         : `<span class="pill pill-slate" style="font-size:10px">Comorbidity</span>`;
-    if (!allDx.length) return upl || `<div class="muted" style="padding:20px">No diagnoses on record.</div>`;
+    if (!allDx.length) return `<div class="muted" style="padding:20px">No diagnoses on record.</div>`;
     return `<table class="tbl"><thead><tr><th>ICD-10</th><th>Description</th><th>Type</th></tr></thead><tbody>
       ${allDx.map((d,i)=>`<tr${i===0?' style="background:#eff6ff"':''}>
         <td><span class="mono" style="color:${i===0?'var(--blue)':'var(--ink2)'};font-weight:700">${d.icd_code}</span>${d._upl?uplBadge:''}</td>
         <td${i===0?' style="font-weight:600"':''}>${d.long_title||'—'}</td>
         <td>${seqBadge(i)}</td>
       </tr>`).join('')}
-    </tbody></table>${upl}`;
+    </tbody></table>`;
   }
   if (t==='Procedures') {
-    const upl = _uplTable('procedures');
-    if (!S.procedures.length) return upl || `<div class="muted" style="padding:20px">No procedures on record.</div>`;
+    // Merge freshly-uploaded rows in as normal rows (badged) instead of a separate mini-table
+    const uplPr = (S.uploadedRows.procedures || []).map(r => ({...r, _upl:true}));
+    const allPr = S.procedures.concat(uplPr);
+    if (!allPr.length) return `<div class="muted" style="padding:20px">No procedures on record.</div>`;
     return `<table class="tbl"><thead><tr><th>ICD Code</th><th>Procedure</th><th>Version</th><th>Date</th></tr></thead><tbody>
-      ${S.procedures.map(p=>`<tr><td><span class="mono" style="color:var(--teal);font-weight:600">${p.icd_code}</span>${p._upl?uplBadge:''}</td><td>${p.long_title||'—'}</td><td><span class="pill pill-slate">ICD-${p.icd_version}</span></td><td class="muted">${p.chartdate||'—'}</td></tr>`).join('')}
-    </tbody></table>${upl}`;
+      ${allPr.map(p=>`<tr><td><span class="mono" style="color:var(--teal);font-weight:600">${p.icd_code}</span>${p._upl?uplBadge:''}</td><td>${p.long_title||'—'}</td><td><span class="pill pill-slate">ICD-${p.icd_version}</span></td><td class="muted">${p.chartdate||'—'}</td></tr>`).join('')}
+    </tbody></table>`;
   }
   if (t==='Labs') {
     const upl = _uplTable('labs');

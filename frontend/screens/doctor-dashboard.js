@@ -368,7 +368,7 @@ SCREEN_RENDERERS["doctor-dashboard"] = function renderDoctorDashboard() {
       <tr class="dd-row" data-hadm-id="${enc.hadm_id}"
           style="${hl ? "background:#f7edf7;" : ""}cursor:${hasSummary ? "pointer" : "default"}">
         <td style="${TD}">
-          <b style="font-size:13px;color:#111827">${_ddSynthName(enc.hadm_id)}</b><br>
+          <b style="font-size:13px;color:#111827">${enc.patient_name || _ddSynthName(enc.hadm_id)}</b><br>
           <span style="font-family:'JetBrains Mono',monospace;font-size:9.5px;color:#6b7280">${fmtPid(enc.hadm_id, enc.display_id)}</span>
         </td>
         <td style="${TD}">${fmtDate(enc.created_at)}</td>
@@ -398,7 +398,7 @@ SCREEN_RENDERERS["doctor-dashboard"] = function renderDoctorDashboard() {
     return `
       <tr class="dd-completed-row" data-hadm-id="${enc.hadm_id}" style="cursor:pointer">
         <td style="${TD}">
-          <b style="font-size:13px;color:#111827">${_ddSynthName(enc.hadm_id)}</b><br>
+          <b style="font-size:13px;color:#111827">${enc.patient_name || _ddSynthName(enc.hadm_id)}</b><br>
           <span style="font-family:'JetBrains Mono',monospace;font-size:9.5px;color:#6b7280">${fmtPid(enc.hadm_id, enc.display_id)}</span>
         </td>
         <td style="${TD}">${fmtDate(enc.created_at)}</td>
@@ -578,7 +578,7 @@ SCREEN_SETUP["doctor-dashboard"] = function setupDoctorDashboard() {
       APP.reviewData = {
         encounter:     enc,
         hadmId:        enc.hadm_id,
-        patient:       enc.patient,
+        patient:       enc.patient_name ? { full_name: enc.patient_name, age: enc.anchor_age, gender: enc.gender } : (enc.patient || null),
         admission:     enc.admission,
         summaryId:     enc.summary?.id,
         content:       enc.summary?.content,
@@ -600,7 +600,7 @@ SCREEN_SETUP["doctor-dashboard"] = function setupDoctorDashboard() {
       APP.reviewData = {
         encounter:      enc,
         hadmId:         enc.hadm_id,
-        patient:        enc.patient,
+        patient:        enc.patient_name ? { full_name: enc.patient_name, age: enc.anchor_age, gender: enc.gender } : (enc.patient || null),
         admission:      enc.admission,
         summaryId:      enc.summary.id,
         content:        enc.summary.content,

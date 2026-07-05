@@ -252,9 +252,11 @@ function _bilRenderNotifBar(pending) {
   _bilLastPending = pending;
   const bar = document.getElementById('bil-notif-bar');
   if (!bar) return;
+  // Only show on the billing dashboard — on a patient screen (e.g. CE4) it would
+  // sit on top of / push down the form the user is actively working on.
+  if (CURRENT !== 'ce0') { bar.style.display = 'none'; bar.innerHTML = ''; return; }
   const unacked = pending.filter(p => !_bilAcked.has(String(p.hadm_id)));
   if (!unacked.length) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
-  bar.style.display = 'block';
   bar.style.display = 'block';
   const plural = unacked.length > 1 ? `${unacked.length} patients awaiting` : '1 patient awaiting';
   bar.innerHTML = `
@@ -267,7 +269,7 @@ function _bilRenderNotifBar(pending) {
         </div>
       </div>
       ${unacked.map(p => {
-        const name   = _bilName(p.hadm_id) || fmtPid(p.hadm_id, p.display_id);
+        const name   = p.patient_name || _bilName(p.hadm_id) || fmtPid(p.hadm_id, p.display_id);
         const doctor = p.signed_by_name ? 'Dr. ' + p.signed_by_name : 'Attending';
         return `<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:#fff8e1;border-radius:7px;border:1px solid #fde68a;margin-bottom:6px">
           <div style="flex:1;min-width:0">
