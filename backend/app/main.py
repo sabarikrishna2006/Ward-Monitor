@@ -6272,7 +6272,7 @@ def get_summary(encounter_id: str):
     s = gdb.get_summary_by_encounter(encounter_id)
     return s if s else {"encounter_id": encounter_id, "content": None}
 
-_VERSION_ONLY_FIELDS = {"save_version", "save_type", "saved_by_name"}
+_VERSION_ONLY_FIELDS = {"save_version", "save_type"}
 
 @app.patch("/api/summaries/{encounter_id}")
 def update_summary(encounter_id: str, req: UpdateSummaryRequest):

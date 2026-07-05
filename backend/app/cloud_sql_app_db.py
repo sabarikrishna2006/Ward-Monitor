@@ -486,12 +486,29 @@ def get_summary_by_encounter(encounter_id: str) -> Optional[Dict]:
     return _row_to_dict(row)
 
 
+_summary_sig_cols_verified = False
+
+def _ensure_summary_signature_cols() -> None:
+    """Self-heal app_summaries.signature_data / saved_by_name if migration 027 hasn't run yet."""
+    global _summary_sig_cols_verified
+    if _summary_sig_cols_verified:
+        return
+    try:
+        with get_engine().begin() as conn:
+            conn.execute(text("ALTER TABLE app_summaries ADD COLUMN IF NOT EXISTS signature_data TEXT"))
+            conn.execute(text("ALTER TABLE app_summaries ADD COLUMN IF NOT EXISTS saved_by_name VARCHAR(255)"))
+        _summary_sig_cols_verified = True
+    except Exception as exc:
+        log.warning(f"[app_summaries] could not ensure signature columns: {exc}")
+
+
 def update_summary(encounter_id: str, fields: Dict) -> Optional[Dict]:
+    _ensure_summary_signature_cols()
     allowed = {"content", "nli_score", "clinical_context",
                "claim_verification_status", "signed_by", "signed_at",
                "gap_t1", "gap_t2", "gap_t3", "dl_flags", "gap_rows",
                "sections_json", "draft_saved_at", "draft_edits", "doc_version",
-               "llm_edits_count"}
+               "llm_edits_count", "signature_data", "saved_by_name"}
     set_parts = [f"{k} = :{k}" for k in fields if k in allowed]
     if not set_parts:
         return get_summary_by_encounter(encounter_id)

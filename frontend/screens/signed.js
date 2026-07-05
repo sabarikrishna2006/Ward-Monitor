@@ -1,18 +1,28 @@
 // Screen — Discharge Summary Signed confirmation page
 
+// Rehydrate signature metadata (mci, sig_png, designation, hospital, full_name) that was
+// persisted to app_summaries.signature_data at sign-off — needed when this screen is opened
+// in a fresh session (e.g. from the Completed tab) rather than right after signing, since
+// APP.reviewData._sigDataUrl / signedMci / etc. only exist in the signing session's memory.
+function _sgSignatureData(rd) {
+  try { return JSON.parse(rd?.encounter?.summary?.signature_data || "{}"); }
+  catch { return {}; }
+}
+
 // ── Signed page renderer ──────────────────────────────────────────────────────
 SCREEN_RENDERERS["signed"] = function renderSigned() {
   const user = getUser();
   const rd   = APP.reviewData || {};
   const pat  = rd.patient   || {};
+  const sig  = _sgSignatureData(rd);
 
   const patName    = pat.full_name || "Patient";
   const displayId  = rd.hadmId ? fmtPid(rd.hadmId) : "—";
 
   // Doctor name: prefer what was persisted on sign-off, fall back to current user
-  const _rawName   = rd.encounter?.summary?.saved_by_name || user?.full_name || user?.name || "Doctor";
+  const _rawName   = rd.encounter?.summary?.saved_by_name || sig.full_name || user?.full_name || user?.name || "Doctor";
   const doctorName = /^Dr\.?\s/i.test(_rawName) ? _rawName : `Dr. ${_rawName}`;
-  const mci        = rd.signedMci || "—";
+  const mci        = rd.signedMci || sig.mci || "—";
 
   // Timestamps
   const signedAt   = rd.signedAt || new Date().toISOString();
@@ -135,19 +145,20 @@ SCREEN_SETUP["signed"] = async function setupSigned() {
 
   document.getElementById("signed-download-pdf")?.addEventListener("click", () => {
     const rd       = APP.reviewData || {};
+    const sig      = _sgSignatureData(rd);
     const content  = rd.finalContent || rd.content || '';
     const patName  = rd.patient?.full_name || 'Patient';
-    const _raw     = rd.signedName || rd.encounter?.summary?.saved_by_name || getUser()?.full_name || 'Doctor';
+    const _raw     = rd.signedName || rd.encounter?.summary?.saved_by_name || sig.full_name || getUser()?.full_name || 'Doctor';
     const docName  = /^Dr\.?\s/i.test(_raw) ? _raw : `Dr. ${_raw}`;
-    const mci      = rd.signedMci      || '—';
-    const desig    = rd.signedDesig    || 'Attending Physician';
-    const hospital = rd.signedHospital || '—';
+    const mci      = rd.signedMci      || sig.mci         || '—';
+    const desig    = rd.signedDesig    || sig.designation || 'Attending Physician';
+    const hospital = rd.signedHospital || sig.hospital    || '—';
     const signedAt = rd.signedAt
       ? new Date(rd.signedAt).toLocaleString('en-IN', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:false }) + ' IST'
       : '—';
     const version   = `v${rd.docVersion || 1}.0`;
     const displayId = rd.hadmId ? fmtPid(rd.hadmId) : '—';
-    const sigImg    = rd._sigDataUrl || null;
+    const sigImg    = rd._sigDataUrl || sig.sig_png || null;
     const hashVal   = rd._contentHash || '—';
 
     // Convert stored markdown to readable HTML sections

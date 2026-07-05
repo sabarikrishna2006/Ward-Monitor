@@ -142,9 +142,16 @@ async function nav(id, param = null) {
         if (r.ok) APP.data.n5 = await r.json();
       }
     } else if (id === 'n6') {
-      // Load nurse list for handoff picker
-      const nRes = await fetch('/api/nurses-on-shift');
+      // Load nurse list for handoff picker; also ward data if the user came
+      // here directly from the sidebar without visiting the dashboard first
+      const needWard = !(APP.data.n1 && APP.data.n1.patients && APP.data.n1.patients.length);
+      const loc = APP.role === 'nurse' ? 'CCU' : APP.role === 'gw_nurse' ? 'GENERAL_WARD' : 'All';
+      const [nRes, wRes] = await Promise.all([
+        fetch('/api/nurses-on-shift'),
+        needWard ? fetch('/api/ward-data?location=' + loc) : Promise.resolve(null),
+      ]);
       if (nRes.ok) APP.data.n6_nurses = (await nRes.json()).nurses || [];
+      if (wRes && wRes.ok) APP.data.n1 = await wRes.json();
       // Reset handoff form state
       APP.data.n6_form = { notes: '', tasks: {} };
     } else if (id === 'n6b') {
@@ -1432,7 +1439,7 @@ SCREENS.n6 = () => {
 
   // Auto-generate pending tasks from critical/warning patients
   const autoPendingTasks = critPts.map(p =>
-    `<div class="check-row"><input type="checkbox" id="task-${p.id}"> <b>${p.patient_code || p.id}</b> ${p.name ? '— ' + p.name + ':' : ':'} ${p.status === 'critical' ? '⚠ CRITICAL — continuous monitoring' : 'NEWS2 ' + p.news2 + ' — monitor closely'}</div>`
+    `<div class="check-row"><input type="checkbox" class="n6-task-check" data-task-id="pt-${p.id}"> <b>${p.patient_code || p.id}</b> ${p.name ? '— ' + p.name + ':' : ':'} ${p.status === 'critical' ? '⚠ CRITICAL — continuous monitoring' : 'NEWS2 ' + p.news2 + ' — monitor closely'}</div>`
   ).join('');
 
   // Patient summary table (real data)

@@ -457,6 +457,21 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
         _cached = _ward_cache.get(_cache_key)
         if _cached and (_time.time() - _cached["ts"]) < _WARD_CACHE_TTL:
             return _cached["data"]
+        # Derive location-filtered views from a fresh "All" cache so each role's
+        # first screen (CCU / GENERAL_WARD / charge) doesn't pay its own cold
+        # Cloud SQL pipeline — one warm "All" entry serves every location.
+        if ward == "All" and location != "All":
+            _all = _ward_cache.get(("All", "All"))
+            if _all and (_time.time() - _all["ts"]) < _WARD_CACHE_TTL:
+                if location == "CCU":
+                    _pts = [p for p in _all["data"]["patients"]
+                            if p.get("ward_location") in (None, "CCU")]
+                else:
+                    _pts = [p for p in _all["data"]["patients"]
+                            if p.get("ward_location") == location]
+                _derived = {"patients": _pts, "ward": ward}
+                _ward_cache[_cache_key] = {"ts": _all["ts"], "data": _derived}
+                return _derived
 
     q = db.query(Patient).filter(Patient.status.notin_(["signed_off", "archived"]))
     if ward != "All":
@@ -959,6 +974,35 @@ def get_escalations(db: Session = Depends(get_db)):
             "reescalationNote": e.reescalation_note,
         })
     return {"escalations": result}
+
+@app.get("/api/escalations/{esc_id}")
+def get_escalation_detail(esc_id: int, db: Session = Depends(get_db)):
+    """Single-escalation detail for the N4 status-log timeline.
+    Returns snake_case keys — that is what the N4 timeline renderer reads."""
+    e = db.query(Escalation).filter(Escalation.id == esc_id).first()
+    if not e:
+        raise HTTPException(status_code=404, detail="Escalation not found")
+    return {
+        "id": e.id,
+        "patient_id": e.hadm_id,
+        "patient_name": e.patient_name,
+        "ward": e.ward,
+        "bed": e.bed,
+        "news2_score": e.news2_score,
+        "level": e.level,
+        "attending": e.attending,
+        "escalated_by": e.escalated_by,
+        "observations": e.observations,
+        "interventions": e.interventions,
+        "status": e.status,
+        "escalated_at": e.escalated_at,
+        "acknowledged_at": e.acknowledged_at,
+        "resolved_at": e.resolved_at,
+        "resolved_by": e.resolved_by,
+        "resolution_notes": e.resolution_notes,
+        "reescalated_at": e.reescalated_at,
+        "reescalation_note": e.reescalation_note,
+    }
 
 @app.post("/api/escalations/{esc_id}/resolve")
 def resolve_escalation(esc_id: int, res: EscalationResolve, db: Session = Depends(get_db)):
@@ -1514,7 +1558,9 @@ def bulk_sync_patients(background_tasks: BackgroundTasks, db: Session = Depends(
 @app.get("/api/ward-data/warmup")
 def warmup_ward_cache(db: Session = Depends(get_db)):
     """Pre-warm the ward-data cache for all locations so the first dashboard load is fast."""
-    for loc in ["CCU", "GENERAL_WARD", "All"]:
+    # "All" first — CCU/GENERAL_WARD are then derived from its cache entry
+    # instead of running the full Cloud SQL pipeline three times.
+    for loc in ["All", "CCU", "GENERAL_WARD"]:
         cache_key = ("All", loc)
         cached = _ward_cache.get(cache_key)
         if not cached or (_time.time() - cached["ts"]) >= _WARD_CACHE_TTL:
