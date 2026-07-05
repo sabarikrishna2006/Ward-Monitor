@@ -48,6 +48,12 @@ const NAV = {
     { separator: true, label: 'Demo' },
     { id: 'n_demo_replay', label: 'Patient Arc Replay' },
   ],
+  resident: [
+    { id: 'n1',   label: 'Ward Dashboard'  },
+    { id: 'n1b',  label: 'Patient Detail'  },
+    { separator: true, label: 'Demo' },
+    { id: 'n_demo_replay', label: 'Patient Arc Replay' },
+  ],
   charge: [
     { id: 'n5',   label: 'Escalation Queue' },
     { id: 'n5b',  label: 'Threshold Config' },
@@ -353,7 +359,7 @@ function logout() {
       window.location.href = DOCTOR_PORTAL_URL + '/';
     }, 500);
   } else {
-    document.body.innerHTML = `<div style="padding:40px;text-align:center;font-family:sans-serif">Logged out.<br><br><a href="${DOCTOR_PORTAL_URL}/">Go to Unified Login</a></div>`;
+    window.location.href = DOCTOR_PORTAL_URL + '/';
   }
 }
 
@@ -373,7 +379,11 @@ function logout() {
     if (loginWrap) loginWrap.style.display = 'none';
     document.getElementById('app-shell').style.display  = '';
     document.body.classList.remove('login-mode');
-    window.onFoqalLogin(user);
+    // Defer until the whole script has evaluated: this IIFE runs mid-file,
+    // before `const SCREENS` below is initialised, so calling nav() here
+    // hits the TDZ and silently kills the first dashboard load (blank page
+    // until the 30s auto-refresh or a manual sidebar click re-navigates).
+    setTimeout(() => window.onFoqalLogin(user), 0);
   } catch(e) { /* ignore */ }
 })();
 
@@ -622,7 +632,7 @@ SCREENS.n1 = () => {
       const statusBd = isStale ? 'bd bd-muted' : score >= 7 ? 'bd bd-t1' : score >= 5 ? 'bd bd-t2' : 'bd bd-t3';
       
       // Discharge-initiated patients stay on dashboard (physically in ward) but get a visual cue
-      const isDischargePending = p.status === 'discharge_initiated' || p.status === 'data_ready';
+      const isDischargePending = p.db_status === 'discharge_initiated';
       // Calculate stale minutes for UI
       const statusLbl = isDischargePending ? 'Pending Discharge'
         : isStale ? 'Overdue' : score >= 7 ? 'Escalate' : score >= 5 ? 'Monitor' : 'Stable';
@@ -887,7 +897,7 @@ ${(() => {
 
 ${APP.n1b_tab === 'ml' ? mlInsights : APP.n1b_tab === 'drug-lab' ? druglab : APP.n1b_tab === 'labs' ? labsHtml : APP.n1b_tab === 'meds' ? medsHtml : vitals}
 
-${(p.status === 'discharge_initiated' || p.status === 'data_ready') ? `
+${p.db_status === 'discharge_initiated' ? `
 <div class="alert al-ok" style="border-left:4px solid #0d9488;margin-top:16px;display:flex;align-items:center;gap:10px">
   <span style="font-size:18px">🏥</span>
   <div>
@@ -906,7 +916,7 @@ ${(p.status === 'discharge_initiated' || p.status === 'data_ready') ? `
     ${score >= 5 ? `<button class="btn btn-danger btn-sm" onclick="nav('n2', ${p.id})">Escalate Patient</button>` : ''}
   `}
   ${(!p.ward_location || p.ward_location === 'CCU') ? `<button class="btn btn-pri btn-sm" style="background:var(--p)" onclick="nav('n_transfer', ${p.id})">CCU→GW Transfer →</button>` : ''}
-  ${p.ward_location === 'GENERAL_WARD' && !(p.status === 'discharge_initiated' || p.status === 'data_ready') ? `<button class="btn btn-pri btn-sm" style="background:#16a34a" onclick="initiateDischarge(${p.id}, '${p.name}')">→ Initiate Discharge</button>` : ''}
+  ${p.ward_location === 'GENERAL_WARD' && p.db_status !== 'discharge_initiated' ? `<button class="btn btn-pri btn-sm" style="background:#16a34a" onclick="initiateDischarge(${p.id}, '${p.name}')">→ Initiate Discharge</button>` : ''}
 </div>
 <div id="false-alarm-menu" style="display:none;margin-top:8px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;max-width:400px">
   <div class="card-title" style="margin-bottom:8px">Reason for False Alarm</div>

@@ -582,7 +582,10 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
                     pass
             threading.Thread(target=_bg_sync, args=(p.hadm_id,), daemon=True).start()
 
-        safe_offset = min(REPLAY_OFFSET, max(len(all_vitals) - 1, 0))
+        # REPLAY_OFFSET must only shift history on explicit replay requests —
+        # applying the global to normal reads makes every dashboard poll skip
+        # the newest vitals rows once anyone has used the replay endpoint.
+        safe_offset = min(REPLAY_OFFSET, max(len(all_vitals) - 1, 0)) if replay else 0
         vitals_history = all_vitals[safe_offset : safe_offset + 24]
             
         vitals_history.reverse()
@@ -855,6 +858,9 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
             "complaint": p.ews_complaint,
             "briefFlag": brief_flag,
             "status": status,
+            # Raw active_patients.status — the "status" above is the computed
+            # clinical tier; the discharge badge needs the DB lifecycle state.
+            "db_status": getattr(p, 'status', 'active'),
             "vitals": {"bp_time": vitals_history[-1].chart_time.strftime("%H:%M") if vitals_history and vitals_history[-1].chart_time else "--"},
             "hr":   int(latest_vitals['heart_rate'])  if latest_vitals['heart_rate']  else "--",
             "rr":   int(latest_vitals['resp_rate'])   if latest_vitals['resp_rate']   else "--",

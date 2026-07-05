@@ -757,9 +757,16 @@ async def prefetch_all_tabs(hadm_id: int):
         if "error" in result and not result.get("skipped"):
             _set_status("failed")
             return result
-        # Set 'partial' — ward board keeps showing loader until ward backend's
-        # sync-vitals endpoint runs sync_patient_from_mimic and sets 'fetched'.
-        _set_status("partial")
+        # fetch_and_store_patient() already ran the ward EWS sync in-process
+        # and set data_fetch_status='fetched' itself when that succeeded (see
+        # bigquery_mimic_loader.py). Only fall back to 'partial' here if that
+        # didn't happen — e.g. display_only fetches, or the EWS sync raised.
+        # Previously this line unconditionally forced 'partial' AFTER the sync
+        # already completed, then waited on a separate HTTP call below to flip
+        # it back to 'fetched' — if that call failed/timed out/hit the wrong
+        # port, the patient was stuck showing "Syncing…" forever.
+        if "_ews_vitals" not in result:
+            _set_status("partial")
         return result
 
     result = await run_in_threadpool(_run_full_etl)
@@ -770,21 +777,25 @@ async def prefetch_all_tabs(hadm_id: int):
     for tab in ["prescriptions","labevents","pharmacy","poe","chartevents","fluids","procedureevents","outputevents"]:
         _tab_memory_cache.pop((hadm_id, tab), None)
 
-    # Server-side trigger of the ward EWS vitals sync so ews_* (vitals/labs/meds +
-    # NEWS2) is populated even if the browser tab closes after this call — the load
-    # no longer depends on billing.html's fire-and-forget chain. Idempotent: the
-    # ward sync only flips status 'partial'/'fetching'/'pending' → 'fetched'.
+    # Best-effort nudge only: the EWS sync + 'fetched' status flip already
+    # happened synchronously inside fetch_and_store_patient() above, in this
+    # same process, writing directly to the shared Cloud SQL instance. This
+    # call just asks the ward API process to drop its own in-memory
+    # _ward_cache entry so its *next* poll reflects the new patient a few
+    # seconds sooner, rather than waiting out the cache TTL. If the ward API
+    # is on a different host/port or briefly unreachable, that's fine — the
+    # patient is already correctly marked 'fetched' in the database either way.
     ews_synced = False
     ward_base = os.environ.get("WARD_API_BASE", "http://localhost:7816")
     try:
         import httpx
         async with httpx.AsyncClient(
-            timeout=httpx.Timeout(connect=5.0, read=120.0, write=10.0, pool=5.0)
+            timeout=httpx.Timeout(connect=3.0, read=15.0, write=5.0, pool=3.0)
         ) as _c:
             _r = await _c.post(f"{ward_base}/api/patients/{hadm_id}/sync-vitals")
             ews_synced = (_r.status_code == 200 and (_r.json() or {}).get("status") == "ok")
     except Exception as _e:
-        log.warning(f"[prefetch-all] ward EWS sync trigger failed for {hadm_id}: {_e}")
+        log.info(f"[prefetch-all] ward cache-invalidation nudge skipped for {hadm_id}: {_e}")
 
     return {"status": "fetched", "hadm_id": hadm_id, "ews_synced": ews_synced,
             "counts": result.get("counts", {})}
