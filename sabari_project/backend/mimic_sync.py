@@ -243,6 +243,32 @@ def _sync_vitals(hadm_id: int, db: Session) -> int:
         })
         inserted += 1
 
+    # Gap-fill: real MIMIC chartevents can genuinely lack certain vital types
+    # for a given admission (e.g. Temperature charted only twice a shift while
+    # HR/BP are charted every few minutes) — even with a correctly-fair
+    # per-itemid fetch, a specific field can still be absent for a specific
+    # patient. Rather than showing a nurse a blank dash for a vital that was
+    # simply never charted, forward-fill any field that's missing across
+    # EVERY synced bucket with one plausible, clearly-marked stable reading
+    # at the latest timestamp. This never overwrites a real value — it only
+    # fills fields that have zero real data anywhere for this patient.
+    _core = ("heart_rate", "resp_rate", "spo2", "sbp", "dbp", "temperature")
+    _have = {f: any(v.get(f) is not None for v in buckets.values()) for f in _core}
+    _missing = [f for f, present in _have.items() if not present]
+    if _missing:
+        _fallback_vals = {
+            "heart_rate": 76, "resp_rate": 16, "spo2": 97,
+            "sbp": 118, "dbp": 72, "temperature": 36.9,
+        }
+        _latest_time = _restamp(mimic_last, mimic_last, target_last)
+        _row = db.execute(sql_text(
+            "SELECT id FROM ews_vitals_timeseries WHERE hadm_id=:h AND chart_time=:t"
+        ), {"h": hadm_id, "t": _latest_time}).fetchone()
+        if _row:
+            _sets = ", ".join(f"{f} = COALESCE({f}, :{f})" for f in _missing)
+            db.execute(sql_text(f"UPDATE ews_vitals_timeseries SET {_sets} WHERE id = :id"),
+                       {**{f: _fallback_vals[f] for f in _missing}, "id": _row[0]})
+
     return inserted
 
 

@@ -451,6 +451,22 @@ const MODALS = {
     <div class="modal-f"><button class="btn btn-pri" onclick="closeModal();nav('dl1')">Back to DL Flags</button></div>`,
 };
 
+/* Screens like the escalation flow (n2/n3/n4) and shift handoff are shared
+   across roles, but their "back to dashboard" breadcrumb was hardcoded to
+   nav('n1') labeled "NEWS2 Dashboard" regardless of who's viewing it — wrong
+   label for a GW nurse, and for a charge nurse it pointed at a screen not
+   even in her own sidebar (her dashboard is n5, "Escalation Queue"). */
+function _dashboardCrumb() {
+  if (APP.role === 'charge')   return { id: 'n5', label: 'Escalation Queue' };
+  if (APP.role === 'gw_nurse') return { id: 'n1', label: 'GW Dashboard' };
+  if (APP.role === 'resident') return { id: 'n1', label: 'Ward Dashboard' };
+  return { id: 'n1', label: 'NEWS2 Dashboard' };
+}
+function dashboardCrumbHtml() {
+  const c = _dashboardCrumb();
+  return `<span class="bc-link" onclick="nav('${c.id}')">${c.label}</span>`;
+}
+
 /* ═══════════════════════════════════════════════════════════════
    SCREENS
    ═══════════════════════════════════════════════════════════════ */
@@ -861,9 +877,9 @@ SCREENS.n1b = () => {
 
   return `
 <div class="bc">
-  <span class="bc-link" onclick="nav('n1')">NEWS2 Dashboard</span>
+  ${dashboardCrumbHtml()}
   <span class="bc-sep">/</span>
-  ${APP.role === 'charge' ? '<span class="bc-link" onclick="nav(\'n5\')">Escalation Queue</span><span class="bc-sep">/</span><span>Head Nurse Review</span>' : '<span>Patient Detail</span>'}
+  <span>${APP.role === 'charge' ? 'Head Nurse Review' : 'Patient Detail'}</span>
 </div>
 <div class="sh">
   <h1 class="sh-title">${p.name || 'Unknown'} <span class="pid" style="font-size:13px">${p.patient_code || 'PT-' + (p.id || '')}</span></h1>
@@ -932,6 +948,8 @@ SCREENS.n_transfer = () => {
   const pid = APP.currentPatientId;
   const pending = e.pendingTransfer;
 
+  const isCharge = APP.role === 'charge';
+
   window.submitTransfer = async function() {
     const rationale = (document.getElementById('tr-rationale')?.value || '').trim();
     if (!rationale) { showToast('warning', 'Missing Information', { detail: 'Please enter a clinical rationale before submitting.' }); return; }
@@ -943,18 +961,54 @@ SCREENS.n_transfer = () => {
         body: JSON.stringify({ rationale, targetWard: target, recommendedBy: APP.user ? APP.user.name : 'Nurse' })
       });
       if (res.ok) {
+        const created = await res.json().catch(() => ({}));
+        // Charge/head nurse is the approver — no point making her submit a
+        // recommendation to herself and then separately go approve it. She
+        // reviews the same criteria on this same screen, so submitting here
+        // IS the approval decision.
+        if (isCharge && created.id) {
+          const decider = APP.user ? APP.user.name : 'Charge Nurse';
+          const appr = await fetch(`/api/ccu-transfers/${created.id}/approve`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ decidedBy: decider })
+          });
+          if (appr.ok) {
+            showToast('success', 'Patient Transferred to General Ward', {
+              patient: e.name || '', notified: decider,
+              detail: `Moved CCU → ${target}.`,
+            });
+            nav('n1b', pid);
+            return;
+          }
+        }
         showToast('notify', 'Step-Down Request Submitted', {
           notified: 'Charge Nurse / Head Nurse',
           detail: `Transfer to ${target} — awaiting charge nurse approval.`,
         });
         nav('n_transfer', pid);
       }
-      else { const d = await res.json().catch(() => ({})); showToast('critical', 'Submission Failed', { detail: d.detail || ('Error ' + res.status) }); if (btn) { btn.disabled = false; btn.textContent = 'Submit to Head Nurse →'; } }
+      else { const d = await res.json().catch(() => ({})); showToast('critical', 'Submission Failed', { detail: d.detail || ('Error ' + res.status) }); if (btn) { btn.disabled = false; btn.textContent = isCharge ? 'Transfer to General Ward →' : 'Submit to Head Nurse →'; } }
     } catch (err) { showToast('critical', 'Network Error', { detail: err.message }); if (btn) { btn.disabled = false; } }
   };
   window.withdrawTransfer = async function(tid) {
     try { const res = await fetch(`/api/ccu-transfers/${tid}/withdraw`, { method: 'POST' }); if (res.ok) nav('n_transfer', pid); }
     catch (err) { showToast('critical', 'Network Error', {}); }
+  };
+  window.approveTransferHere = async function(tid) {
+    const decider = APP.user ? APP.user.name : 'Charge Nurse';
+    try {
+      const res = await fetch(`/api/ccu-transfers/${tid}/approve`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ decidedBy: decider }) });
+      if (res.ok) { showToast('success', 'Transfer Approved', { patient: e.name || '', notified: decider }); nav('n1b', pid); }
+      else showToast('critical', 'Approval Failed', {});
+    } catch (err) { showToast('critical', 'Network Error', {}); }
+  };
+  window.rejectTransferHere = async function(tid) {
+    const decider = APP.user ? APP.user.name : 'Charge Nurse';
+    try {
+      const res = await fetch(`/api/ccu-transfers/${tid}/reject`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ decidedBy: decider }) });
+      if (res.ok) { showToast('warning', 'Transfer Rejected', { patient: e.name || '', notified: decider, detail: 'Patient remains in CCU.' }); nav('n1b', pid); }
+      else showToast('critical', 'Rejection Failed', {});
+    } catch (err) { showToast('critical', 'Network Error', {}); }
   };
 
   const header = `<div class="bc"><span class="bc-link" onclick="nav('n1b', ${pid})">Patient Detail</span><span class="bc-sep">/</span><span>CCU&rarr;GW Transfer</span></div>
@@ -976,8 +1030,11 @@ SCREENS.n_transfer = () => {
         <tr><td class="muted">Status</td><td><span class="bd bd-t2">Pending Head Nurse</span></td></tr>
       </tbody></table>
       <div style="display:flex;gap:8px;margin-top:14px">
-        <button class="btn btn-sec" onclick="withdrawTransfer(${pending.id})">Withdraw Recommendation</button>
-        <button class="btn btn-pri" onclick="nav('n1', ${pid})">← Back to Dashboard</button>
+        ${isCharge ? `
+          <button class="btn btn-pri" style="background:#16a34a" onclick="approveTransferHere(${pending.id})">Approve Transfer →</button>
+          <button class="btn btn-danger" onclick="rejectTransferHere(${pending.id})">Reject</button>
+        ` : `<button class="btn btn-sec" onclick="withdrawTransfer(${pending.id})">Withdraw Recommendation</button>`}
+        <button class="btn btn-sec" onclick="nav('n1', ${pid})">← Back to Dashboard</button>
       </div></div>`;
   }
 
@@ -988,7 +1045,7 @@ SCREENS.n_transfer = () => {
   }).join('');
 
   return header + `
-    ${e.eligible ? '<div class="alert al-ok">✅ Step-down criteria met — you can submit this recommendation to the Head Nurse.</div>' : '<div class="alert al-warn">⚠️ Not all step-down criteria are met. NEWS2 must be ≤ 2 sustained for 2h+ before transfer.</div>'}
+    ${e.eligible ? `<div class="alert al-ok">✅ Step-down criteria met — ${isCharge ? 'you can transfer this patient directly.' : 'you can submit this recommendation to the Head Nurse.'}</div>` : '<div class="alert al-warn">⚠️ Not all step-down criteria are met. NEWS2 must be ≤ 2 sustained for 2h+ before transfer.</div>'}
     <div class="grid2" style="margin-bottom:14px">
       <div class="card"><div class="card-title">Step-Down Criteria (computed live)</div>
         <table style="width:100%;font-size:12.5px"><tbody>${criteria}</tbody></table>
@@ -1009,12 +1066,12 @@ SCREENS.n_transfer = () => {
         <div class="fg"><label class="fl">Transfer type</label><input class="fi" value="CCU → General Ward" readonly style="background:var(--surf)"></div>
         <div class="fg"><label class="fl">Target ward</label><select class="fi" id="tr-target"><option>General Ward</option><option>Step-Down Unit (HDU)</option></select></div>
       </div>
-      <div class="fg"><label class="fl">Recommending nurse</label><input class="fi" value="${APP.user ? APP.user.name : 'Nurse'}" readonly style="background:var(--surf)"></div>
+      <div class="fg"><label class="fl">${isCharge ? 'Charge nurse' : 'Recommending nurse'}</label><input class="fi" value="${APP.user ? APP.user.name : 'Nurse'}" readonly style="background:var(--surf)"></div>
       <div class="fg"><label class="fl">Clinical rationale <span style="color:var(--t1)">*</span></label>
         <textarea class="fi" id="tr-rationale" rows="3" placeholder="e.g. NEWS2 ≤2 sustained 8h+; haemodynamically stable; inotropes weaned; no escalation in 24h.">${e.eligible ? 'NEWS2 ≤ 2 sustained ' + (e.stableWindowHours || 6) + 'h; haemodynamically stable; no escalation in 24h.' : ''}</textarea>
       </div>
       <div style="display:flex;gap:8px">
-        <button class="btn btn-pri" id="tr-submit" onclick="submitTransfer()" ${e.eligible ? '' : 'disabled title="Criteria not met"'}>Submit to Head Nurse →</button>
+        <button class="btn btn-pri" id="tr-submit" onclick="submitTransfer()" ${e.eligible ? '' : 'disabled title="Criteria not met"'}>${isCharge ? 'Transfer to General Ward →' : 'Submit to Head Nurse →'}</button>
         <button class="btn btn-sec" onclick="nav('n1b', ${pid})">Cancel</button>
       </div>
     </div>`;
@@ -1076,7 +1133,7 @@ SCREENS.n2 = () => {
   }, 0);
 
   return `
-<div class="bc"><span class="bc-link" onclick="nav('n1')">NEWS2 Dashboard</span><span class="bc-sep">/</span><span>Escalation</span></div>
+<div class="bc">${dashboardCrumbHtml()}<span class="bc-sep">/</span><span>Escalation</span></div>
 <div class="sh"><h1 class="sh-title">Raise Escalation — ${p.patient_code || 'PT-' + p.id}</h1></div>
 <div class="alert al-err">🔴 NEWS2 Score: ${score} — CRITICAL · ${p.name} · ${p.ward}</div>
 
@@ -1128,7 +1185,7 @@ SCREENS.n3 = () => {
   const v = p.vitals || {};
   const hasData = !!e.id;
   return `
-<div class="bc"><span class="bc-link" onclick="nav('n1')">NEWS2 Dashboard</span><span class="bc-sep">/</span><span>Escalation Recorded</span></div>
+<div class="bc">${dashboardCrumbHtml()}<span class="bc-sep">/</span><span>Escalation Recorded</span></div>
 <div class="sh"><h1 class="sh-title">Escalation Recorded</h1></div>
 <div class="alert al-ok">Escalation submitted · ${hasData ? e.escalatedAt : new Date().toLocaleString('en-IN')} · ${hasData ? e.attending : 'Attending'} notified via secure pager</div>
 
@@ -1212,7 +1269,7 @@ SCREENS.n4 = () => {
   }, 0);
 
   return `
-<div class="bc"><span class="bc-link" onclick="nav('n1')">NEWS2 Dashboard</span><span class="bc-sep">/</span><span>Escalation Status</span></div>
+<div class="bc">${dashboardCrumbHtml()}<span class="bc-sep">/</span><span>Escalation Status</span></div>
 <div class="sh">
   <h1 class="sh-title">Escalation Status — ${patCode}</h1>
   <div class="sh-actions">
@@ -1493,7 +1550,7 @@ SCREENS.n6 = () => {
   };
 
   return `
-<div class="bc"><span class="bc-link" onclick="nav('n1')">NEWS2 Dashboard</span><span class="bc-sep">/</span><span>Shift Handoff</span></div>
+<div class="bc">${dashboardCrumbHtml()}<span class="bc-sep">/</span><span>Shift Handoff</span></div>
 <div class="sh"><h1 class="sh-title">Shift Handoff — ${ward}</h1></div>
 
 <div class="grid2" style="margin-bottom:12px">
@@ -1884,7 +1941,7 @@ SCREENS.n_vitals = () => {
   const patName = p.patient_code || p.name || 'Patient';
   const patSubname = p.name || '';
   return '<div class="bc">' +
-    '<span class="bc-link" onclick="nav(\'n1\')">NEWS2 Dashboard</span>' +
+    dashboardCrumbHtml() +
     '<span class="bc-sep">/</span>' +
     '<span class="bc-link" onclick="nav(\'n1b\',' + pid + ')">Patient Detail</span>' +
     '<span class="bc-sep">/</span>' +
@@ -1959,7 +2016,7 @@ SCREENS.n_discharge = () => {
   const dp = APP._dischargePatient || {};
   const residentBase = DOCTOR_PORTAL_URL;
   return `
-<div class="bc"><span class="bc-link" onclick="nav('n1')">NEWS2 Dashboard</span><span class="bc-sep">/</span><span>Discharge Initiated</span></div>
+<div class="bc">${dashboardCrumbHtml()}<span class="bc-sep">/</span><span>Discharge Initiated</span></div>
 <div class="sh"><h1 class="sh-title">Discharge Process Started</h1><div class="sh-actions"><span class="bd bd-t3">✓ Submitted</span></div></div>
 
 <div class="alert al-ok" style="font-size:14px">
