@@ -1,8 +1,10 @@
 import os
 import sys
 
-# Set environment variable so we connect to the right DB
-os.environ["CLOUD_SQL_PASS"] = "foqalAnalyticsHealthcareDB2026"
+# Requires CLOUD_SQL_PASS already exported in the shell (see .env.secrets) —
+# never hardcode the DB password in a file that gets committed to git.
+if "CLOUD_SQL_PASS" not in os.environ:
+    raise SystemExit("CLOUD_SQL_PASS not set — source common_db_main_latest/.env.secrets first")
 
 # Add path to import database module
 sys.path.append(os.path.join(os.path.dirname(__file__), "backend"))

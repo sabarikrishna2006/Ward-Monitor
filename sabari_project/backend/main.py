@@ -446,7 +446,7 @@ def _invalidate_ward_cache(ward: str):
 
 @app.get("/api/ward-data")
 def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False,
-                  hadm_id: Optional[int] = None, db: Session = Depends(get_db)):
+                  hadm_id: Optional[int] = None, limit: int = 25, db: Session = Depends(get_db)):
     global REPLAY_OFFSET
     if replay:
         REPLAY_OFFSET = (REPLAY_OFFSET + 1) % 20
@@ -484,6 +484,9 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
             q = q.filter(Patient.ward_location == location)
     if hadm_id is not None:
         q = q.filter(Patient.hadm_id == hadm_id)
+    # Single-patient lookup returns that patient; multi-patient limited to 25
+    if hadm_id is None:
+        q = q.order_by(Patient.admit_time.desc()).limit(limit)
     patients = q.all()
 
     if not patients:
@@ -527,14 +530,14 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
 
     _lrows = db.query(LabEvent).filter(
         LabEvent.hadm_id.in_(patient_ids)
-    ).order_by(LabEvent.chart_time.desc()).all()
+    ).order_by(LabEvent.chart_time.desc()).limit(200).all()
     _labs_map = defaultdict(list)
     for _l in _lrows:
         _labs_map[_l.hadm_id].append(_l)
 
     _mrows = db.query(Medication).filter(
         Medication.hadm_id.in_(patient_ids)
-    ).all()
+    ).limit(150).all()
     _meds_map = defaultdict(list)
     for _m in _mrows:
         _meds_map[_m.hadm_id].append(_m)
@@ -638,11 +641,11 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
         elif news2_score >= 5: status = 'warning'
         else: status = 'stable'
 
-        # ── Build trajectory — filter out completely-null data points ──
+        # ── Build trajectory — LIMIT to last 12 vitals only for dashboard responsiveness ──
         trajectory = []
         # Running forward-fill per series for the chart
         fill = {'hr': None, 'rr': None, 'spo2': None, 'temp': None, 'sbp': None, 'dbp': None}
-        for v in vitals_history:
+        for v in vitals_history[-12:]:  # Only last 12 vitals, not all 96
             if is_valid(v.heart_rate):  fill['hr']   = round(v.heart_rate, 1)
             if is_valid(v.resp_rate):   fill['rr']   = round(v.resp_rate, 1)
             if is_valid(v.spo2):        fill['spo2'] = round(v.spo2, 1)
@@ -670,9 +673,9 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
                 "dbp":  fill['dbp'],
             })
 
-        # ── Recent Vitals (last 6 readings ≈ 6h) — use resolved latest values ──
+        # ── Recent Vitals (last 6 readings) — use resolved latest values ──
         recent_vitals = []
-        for pt in trajectory[-6:]:
+        for pt in trajectory[-6:]:  # Always show just last 6
             # Compute historical NEWS2
             # Carry the patient's current consciousness / O2 status across the window so the
             # trend NEWS2 stays consistent with the headline score (demo readings are constant).
@@ -884,6 +887,12 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
             "nyhaClass": getattr(p, 'nyha_class', None),
             "bnpBaseline": float(p.bnp_baseline) if getattr(p, 'bnp_baseline', None) else None,
         })
+
+    # Sort by clinical priority — highest NEWS2 first, so the nurse's most
+    # critical patients are always the first rows without needing to scroll.
+    # Patients with no vitals yet ("--") have no NEWS2 to rank on; they sort
+    # last rather than first/last-arbitrarily.
+    result.sort(key=lambda p: p["news2"] if isinstance(p["news2"], (int, float)) else -1, reverse=True)
 
     _response = {"patients": result, "ward": ward}
     if hadm_id is None:
