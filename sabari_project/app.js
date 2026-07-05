@@ -453,7 +453,10 @@ function renderEwsReason(p, compact) {
   const toneCol = r.tone === 'crit' ? 'var(--t1)' : r.tone === 'warn' ? 'var(--t2)'
                  : r.tone === 'stable' ? 'var(--t3)' : 'var(--muted)';
   const action = r.action ? `<div class="ews-action" style="color:${toneCol}">&rarr; ${r.action}</div>` : '';
-  const ok = (!signals && !flag) ? `<span class="ews-ok">&#10003; All parameters normal</span>` : '';
+  // Only claim "normal" when the backend actually confirmed stable vitals — an empty
+  // signals/flag set also happens when there's no recent data at all (stale/overdue),
+  // which must show as overdue, not as a false "all normal" reassurance.
+  const ok = (r.tone === 'stable' && !signals && !flag) ? `<span class="ews-ok">&#10003; All parameters normal</span>` : '';
   const ai = (p.mlRisk != null && !compact)
     ? `<div class="ews-ai" title="Illustrative deterioration risk — predictive model in training (Sprint 4)">AI ${p.mlRisk}% <span class="demo-tag">demo</span></div>`
     : '';
