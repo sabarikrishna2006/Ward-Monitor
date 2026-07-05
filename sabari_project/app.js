@@ -933,6 +933,7 @@ ${p.db_status === 'discharge_initiated' ? `
   `}
   ${(!p.ward_location || p.ward_location === 'CCU') ? `<button class="btn btn-pri btn-sm" style="background:var(--p)" onclick="nav('n_transfer', ${p.id})">CCU→GW Transfer →</button>` : ''}
   ${p.ward_location === 'GENERAL_WARD' && p.db_status !== 'discharge_initiated' ? `<button class="btn btn-pri btn-sm" style="background:#16a34a" onclick="initiateDischarge(${p.id}, '${p.name}')">→ Initiate Discharge</button>` : ''}
+  <button class="btn btn-warn btn-sm" style="color:#000" onclick="nav('n_vitals', ${p.id})">✎ Enter/Override Vitals</button>
 </div>
 <div id="false-alarm-menu" style="display:none;margin-top:8px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;max-width:400px">
   <div class="card-title" style="margin-bottom:8px">Reason for False Alarm</div>
@@ -1886,7 +1887,10 @@ SCREENS.n_vitals = () => {
     const consciousness = get('v-avpu') || 'A';
     const air_or_oxygen = get('v-air') || 'Air';
 
-    if ([spo2, rr, hr, sbp, dbp, temp].some(isNaN)) {
+    const _fieldNames = { spo2: 'SpO2', rr: 'Resp Rate', hr: 'Heart Rate', sbp: 'BP Systolic', dbp: 'BP Diastolic', temp: 'Temperature' };
+    const _blank = Object.entries({ spo2, rr, hr, sbp, dbp, temp }).filter(([, v]) => isNaN(v)).map(([k]) => _fieldNames[k]);
+    if (_blank.length) {
+      showToast('warning', 'Missing Values', { detail: `Please fill in: ${_blank.join(', ')}` });
       return;
     }
     if (spo2 < 0 || spo2 > 100)   { showToast('warning', 'Validation Error', { detail: 'SpO2 must be 0–100%' }); return; }
@@ -1953,15 +1957,16 @@ SCREENS.n_vitals = () => {
     '<div class="card" style="max-width:560px">' +
     '<div class="card-title">Vital Signs Entry</div>' +
     '<div class="grid3" style="gap:12px;margin-bottom:16px">' +
-    '<div class="fg"><label class="fl">SpO2 (%)</label><input class="fi" id="v-spo2" type="number" min="70" max="100" step="0.1" placeholder="e.g. 96"></div>' +
-    '<div class="fg"><label class="fl">Resp Rate (/min)</label><input class="fi" id="v-rr" type="number" min="5" max="60" placeholder="e.g. 18"></div>' +
-    '<div class="fg"><label class="fl">Heart Rate (bpm)</label><input class="fi" id="v-hr" type="number" min="20" max="250" placeholder="e.g. 88"></div>' +
-    '<div class="fg"><label class="fl">BP Systolic (mmHg)</label><input class="fi" id="v-sbp" type="number" min="50" max="250" placeholder="e.g. 118"></div>' +
-    '<div class="fg"><label class="fl">BP Diastolic (mmHg)</label><input class="fi" id="v-dbp" type="number" min="30" max="150" placeholder="e.g. 76"></div>' +
-    '<div class="fg"><label class="fl">Temperature (C)</label><input class="fi" id="v-temp" type="number" min="33" max="42" step="0.1" placeholder="e.g. 37.0"></div>' +
-    '<div class="fg"><label class="fl">AVPU</label><select class="fi" id="v-avpu"><option value="A">Alert</option><option value="V">Voice</option><option value="P">Pain</option><option value="U">Unresponsive</option></select></div>' +
-    '<div class="fg"><label class="fl">Air / O2</label><select class="fi" id="v-air"><option value="Air">Air</option><option value="Oxygen">Oxygen</option></select></div>' +
+    '<div class="fg"><label class="fl">SpO2 (%)</label><input class="fi" id="v-spo2" type="number" min="70" max="100" step="0.1" placeholder="e.g. 96" value="' + (latest && latest.spo2 != null ? latest.spo2 : '') + '"></div>' +
+    '<div class="fg"><label class="fl">Resp Rate (/min)</label><input class="fi" id="v-rr" type="number" min="5" max="60" placeholder="e.g. 18" value="' + (latest && latest.resp_rate != null ? latest.resp_rate : '') + '"></div>' +
+    '<div class="fg"><label class="fl">Heart Rate (bpm)</label><input class="fi" id="v-hr" type="number" min="20" max="250" placeholder="e.g. 88" value="' + (latest && latest.heart_rate != null ? latest.heart_rate : '') + '"></div>' +
+    '<div class="fg"><label class="fl">BP Systolic (mmHg)</label><input class="fi" id="v-sbp" type="number" min="50" max="250" placeholder="e.g. 118" value="' + (latest && latest.sbp != null ? latest.sbp : '') + '"></div>' +
+    '<div class="fg"><label class="fl">BP Diastolic (mmHg)</label><input class="fi" id="v-dbp" type="number" min="30" max="150" placeholder="e.g. 76" value="' + (latest && latest.dbp != null ? latest.dbp : '') + '"></div>' +
+    '<div class="fg"><label class="fl">Temperature (C)</label><input class="fi" id="v-temp" type="number" min="33" max="42" step="0.1" placeholder="e.g. 37.0" value="' + (latest && latest.temperature != null ? latest.temperature : '') + '"></div>' +
+    '<div class="fg"><label class="fl">AVPU</label><select class="fi" id="v-avpu"><option value="A"' + (!latest || latest.consciousness === 'A' || !latest.consciousness ? ' selected' : '') + '>Alert</option><option value="V"' + (latest && latest.consciousness === 'V' ? ' selected' : '') + '>Voice</option><option value="P"' + (latest && latest.consciousness === 'P' ? ' selected' : '') + '>Pain</option><option value="U"' + (latest && latest.consciousness === 'U' ? ' selected' : '') + '>Unresponsive</option></select></div>' +
+    '<div class="fg"><label class="fl">Air / O2</label><select class="fi" id="v-air"><option value="Air"' + (!latest || latest.air_or_oxygen !== 'Oxygen' ? ' selected' : '') + '>Air</option><option value="Oxygen"' + (latest && latest.air_or_oxygen === 'Oxygen' ? ' selected' : '') + '>Oxygen</option></select></div>' +
     '</div>' +
+    (latest ? '<div class="muted small" style="margin-bottom:12px">Pre-filled with the most recent recorded values — edit only the field(s) that need correcting.</div>' : '') +
     '<div style="display:flex;gap:8px;align-items:center">' +
     '<button class="btn btn-sec btn-sm" onclick="nav(\'n1b\',' + pid + ')">Cancel</button>' +
     '<button class="btn btn-pri" id="submit-vitals-btn" onclick="submitVitals()">Submit Vitals</button>' +
