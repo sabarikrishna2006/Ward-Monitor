@@ -484,9 +484,14 @@ function enrich(enc) {
    background poll so the patient list never differs between renders ── */
 const _RELEASED_PHASES = new Set(['paid','claim_submitted','tpa_settled','final_bill_generated']);
 function _notReleased(r) { return !(r.status === 'Signed Off' && _RELEASED_PHASES.has(r.billing_phase)); }
+// Sabari's preseeded ward-monitor demo patients — hidden from Ashmit's queue only.
+// They still exist in the shared DB and remain visible in Sabari's Ward Monitor app.
+const _HIDDEN_HADM_IDS = new Set([91001, 91002, 91003, 91004, 91005, 91006]);
+function _notSabariSeed(r) { return !_HIDDEN_HADM_IDS.has(r.hadm_id); }
+
 function _visibleRows(encs) {
-  const mine = encs.filter(function(r){ return r.assigned_to === user.id; }).filter(_notReleased);
-  return mine.length ? mine : encs.filter(_notReleased);
+  const mine = encs.filter(function(r){ return r.assigned_to === user.id; }).filter(_notReleased).filter(_notSabariSeed);
+  return mine.length ? mine : encs.filter(_notReleased).filter(_notSabariSeed);
 }
 
 /* ── Load from backend (with auto-retry) ── */
