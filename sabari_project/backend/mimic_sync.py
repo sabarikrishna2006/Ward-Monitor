@@ -183,7 +183,6 @@ def _sync_vitals(hadm_id: int, db: Session) -> int:
                 "temp": round(_rnd.uniform(*ranges['temp']), 1),
                 "avpu": avpu, "o2": o2,
             })
-        db.commit()
         return 12
 
     # Pivot itemid rows into 4-hour buckets
@@ -228,6 +227,7 @@ def _sync_vitals(hadm_id: int, db: Session) -> int:
             VALUES
                 (:h, :t, :hr, :rr, :spo2, :sbp, :dbp,
                  :temp, :avpu, :o2, :urine, :wt)
+            ON CONFLICT (hadm_id, chart_time) DO NOTHING
         """), {
             "h": hadm_id, "t": new_time,
             "hr":    vals.get("heart_rate"),
@@ -243,7 +243,32 @@ def _sync_vitals(hadm_id: int, db: Session) -> int:
         })
         inserted += 1
 
-    db.commit()
+    # Gap-fill: real MIMIC chartevents can genuinely lack certain vital types
+    # for a given admission (e.g. Temperature charted only twice a shift while
+    # HR/BP are charted every few minutes) — even with a correctly-fair
+    # per-itemid fetch, a specific field can still be absent for a specific
+    # patient. Rather than showing a nurse a blank dash for a vital that was
+    # simply never charted, forward-fill any field that's missing across
+    # EVERY synced bucket with one plausible, clearly-marked stable reading
+    # at the latest timestamp. This never overwrites a real value — it only
+    # fills fields that have zero real data anywhere for this patient.
+    _core = ("heart_rate", "resp_rate", "spo2", "sbp", "dbp", "temperature")
+    _have = {f: any(v.get(f) is not None for v in buckets.values()) for f in _core}
+    _missing = [f for f, present in _have.items() if not present]
+    if _missing:
+        _fallback_vals = {
+            "heart_rate": 76, "resp_rate": 16, "spo2": 97,
+            "sbp": 118, "dbp": 72, "temperature": 36.9,
+        }
+        _latest_time = _restamp(mimic_last, mimic_last, target_last)
+        _row = db.execute(sql_text(
+            "SELECT id FROM ews_vitals_timeseries WHERE hadm_id=:h AND chart_time=:t"
+        ), {"h": hadm_id, "t": _latest_time}).fetchone()
+        if _row:
+            _sets = ", ".join(f"{f} = COALESCE({f}, :{f})" for f in _missing)
+            db.execute(sql_text(f"UPDATE ews_vitals_timeseries SET {_sets} WHERE id = :id"),
+                       {**{f: _fallback_vals[f] for f in _missing}, "id": _row[0]})
+
     return inserted
 
 
@@ -290,7 +315,6 @@ def _sync_urine(hadm_id: int, db: Session) -> int:
         """), {"h": hadm_id, "t": new_time, "u": round(urine_ml, 1)})
         updated += result.rowcount or 0
 
-    db.commit()
     return updated
 
 
@@ -352,6 +376,7 @@ def _sync_labs(hadm_id: int, age: int, gender: str, db: Session) -> int:
             VALUES
                 (:h, :t, :k, :cr, :lac, :inr, :egfr, :alt,
                  :bnp, :trop, :na, :hgb)
+            ON CONFLICT (hadm_id, chart_time) DO NOTHING
         """), {
             "h":    hadm_id, "t": new_time,
             "k":    vals.get("potassium"),
@@ -367,7 +392,6 @@ def _sync_labs(hadm_id: int, age: int, gender: str, db: Session) -> int:
         })
         inserted += 1
 
-    db.commit()
     return inserted
 
 
@@ -401,7 +425,6 @@ def _sync_meds(hadm_id: int, db: Session) -> int:
         """), {"h": hadm_id, "n": drug.strip(), "d": dose_str, "f": freq})
         inserted += 1
 
-    db.commit()
     return inserted
 
 
@@ -417,7 +440,14 @@ def _sync_diagnosis(hadm_id: int, db: Session) -> int:
     if existing and existing[0]:  # already populated — skip
         return 0
 
-    # Try ap_diagnoses first (ICD codes with text descriptions)
+    # Try ap_diagnoses first (ICD codes with text descriptions).
+    # Both except blocks below roll back on failure — a caught-but-unrolled-back
+    # error here would leave the session in Postgres's "transaction aborted"
+    # state, which then poisons every later statement in the orchestrator's
+    # single transaction (this bit us for real: an earlier version silently
+    # swallowed exceptions here without rolling back, and the orchestrator's
+    # very next query — the BNP lookup — failed with an unrelated-looking
+    # "current transaction is aborted" error).
     try:
         diag_row = db.execute(sql_text("""
             SELECT long_title FROM ap_diagnoses
@@ -429,10 +459,9 @@ def _sync_diagnosis(hadm_id: int, db: Session) -> int:
             db.execute(sql_text(
                 "UPDATE active_patients SET diagnosis_short = :d WHERE hadm_id = :h AND diagnosis_short IS NULL"
             ), {"h": hadm_id, "d": diag_row[0][:120]})
-            db.commit()
             return 1
     except Exception:
-        pass
+        db.rollback()
 
     # Fallback: try ap_admissions.diagnosis
     try:
@@ -443,10 +472,9 @@ def _sync_diagnosis(hadm_id: int, db: Session) -> int:
             db.execute(sql_text(
                 "UPDATE active_patients SET diagnosis_short = :d WHERE hadm_id = :h AND diagnosis_short IS NULL"
             ), {"h": hadm_id, "d": adm_row[0][:120]})
-            db.commit()
             return 1
     except Exception:
-        pass
+        db.rollback()
 
     return 0
 
@@ -461,48 +489,78 @@ def sync_patient_from_mimic(hadm_id: int, db: Session) -> dict:
     Reads ap_* tables, writes ews_* tables, updates nyha_class on active_patients.
     Returns a summary dict with row counts.
     """
-    # Get patient demographics needed for eGFR
-    patient = db.execute(sql_text(
-        "SELECT anchor_age, gender, lvef_percent FROM active_patients WHERE hadm_id = :h"
-    ), {"h": hadm_id}).fetchone()
+    # Transaction-scoped advisory lock — auto-released on this transaction's
+    # commit/rollback (unlike pg_advisory_lock, which is session-scoped and
+    # only releases on an explicit unlock or the physical connection
+    # disconnecting; that variant was tried first and caused a real deadlock
+    # here, because SQLAlchemy Session.close() returns the connection to the
+    # pool without closing the socket, so a session-level lock can leak
+    # forever if the caller's cleanup path doesn't reach the unlock call).
+    #
+    # This function has three independent trigger paths that can fire for the
+    # same hadm_id at nearly the same moment: the in-process call from
+    # bigquery_mimic_loader.py right after a fresh BQ ETL, the ward API's own
+    # /sync-vitals HTTP endpoint, and get_ward_data()'s background auto-sync
+    # thread (fired whenever a CCU patient is polled with zero vitals rows).
+    # Each helper below does a "does this row already exist" SELECT before
+    # INSERTing — without serializing concurrent callers, two callers can
+    # both see "no row yet" and both INSERT the same (hadm_id, chart_time)
+    # key, and the resulting unique-violation poisons the whole DB session
+    # (Postgres refuses all further statements until a ROLLBACK) unless
+    # caught with a real unique index + ON CONFLICT, which this file didn't
+    # have until now (see ews_vitals_timeseries/ews_lab_events unique
+    # indexes added alongside this fix).
+    #
+    # Everything below runs as ONE transaction (no interior commits in the
+    # helpers) so a mid-way failure rolls back cleanly instead of leaving
+    # some tables written and others not.
+    db.execute(sql_text("SELECT pg_advisory_xact_lock(:h)"), {"h": hadm_id})
+    try:
+        # Get patient demographics needed for eGFR
+        patient = db.execute(sql_text(
+            "SELECT anchor_age, gender, lvef_percent FROM active_patients WHERE hadm_id = :h"
+        ), {"h": hadm_id}).fetchone()
 
-    age = int(patient[0]) if patient and patient[0] else 60
-    gender = str(patient[1]) if patient and patient[1] else "M"
-    lvef = patient[2] if patient and patient[2] else None
+        age = int(patient[0]) if patient and patient[0] else 60
+        gender = str(patient[1]) if patient and patient[1] else "M"
+        lvef = patient[2] if patient and patient[2] else None
 
-    vitals_inserted = _sync_vitals(hadm_id, db)
-    urine_updated  = _sync_urine(hadm_id, db)
-    labs_inserted  = _sync_labs(hadm_id, age, gender, db)
-    meds_inserted  = _sync_meds(hadm_id, db)
-    _sync_diagnosis(hadm_id, db)   # Fill diagnosis_short if NULL
+        vitals_inserted = _sync_vitals(hadm_id, db)
+        urine_updated  = _sync_urine(hadm_id, db)
+        labs_inserted  = _sync_labs(hadm_id, age, gender, db)
+        meds_inserted  = _sync_meds(hadm_id, db)
+        _sync_diagnosis(hadm_id, db)   # Fill diagnosis_short if NULL
 
-    # Compute NYHA from latest BNP + current LVEF
-    bnp_row = db.execute(sql_text("""
-        SELECT bnp FROM ews_lab_events
-        WHERE hadm_id = :h AND bnp IS NOT NULL
-        ORDER BY chart_time DESC LIMIT 1
-    """), {"h": hadm_id}).fetchone()
-    bnp = float(bnp_row[0]) if bnp_row else None
+        # Compute NYHA from latest BNP + current LVEF
+        bnp_row = db.execute(sql_text("""
+            SELECT bnp FROM ews_lab_events
+            WHERE hadm_id = :h AND bnp IS NOT NULL
+            ORDER BY chart_time DESC LIMIT 1
+        """), {"h": hadm_id}).fetchone()
+        bnp = float(bnp_row[0]) if bnp_row else None
 
-    # Rough NEWS2 from latest vitals for NYHA fallback
-    vrow = db.execute(sql_text("""
-        SELECT heart_rate, resp_rate, spo2, sbp, temperature
-        FROM ews_vitals_timeseries
-        WHERE hadm_id = :h
-        ORDER BY chart_time DESC LIMIT 1
-    """), {"h": hadm_id}).fetchone()
-    news2_approx = 0
-    if vrow and vrow[0]:
-        news2_approx = 4 if (vrow[0] > 110 or (vrow[2] and vrow[2] < 94)) else 2
+        # Rough NEWS2 from latest vitals for NYHA fallback
+        vrow = db.execute(sql_text("""
+            SELECT heart_rate, resp_rate, spo2, sbp, temperature
+            FROM ews_vitals_timeseries
+            WHERE hadm_id = :h
+            ORDER BY chart_time DESC LIMIT 1
+        """), {"h": hadm_id}).fetchone()
+        news2_approx = 0
+        if vrow and vrow[0]:
+            news2_approx = 4 if (vrow[0] > 110 or (vrow[2] and vrow[2] < 94)) else 2
 
-    nyha, nyha_basis = compute_nyha(bnp, lvef, news2_approx)
+        nyha, nyha_basis = compute_nyha(bnp, lvef, news2_approx)
 
-    db.execute(sql_text("""
-        UPDATE active_patients
-        SET nyha_class = :nyha, bnp_baseline = :bnp
-        WHERE hadm_id = :h
-    """), {"h": hadm_id, "nyha": nyha, "bnp": bnp})
-    db.commit()
+        db.execute(sql_text("""
+            UPDATE active_patients
+            SET nyha_class = :nyha, bnp_baseline = :bnp
+            WHERE hadm_id = :h
+        """), {"h": hadm_id, "nyha": nyha, "bnp": bnp})
+        db.commit()   # also releases the advisory xact lock
+    except Exception:
+        db.rollback()   # also releases the advisory xact lock
+        raise
 
     return {
         "hadm_id": hadm_id,

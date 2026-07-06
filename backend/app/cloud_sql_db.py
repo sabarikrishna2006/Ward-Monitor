@@ -58,8 +58,20 @@ def get_engine():
             "postgresql+pg8000://",
             creator=_make_connection,
             poolclass=QueuePool,
-            pool_size=5,
-            max_overflow=10,
+            # This Cloud SQL instance's max_connections is 25 (smallest tier),
+            # ~4 reserved for GCP's own cloudsqladmin/cloudsqlagent. Three
+            # separate backend processes share this instance (this main API,
+            # this data server — each gets its OWN pool from this same
+            # get_engine() singleton since they're separate processes — plus
+            # the ward API's own engine in sabari_project/backend/database.py).
+            # At pool_size=5/max_overflow=10, three processes could together
+            # legitimately request 45 connections against a ~21-connection
+            # budget. Reproduced directly: 23/25 in use with only light manual
+            # testing, and 5 concurrent requests to one endpoint immediately
+            # hit "FATAL 53300: remaining connection slots are reserved".
+            # 2+3 per process keeps the three-service combined ceiling at 15.
+            pool_size=2,
+            max_overflow=3,
             pool_timeout=30,
             pool_pre_ping=True,      # evict stale connections automatically
         )

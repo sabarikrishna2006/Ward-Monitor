@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "healthcare-project-496207",
+  "private_key_id": "ed48c8498cd4e9be996d38dd546019a22e2f090c",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDCbvjiPSIBCzCX\nVro2f6UqzJMPbXHU14/fBjCdtgE3K6NDlrlYIBUBbp2fehbRsJEBLNlT5QwBem8K\nnERWnrOuWdUed+Wow01fkHWR+s7xIjX6ICbmylPBxDsl+gnmI9DMAFa47TH/ofdN\nmkmk+SCK6r4RXMKmcI07S+MHzz4ZbA7lEEPenp30htefHKWUGHXT0BtbZ5sB+svO\nyy8Dvch7EZE1lZugkCZpg0GGdQpdkMpN+hOzm7dxGWo2X//ygJYvyxJs+8u82jXG\n1kbh3nU+DL2kfdj2f9jhEA/yGkuKCNMiV4R/G5vmr2yxfzTaznAfejuA4n7VJ5/v\nRuwPmxOrAgMBAAECggEALrjlBNSk6bRLKmrUV4lH4ueDBUeK/ZcJQxIlN5jHZP8O\n/gxnoIYhFhWDOhHoDt6Lkck5tj/JqUdHDLktcNU1H1YF8QrlvK6l1quLnRc0iFxs\ntRzpzDbddqgVgJQ7sbp0j7kbHdgd1iyRFWxYexTEna04HEr6mW1detzLAxLpfMj/\n8g7lK4njmXzNxrj0sbCA/4GmXGxYaak5tDaX1otN+qAmHmawLhqAZSVVTFgFuzOz\nK+wwXcltih82bhZLqK7WjNpOiDbl40I8g5WsP8FAbTMMYbXIeObChD6iqTJgy33p\nRcvSvuBgGgDDUcd2rLWqoCSlIF8HL3yKPevPVr5FXQKBgQDjs642ax4eG01FMu7u\n72w0gUCOxmk2zP0p+A4vB+uh53GMrb5MUUGZgaok84tRhftnFEd3PSsifIvGvKrc\nQufwRE3l2N1qlfRyScs6FMznA3hXqYy/gYAvImqco6qd+Puogrm38K4MBHROnnrA\nUyFHFt1BKphILri4mwCzvlFNpQKBgQDamNwvRZhs30ouScUeYjNqrzslACvNy2rE\nCprUe0+DSoeyCovyqjRpXE6ZadJrJS4s3WzvcozHpbW9do73qpTda9YzCBxtW3dB\nEsce85YE0l2waPkDTk6JQguX7svYzvL3aDljVttFWJTXulSxc+20m0pa1nIk7FpH\noKRRpqC7DwKBgA3D/RI5I5b6W4+FZsB3JPl/nuGCyTWQ6vUwk9rwBaTCEzFIB6sh\ndm/LUPfu6UtCaFJw/WkN/5+UG/clzMaIHPF/j54HoEsjSaXnJCwcuc51fT7/dwzU\nzWUMFZnmoxftx3kGfifKmxsK4eUm25Do9agQj8uywYYLnQs8A6zaIpwpAoGBAMI5\ni3ndBl/Fze1u0lv6uOCTraNkkYcatFRXb9ZXcgCfmg3RXSNRo5vxzkx1P+a/dFWc\nsAvY5ckGLYKX8tOPlxFdnUZecJOh70W8X3vaxnKmT2RNAOO1EgbWzeJC5JBQ4IR+\n8G6ZX94vpKBBCLta29vbFqe7XlP8RQLbcuSxfqJ1AoGBAI66H8pEKhaiMvBm72sA\nvQ9DnVaCIDW6kufJ+0xiAPT5Wcvnr/bTfpM+5Y7Ltqnh+6pPWpe535/bG1euf65i\nS350mFRsmMrFDfXyGwPF0vkGmNmUQF3AugYWE6vFWbgrqGrkGr0RPmrGq5GtJGuG\n4RTD2nf81hYmZY2xYS0j/YRa\n-----END PRIVATE KEY-----\n",
+  "client_email": "foqal-data-access-service-acco@healthcare-project-496207.iam.gserviceaccount.com",
+  "client_id": "106825700689435787041",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/foqal-data-access-service-acco%40healthcare-project-496207.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}

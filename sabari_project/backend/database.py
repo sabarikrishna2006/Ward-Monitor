@@ -28,8 +28,22 @@ def _make_connection():
 engine = create_engine(
     "postgresql+pg8000://",
     creator=_make_connection,
-    pool_size=5,
-    max_overflow=10,
+    # This Cloud SQL instance's max_connections is 25 (checked directly via
+    # `SHOW max_connections` — it's the smallest tier). ~4 of those are
+    # reserved for GCP's own cloudsqladmin/cloudsqlagent, leaving ~21 for all
+    # application connections combined. Three backend processes run against
+    # this same instance (this ward API, Ashmit's main API, Ashmit's data
+    # server) — at the previous pool_size=5/max_overflow=10, each process
+    # could alone claim up to 15 connections, so all three together could
+    # legitimately request 45, blowing well past the real ceiling and
+    # producing "FATAL 53300: remaining connection slots are reserved" for
+    # whichever request loses the race. Observed this directly: 23/25
+    # connections in use with only light manual testing running, and a batch
+    # of 5 concurrent requests to one endpoint immediately hit the error.
+    # 2+3 per service (max 5) keeps three services' combined ceiling at 15,
+    # comfortably under the ~21 actually available.
+    pool_size=2,
+    max_overflow=3,
     pool_pre_ping=True,   # test connection health on checkout; drops broken ones before they cause 25P02
     pool_recycle=1800,
 )
@@ -37,8 +51,27 @@ engine = create_engine(
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def init_db():
-    # Tables already exist in Cloud SQL — no-op kept for startup compatibility
-    pass
+    # Tables already exist in Cloud SQL — this is otherwise a no-op, kept for
+    # startup compatibility, EXCEPT for these two indexes: mimic_sync.py's
+    # real-data insert paths rely on ON CONFLICT (hadm_id, chart_time) DO
+    # NOTHING to survive concurrent syncs, but Postgres requires a real unique
+    # index to back that clause — without it every insert on that path throws
+    # "42P10: no unique or exclusion constraint matching ON CONFLICT" and the
+    # sync silently fails. These were created ad hoc directly on the shared
+    # instance and never captured in a migration, so if this database is ever
+    # recreated or pointed at a fresh instance, the exact same crash returns
+    # silently. CREATE ... IF NOT EXISTS makes this safe to run on every
+    # startup.
+    from sqlalchemy import text as _t
+    with engine.begin() as conn:
+        conn.execute(_t(
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_ews_vitals_hadm_time "
+            "ON ews_vitals_timeseries (hadm_id, chart_time)"
+        ))
+        conn.execute(_t(
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_ews_labs_hadm_time "
+            "ON ews_lab_events (hadm_id, chart_time)"
+        ))
 
 def get_db():
     db = SessionLocal()

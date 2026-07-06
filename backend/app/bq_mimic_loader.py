@@ -292,41 +292,65 @@ def fetch_patient_display(hadm_id: int) -> Dict:
     adm        = adm_rows[0]
     subject_id = adm.get("subject_id")
 
-    diagnoses = _query(f"""
-        SELECT di.hadm_id, di.subject_id, di.seq_num, di.icd_code, di.icd_version,
-               COALESCE(dd.long_title, di.icd_code) AS long_title
-        FROM {_hosp('diagnoses_icd')} di
-        LEFT JOIN {_hosp('d_icd_diagnoses')} dd
-               ON di.icd_code = dd.icd_code AND di.icd_version = dd.icd_version
-        WHERE di.hadm_id = @hadm_id ORDER BY di.seq_num
-    """, {"hadm_id": hadm_id})
+    # These 6 queries are mutually independent (all keyed off hadm_id/subject_id
+    # resolved above) — dispatching them concurrently instead of one-at-a-time
+    # turns ~7 sequential BQ round trips (2-7s each => 15-45s) into the time of
+    # the single slowest query. bigquery.Client supports concurrent query() calls
+    # from multiple threads (each dispatches its own job); only the blocking
+    # .result() iteration inside _query() happens per-thread.
+    _jobs = {
+        "diagnoses": (f"""
+            SELECT di.hadm_id, di.subject_id, di.seq_num, di.icd_code, di.icd_version,
+                   COALESCE(dd.long_title, di.icd_code) AS long_title
+            FROM {_hosp('diagnoses_icd')} di
+            LEFT JOIN {_hosp('d_icd_diagnoses')} dd
+                   ON di.icd_code = dd.icd_code AND di.icd_version = dd.icd_version
+            WHERE di.hadm_id = @hadm_id ORDER BY di.seq_num
+        """, {"hadm_id": hadm_id}),
+        "procedures": (f"""
+            SELECT pi.hadm_id, pi.subject_id, pi.seq_num, pi.chartdate,
+                   pi.icd_code, pi.icd_version,
+                   COALESCE(dp.long_title, pi.icd_code) AS long_title
+            FROM {_hosp('procedures_icd')} pi
+            LEFT JOIN {_hosp('d_icd_procedures')} dp
+                   ON pi.icd_code = dp.icd_code AND pi.icd_version = dp.icd_version
+            WHERE pi.hadm_id = @hadm_id ORDER BY pi.seq_num
+        """, {"hadm_id": hadm_id}),
+        "icustays": (
+            f"SELECT * FROM {_icu('icustays')} WHERE hadm_id = @hadm_id ORDER BY intime",
+            {"hadm_id": hadm_id}
+        ),
+        "transfers": (
+            f"SELECT * FROM {_hosp('transfers')} WHERE hadm_id = @hadm_id ORDER BY intime",
+            {"hadm_id": hadm_id}
+        ),
+        "microbiologyevents": (
+            f"SELECT * FROM {_hosp('microbiologyevents')} WHERE hadm_id = @hadm_id ORDER BY charttime DESC",
+            {"hadm_id": hadm_id}
+        ),
+        "omr": (f"""
+            SELECT * FROM {_hosp('omr')}
+            WHERE subject_id = @subject_id ORDER BY chartdate DESC LIMIT 100
+        """, {"subject_id": subject_id}),
+    }
+    from concurrent.futures import ThreadPoolExecutor
+    _results: Dict[str, List[Dict]] = {}
+    with ThreadPoolExecutor(max_workers=len(_jobs)) as _pool:
+        _futs = {_pool.submit(_query, sql, params): name for name, (sql, params) in _jobs.items()}
+        for _fut in _futs:
+            name = _futs[_fut]
+            try:
+                _results[name] = _fut.result()
+            except Exception as _e:
+                log.warning(f"[BQ] display query '{name}' failed for hadm_id={hadm_id}: {_e}")
+                _results[name] = []
 
-    procedures = _query(f"""
-        SELECT pi.hadm_id, pi.subject_id, pi.seq_num, pi.chartdate,
-               pi.icd_code, pi.icd_version,
-               COALESCE(dp.long_title, pi.icd_code) AS long_title
-        FROM {_hosp('procedures_icd')} pi
-        LEFT JOIN {_hosp('d_icd_procedures')} dp
-               ON pi.icd_code = dp.icd_code AND pi.icd_version = dp.icd_version
-        WHERE pi.hadm_id = @hadm_id ORDER BY pi.seq_num
-    """, {"hadm_id": hadm_id})
-
-    icustays = _query(
-        f"SELECT * FROM {_icu('icustays')} WHERE hadm_id = @hadm_id ORDER BY intime",
-        {"hadm_id": hadm_id}
-    )
-    transfers = _query(
-        f"SELECT * FROM {_hosp('transfers')} WHERE hadm_id = @hadm_id ORDER BY intime",
-        {"hadm_id": hadm_id}
-    )
-    microbiologyevents = _query(
-        f"SELECT * FROM {_hosp('microbiologyevents')} WHERE hadm_id = @hadm_id ORDER BY charttime DESC",
-        {"hadm_id": hadm_id}
-    )
-    omr = _query(f"""
-        SELECT * FROM {_hosp('omr')}
-        WHERE subject_id = @subject_id ORDER BY chartdate DESC LIMIT 100
-    """, {"subject_id": subject_id})
+    diagnoses          = _results["diagnoses"]
+    procedures         = _results["procedures"]
+    icustays           = _results["icustays"]
+    transfers          = _results["transfers"]
+    microbiologyevents = _results["microbiologyevents"]
+    omr                = _results["omr"]
 
     return {
         "admission":          adm,
@@ -380,16 +404,51 @@ def fetch_patient_tab(hadm_id: int, tab_name: str) -> Dict:
             {"hadm_id": hadm_id}
         )
     elif tab_name == "chartevents":
-        # 50 rows needed: sabari's sync_patient_from_mimic extracts NEWS2 vitals from these
+        # 50 rows for general display, plus the most recent readings for EACH
+        # vital itemid individually (sabari's EWS sync needs every vital type
+        # represented, not just whichever ones happen to be measured most
+        # often). A global "ORDER BY charttime DESC LIMIT 100" across all
+        # vital itemids combined is NOT equivalent to that — if BP/SpO2/RR are
+        # each charted every few minutes (e.g. 30 rows each = 90+ rows) they
+        # fill the entire 100-row budget on their own, and an itemid measured
+        # less frequently (Heart Rate, Temperature) can be pushed out
+        # entirely even though it has plenty of real readings — reproduced
+        # directly: a patient with 30 real Heart Rate readings in MIMIC ended
+        # up with ZERO synced, because 220045's timestamps lost the race
+        # against denser itemids for the shared top-100 slot. Partitioning
+        # per itemid guarantees every vital type gets its own recent window
+        # regardless of how often other itemids are charted.
+        vital_ids = (220045, 220179, 220050, 220180, 220051, 220277, 220210, 223762, 223761, 224639, 226512, 226755, 223834)
         rows = _query(f"""
-            SELECT ce.stay_id, ce.hadm_id, ce.subject_id, ce.itemid,
-                   di.label, di.category,
-                   ce.charttime, ce.storetime, ce.value, ce.valuenum,
-                   ce.valueuom, ce.warning
-            FROM {_icu('chartevents')} ce
-            LEFT JOIN {_icu('d_items')} di ON ce.itemid = di.itemid
-            WHERE ce.hadm_id = @hadm_id
-            ORDER BY ce.charttime DESC LIMIT 50
+            WITH top_general AS (
+                SELECT ce.stay_id, ce.hadm_id, ce.subject_id, ce.itemid,
+                       di.label, di.category,
+                       ce.charttime, ce.storetime, ce.value, ce.valuenum,
+                       ce.valueuom, ce.warning
+                FROM {_icu('chartevents')} ce
+                LEFT JOIN {_icu('d_items')} di ON ce.itemid = di.itemid
+                WHERE ce.hadm_id = @hadm_id
+                ORDER BY ce.charttime DESC LIMIT 50
+            ),
+            top_vitals AS (
+                SELECT stay_id, hadm_id, subject_id, itemid, label, category,
+                       charttime, storetime, value, valuenum, valueuom, warning
+                FROM (
+                    SELECT ce.stay_id, ce.hadm_id, ce.subject_id, ce.itemid,
+                           di.label, di.category,
+                           ce.charttime, ce.storetime, ce.value, ce.valuenum,
+                           ce.valueuom, ce.warning,
+                           ROW_NUMBER() OVER (PARTITION BY ce.itemid ORDER BY ce.charttime DESC) AS rn
+                    FROM {_icu('chartevents')} ce
+                    LEFT JOIN {_icu('d_items')} di ON ce.itemid = di.itemid
+                    WHERE ce.hadm_id = @hadm_id AND ce.itemid IN {vital_ids}
+                )
+                WHERE rn <= 15
+            )
+            SELECT * FROM top_general
+            UNION DISTINCT
+            SELECT * FROM top_vitals
+            ORDER BY charttime DESC
         """, {"hadm_id": hadm_id})
     elif tab_name == "fluids":
         rows = _query(f"""

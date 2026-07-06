@@ -446,7 +446,7 @@ def _invalidate_ward_cache(ward: str):
 
 @app.get("/api/ward-data")
 def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False,
-                  hadm_id: Optional[int] = None, db: Session = Depends(get_db)):
+                  hadm_id: Optional[int] = None, limit: int = 25, db: Session = Depends(get_db)):
     global REPLAY_OFFSET
     if replay:
         REPLAY_OFFSET = (REPLAY_OFFSET + 1) % 20
@@ -457,6 +457,21 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
         _cached = _ward_cache.get(_cache_key)
         if _cached and (_time.time() - _cached["ts"]) < _WARD_CACHE_TTL:
             return _cached["data"]
+        # Derive location-filtered views from a fresh "All" cache so each role's
+        # first screen (CCU / GENERAL_WARD / charge) doesn't pay its own cold
+        # Cloud SQL pipeline — one warm "All" entry serves every location.
+        if ward == "All" and location != "All":
+            _all = _ward_cache.get(("All", "All"))
+            if _all and (_time.time() - _all["ts"]) < _WARD_CACHE_TTL:
+                if location == "CCU":
+                    _pts = [p for p in _all["data"]["patients"]
+                            if p.get("ward_location") in (None, "CCU")]
+                else:
+                    _pts = [p for p in _all["data"]["patients"]
+                            if p.get("ward_location") == location]
+                _derived = {"patients": _pts, "ward": ward}
+                _ward_cache[_cache_key] = {"ts": _all["ts"], "data": _derived}
+                return _derived
 
     q = db.query(Patient).filter(Patient.status.notin_(["signed_off", "archived"]))
     if ward != "All":
@@ -469,6 +484,9 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
             q = q.filter(Patient.ward_location == location)
     if hadm_id is not None:
         q = q.filter(Patient.hadm_id == hadm_id)
+    # Single-patient lookup returns that patient; multi-patient limited to 25
+    if hadm_id is None:
+        q = q.order_by(Patient.admit_time.desc()).limit(limit)
     patients = q.all()
 
     if not patients:
@@ -512,14 +530,14 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
 
     _lrows = db.query(LabEvent).filter(
         LabEvent.hadm_id.in_(patient_ids)
-    ).order_by(LabEvent.chart_time.desc()).all()
+    ).order_by(LabEvent.chart_time.desc()).limit(200).all()
     _labs_map = defaultdict(list)
     for _l in _lrows:
         _labs_map[_l.hadm_id].append(_l)
 
     _mrows = db.query(Medication).filter(
         Medication.hadm_id.in_(patient_ids)
-    ).all()
+    ).limit(150).all()
     _meds_map = defaultdict(list)
     for _m in _mrows:
         _meds_map[_m.hadm_id].append(_m)
@@ -567,7 +585,10 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
                     pass
             threading.Thread(target=_bg_sync, args=(p.hadm_id,), daemon=True).start()
 
-        safe_offset = min(REPLAY_OFFSET, max(len(all_vitals) - 1, 0))
+        # REPLAY_OFFSET must only shift history on explicit replay requests —
+        # applying the global to normal reads makes every dashboard poll skip
+        # the newest vitals rows once anyone has used the replay endpoint.
+        safe_offset = min(REPLAY_OFFSET, max(len(all_vitals) - 1, 0)) if replay else 0
         vitals_history = all_vitals[safe_offset : safe_offset + 24]
             
         vitals_history.reverse()
@@ -620,11 +641,11 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
         elif news2_score >= 5: status = 'warning'
         else: status = 'stable'
 
-        # ── Build trajectory — filter out completely-null data points ──
+        # ── Build trajectory — LIMIT to last 12 vitals only for dashboard responsiveness ──
         trajectory = []
         # Running forward-fill per series for the chart
         fill = {'hr': None, 'rr': None, 'spo2': None, 'temp': None, 'sbp': None, 'dbp': None}
-        for v in vitals_history:
+        for v in vitals_history[-12:]:  # Only last 12 vitals, not all 96
             if is_valid(v.heart_rate):  fill['hr']   = round(v.heart_rate, 1)
             if is_valid(v.resp_rate):   fill['rr']   = round(v.resp_rate, 1)
             if is_valid(v.spo2):        fill['spo2'] = round(v.spo2, 1)
@@ -652,9 +673,9 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
                 "dbp":  fill['dbp'],
             })
 
-        # ── Recent Vitals (last 6 readings ≈ 6h) — use resolved latest values ──
+        # ── Recent Vitals (last 6 readings) — use resolved latest values ──
         recent_vitals = []
-        for pt in trajectory[-6:]:
+        for pt in trajectory[-6:]:  # Always show just last 6
             # Compute historical NEWS2
             # Carry the patient's current consciousness / O2 status across the window so the
             # trend NEWS2 stays consistent with the headline score (demo readings are constant).
@@ -840,6 +861,9 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
             "complaint": p.ews_complaint,
             "briefFlag": brief_flag,
             "status": status,
+            # Raw active_patients.status — the "status" above is the computed
+            # clinical tier; the discharge badge needs the DB lifecycle state.
+            "db_status": getattr(p, 'status', 'active'),
             "vitals": {"bp_time": vitals_history[-1].chart_time.strftime("%H:%M") if vitals_history and vitals_history[-1].chart_time else "--"},
             "hr":   int(latest_vitals['heart_rate'])  if latest_vitals['heart_rate']  else "--",
             "rr":   int(latest_vitals['resp_rate'])   if latest_vitals['resp_rate']   else "--",
@@ -863,6 +887,12 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
             "nyhaClass": getattr(p, 'nyha_class', None),
             "bnpBaseline": float(p.bnp_baseline) if getattr(p, 'bnp_baseline', None) else None,
         })
+
+    # Sort by clinical priority — highest NEWS2 first, so the nurse's most
+    # critical patients are always the first rows without needing to scroll.
+    # Patients with no vitals yet ("--") have no NEWS2 to rank on; they sort
+    # last rather than first/last-arbitrarily.
+    result.sort(key=lambda p: p["news2"] if isinstance(p["news2"], (int, float)) else -1, reverse=True)
 
     _response = {"patients": result, "ward": ward}
     if hadm_id is None:
@@ -959,6 +989,35 @@ def get_escalations(db: Session = Depends(get_db)):
             "reescalationNote": e.reescalation_note,
         })
     return {"escalations": result}
+
+@app.get("/api/escalations/{esc_id}")
+def get_escalation_detail(esc_id: int, db: Session = Depends(get_db)):
+    """Single-escalation detail for the N4 status-log timeline.
+    Returns snake_case keys — that is what the N4 timeline renderer reads."""
+    e = db.query(Escalation).filter(Escalation.id == esc_id).first()
+    if not e:
+        raise HTTPException(status_code=404, detail="Escalation not found")
+    return {
+        "id": e.id,
+        "patient_id": e.hadm_id,
+        "patient_name": e.patient_name,
+        "ward": e.ward,
+        "bed": e.bed,
+        "news2_score": e.news2_score,
+        "level": e.level,
+        "attending": e.attending,
+        "escalated_by": e.escalated_by,
+        "observations": e.observations,
+        "interventions": e.interventions,
+        "status": e.status,
+        "escalated_at": e.escalated_at,
+        "acknowledged_at": e.acknowledged_at,
+        "resolved_at": e.resolved_at,
+        "resolved_by": e.resolved_by,
+        "resolution_notes": e.resolution_notes,
+        "reescalated_at": e.reescalated_at,
+        "reescalation_note": e.reescalation_note,
+    }
 
 @app.post("/api/escalations/{esc_id}/resolve")
 def resolve_escalation(esc_id: int, res: EscalationResolve, db: Session = Depends(get_db)):
@@ -1514,7 +1573,9 @@ def bulk_sync_patients(background_tasks: BackgroundTasks, db: Session = Depends(
 @app.get("/api/ward-data/warmup")
 def warmup_ward_cache(db: Session = Depends(get_db)):
     """Pre-warm the ward-data cache for all locations so the first dashboard load is fast."""
-    for loc in ["CCU", "GENERAL_WARD", "All"]:
+    # "All" first — CCU/GENERAL_WARD are then derived from its cache entry
+    # instead of running the full Cloud SQL pipeline three times.
+    for loc in ["All", "CCU", "GENERAL_WARD"]:
         cache_key = ("All", loc)
         cached = _ward_cache.get(cache_key)
         if not cached or (_time.time() - cached["ts"]) >= _WARD_CACHE_TTL:

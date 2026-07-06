@@ -139,14 +139,24 @@ def fetch_and_store_patient(hadm_id: int, engine, display_only: bool = False) ->
 
     if not display_only:
         print(f"[BQ] hadm_id={hadm_id}  loading lazy tabs …")
-        for tab in ["prescriptions", "pharmacy", "poe", "labevents", "chartevents", "fluids",
-                    "procedureevents", "emar", "emar_detail", "datetimeevents"]:
-            try:
-                tab_data = fetch_patient_tab(hadm_id, tab)
-                if "error" not in tab_data:
-                    data.update(tab_data)
-            except Exception as e:
-                print(f"[BQ] hadm_id={hadm_id}  tab={tab} skipped: {e}")
+        # Each tab is an independent BQ round trip (2-7s of per-job overhead
+        # even for row-limited queries). Sequentially that's 10 tabs x ~4s avg
+        # = ~40s just for this loop — dispatching them concurrently collapses
+        # it to roughly the slowest single tab. This is what made a new
+        # admission take 1-2+ minutes to reach the ward dashboard.
+        from concurrent.futures import ThreadPoolExecutor
+        _tabs = ["prescriptions", "pharmacy", "poe", "labevents", "chartevents", "fluids",
+                 "procedureevents", "emar", "emar_detail", "datetimeevents"]
+        with ThreadPoolExecutor(max_workers=len(_tabs)) as _pool:
+            _futs = {_pool.submit(fetch_patient_tab, hadm_id, tab): tab for tab in _tabs}
+            for _fut in _futs:
+                tab = _futs[_fut]
+                try:
+                    tab_data = _fut.result()
+                    if "error" not in tab_data:
+                        data.update(tab_data)
+                except Exception as e:
+                    print(f"[BQ] hadm_id={hadm_id}  tab={tab} skipped: {e}")
 
     # ── extract raw lists ──────────────────────────────────────────────────
     adm_row     = data.get("admission", data.get("admissions", {}))
@@ -620,9 +630,27 @@ def fetch_and_store_patient(hadm_id: int, engine, display_only: bool = False) ->
                 counts["_ews_vitals"] = ews_counts.get("vitals_inserted", 0)
                 counts["_ews_labs"]   = ews_counts.get("labs_inserted", 0)
                 counts["_ews_meds"]   = ews_counts.get("meds_inserted", 0)
+                # This in-process EWS sync IS the thing that makes the patient
+                # ward-visible — data_server.py's prefetch-all previously left
+                # data_fetch_status at 'partial' and depended on a *separate*
+                # HTTP round trip to the ward API's /sync-vitals to flip it to
+                # 'fetched'. If the ward API was slow, briefly down, or on a
+                # different port than WARD_API_BASE, that flip never happened
+                # and the patient stayed on "Syncing clinical data from
+                # MIMIC..." forever. Since the sync already succeeded right
+                # here, flip the status directly — no network dependency.
+                from sqlalchemy import text as _txt
+                _db.execute(_txt(
+                    "UPDATE active_patients SET data_fetch_status='fetched' "
+                    "WHERE hadm_id=:h AND data_fetch_status IN ('partial','fetching','pending')"
+                ), {"h": hadm_id})
+                _db.commit()
             finally:
                 _db.close()
         except Exception as _e:
             print(f"[EWS-SYNC] WARNING: EWS sync failed for hadm_id={hadm_id}: {_e}")
+            # Leave status at 'partial' (set below) — nurse sees an honest
+            # "still syncing" instead of a silent falsely-'fetched' patient
+            # with no vitals.
 
     return counts
