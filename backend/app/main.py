@@ -1279,12 +1279,10 @@ def generate_billing_estimate(req: GenerateEstimateRequest):
                 """), {"h": req.hadm_id, "diag": pkg["name"], "wloc": _ward_loc, "wname": _ward_name,
                        "pname": req.patient_name or _synth_name(req.hadm_id)})
             ward_admitted = True
-            # Also ensure app_encounters row exists so billing dashboard shows patient
-            try:
-                if not gdb.get_encounter_by_hadm(req.hadm_id):
-                    gdb.create_encounter(req.hadm_id, status="Pending Ingestion")
-            except Exception as _ee:
-                log.warning("billing→encounter auto-create failed for hadm %s: %s", req.hadm_id, _ee)
+            # NOTE: app_encounters is intentionally NOT created here. That table drives
+            # dashboard.html's doctor queue, which should only be populated when the ward
+            # nurse clicks "Initiate Discharge" (see sabari_project/backend/main.py
+            # initiate_discharge()) — not just because a cost estimate was generated.
         except Exception as _wp:
             log.warning("billing→ward provision failed for hadm %s: %s", req.hadm_id, _wp)
 
@@ -1580,13 +1578,9 @@ def upsert_billing_record(hadm_id: int, req: BillingRecordUpsert):
         row = conn.execute(
             _text("SELECT * FROM billing_records WHERE hadm_id = :h"), {"h": hadm_id}
         ).fetchone()
-    # Ensure app_encounters row exists so billing dashboard JOIN finds this patient
-    try:
-        existing_enc = gdb.get_encounter_by_hadm(hadm_id)
-        if not existing_enc:
-            gdb.create_encounter(hadm_id, status="Pending Ingestion")
-    except Exception as _ee:
-        log.warning("billing upsert — encounter auto-create failed for %s: %s", hadm_id, _ee)
+    # NOTE: app_encounters is intentionally NOT auto-created here — see generate_billing_estimate()
+    # above. The doctor queue in dashboard.html should only gain an entry once discharge is
+    # initiated, not just because a billing record was saved.
     return dict(row._mapping)
 
 @app.get("/api/billing/patient/{hadm_id}")
