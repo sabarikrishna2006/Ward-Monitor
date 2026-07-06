@@ -681,7 +681,7 @@ SCREENS.n1 = () => {
         <tr class="${rowClass}${isDischargePending ? ' row-discharge' : ''}" onclick="nav('n1b', ${p.id})">
           <td data-label="Patient"><b>${p.name}</b>${isDischargePending ? '<span class="badge-discharge">Discharge Pending</span>' : ''}<br><span class="pid">${p.patient_code || 'PT-' + p.id}</span></td>
           <td data-label="Diagnosis" class="dx-cell">${p.diagnosis_short || '—'}</td>
-          <td data-label="Ward">${p.ward.split(' ')[1] || p.ward}${p.ward_location === 'GENERAL_WARD' ? '<br><span class="loc-tag loc-gw">GW</span>' : '<br><span class="loc-tag loc-ccu">CCU</span>'}</td>
+          <td data-label="Ward">${p.ward ? (p.ward.split(' ')[1] || p.ward) : '—'}${p.ward_location === 'GENERAL_WARD' ? '<br><span class="loc-tag loc-gw">GW</span>' : '<br><span class="loc-tag loc-ccu">CCU</span>'}</td>
           <td data-label="SpO₂" class="${valCrit(p.spo2, 92, '<')}">${spo2} ${timeHtml(p.spo2_time)}</td>
           <td data-label="RR" class="${valCrit(p.rr, 21, '>')}">${rr} ${timeHtml(p.rr_time)}</td>
           <td data-label="BP" class="${valCrit(bpVal, 90, '<')}">${bp} ${timeHtml(p.bp_time)}</td>
