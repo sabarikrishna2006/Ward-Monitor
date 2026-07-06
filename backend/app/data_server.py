@@ -1,5 +1,5 @@
 """
-Data Server — Port 7026 (local dev)
+Data Server — Port 6020 (local dev)
 =======================
 Cache-aside patient data layer:
   1. Check Cloud SQL active directory  (data_fetch_status = 'fetched')
@@ -786,7 +786,7 @@ async def prefetch_all_tabs(hadm_id: int):
     # is on a different host/port or briefly unreachable, that's fine — the
     # patient is already correctly marked 'fetched' in the database either way.
     ews_synced = False
-    ward_base = os.environ.get("WARD_API_BASE", "http://localhost:7826")
+    ward_base = os.environ.get("WARD_API_BASE", "http://localhost:6030")
     try:
         import httpx
         async with httpx.AsyncClient(

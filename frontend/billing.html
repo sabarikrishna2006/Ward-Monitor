@@ -308,7 +308,7 @@ function _bilSignedToast(p) {
 
 async function _bilPoll() {
   try {
-    const base = window.FOQAL_API_BASE || 'http://localhost:7015';
+    const base = window.FOQAL_API_BASE || 'http://localhost:6010';
     const d = await (await fetch(base + '/api/billing/dashboard')).json();
     const rows = (d.pending_actions || []).concat(d.post_discharge || []);
     let changed = false;
@@ -410,7 +410,7 @@ function _ceReset() {
 function _ceSelectPatient(hadm_id, phase) {
   _ce4Data = null;   // reset CE4 cache when switching patient
   _ce4Fetching = false;
-  const base = window.FOQAL_API_BASE || 'http://localhost:7015';
+  const base = window.FOQAL_API_BASE || 'http://localhost:6010';
   fetch(`${base}/api/billing/patient/${hadm_id}`)
     .then(r => r.ok ? r.json() : null)
     .then(d => {
@@ -458,7 +458,7 @@ function _ceSelectPatient(hadm_id, phase) {
 }
 
 async function _ceSaveRecord(fields) {
-  const base = window.FOQAL_API_BASE || 'http://localhost:7015';
+  const base = window.FOQAL_API_BASE || 'http://localhost:6010';
   if (!_CE.hadm_id) return;
   try {
     await fetch(`${base}/api/billing/records/${_CE.hadm_id}`, {
@@ -514,7 +514,7 @@ async function _loadBillingDashboard() {
   if (!statsEl || !tableEl) return;
 
   try {
-    const base = window.FOQAL_API_BASE || 'http://localhost:7015';
+    const base = window.FOQAL_API_BASE || 'http://localhost:6010';
     const res  = await fetch(`${base}/api/billing/dashboard`);
     if (!res.ok) throw new Error(res.status);
     const data = await res.json();
@@ -839,7 +839,7 @@ async function _ce2Recalc() {
   const btn = document.getElementById('ce2-recalc-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Updating…'; }
 
-  const base = window.FOQAL_API_BASE || `http://${location.hostname}:7015`;
+  const base = window.FOQAL_API_BASE || `http://${location.hostname}:6010`;
   try {
     const selectedIcd = _CE.diagnosisCode || '';
     const resp = await fetch(`${base}/api/billing/generate-estimate`, {
@@ -896,7 +896,7 @@ async function _ce1Save() {
   const rrltInt        = _CE.roomRentLimit ? parseInt(_CE.roomRentLimit.replace(/[^\d]/g,'')) : null;
 
   // Generate estimate — use backend for real patients, client-side for manual entry
-  const base = window.FOQAL_API_BASE || `http://${location.hostname}:7015`;
+  const base = window.FOQAL_API_BASE || `http://${location.hostname}:6010`;
   const genBtn = document.querySelector('button[onclick="_ce1Save()"]');
   if (genBtn) { genBtn.disabled = true; genBtn.textContent = 'Generating…'; }
 
@@ -933,8 +933,8 @@ async function _ce1Save() {
           );
           // Fire single prefetch-all — runs full BQ ETL, writes all tabs to Cloud SQL,
           // then marks data_fetch_status='fetched'. Ward board and upload.html read Cloud SQL after.
-          const _dataBase = window.FOQAL_DATA_BASE || `http://${location.hostname}:7016`;
-          const _wardBase = window.FOQAL_WARD_BASE || `http://${location.hostname}:7816`;
+          const _dataBase = window.FOQAL_DATA_BASE || `http://${location.hostname}:6020`;
+          const _wardBase = window.FOQAL_WARD_BASE || `http://${location.hostname}:6030`;
           fetch(`${_dataBase}/api/patient/${_CE.hadm_id}/prefetch-all`, { method: 'POST' })
             .then(r => r.ok ? r.json() : null)
             .then(d => {
@@ -1085,7 +1085,7 @@ function _ceFinalBillView(hadm_id) {
   _ce4Fetching = false;
   document.getElementById('main').innerHTML =
     '<div style="padding:80px;text-align:center;color:var(--muted)">Loading final bill…</div>';
-  const base = window.FOQAL_API_BASE || `http://${location.hostname}:7015`;
+  const base = window.FOQAL_API_BASE || `http://${location.hostname}:6010`;
   Promise.all([
     fetch(`${base}/api/billing/patient/${hadm_id}`).then(r => r.ok ? r.json() : null).catch(() => null),
     fetch(`${base}/api/billing/reconciliation/${hadm_id}`).then(r => r.ok ? r.json() : null).catch(() => null),
@@ -1126,7 +1126,7 @@ function _ceFinalBillView(hadm_id) {
 async function _ce4Load() {
   if (!_CE.hadm_id) return;
   _ce4Fetching = true;
-  const base = window.FOQAL_API_BASE || `http://${location.hostname}:7015`;
+  const base = window.FOQAL_API_BASE || `http://${location.hostname}:6010`;
   try {
     const resp = await fetch(`${base}/api/billing/reconciliation/${_CE.hadm_id}`);
     if (!resp.ok) throw new Error(resp.status);
@@ -1152,7 +1152,7 @@ async function _ce4Load() {
 
 async function _ce4Distill() {
   if (!_CE.hadm_id) return;
-  const base = window.FOQAL_API_BASE || `http://${location.hostname}:7015`;
+  const base = window.FOQAL_API_BASE || `http://${location.hostname}:6010`;
   // Show loading state in the three text fields
   const dxEl   = document.getElementById('ce4-final-dx');
   const procEl = document.getElementById('ce4-procedures');
@@ -2368,7 +2368,7 @@ let _liveWaiting = false; // true = no charges yet, polling fast
 
 async function _liveFetch() {
   if (!_CE.hadm_id) return;
-  const base = window.FOQAL_API_BASE || 'http://localhost:7015';
+  const base = window.FOQAL_API_BASE || 'http://localhost:6010';
   try {
     const res = await fetch(`${base}/api/billing/live-charges/${_CE.hadm_id}`);
     if (!res.ok) return;

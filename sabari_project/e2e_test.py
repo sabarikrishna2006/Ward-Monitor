@@ -2,9 +2,9 @@ import httpx
 import time
 import sys
 
-data_server = "http://localhost:7016"
-ward_server = "http://localhost:7816"
-ashmit_api = "http://localhost:7015"
+data_server = "http://localhost:6020"
+ward_server = "http://localhost:6030"
+ashmit_api = "http://localhost:6010"
 
 hadm_id = 20000094
 

@@ -36,7 +36,7 @@ function _ddStartRegenPoll() {
     const processing = (_dd.encounters || []).filter(e => e.status === 'Processing');
     if (!processing.length) { clearInterval(_ddRegenPollTimer); _ddRegenPollTimer = null; return; }
     try {
-      const base = window.FOQAL_API_BASE || 'http://localhost:7015';
+      const base = window.FOQAL_API_BASE || 'http://localhost:6010';
       const fresh = await fetch(`${base}/api/encounters`).then(r => r.ok ? r.json() : null);
       if (!fresh) return;
       const freshList = Array.isArray(fresh) ? fresh : (fresh.encounters || []);
@@ -103,7 +103,7 @@ function _ddLivePoll() {
   clearTimeout(_ddLivePollTimer);
   _ddLivePollTimer = setTimeout(async () => {
     try {
-      const base = window.FOQAL_API_BASE || 'http://localhost:7015';
+      const base = window.FOQAL_API_BASE || 'http://localhost:6010';
       const fresh = await fetch(`${base}/api/encounters`).then(r => r.ok ? r.json() : null);
       if (fresh) {
         const freshList = Array.isArray(fresh) ? fresh : (fresh.encounters || []);

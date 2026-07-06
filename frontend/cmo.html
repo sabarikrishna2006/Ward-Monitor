@@ -226,7 +226,7 @@ function accColor(pct) {
 }
 
 async function loadCmoMetrics() {
-  const API = window.FOQAL_API_BASE || `http://${location.hostname}:7015`;
+  const API = window.FOQAL_API_BASE || `http://${location.hostname}:6010`;
   try {
     const res = await fetch(`${API}/api/cmo/metrics`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);

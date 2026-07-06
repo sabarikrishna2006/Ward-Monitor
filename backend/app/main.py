@@ -23,8 +23,8 @@ from dotenv import load_dotenv
 # Cloud SQL App DB — all app-level tables (users, encounters, summaries, etc.)
 from . import cloud_sql_app_db as gdb
 
-# Data server URL — BigQuery + Cloud SQL data layer (local dev: 7026)
-DATA_SERVER = os.environ.get("DATA_SERVER_URL", "http://127.0.0.1:7026")
+# Data server URL — BigQuery + Cloud SQL data layer (local dev: 6020)
+DATA_SERVER = os.environ.get("DATA_SERVER_URL", "http://127.0.0.1:6020")
 
 load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '.env'), override=True)
 
@@ -3560,7 +3560,7 @@ def build_clinical_context(hadm_id: int, data: Dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-# ── MIMIC data routes — proxied to data server (port 7026) ───────────────────
+# ── MIMIC data routes — proxied to data server (port 6020) ───────────────────
 # These thin wrappers keep the same URL surface so the frontend doesn't change.
 
 # Short timeout for fast endpoints (admissions list, cache stats).
@@ -6235,7 +6235,7 @@ async def get_encounter_by_hadm_id(hadm_id: int, background_tasks: BackgroundTas
         _tabs = ["prescriptions", "pharmacy", "labevents", "poe", "emar",
                  "fluids", "chartevents", "datetimeevents", "procedureevents", "emar_detail"]
         _t = httpx.Timeout(connect=5.0, read=120.0, write=10.0, pool=5.0)
-        async with httpx.AsyncClient(base_url="http://127.0.0.1:7016") as client:
+        async with httpx.AsyncClient(base_url=DATA_SERVER) as client:
             await asyncio.gather(*[
                 client.get(f"/api/patient/{hadm_id}/tab/{t}", timeout=_t)
                 for t in _tabs
@@ -6622,10 +6622,10 @@ def list_files(encounter_id: str):
 
 
 
-# ── Data server proxy (port 7025 → internal 7026) ────────────────────────────
-# Lets the browser talk to the data server through the main API port when 7026
-# is blocked by a firewall. Used on server deployments; localhost uses 7026 direct.
-_DATA_SERVER = os.environ.get("DATA_SERVER_URL", "http://127.0.0.1:7026")
+# ── Data server proxy (port 6010 → internal 6020) ────────────────────────────
+# Lets the browser talk to the data server through the main API port when 6020
+# is blocked by a firewall. Used on server deployments; localhost uses 6020 direct.
+_DATA_SERVER = os.environ.get("DATA_SERVER_URL", "http://127.0.0.1:6020")
 
 @app.api_route("/data-proxy/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
 async def data_proxy(path: str, request: Request):
@@ -6653,7 +6653,7 @@ async def data_proxy(path: str, request: Request):
         )
     except (httpx.ConnectError, httpx.ConnectTimeout):
         return JSONResponse(
-            {"detail": "Data server unreachable on port 7026"},
+            {"detail": "Data server unreachable on port 6020"},
             status_code=503,
             headers={"Access-Control-Allow-Origin": "*"},
         )
