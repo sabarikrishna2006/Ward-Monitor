@@ -87,14 +87,14 @@ screen -dmS data bash -c "
     done
 "
 
-echo "[ASHMIT] Starting frontend Vite dev server (port 6000)..."
+echo "[ASHMIT] Starting frontend Vite dev server (port 6001)..."
 screen -dmS frontend bash -c "
     export NVM_DIR=\"\$HOME/.nvm\"
     [ -s \"\$NVM_DIR/nvm.sh\" ] && \. \"\$NVM_DIR/nvm.sh\"
     cd '$ASHMIT_DIR/frontend'
     npm install --silent
     while true; do
-        npm run dev -- --host 0.0.0.0 --port 6000
+        npm run dev -- --host 0.0.0.0 --port 6001
         echo '[frontend] crashed, restarting in 5s...'; sleep 5
     done
 "
@@ -150,7 +150,7 @@ echo ""
 echo "==================================================="
 echo " ✅ All services started!"
 echo ""
-echo " Ashmit's App (main login) : http://72.60.102.196:6000/"
+echo " Ashmit's App (main login) : http://72.60.102.196:6001/"
 echo " Ashmit's API              : http://72.60.102.196:6010/docs"
 echo " Ashmit's Data Server      : http://72.60.102.196:6020/docs"
 echo ""

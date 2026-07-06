@@ -19,7 +19,7 @@ const APP = {
   currentPatientId: null,
 };
 
-const DOCTOR_PORTAL_URL = window.CONFIG?.DOCTOR_PORTAL_URL || `http://${location.hostname}:6000`;
+const DOCTOR_PORTAL_URL = window.CONFIG?.DOCTOR_PORTAL_URL || `http://${location.hostname}:6001`;
 
 /* ─── NAV TREE per role ─── */
 const NAV = {

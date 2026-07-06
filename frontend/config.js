@@ -4,7 +4,7 @@ window.FOQAL_CONFIG = {
   API_PORT:    6010,   // main FastAPI backend (local dev)
   DATA_PORT:   6020,   // data server (local dev)
   WARD_PORT:   6030,   // Sabari ward monitor backend
-  FE_PORT:     6000,   // Ashmit Vite dev server
+  FE_PORT:     6001,   // Ashmit Vite dev server
   SABARI_PORT: 6040,   // Sabari Vite dev server
 };
 const _h = location.hostname;
