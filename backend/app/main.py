@@ -768,7 +768,8 @@ def billing_dashboard():
         br.expected_est      AS expected_est,
         br.actual_charges    AS actual_charges,
         br.is_ab_beneficiary AS is_ab_beneficiary,
-        br.ab_scheme         AS ab_scheme
+        br.ab_scheme         AS ab_scheme,
+        COALESCE(ae.created_at, ap.admit_time) AS sort_key
     """
     with _get_engine().connect() as conn:
         admission_rows = conn.execute(_text(f"""
@@ -795,7 +796,7 @@ def billing_dashboard():
             LEFT JOIN billing_records br ON br.hadm_id = ap.hadm_id
             WHERE ae.status = 'Signed Off'
               AND br.billing_phase = 'amendment_pending'
-            ORDER BY COALESCE(enc_created_at, admit_time) DESC LIMIT 100
+            ORDER BY sort_key DESC LIMIT 100
         """)).fetchall()
 
         discharge_rows = conn.execute(_text(f"""
