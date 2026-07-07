@@ -352,7 +352,7 @@ function _bilInsurance(hadmId, savedCo, savedMode, isAb, abScheme) {
   return `${ins} — ${mode}`;
 }
 
-const SCREENS_LIST = ['ce0','ce1','ce2','ce2b','ce3','ce4','ce5','ce_live'];
+const SCREENS_LIST = ['ce0','ce1','ce2','ce3','ce4','ce5','ce_live'];
 let CURRENT = 'ce0';
 
 /* ── CE state — persists selected patient + form data across screens ── */
@@ -472,7 +472,7 @@ async function _ceSaveRecord(fields) {
 let _ce4Data = null;
 let _ce4Fetching = false;
 
-const _SCREEN_ORDER = ['ce0','ce_live','ce1','ce2','ce2b','ce3','ce4','ce5'];
+const _SCREEN_ORDER = ['ce0','ce_live','ce1','ce2','ce3','ce4','ce5'];
 let _screenHistory = [];
 
 function _navUpdateButtons() {
@@ -1005,7 +1005,7 @@ function _openCe2bModal() {
   const bandLabel = band.charAt(0).toUpperCase() + band.slice(1);
   const user = JSON.parse(sessionStorage.getItem('foqal_user') || '{}');
 
-  document.getElementById('ce2b-patient').textContent    = `${_CE.mrn || '—'} — ${_CE.patientName || '—'}`;
+  document.getElementById('ce2b-patient').textContent    = _CE.patientName ? `${_CE.mrn || '—'} — ${_CE.patientName}` : (_CE.mrn || '—');
   document.getElementById('ce2b-band').textContent       = `${bandLabel} — ${fmt(bandAmt)}`;
   document.getElementById('ce2b-insurance').textContent  = `${_CE.insuranceCo || '—'} · ${_CE.paymentMode || '—'}`;
   document.getElementById('ce2b-preauth').textContent    = _CE.preauthNo || '—';
@@ -1832,45 +1832,11 @@ ${stepFlow('ce2')}
     ${pmjayCard}
     <div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end">
       <button class="btn btn-sec" onclick="showScreen('ce1')">← Recalculate</button>
-      <button class="btn btn-pri" onclick="showScreen('ce2b')">Confirm →</button>
+      <button class="btn btn-pri" onclick="_openCe2bModal()">Confirm →</button>
     </div>
   </div>
 </div>`;
 },
-
-/* ════════════════════════════════════
-   CE2b — CONFIRM ESTIMATE
-════════════════════════════════════ */
-ce2b: () => `
-<div class="bc">
-  <span class="bc-link" onclick="showScreen('ce0')">Module B</span>
-  <span class="bc-sep">/</span>
-  <span class="bc-link" onclick="showScreen('ce2')">Cost Estimate</span>
-  <span class="bc-sep">/</span><span>Confirm Save</span>
-</div>
-${stepFlow('ce2b')}
-<div class="sh">
-  <h1 class="sh-title">Save Estimate — Confirm</h1>
-  <span class="sh-id">CE2b</span>
-</div>
-<div style="max-width:480px">
-  <div class="card">
-    <div class="card-title">Confirm Estimate Save</div>
-    <div class="tw" style="border:none;margin-bottom:16px"><table><tbody>
-      <tr><td style="padding:8px 0;color:var(--muted)">Patient</td><td style="padding:8px 0;font-weight:700">${_CE.mrn || '—'} — ${_CE.patientName || '—'}</td></tr>
-      <tr><td style="padding:8px 0;color:var(--muted)">Selected band</td><td style="padding:8px 0;font-weight:700">${_CE.cost.charAt(0).toUpperCase()+_CE.cost.slice(1)} — ${_CE.cost==='floor'?'₹3,20,000':_CE.cost==='ceiling'?'₹6,50,000':'₹4,80,000'}</td></tr>
-      <tr><td style="padding:8px 0;color:var(--muted)">Insurance</td><td style="padding:8px 0">${_CE.insuranceCo || '—'} · ${_CE.paymentMode || '—'}</td></tr>
-      <tr><td style="padding:8px 0;color:var(--muted)">Pre-auth No.</td><td style="padding:8px 0;font-family:var(--mono);font-size:11.5px">${_CE.preauthNo || '—'}</td></tr>
-      <tr><td style="padding:8px 0;color:var(--muted)">Entered by</td><td style="padding:8px 0">${JSON.parse(sessionStorage.getItem('foqal_user')||'{}').full_name || 'Billing Staff'}</td></tr>
-      <tr><td style="padding:8px 0;color:var(--muted)">Timestamp</td><td style="padding:8px 0;font-family:var(--mono);font-size:11.5px">${new Date().toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</td></tr>
-    </tbody></table></div>
-    <div class="alert al-warn">⚠️ This estimate will be shared with the patient. Actual charges may vary at discharge (CE4 reconciliation).</div>
-    <div style="display:flex;gap:8px;justify-content:flex-end">
-      <button class="btn btn-sec" onclick="showScreen('ce2')">← Back</button>
-      <button class="btn btn-pri" onclick="_ce2bSave()">Save &amp; Proceed →</button>
-    </div>
-  </div>
-</div>`,
 
 /* ════════════════════════════════════
    CE3 — PRINT / EMAIL / PDF
@@ -2362,7 +2328,8 @@ let _liveData       = null;
 let _liveShown      = 0;   // how many charges have been "revealed" so far
 let _liveTimer      = null;
 let _livePhaseTimer = null;
-const _LIVE_REVEAL_INTERVAL = 3200; // ms between each charge appearing
+const _LIVE_REVEAL_INTERVAL  = 4500; // ms between same-day charges appearing
+const _LIVE_DAY_GAP_INTERVAL = 9000; // ms pause when the next charge crosses into a new calendar day
 
 let _liveWaiting = false; // true = no charges yet, polling fast
 
@@ -2403,8 +2370,7 @@ async function _liveFetch() {
         _liveWaiting = false;
         _liveShown = 0;
         if (feed) feed.innerHTML = '';
-        clearInterval(_liveTimer);
-        _liveTimer = setInterval(_liveRevealNext, _LIVE_REVEAL_INTERVAL);
+        clearTimeout(_liveTimer);
         _liveRevealNext();
         _liveSchedulePoll(20000); // back to slow poll
       } else {
@@ -2417,7 +2383,7 @@ async function _liveFetch() {
 
     // Auto-transition if reconciliation is ready
     if (_liveData.billing_phase === 'reconciliation_pending') {
-      clearInterval(_liveTimer);
+      clearTimeout(_liveTimer);
       clearInterval(_livePhaseTimer);
       setTimeout(() => showScreen('ce4'), 1200);
     }
@@ -2432,15 +2398,14 @@ function _liveSchedulePoll(ms) {
 function _liveStart() {
   _liveShown   = 0;
   _liveWaiting = false;
-  clearInterval(_liveTimer);
+  clearTimeout(_liveTimer);
   clearInterval(_livePhaseTimer);
   _liveFetch();
-  _liveTimer = setInterval(_liveRevealNext, _LIVE_REVEAL_INTERVAL);
   _liveSchedulePoll(20000);
 }
 
 function _liveStop() {
-  clearInterval(_liveTimer);
+  clearTimeout(_liveTimer);
   clearInterval(_livePhaseTimer);
 }
 
@@ -2471,11 +2436,23 @@ function _liveUpdateHeader() {
   }
 }
 
+function _liveNextDelay(prevTime, curTime) {
+  // Same-day charges reveal at a steady clip; crossing into a new calendar
+  // day adds a long pause so the tracker reads as days actually passing,
+  // not the whole admission dumping out in a few seconds.
+  if (!prevTime) return _LIVE_REVEAL_INTERVAL;
+  return prevTime.slice(0, 10) === curTime.slice(0, 10)
+    ? _LIVE_REVEAL_INTERVAL
+    : _LIVE_DAY_GAP_INTERVAL;
+}
+
 function _liveRevealNext() {
   if (!_liveData) return;
   const charges = _liveData.charges || [];
-  if (_liveShown >= charges.length) { clearInterval(_liveTimer); return; }
+  clearTimeout(_liveTimer);
+  if (_liveShown >= charges.length) return;
 
+  const prevTime = _liveShown > 0 ? charges[_liveShown - 1].time : null;
   const c    = charges[_liveShown];
   _liveShown++;
   const feed = document.getElementById('live-feed');
@@ -2500,6 +2477,10 @@ function _liveRevealNext() {
     </div>`;
   feed.prepend(row);
   _liveUpdateHeader();
+
+  if (_liveShown < charges.length) {
+    _liveTimer = setTimeout(_liveRevealNext, _liveNextDelay(prevTime, c.time));
+  }
 }
 
 // Add fadeSlideIn keyframe once
@@ -2717,7 +2698,7 @@ Foqal CareOS — Billing Department
 </script>
 
 <!-- CE2b modal -->
-<div id="ce2b-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;align-items:center;justify-content:center">
+<div id="ce2b-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:9999;align-items:center;justify-content:center">
   <div style="background:#fff;border-radius:12px;width:100%;max-width:460px;padding:28px 28px 24px;box-shadow:0 20px 60px rgba(0,0,0,0.25);position:relative">
     <div style="font-size:15px;font-weight:800;color:var(--ink);margin-bottom:18px">Confirm Estimate Save</div>
     <table style="width:100%;font-size:13px;border-collapse:collapse;margin-bottom:16px"><tbody>
