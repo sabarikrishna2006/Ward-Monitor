@@ -774,12 +774,19 @@ def billing_dashboard():
         admission_rows = conn.execute(_text(f"""
             SELECT {_COLS}
             FROM active_patients ap
-            JOIN app_encounters ae ON ae.hadm_id = ap.hadm_id
+            LEFT JOIN app_encounters ae ON ae.hadm_id = ap.hadm_id
             LEFT JOIN billing_records br ON br.hadm_id = ap.hadm_id
-            WHERE ae.status IN (
-                'Pending Ingestion','Processing','Files Ready',
-                'Ready for Review','Awaiting Review',
-                'Awaiting Confirmation','Verifying Claims','Revision Requested'
+            WHERE (
+                -- No encounter yet (discharge not initiated) but a cost estimate was
+                -- generated/saved — billing dashboard should still surface these as
+                -- "Admission" phase even though app_encounters is intentionally not
+                -- created until "Initiate Discharge" (see generate_billing_estimate()).
+                (ae.id IS NULL AND br.id IS NOT NULL)
+                OR ae.status IN (
+                    'Pending Ingestion','Processing','Files Ready',
+                    'Ready for Review','Awaiting Review',
+                    'Awaiting Confirmation','Verifying Claims','Revision Requested'
+                )
             )
             UNION ALL
             SELECT {_COLS}
@@ -788,7 +795,7 @@ def billing_dashboard():
             LEFT JOIN billing_records br ON br.hadm_id = ap.hadm_id
             WHERE ae.status = 'Signed Off'
               AND br.billing_phase = 'amendment_pending'
-            ORDER BY enc_created_at DESC LIMIT 100
+            ORDER BY COALESCE(enc_created_at, admit_time) DESC LIMIT 100
         """)).fetchall()
 
         discharge_rows = conn.execute(_text(f"""
