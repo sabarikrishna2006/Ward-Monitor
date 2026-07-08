@@ -445,8 +445,10 @@ function _ceSelectPatient(hadm_id, phase) {
       }
       if (phase === 'discharge') {
         showScreen('ce4');
-      } else if (d.billing_phase && d.billing_phase !== 'initial_estimate_draft' && (d.expected_est > 0 || d.floor_est > 0)) {
-        // Admission patient has a generated estimate — show live bill tracker
+      } else if (d.billing_phase || d.expected_est > 0 || d.floor_est > 0) {
+        // Admission patient already has a generated estimate — show live bill tracker,
+        // not the generate-estimate form again. Matches the same "has estimate" signal
+        // the CE0 dashboard row already used to decide its "Live Bill →" button label.
         showScreen('ce_live');
       } else {
         showScreen('ce1');

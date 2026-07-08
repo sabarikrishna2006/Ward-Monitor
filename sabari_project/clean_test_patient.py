@@ -15,6 +15,9 @@ def clean_patient(hadm_id):
     db = SessionLocal()
     try:
         print(f"Cleaning up {hadm_id}...")
+        # billing_records has no FK/cascade to active_patients — must delete explicitly
+        # or it's left orphaned (app_encounters does cascade, so no need to touch that).
+        db.execute(text("DELETE FROM billing_records WHERE hadm_id = :h"), {"h": hadm_id})
         db.execute(text("DELETE FROM active_patients WHERE hadm_id = :h"), {"h": hadm_id})
         db.execute(text("DELETE FROM ews_vitals_timeseries WHERE hadm_id = :h"), {"h": hadm_id})
         db.execute(text("DELETE FROM ews_lab_events WHERE hadm_id = :h"), {"h": hadm_id})
@@ -29,5 +32,5 @@ def clean_patient(hadm_id):
         db.close()
 
 if __name__ == "__main__":
-    clean_patient(20000147)
-    clean_patient(20000094) # clean up 20000094 as well just in case to start fresh
+    clean_patient(25201843)  # Rekha Gupta
+    clean_patient(20297415)  # Deepak Varma
