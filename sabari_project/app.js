@@ -2192,10 +2192,8 @@ SCREENS['n_demo_replay'] = function() {
 
   const controlsHtml =
     '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:16px">' +
-    '<button class="btn btn-sec" onclick="_replayStep(-1)" ' + (frame_i === 0 ? 'disabled' : '') + '>← Prev</button>' +
     '<button class="btn ' + (playing ? 'btn-danger' : 'btn-pri') + '" onclick="_replayTogglePlay(2000)">' + (playing ? '⏸ Pause' : '▶ Play (2s/frame)') + '</button>' +
     '<button class="btn btn-sec" onclick="_replayTogglePlay(800)">⚡ Fast</button>' +
-    '<button class="btn btn-sec" onclick="_replayStep(1)" ' + (frame_i === frames.length - 1 ? 'disabled' : '') + '>Next →</button>' +
     '<button class="btn btn-danger" style="margin-left:12px" onclick="_injectCritical(' + pt.hadm_id + ')">⚡ Inject Critical Vitals</button>' +
     '<span class="muted small" style="margin-left:auto">Frame ' + (frame_i + 1) + ' of ' + frames.length + ' · ' + (frame.vital_count || 0) + ' vitals</span>' +
     '</div>';
