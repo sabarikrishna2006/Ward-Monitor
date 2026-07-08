@@ -493,7 +493,7 @@ async function _loadBillingDashboard() {
     const res  = await fetch(`${base}/api/billing/dashboard`);
     if (!res.ok) throw new Error(res.status);
     const data = await res.json();
-    const { stats, pending_actions, post_discharge = [], opd_actions = [] } = data;
+    const { stats, pending_actions, post_discharge = [] } = data;
 
     statsEl.innerHTML = `
       <div style="border:1px solid var(--border);border-radius:8px;padding:16px;text-align:center;background:#fff;cursor:pointer" onclick="_scrollTo('ce0-table')">
@@ -556,20 +556,23 @@ async function _loadBillingDashboard() {
     }
 
     // ── Completed Reconciliations tab — all post_discharge patients ──
+    _ce0ReconciledRaw = post_discharge;
     const reconciledEl = document.getElementById('ce0-reconciled-table');
     if (reconciledEl) {
       if (!post_discharge.length) {
         reconciledEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);font-size:12px">No completed reconciliations yet. Reconciliations appear here after the final bill is generated.</div>';
       } else {
         const reconRows = post_discharge.map(p => {
+          const isOpd    = p.is_admitted === false;
           const name = p.patient_name || _bilName(p.hadm_id);
           const estTotal = p.expected_est || 0;
           const actTotal = p.actual_charges || 0;
           const variance = estTotal && actTotal ? ((actTotal - estTotal) / estTotal * 100).toFixed(1) : null;
           const varStr   = variance != null ? (variance >= 0 ? '+' : '') + variance + '%' : '—';
           const varColor = variance == null ? 'var(--muted)' : parseFloat(variance) > 15 ? 'var(--t1)' : parseFloat(variance) > 0 ? 'var(--t2)' : 'var(--t3)';
-          return `<tr style="cursor:pointer" onclick="_ceSelectPatient(${p.hadm_id},'discharge')">
-            <td><b>${name}</b></td>
+          const rowClick = isOpd ? `_openOpdBillModal(${p.hadm_id},'view')` : `_ceSelectPatient(${p.hadm_id},'discharge')`;
+          return `<tr style="cursor:pointer" onclick="${rowClick}">
+            <td><b>${name}</b> ${isOpd ? '<span class="bd bd-opd">OPD</span>' : ''}</td>
             <td class="mono" style="font-size:11.5px">${p.mrn}</td>
             <td>${p.admit_date || '—'}</td>
             <td style="font-size:12px">${_bilInsurance(p.hadm_id, p.insurance_co, p.payment_mode, p.is_ab_beneficiary, p.ab_scheme)}</td>
@@ -577,7 +580,7 @@ async function _loadBillingDashboard() {
             <td style="font-weight:700">${actTotal ? '₹' + Math.round(actTotal).toLocaleString('en-IN') : '—'}</td>
             <td style="font-weight:700;color:${varColor}">${varStr}</td>
             <td><span class="bd bd-ok">Reconciled</span></td>
-            <td><button class="btn btn-sec btn-sm" onclick="event.stopPropagation();_ceSelectPatient(${p.hadm_id},'discharge')">View →</button></td>
+            <td><button class="btn btn-sec btn-sm" onclick="event.stopPropagation();${rowClick}">View →</button></td>
           </tr>`;
         }).join('');
         reconciledEl.innerHTML = `<div class="tw"><table>
@@ -587,42 +590,9 @@ async function _loadBillingDashboard() {
       }
     }
 
-    // ── OPD Patients tab — never-admitted patients with their own bill lifecycle ──
-    _ce0OpdRaw = opd_actions;
-    const opdEl = document.getElementById('ce0-opd-table');
-    if (opdEl) {
-      if (!opd_actions.length) {
-        opdEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);font-size:12px">No OPD patients yet. Use "+ Manual New Estimate" and select Patient Type: OPD.</div>';
-      } else {
-        const opdRows = opd_actions.map(p => {
-          const name = p.patient_name || _bilName(p.hadm_id);
-          const isFinal = p.billing_status === 'Bill Finalized';
-          const statusBadge = isFinal ? `<span class="bd bd-ok">Bill Finalized</span>` : `<span class="bd bd-t2">Awaiting Final Bill</span>`;
-          const amt = isFinal ? p.actual_charges : p.expected_est;
-          const actionBtn = isFinal
-            ? `<button class="btn btn-sec btn-sm" onclick="event.stopPropagation();_openOpdBillModal(${p.hadm_id},'view')">View Bill</button>`
-            : `<button class="btn btn-pri btn-sm" onclick="event.stopPropagation();_openOpdBillModal(${p.hadm_id},'edit')">Enter Final Bill</button>`;
-          return `<tr>
-            <td><b>${name}</b> <span class="bd bd-opd">OPD</span></td>
-            <td class="mono" style="font-size:11.5px">${p.mrn}</td>
-            <td>${p.visit_date || '—'}</td>
-            <td style="font-size:12px">${_bilInsurance(p.hadm_id, p.insurance_co, p.payment_mode, false, '')}</td>
-            <td>${statusBadge}</td>
-            <td style="font-weight:700">${amt ? '₹' + Math.round(amt).toLocaleString('en-IN') : '—'}</td>
-            <td>${actionBtn}</td>
-          </tr>`;
-        }).join('');
-        opdEl.innerHTML = `<div class="tw"><table>
-          <thead><tr><th>Patient</th><th>MRN</th><th>Visit Date</th><th>Insurance</th><th>Status</th><th>Amount</th><th>Action</th></tr></thead>
-          <tbody>${opdRows}</tbody>
-        </table></div>`;
-      }
-    }
-
     // Restore active tab
     if (_ce0Tab === 'completed') _switchCe0Tab('completed');
     else if (_ce0Tab === 'reconciled') _switchCe0Tab('reconciled');
-    else if (_ce0Tab === 'opd') _switchCe0Tab('opd');
 
     // Seed known patients on first load so they don't fire toasts immediately
     (pending_actions || []).forEach(function(p) {
@@ -697,9 +667,10 @@ function _calcEstimateClient(icd, wardType, losDays) {
 
 let _ce0Tab = 'pending';
 let _ce0PendingRaw = [];
-let _ce0OpdRaw = [];
+let _ce0ReconciledRaw = [];
 
 function _ce0StatusText(p) {
+  if (p.is_admitted === false) return 'Awaiting Final Bill';
   const isFinalBill = p.phase === 'final_bill';
   const isDischarge = p.phase === 'discharge';
   return p.billing_status
@@ -708,13 +679,16 @@ function _ce0StatusText(p) {
 
 function _ce0BuildRow(p) {
   const name        = p.patient_name || _bilName(p.hadm_id);
+  const isOpd       = p.is_admitted === false;
   const isFinalBill = p.phase === 'final_bill';
   const isDischarge = p.phase === 'discharge';
-  const phaseBadge  = isFinalBill
-    ? `<span class="bd bd-gray">Final Bill</span>`
-    : isDischarge
-      ? `<span class="bd bd-t2">Discharge</span>`
-      : `<span class="bd bd-blue">Admission</span>`;
+  const phaseBadge  = isOpd
+    ? `<span class="bd bd-opd">OPD</span>`
+    : isFinalBill
+      ? `<span class="bd bd-gray">Final Bill</span>`
+      : isDischarge
+        ? `<span class="bd bd-t2">Discharge</span>`
+        : `<span class="bd bd-blue">Admission</span>`;
   const statusText  = _ce0StatusText(p);
   const statusColor = statusText === 'Reconciliation Due'  ? 'bd-t1'
                     : statusText === 'Final Bill Overdue'  ? 'bd-gray'
@@ -723,14 +697,19 @@ function _ce0BuildRow(p) {
   const statusBadge = `<span class="bd ${statusColor}">${statusText}</span>`;
   const insurance   = _bilInsurance(p.hadm_id, p.insurance_co, p.payment_mode, p.is_ab_beneficiary, p.ab_scheme);
   const hasEstimate = !!(p.billing_phase || p.expected_est);
-  const actionBtn   = isFinalBill
-    ? `<button class="btn btn-sec btn-sm" onclick="event.stopPropagation();_ceFinalBillView(${p.hadm_id})">View Final Bill →</button>`
-    : isDischarge
-      ? `<button class="btn btn-warn btn-sm" onclick="event.stopPropagation();_ceSelectPatient(${p.hadm_id},'discharge')">Reconcile →</button>`
-      : hasEstimate
-        ? `<button class="btn btn-pri btn-sm" onclick="event.stopPropagation();_ceSelectPatient(${p.hadm_id},'admission')">Live Bill →</button>`
-        : `<button class="btn btn-pri btn-sm" onclick="event.stopPropagation();_ceSelectPatient(${p.hadm_id},'admission')">New Estimate →</button>`;
-  return `<tr style="cursor:pointer" onclick="${isFinalBill ? `_ceFinalBillView(${p.hadm_id})` : `_ceSelectPatient(${p.hadm_id},'${p.phase}')`}">
+  const rowClick    = isOpd
+    ? `_openOpdBillModal(${p.hadm_id},'edit')`
+    : isFinalBill ? `_ceFinalBillView(${p.hadm_id})` : `_ceSelectPatient(${p.hadm_id},'${p.phase}')`;
+  const actionBtn   = isOpd
+    ? `<button class="btn btn-pri btn-sm" onclick="event.stopPropagation();_openOpdBillModal(${p.hadm_id},'edit')">Enter Final Bill</button>`
+    : isFinalBill
+      ? `<button class="btn btn-sec btn-sm" onclick="event.stopPropagation();_ceFinalBillView(${p.hadm_id})">View Final Bill →</button>`
+      : isDischarge
+        ? `<button class="btn btn-warn btn-sm" onclick="event.stopPropagation();_ceSelectPatient(${p.hadm_id},'discharge')">Reconcile →</button>`
+        : hasEstimate
+          ? `<button class="btn btn-pri btn-sm" onclick="event.stopPropagation();_ceSelectPatient(${p.hadm_id},'admission')">Live Bill →</button>`
+          : `<button class="btn btn-pri btn-sm" onclick="event.stopPropagation();_ceSelectPatient(${p.hadm_id},'admission')">New Estimate →</button>`;
+  return `<tr style="cursor:pointer" onclick="${rowClick}">
     <td><b>${name}</b></td>
     <td class="mono" style="font-size:11.5px">${p.mrn}</td>
     <td>${p.admit_date || '—'}</td>
@@ -768,7 +747,7 @@ function _ce0FilterPending() {
 
 function _switchCe0Tab(tab) {
   _ce0Tab = tab;
-  ['pending','completed','reconciled','opd'].forEach(t => {
+  ['pending','completed','reconciled'].forEach(t => {
     const el  = document.getElementById('ce0-tab-' + t);
     const btn = document.getElementById('ce0-btn-' + t);
     if (el)  el.style.display  = t === tab ? '' : 'none';
@@ -793,10 +772,14 @@ function _ce1PatientTypeChange() {
   const opdFields      = document.getElementById('ce1-opd-fields');
   const admittedFields = document.getElementById('ce1-admitted-fields');
   const abCard         = document.getElementById('ce1-ab-card');
+  const rrltWrap       = document.getElementById('ce1-rrlt-wrap');
   if (opdFields)      opdFields.style.display      = isOpd ? '' : 'none';
   if (admittedFields) admittedFields.style.display = isOpd ? 'none' : '';
   if (abCard)         abCard.style.display         = isOpd ? 'none' : '';
+  if (rrltWrap)        rrltWrap.style.display       = isOpd ? 'none' : '';
   if (isOpd) _ce1OpdUpdateTotal();
+  // Room Rent/Pre-auth also depend on payment mode — re-evaluate now that OPD/Admitted changed
+  _ce1PayModeChange();
 }
 
 function _ce1OpdUpdateTotal() {
@@ -808,13 +791,16 @@ function _ce1OpdUpdateTotal() {
 }
 
 function _ce1PayModeChange() {
-  const mode = document.querySelector('input[name="pay"]:checked')?.value || 'Cashless';
-  // Cashless-only fields
+  const mode  = document.querySelector('input[name="pay"]:checked')?.value || 'Cashless';
+  const isOpd = _CE.patientType === 'opd';
+  // Cashless-only fields — pre-auth is for procedures/admissions, never shown for OPD
   const cashlessGroup = document.getElementById('ce1-cashless-group');
   // Reimbursement-only fields
   const reimbGroup    = document.getElementById('ce1-reimb-group');
   // Common insurance fields (insco, polno, tpa, copay, rrlt) — hidden for self-pay
   const commonGroup   = document.getElementById('ce1-insur-common');
+  // Room rent limit — only applicable to a ward stay, never shown for OPD
+  const rrltWrap      = document.getElementById('ce1-rrlt-wrap');
   if (!cashlessGroup || !reimbGroup || !commonGroup) return;
   if (mode === 'Self-pay') {
     commonGroup.style.display   = 'none';
@@ -822,9 +808,10 @@ function _ce1PayModeChange() {
     reimbGroup.style.display    = 'none';
   } else {
     commonGroup.style.display   = '';
-    cashlessGroup.style.display = mode === 'Cashless'       ? '' : 'none';
+    cashlessGroup.style.display = (mode === 'Cashless' && !isOpd) ? '' : 'none';
     reimbGroup.style.display    = mode === 'Reimbursement'  ? '' : 'none';
   }
+  if (rrltWrap) rrltWrap.style.display = isOpd ? 'none' : '';
   // Update insurance impact panel if cashless
   _ce1UpdateInsurancePanel();
 }
@@ -987,9 +974,9 @@ async function _ce1SaveOpd() {
     billing_phase:   'initial_estimate',
   });
 
-  _showBillingToast('✅ OPD estimate saved — patient added to the Billing Dashboard\'s OPD Patients tab.', '#2563eb');
+  _showBillingToast('✅ OPD estimate saved — patient added to Pending Estimates.', '#2563eb');
   showScreen('ce0');
-  _switchCe0Tab('opd');
+  _switchCe0Tab('pending');
 }
 
 async function _ce1Save() {
@@ -1124,7 +1111,7 @@ async function _ce1Save() {
 }
 
 function _openOpdBillModal(hadmId, mode) {
-  const p = _ce0OpdRaw.find(x => x.hadm_id === hadmId);
+  const p = (mode === 'edit' ? _ce0PendingRaw : _ce0ReconciledRaw).find(x => x.hadm_id === hadmId);
   if (!p) return;
   const name = p.patient_name || _bilName(p.hadm_id);
   const fmt  = n => '₹' + Math.round(n||0).toLocaleString('en-IN');
@@ -1133,7 +1120,7 @@ function _openOpdBillModal(hadmId, mode) {
   if (mode === 'edit') {
     body.innerHTML = `
       <div style="font-size:15px;font-weight:800;color:var(--ink);margin-bottom:4px">Enter Final Bill — ${name}</div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:18px">${p.mrn} · ${p.visit_date || '—'} · Estimated: ${fmt(p.expected_est)}</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:18px">${p.mrn} · ${p.admit_date || '—'} · Estimated: ${fmt(p.expected_est)}</div>
       <div class="fg"><label class="fl">Total Actual Amount (₹)</label>
         <input class="fi" id="opd-bill-actual" type="number" value="${p.expected_est || ''}">
       </div>
@@ -1147,9 +1134,9 @@ function _openOpdBillModal(hadmId, mode) {
   } else {
     body.innerHTML = `
       <div style="font-size:15px;font-weight:800;color:var(--ink);margin-bottom:4px">OPD Bill — ${name}</div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:18px">${p.mrn} · ${p.visit_date || '—'}</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:18px">${p.mrn} · ${p.admit_date || '—'}</div>
       <table style="width:100%;font-size:13px;border-collapse:collapse;margin-bottom:16px"><tbody>
-        <tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 0;color:var(--muted)">Insurance</td><td style="padding:9px 0">${p.insurance_co || '—'} · ${p.payment_mode || '—'}</td></tr>
+        <tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 0;color:var(--muted)">Insurance</td><td style="padding:9px 0">${p.insurance_co || '—'}${p.payment_mode ? ' · ' + p.payment_mode : ''}</td></tr>
         <tr><td style="padding:9px 0;color:var(--muted)">Final Amount</td><td style="padding:9px 0;font-weight:700;color:var(--p)">${fmt(p.actual_charges)}</td></tr>
       </tbody></table>
       <div style="display:flex;justify-content:flex-end">
@@ -1707,7 +1694,6 @@ ce0: () => `
   <button id="ce0-btn-pending" onclick="_switchCe0Tab('pending')" style="padding:9px 20px;font-size:13px;font-weight:700;border:none;background:none;cursor:pointer;border-bottom:2px solid var(--p);margin-bottom:-2px;color:var(--p)">Pending Estimates</button>
   <button id="ce0-btn-completed" onclick="_switchCe0Tab('completed')" style="padding:9px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--muted)">Completed Estimates</button>
   <button id="ce0-btn-reconciled" onclick="_switchCe0Tab('reconciled')" style="padding:9px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--muted)">Final Bill Completed</button>
-  <button id="ce0-btn-opd" onclick="_switchCe0Tab('opd')" style="padding:9px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--muted)">OPD Patients</button>
 </div>
 <div id="ce0-tab-pending">
   <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
@@ -1718,6 +1704,7 @@ ce0: () => `
       <option value="Reconciliation Due">Reconciliation Due</option>
       <option value="Final Bill Overdue">Final Bill Overdue</option>
       <option value="Amendment Requested">Amendment Requested</option>
+      <option value="Awaiting Final Bill">Awaiting Final Bill (OPD)</option>
     </select>
   </div>
   <div id="ce0-table" style="color:var(--muted);padding:16px;font-size:12px">Loading patients…</div>
@@ -1727,9 +1714,6 @@ ce0: () => `
 </div>
 <div id="ce0-tab-reconciled" style="display:none">
   <div id="ce0-reconciled-table" style="color:var(--muted);padding:16px;font-size:12px">Loading…</div>
-</div>
-<div id="ce0-tab-opd" style="display:none">
-  <div id="ce0-opd-table" style="color:var(--muted);padding:16px;font-size:12px">Loading…</div>
 </div>
 <div style="display:flex;gap:8px;margin-top:12px">
   <button class="btn btn-pri" onclick="_ceReset();showScreen('ce1')">+ Manual New Estimate</button>
@@ -1922,11 +1906,11 @@ ${stepFlow('ce1')}
       </div>
       <div class="frow">
         <div class="fg"><label class="fl">Co-pay Clause (%)</label><input class="fi" id="ce1-copay" value="${_CE.copayPct || ''}" oninput="_ce1UpdateInsurancePanel()" placeholder="e.g. 10"></div>
-        <div class="fg"><label class="fl">Room Rent Limit (₹/day)</label><input class="fi" id="ce1-rrlt" value="${_CE.roomRentLimit || ''}" oninput="_ce1UpdateInsurancePanel()" placeholder="e.g. 5000"></div>
+        <div class="fg" id="ce1-rrlt-wrap" style="${_CE.patientType==='opd'?'display:none':''}"><label class="fl">Room Rent Limit (₹/day)</label><input class="fi" id="ce1-rrlt" value="${_CE.roomRentLimit || ''}" oninput="_ce1UpdateInsurancePanel()" placeholder="e.g. 5000"></div>
       </div>
     </div>
-    <!-- Cashless-only: Pre-auth fields -->
-    <div id="ce1-cashless-group" style="${_CE.paymentMode!=='Cashless'?'display:none':''}">
+    <!-- Cashless-only: Pre-auth fields — not applicable to OPD (no procedure/admission) -->
+    <div id="ce1-cashless-group" style="${(_CE.paymentMode!=='Cashless' || _CE.patientType==='opd')?'display:none':''}">
       <div class="frow">
         <div class="fg"><label class="fl">Pre-auth Number</label><input class="fi" id="ce1-pano" value="${_CE.preauthNo || ''}" placeholder="TPA authorisation code"></div>
         <div class="fg"><label class="fl">Pre-auth Approved Amount (₹)</label><input class="fi" id="ce1-paamt" value="${_CE.preauthAmt || ''}" oninput="_ce1UpdateInsurancePanel()" placeholder="e.g. 350000"></div>

@@ -807,7 +807,7 @@ def billing_dashboard():
 
     _COLS = """
         ap.hadm_id, ap.subject_id, ap.gender, ap.anchor_age,
-        ap.patient_name,
+        ap.patient_name, ap.is_admitted,
         ap.admit_time, ap.discharge_time, ap.los_days,
         ap.primary_diagnosis_title,
         br.insurance_co, br.payment_mode,
@@ -834,8 +834,12 @@ def billing_dashboard():
                 -- generated/saved — billing dashboard should still surface these as
                 -- "Admission" phase even though app_encounters is intentionally not
                 -- created until "Initiate Discharge" (see generate_billing_estimate()).
-                -- Excludes OPD (never-admitted) patients, who have their own tab below.
-                (ae.id IS NULL AND br.id IS NOT NULL AND COALESCE(ap.is_admitted, TRUE))
+                -- OPD (never-admitted) patients never get an encounter at all, so they
+                -- live here for as long as their bill isn't finalized yet, then fall
+                -- through to the Final Bill Completed / post_discharge list below.
+                (ae.id IS NULL AND br.id IS NOT NULL
+                 AND (br.billing_phase IS NULL OR br.billing_phase NOT IN
+                      ('claim_submitted','tpa_settled','paid','final_bill_generated')))
                 OR ae.status IN (
                     'Pending Ingestion','Processing','Files Ready',
                     'Ready for Review','Awaiting Review',
@@ -902,6 +906,7 @@ def billing_dashboard():
             "mrn":            f"PT-{p['hadm_id']}",
             "subject_id":     p["subject_id"],
             "patient_name":   p.get("patient_name") or None,
+            "is_admitted":    bool(p.get("is_admitted", True)),
             "admit_date":     _fmt(p.get("admit_time")),
             "discharge_date": _fmt(p.get("discharge_time")),
             "insurance_co":   p.get("insurance_co") or "",
@@ -936,7 +941,7 @@ def billing_dashboard():
                    br.expected_est, br.actual_charges,
                    br.expected_los_days, br.hbp_rate, br.ward_type,
                    br.is_ab_beneficiary, br.ab_scheme,
-                   ap.subject_id, ap.gender, ap.anchor_age,
+                   ap.subject_id, ap.gender, ap.anchor_age, ap.is_admitted,
                    ap.primary_diagnosis_title,
                    ap.admit_time, ap.discharge_time,
                    COALESCE((SELECT SUM(i.los) FROM ap_icustays i WHERE i.hadm_id = br.hadm_id), 0) AS icu_days,
@@ -944,21 +949,7 @@ def billing_dashboard():
             FROM billing_records br
             JOIN active_patients ap ON ap.hadm_id = br.hadm_id
             WHERE br.billing_phase IN ('claim_submitted','tpa_settled','paid')
-              AND COALESCE(ap.is_admitted, TRUE)
             ORDER BY br.updated_at DESC LIMIT 50
-        """)).fetchall()
-
-        # OPD (never-admitted) patients — their own lifecycle, no ward/encounter/
-        # doctor sign-off involved. Surfaced in a dedicated dashboard tab.
-        opd_rows = conn.execute(_text("""
-            SELECT ap.hadm_id, ap.subject_id, ap.gender, ap.anchor_age,
-                   ap.patient_name, ap.admit_time, ap.primary_diagnosis_title,
-                   br.billing_phase, br.insurance_co, br.payment_mode,
-                   br.expected_est, br.actual_charges
-            FROM active_patients ap
-            JOIN billing_records br ON br.hadm_id = ap.hadm_id
-            WHERE ap.is_admitted = FALSE
-            ORDER BY br.updated_at DESC LIMIT 100
         """)).fetchall()
 
     def _p5_amounts(r):
@@ -1018,6 +1009,7 @@ def billing_dashboard():
             "hadm_id":        r["hadm_id"],
             "mrn":            f"PT-{r['hadm_id']}",
             "subject_id":     r["subject_id"],
+            "is_admitted":    bool(r.get("is_admitted", True)),
             "gender":         r.get("gender", ""),
             "age":            r.get("anchor_age", ""),
             "admit_date":     _fmt(r.get("admit_time")),
@@ -1030,25 +1022,6 @@ def billing_dashboard():
             "actual_charges": act5,
             "insurance_co":   r.get("insurance_co", ""),
         })
-
-    _OPD_FINALIZED_PHASES = ('final_bill_generated', 'paid', 'tpa_settled', 'claim_submitted')
-    opd_patients = [dict(r._mapping) for r in opd_rows]
-    opd_actions = [{
-        "hadm_id":        r["hadm_id"],
-        "mrn":            f"PT-{r['hadm_id']}",
-        "subject_id":     r["subject_id"],
-        "patient_name":   r.get("patient_name") or None,
-        "gender":         r.get("gender", ""),
-        "age":            r.get("anchor_age", ""),
-        "visit_date":     _fmt(r.get("admit_time")),
-        "diagnosis":      (r.get("primary_diagnosis_title") or "")[:60],
-        "insurance_co":   r.get("insurance_co") or "",
-        "payment_mode":   r.get("payment_mode") or "",
-        "billing_phase":  r.get("billing_phase") or "",
-        "billing_status": "Bill Finalized" if (r.get("billing_phase") in _OPD_FINALIZED_PHASES) else "Awaiting Final Bill",
-        "expected_est":   r.get("expected_est"),
-        "actual_charges": r.get("actual_charges"),
-    } for r in opd_patients]
 
     bills_settled_count = 0
     with _get_engine().connect() as conn:
@@ -1067,7 +1040,6 @@ def billing_dashboard():
         },
         "pending_actions":   actions,
         "post_discharge":    phase5,
-        "opd_actions":       opd_actions,
     }
 
 
