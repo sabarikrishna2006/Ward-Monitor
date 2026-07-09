@@ -87,6 +87,14 @@ a{color:inherit;text-decoration:none}
 #sidebar.collapsed .sb-toggle svg{transform:rotate(180deg)}
 #sidebar.collapsed .sb-toggle{gap:0}
 
+/* Hover-preview: widen the collapsed rail on hover instead of requiring a click */
+#sidebar.collapsed:hover{width:var(--sb)}
+#sidebar.collapsed:hover .sb-lbl{display:block}
+#sidebar.collapsed:hover .sb-text{display:inline}
+#sidebar.collapsed:hover .sb-collapsible{display:block}
+#sidebar.collapsed:hover .sb-item{justify-content:flex-start;padding:9px 16px}
+#sidebar.collapsed:hover .sb-toggle{gap:8px}
+
 /* ── CONTENT ── */
 #content{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
 
