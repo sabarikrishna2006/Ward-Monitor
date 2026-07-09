@@ -46,22 +46,39 @@ a{color:inherit;text-decoration:none}
 #body-row{display:flex;flex:1;overflow:hidden}
 #sidebar{
   width:var(--sb);background:#fafafa;border-right:1px solid var(--border);
-  overflow-y:auto;flex-shrink:0;display:flex;flex-direction:column;gap:0;
+  overflow-y:auto;overflow-x:hidden;flex-shrink:0;display:flex;flex-direction:column;gap:0;
+  transition:width .18s ease;
 }
 .sb-sec{padding:14px 0 6px;border-bottom:1px solid var(--border)}
 .sb-sec:last-child{border-bottom:none;flex:1}
 .sb-lbl{padding:0 16px 6px;font-size:9px;font-weight:800;text-transform:uppercase;
-  letter-spacing:1px;color:#b0b8c4}
+  letter-spacing:1px;color:#b0b8c4;white-space:nowrap}
 .sb-item{
   display:flex;align-items:center;gap:10px;padding:9px 16px;
   font-size:12.5px;color:#52586b;cursor:pointer;
   border-left:3px solid transparent;transition:background .1s,color .1s;
-  border-radius:0;user-select:none;
+  border-radius:0;user-select:none;white-space:nowrap;
 }
 .sb-item:hover{background:#f2f4f7;color:var(--ink)}
 .sb-item.active{background:#fff1f2;color:#9f1239;border-left-color:#9f1239;font-weight:700}
 .sb-item.active .sb-icon{color:#9f1239}
 .sb-icon{width:16px;height:16px;flex-shrink:0;color:#9aa3b0;transition:color .1s}
+
+/* ── SIDEBAR COLLAPSE ── */
+.sb-toggle{
+  display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
+  padding:10px 0;border:none;border-top:1px solid var(--border);background:none;
+  cursor:pointer;color:var(--muted);font-size:11px;font-weight:600;flex-shrink:0;
+}
+.sb-toggle:hover{background:#f2f4f7;color:var(--ink)}
+.sb-toggle svg{transition:transform .18s ease;flex-shrink:0}
+#sidebar.collapsed{width:var(--sb-collapsed,56px)}
+#sidebar.collapsed .sb-lbl,
+#sidebar.collapsed .sb-text,
+#sidebar.collapsed .sb-collapsible{display:none}
+#sidebar.collapsed .sb-item{justify-content:center;padding:9px 0}
+#sidebar.collapsed .sb-toggle svg{transform:rotate(180deg)}
+#sidebar.collapsed .sb-toggle{gap:0}
 
 #content{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
 #tabbar{
@@ -194,28 +211,28 @@ tr:hover td{background:#fcfcfc}
     <nav id="sidebar">
       <div class="sb-sec">
         <div class="sb-lbl">Administration</div>
-        <div class="sb-item" id="nav-sa1" onclick="showScreen('sa1')">
+        <div class="sb-item" id="nav-sa1" onclick="showScreen('sa1')" title="User Management">
           <svg class="sb-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
             <circle cx="6" cy="5" r="2.5"/><path d="M1 13c0-2.8 2.2-5 5-5h.5"/><circle cx="11.5" cy="10.5" r="3"/><path d="M11.5 9v1.5l1 1"/>
           </svg>
-          User Management
+          <span class="sb-text">User Management</span>
         </div>
-        <div class="sb-item" id="nav-sa2" onclick="showScreen('sa2')">
+        <div class="sb-item" id="nav-sa2" onclick="showScreen('sa2')" title="Module Config">
           <svg class="sb-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
             <rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 8h6M5 5h3M5 11h4"/>
           </svg>
-          Module Config
+          <span class="sb-text">Module Config</span>
         </div>
-        <div class="sb-item" id="nav-sa3" onclick="showScreen('sa3')">
+        <div class="sb-item" id="nav-sa3" onclick="showScreen('sa3')" title="Drug-Lab Rules">
           <svg class="sb-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
             <path d="M2 4h12M4 8h8M6 12h4"/>
           </svg>
-          Drug-Lab Rules
+          <span class="sb-text">Drug-Lab Rules</span>
         </div>
       </div>
       <div class="sb-sec">
         <div class="sb-lbl">System Summary</div>
-        <div style="padding:8px 16px 10px">
+        <div class="sb-collapsible" style="padding:8px 16px 10px">
           <div style="font-size:10.5px;color:var(--muted);margin-bottom:10px;font-weight:500">Medanta · Ward 4B / 4C</div>
           <div style="display:flex;flex-direction:column;gap:6px" id="sb-summary">
             <div class="flex-sb"><span style="font-size:11.5px;color:#52586b">Active Users</span><span class="bd bd-t3">—</span></div>
@@ -225,6 +242,10 @@ tr:hover td{background:#fcfcfc}
           </div>
         </div>
       </div>
+      <button class="sb-toggle" id="sb-toggle-btn" onclick="toggleSidebar()" title="Collapse sidebar">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        <span class="sb-text">Collapse</span>
+      </button>
     </nav>
 
     <div id="content">
@@ -247,6 +268,22 @@ function doLogout() {
   sessionStorage.removeItem('foqal_user');
   window.location.href = '/';
 }
+
+/* ─── SIDEBAR COLLAPSE ─── */
+function toggleSidebar() {
+  const sb = document.getElementById('sidebar');
+  const btn = document.getElementById('sb-toggle-btn');
+  const collapsed = sb.classList.toggle('collapsed');
+  if (btn) btn.title = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
+  try { localStorage.setItem('foqal_sidebar_collapsed', collapsed ? '1' : '0'); } catch (_) {}
+}
+(function restoreSidebarState() {
+  try {
+    if (localStorage.getItem('foqal_sidebar_collapsed') === '1') {
+      document.getElementById('sidebar')?.classList.add('collapsed');
+    }
+  } catch (_) {}
+})();
 
 /* ─── NAVIGATION ─── */
 let CURRENT = 'sa1';

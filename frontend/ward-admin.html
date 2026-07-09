@@ -53,22 +53,39 @@ a{color:inherit;text-decoration:none}
 /* ── SIDEBAR ── */
 #sidebar{
   width:var(--sb);background:#fafafa;border-right:1px solid var(--border);
-  overflow-y:auto;flex-shrink:0;display:flex;flex-direction:column;gap:0;
+  overflow-y:auto;overflow-x:hidden;flex-shrink:0;display:flex;flex-direction:column;gap:0;
+  transition:width .18s ease;
 }
 .sb-sec{padding:14px 0 6px;border-bottom:1px solid var(--border)}
 .sb-sec:last-child{border-bottom:none;flex:1}
 .sb-lbl{padding:0 16px 6px;font-size:9px;font-weight:800;text-transform:uppercase;
-  letter-spacing:1px;color:#b0b8c4}
+  letter-spacing:1px;color:#b0b8c4;white-space:nowrap}
 .sb-item{
   display:flex;align-items:center;gap:10px;padding:9px 16px;
   font-size:12.5px;color:#52586b;cursor:pointer;
   border-left:3px solid transparent;transition:background .1s,color .1s;
-  border-radius:0;user-select:none;
+  border-radius:0;user-select:none;white-space:nowrap;
 }
 .sb-item:hover{background:#f2f4f7;color:var(--ink)}
 .sb-item.active{background:var(--pl);color:var(--p);border-left-color:var(--p);font-weight:700}
 .sb-item.active .sb-icon{color:var(--p)}
 .sb-icon{width:16px;height:16px;flex-shrink:0;color:#9aa3b0;transition:color .1s}
+
+/* ── SIDEBAR COLLAPSE ── */
+.sb-toggle{
+  display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
+  padding:10px 0;border:none;border-top:1px solid var(--border);background:none;
+  cursor:pointer;color:var(--muted);font-size:11px;font-weight:600;flex-shrink:0;
+}
+.sb-toggle:hover{background:#f2f4f7;color:var(--ink)}
+.sb-toggle svg{transition:transform .18s ease;flex-shrink:0}
+#sidebar.collapsed{width:var(--sb-collapsed,56px)}
+#sidebar.collapsed .sb-lbl,
+#sidebar.collapsed .sb-text,
+#sidebar.collapsed .sb-collapsible{display:none}
+#sidebar.collapsed .sb-item{justify-content:center;padding:9px 0}
+#sidebar.collapsed .sb-toggle svg{transform:rotate(180deg)}
+#sidebar.collapsed .sb-toggle{gap:0}
 
 /* ── CONTENT ── */
 #content{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
@@ -244,34 +261,34 @@ tr.breach td:first-child{border-left:3px solid var(--t1)}
     <nav id="sidebar">
       <div class="sb-sec">
         <div class="sb-lbl">Admin &amp; Leadership</div>
-        <div class="sb-item" id="nav-a1" onclick="showScreen('a1')">
+        <div class="sb-item" id="nav-a1" onclick="showScreen('a1')" title="Kanban Pipeline">
           <svg class="sb-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
             <rect x="1" y="3" width="4" height="10" rx="1"/><rect x="6" y="3" width="4" height="7" rx="1"/><rect x="11" y="3" width="4" height="5" rx="1"/>
           </svg>
-          Kanban Pipeline
+          <span class="sb-text">Kanban Pipeline</span>
         </div>
-        <div class="sb-item" id="nav-a2" onclick="showScreen('a2')">
+        <div class="sb-item" id="nav-a2" onclick="showScreen('a2')" title="Audit Log">
           <svg class="sb-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
             <path d="M2 4h12M2 8h8M2 12h10"/><circle cx="13" cy="12" r="1.5" fill="currentColor" stroke="none"/>
           </svg>
-          Audit Log
+          <span class="sb-text">Audit Log</span>
         </div>
-        <div class="sb-item" id="nav-a2b" onclick="showScreen('a2b')">
+        <div class="sb-item" id="nav-a2b" onclick="showScreen('a2b')" title="Version Compare">
           <svg class="sb-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
             <rect x="1" y="2" width="6" height="8" rx="1"/><rect x="9" y="6" width="6" height="8" rx="1"/><path d="M7 6h2M7 8h2"/>
           </svg>
-          Version Compare
+          <span class="sb-text">Version Compare</span>
         </div>
-        <div class="sb-item" id="nav-a3" onclick="showScreen('a3')">
+        <div class="sb-item" id="nav-a3" onclick="showScreen('a3')" title="Module Health">
           <svg class="sb-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
             <path d="M8 2C5 2 2 4.5 2 7.5c0 2 1 3.5 2 4.5h8c1-1 2-2.5 2-4.5C14 4.5 11 2 8 2z"/><path d="M5.5 8l1.5 1.5L10 6.5"/>
           </svg>
-          Module Health
+          <span class="sb-text">Module Health</span>
         </div>
       </div>
       <div class="sb-sec">
         <div class="sb-lbl">Quick Stats</div>
-        <div style="padding:10px 14px">
+        <div class="sb-collapsible" style="padding:10px 14px">
           <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Ward 4B / 4C · Today</div>
           <div style="display:flex;flex-direction:column;gap:5px">
             <div class="flex-sb"><span style="font-size:11.5px;color:var(--ink2)">In Review</span><span class="bd bd-t2">3</span></div>
@@ -281,6 +298,10 @@ tr.breach td:first-child{border-left:3px solid var(--t1)}
           </div>
         </div>
       </div>
+      <button class="sb-toggle" id="sb-toggle-btn" onclick="toggleSidebar()" title="Collapse sidebar">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        <span class="sb-text">Collapse</span>
+      </button>
     </nav>
 
     <!-- CONTENT -->
@@ -305,6 +326,22 @@ function doLogout() {
   sessionStorage.removeItem('foqal_user');
   window.location.href = '/';
 }
+
+/* ─── SIDEBAR COLLAPSE ─── */
+function toggleSidebar() {
+  const sb = document.getElementById('sidebar');
+  const btn = document.getElementById('sb-toggle-btn');
+  const collapsed = sb.classList.toggle('collapsed');
+  if (btn) btn.title = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
+  try { localStorage.setItem('foqal_sidebar_collapsed', collapsed ? '1' : '0'); } catch (_) {}
+}
+(function restoreSidebarState() {
+  try {
+    if (localStorage.getItem('foqal_sidebar_collapsed') === '1') {
+      document.getElementById('sidebar')?.classList.add('collapsed');
+    }
+  } catch (_) {}
+})();
 
 /* ─── API STATE ─── */
 const _BASE = window.FOQAL_API_BASE || `http://${location.hostname}:6010`;
@@ -1177,7 +1214,7 @@ const MODALS = {
 [14:28:03] INFO  Summary generation complete PT-24-0103<br>
 [14:20:11] INFO  LLM API response time: 3.9s<br>
 [14:12:45] INFO  PDF sealed PT-24-0087_v1.0<br>
-[14:02:01] INFO  CE4 reconciliation triggered<br>
+[14:02:01] INFO  Reconciliation triggered<br>
 [13:40:22] INFO  Regeneration complete — PT-24-0087<br>
 [13:22:10] INFO  Regeneration queued — Admin: A.Pillai<br>
 [11:45:33] WARN  Summary rejected — PT-24-0087<br>
