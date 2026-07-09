@@ -9,6 +9,23 @@ function _sgSignatureData(rd) {
   catch { return {}; }
 }
 
+// Convert stored markdown ("**Section**\nbody...") into readable section HTML —
+// shared by the on-page summary view and the print/download window.
+function _sgSectionsHTML(content) {
+  return (content || "").split(/\n\n(?=\*\*)/).filter(Boolean).map(chunk => {
+    const lines  = chunk.split('\n');
+    const header = lines[0].replace(/\*\*/g, '').trim();
+    const body   = lines.slice(1).join('\n').trim()
+      .replace(/\[Doctor Edited\]/g, '<mark style="background:#FEF9C3;color:#78350F;font-size:10px;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:4px">Edited</mark>')
+      .replace(/\n/g, '<br>');
+    if (!header) return '';
+    return `<div style="margin-bottom:22px;page-break-inside:avoid">
+      <div style="font-size:11px;font-weight:800;color:#800080;text-transform:uppercase;letter-spacing:.05em;border-left:3px solid #800080;padding-left:9px;margin-bottom:6px">${header}</div>
+      <div style="font-size:13px;line-height:1.75;color:#1f2937;padding-left:12px">${body || '<em style="color:#9ca3af">—</em>'}</div>
+    </div>`;
+  }).join('');
+}
+
 // ── Signed page renderer ──────────────────────────────────────────────────────
 SCREEN_RENDERERS["signed"] = function renderSigned() {
   const user = getUser();
@@ -46,6 +63,7 @@ SCREEN_RENDERERS["signed"] = function renderSigned() {
 
   // Hash — computed async in SCREEN_SETUP, shown as placeholder until ready
   const hashDisplay = rd._contentHash || "computing…";
+  const sectionsHTML = _sgSectionsHTML(content);
 
   return `
     <div style="min-height:100vh;background:#f9fafb;font-family:system-ui,-apple-system,'Segoe UI',sans-serif">
@@ -63,7 +81,7 @@ SCREEN_RENDERERS["signed"] = function renderSigned() {
       </div>
 
       <!-- Page content -->
-      <div style="max-width:860px;margin:0 auto;padding:32px 24px">
+      <div style="max-width:900px;margin:0 auto;padding:32px 24px 56px">
 
         <!-- Green success banner -->
         <div style="background:#F0FDF4;border:1.5px solid #86EFAC;border-radius:10px;padding:14px 20px;margin-bottom:20px;display:flex;align-items:center;gap:12px">
@@ -78,49 +96,49 @@ SCREEN_RENDERERS["signed"] = function renderSigned() {
           </div>
         </div>
 
-        <!-- Two-column cards -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start">
+        <!-- Single document card: full summary + signature footer + actions -->
+        <div style="background:#fff;border:1.5px solid #e5e7eb;border-radius:12px;overflow:hidden">
 
-          <!-- LEFT: Signed PDF card -->
-          <div style="background:#fff;border:1.5px solid #e5e7eb;border-radius:12px;padding:22px;display:flex;flex-direction:column;gap:16px">
-            <div style="font-size:13.5px;font-weight:700;color:#111827">Signed PDF — ${versionStr}</div>
-
-            <div style="border:1.5px dashed #E5E7EB;border-radius:8px;padding:36px 20px;text-align:center">
-              <svg width="36" height="44" viewBox="0 0 36 44" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;margin:0 auto 12px">
-                <path d="M4 0h20l12 12v28a4 4 0 01-4 4H4a4 4 0 01-4-4V4a4 4 0 014-4z" fill="#F1F5F9"/>
-                <path d="M24 0l12 12H28a4 4 0 01-4-4V0z" fill="#CBD5E1"/>
-                <path d="M8 22h20M8 28h14" stroke="#94A3B8" stroke-width="2" stroke-linecap="round"/>
-              </svg>
-              <div style="font-size:13px;font-weight:600;color:#111827;word-break:break-all">${pdfName}</div>
-              <div style="font-size:12px;color:#6b7280;margin-top:4px">${pageCount} pages · NABH Compliant</div>
+          <!-- Document header -->
+          <div style="padding:18px 28px;border-bottom:1.5px solid #f3f4f6;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+            <div>
+              <div style="font-size:14.5px;font-weight:800;color:#111827">Discharge Summary — ${versionStr}</div>
+              <div style="font-size:12px;color:#6b7280;margin-top:2px;word-break:break-all">${pdfName} &nbsp;·&nbsp; ${pageCount} pages &nbsp;·&nbsp; NABH Compliant</div>
             </div>
-
-            <button id="signed-download-pdf" style="display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:10px 20px;border:none;border-radius:8px;background:linear-gradient(135deg,#800080,#A020A0);color:#fff;font-size:13.5px;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(128,0,128,.25)">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              Download PDF
-            </button>
+            <span style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#F0FDF4;color:#15803D;border:1px solid #86EFAC;font-size:11px;font-weight:700;white-space:nowrap">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Signed
+            </span>
           </div>
 
-          <!-- RIGHT: Signature Metadata card -->
-          <div style="background:#fff;border:1.5px solid #e5e7eb;border-radius:12px;padding:22px;display:flex;flex-direction:column;gap:16px">
-            <div style="font-size:13.5px;font-weight:700;color:#111827">Signature Metadata</div>
+          <!-- Full summary content -->
+          <div style="padding:26px 28px;max-height:640px;overflow-y:auto">
+            ${sectionsHTML || '<div style="color:#9ca3af;font-style:italic;text-align:center;padding:30px">No content available.</div>'}
+          </div>
 
-            <table style="width:100%;border-collapse:collapse;font-size:13px">
-              ${[
-                ["Signed by",    doctorName,             ""],
-                ["Registration", mci,                    "font-family:monospace"],
-                ["Timestamp",    _fmtIso(signedAt),      "font-family:monospace;font-size:12px"],
-                ["Version",      `${versionStr} — ${versionLabel}`, ""],
-                ["Hash",         hashDisplay,            "font-family:monospace;font-size:11.5px;color:#374151"],
-              ].map(([label, value, valStyle]) => `
-                <tr style="border-bottom:1px solid #f3f4f6">
-                  <td style="padding:10px 12px 10px 0;color:#6B7280;width:110px;vertical-align:top;white-space:nowrap">${label}</td>
-                  <td style="padding:10px 0;color:#111827;font-weight:600;${valStyle};word-break:break-all">${value}</td>
-                </tr>`).join("")}
-            </table>
+          <!-- Signature metadata footer strip -->
+          <div style="padding:18px 28px;border-top:1.5px solid #f3f4f6;background:#FAFAFB;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px">
+            ${[
+              ["Signed by",    doctorName,             ""],
+              ["Registration", mci,                    "font-family:monospace"],
+              ["Timestamp",    _fmtIso(signedAt),      "font-family:monospace;font-size:11px"],
+              ["Version",      `${versionStr} — ${versionLabel}`, ""],
+              ["Hash",         hashDisplay,            "font-family:monospace;font-size:11px;color:#374151"],
+            ].map(([label, value, valStyle]) => `
+              <div>
+                <div style="font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px">${label}</div>
+                <div style="font-size:12.5px;color:#111827;font-weight:600;${valStyle};word-break:break-all">${value}</div>
+              </div>`).join("")}
+          </div>
 
-            <button id="signed-amend" style="display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border:1.5px solid #e5e7eb;border-radius:8px;background:#fff;font-size:13px;font-weight:600;color:#374151;cursor:pointer;width:fit-content">
+          <!-- Action bar -->
+          <div style="padding:16px 28px;border-top:1.5px solid #e5e7eb;display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap">
+            <button id="signed-amend" style="display:inline-flex;align-items:center;gap:6px;padding:10px 18px;border:1.5px solid #e5e7eb;border-radius:8px;background:#fff;font-size:13px;font-weight:600;color:#374151;cursor:pointer">
               Request Amendment →
+            </button>
+            <button id="signed-download-pdf" style="display:inline-flex;align-items:center;gap:7px;padding:10px 22px;border:none;border-radius:8px;background:linear-gradient(135deg,#800080,#A020A0);color:#fff;font-size:13.5px;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(128,0,128,.25)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Download PDF
             </button>
           </div>
 
@@ -162,18 +180,7 @@ SCREEN_SETUP["signed"] = async function setupSigned() {
     const hashVal   = rd._contentHash || '—';
 
     // Convert stored markdown to readable HTML sections
-    const _secHTML = content.split(/\n\n(?=\*\*)/).filter(Boolean).map(chunk => {
-      const lines  = chunk.split('\n');
-      const header = lines[0].replace(/\*\*/g, '').trim();
-      const body   = lines.slice(1).join('\n').trim()
-        .replace(/\[Doctor Edited\]/g, '<mark style="background:#FEF9C3;color:#78350F;font-size:10px;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:4px">Edited</mark>')
-        .replace(/\n/g, '<br>');
-      if (!header) return '';
-      return `<div style="margin-bottom:22px;page-break-inside:avoid">
-        <div style="font-size:11px;font-weight:800;color:#800080;text-transform:uppercase;letter-spacing:.05em;border-left:3px solid #800080;padding-left:9px;margin-bottom:6px">${header}</div>
-        <div style="font-size:13px;line-height:1.75;color:#1f2937;padding-left:12px">${body || '<em style="color:#9ca3af">—</em>'}</div>
-      </div>`;
-    }).join('');
+    const _secHTML = _sgSectionsHTML(content);
 
     const win = window.open('', '_blank', 'width=900,height=700');
     if (!win) { alert('Please allow pop-ups to download the PDF.'); return; }
