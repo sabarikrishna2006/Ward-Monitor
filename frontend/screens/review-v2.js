@@ -2180,10 +2180,10 @@ SCREEN_RENDERERS["review"] = function renderReviewV2() {
                   ${s15GateBlocked ? `<button id="rv2-s15-ack-btn" style="flex-shrink:0;padding:5px 12px;background:#065F46;color:white;border:none;border-radius:6px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap">✓ Confirm patient acknowledgement</button>` : ""}
                 </div>
                 <!-- Patient header card -->
-                <div style="background:linear-gradient(135deg,#1A001A 0%,#2D0030 100%);border-radius:12px;padding:14px 16px;margin-bottom:14px;position:relative;overflow:hidden;box-shadow:0 4px 16px rgba(128,0,128,.25)">
-                  <div style="position:absolute;right:-20px;top:-20px;width:80px;height:80px;border-radius:50%;background:radial-gradient(circle,rgba(192,64,192,.25),transparent 70%);pointer-events:none"></div>
-                  <div style="font-size:9px;font-weight:800;color:rgba(192,64,192,.6);text-transform:uppercase;letter-spacing:0.20em;margin-bottom:8px">Foqal AI · Discharge Summary</div>
-                  <div style="font-size:16px;font-weight:800;color:#F5E0F5;letter-spacing:-0.02em;margin-bottom:10px;line-height:1.2">${rd?.patient?.full_name || _ddSynthName(rd?.hadmId) || "Patient"}</div>
+                <div style="background:linear-gradient(135deg,#FDF8FF 0%,#F5E6F5 100%);border:1px solid #E8DEE8;border-radius:12px;padding:14px 16px;margin-bottom:14px;position:relative;overflow:hidden;box-shadow:0 2px 8px rgba(128,0,128,.06)">
+                  <div style="position:absolute;right:-20px;top:-20px;width:80px;height:80px;border-radius:50%;background:radial-gradient(circle,rgba(128,0,128,.08),transparent 70%);pointer-events:none"></div>
+                  <div style="font-size:9px;font-weight:800;color:#9333A8;text-transform:uppercase;letter-spacing:0.20em;margin-bottom:8px">Foqal AI · Discharge Summary</div>
+                  <div style="font-size:16px;font-weight:800;color:#1A001A;letter-spacing:-0.02em;margin-bottom:10px;line-height:1.2">${rd?.patient?.full_name || _ddSynthName(rd?.hadmId) || "Patient"}</div>
                   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(${isMobile?'100px':'130px'},1fr));gap:8px">
                     ${(() => {
                       // Parse dates from raw summary content (most reliable — no structure dependency)
@@ -2201,9 +2201,9 @@ SCREEN_RENDERERS["review"] = function renderReviewV2() {
                       ["Age / Sex",  _ageSexLabel],
                       ["Admitted",   _fmtD(admitRaw)],
                       ["Discharged", _fmtD(dischRaw)],
-                      ].map(([k,v]) => `<div style="background:rgba(255,255,255,.06);border-radius:6px;padding:7px 8px;border:1px solid rgba(255,255,255,.08)">
-                        <div style="font-size:8.5px;font-weight:700;color:rgba(192,64,192,.7);text-transform:uppercase;letter-spacing:0.10em;margin-bottom:2px">${k}</div>
-                        <div style="font-size:12px;font-weight:600;color:#F0D0F0;line-height:1.3">${v}</div>
+                      ].map(([k,v]) => `<div style="background:rgba(128,0,128,.05);border-radius:6px;padding:7px 8px;border:1px solid rgba(128,0,128,.10)">
+                        <div style="font-size:8.5px;font-weight:700;color:#9E7E9E;text-transform:uppercase;letter-spacing:0.10em;margin-bottom:2px">${k}</div>
+                        <div style="font-size:12px;font-weight:600;color:#2A102A;line-height:1.3">${v}</div>
                       </div>`).join("");
                     })()}
                   </div>
