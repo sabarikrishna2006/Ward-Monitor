@@ -72,28 +72,18 @@ a{color:inherit;text-decoration:none}
 .sb-icon{width:16px;height:16px;flex-shrink:0;color:#9aa3b0;transition:color .1s}
 
 /* ── SIDEBAR COLLAPSE ── */
-.sb-toggle{
-  display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
-  padding:10px 0;border:none;border-top:1px solid var(--border);background:none;
-  cursor:pointer;color:var(--muted);font-size:11px;font-weight:600;flex-shrink:0;
-}
-.sb-toggle:hover{background:#f2f4f7;color:var(--ink)}
-.sb-toggle svg{transition:transform .18s ease;flex-shrink:0}
 #sidebar.collapsed{width:var(--sb-collapsed,56px)}
 #sidebar.collapsed .sb-lbl,
 #sidebar.collapsed .sb-text,
 #sidebar.collapsed .sb-collapsible{display:none}
 #sidebar.collapsed .sb-item{justify-content:center;padding:9px 0}
-#sidebar.collapsed .sb-toggle svg{transform:rotate(180deg)}
-#sidebar.collapsed .sb-toggle{gap:0}
 
-/* Hover-preview: widen the collapsed rail on hover instead of requiring a click */
+/* Hover-preview: widen the collapsed rail on hover */
 #sidebar.collapsed:hover{width:var(--sb)}
 #sidebar.collapsed:hover .sb-lbl{display:block}
 #sidebar.collapsed:hover .sb-text{display:inline}
 #sidebar.collapsed:hover .sb-collapsible{display:block}
 #sidebar.collapsed:hover .sb-item{justify-content:flex-start;padding:9px 16px}
-#sidebar.collapsed:hover .sb-toggle{gap:8px}
 
 /* ── CONTENT ── */
 #content{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
@@ -266,7 +256,7 @@ tr.breach td:first-child{border-left:3px solid var(--t1)}
 
   <div id="body-row">
     <!-- SIDEBAR -->
-    <nav id="sidebar">
+    <nav id="sidebar" class="collapsed">
       <div class="sb-sec">
         <div class="sb-lbl">Admin &amp; Leadership</div>
         <div class="sb-item" id="nav-a1" onclick="showScreen('a1')" title="Kanban Pipeline">
@@ -306,10 +296,6 @@ tr.breach td:first-child{border-left:3px solid var(--t1)}
           </div>
         </div>
       </div>
-      <button class="sb-toggle" id="sb-toggle-btn" onclick="toggleSidebar()" title="Collapse sidebar">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        <span class="sb-text">Collapse</span>
-      </button>
     </nav>
 
     <!-- CONTENT -->
@@ -334,22 +320,6 @@ function doLogout() {
   sessionStorage.removeItem('foqal_user');
   window.location.href = '/';
 }
-
-/* ─── SIDEBAR COLLAPSE ─── */
-function toggleSidebar() {
-  const sb = document.getElementById('sidebar');
-  const btn = document.getElementById('sb-toggle-btn');
-  const collapsed = sb.classList.toggle('collapsed');
-  if (btn) btn.title = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
-  try { localStorage.setItem('foqal_sidebar_collapsed', collapsed ? '1' : '0'); } catch (_) {}
-}
-(function restoreSidebarState() {
-  try {
-    if (localStorage.getItem('foqal_sidebar_collapsed') === '1') {
-      document.getElementById('sidebar')?.classList.add('collapsed');
-    }
-  } catch (_) {}
-})();
 
 /* ─── API STATE ─── */
 const _BASE = window.FOQAL_API_BASE || `http://${location.hostname}:6010`;
