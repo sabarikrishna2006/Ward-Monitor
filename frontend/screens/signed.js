@@ -16,7 +16,7 @@ function _sgSectionsHTML(content) {
     const lines  = chunk.split('\n');
     const header = lines[0].replace(/\*\*/g, '').trim();
     const body   = lines.slice(1).join('\n').trim()
-      .replace(/\[Doctor Edited\]/g, '<mark style="background:#FEF9C3;color:#78350F;font-size:10px;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:4px">Edited</mark>')
+      .replace(/\s*\[Doctor Edited\]/g, '')
       .replace(/\n/g, '<br>');
     if (!header) return '';
     return `<div style="margin-bottom:22px;page-break-inside:avoid">
