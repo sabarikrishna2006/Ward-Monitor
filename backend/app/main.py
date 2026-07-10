@@ -834,12 +834,7 @@ def billing_dashboard():
                 -- generated/saved — billing dashboard should still surface these as
                 -- "Admission" phase even though app_encounters is intentionally not
                 -- created until "Initiate Discharge" (see generate_billing_estimate()).
-                -- OPD (never-admitted) patients never get an encounter at all, so they
-                -- live here for as long as their bill isn't finalized yet, then fall
-                -- through to the Final Bill Completed / post_discharge list below.
-                (ae.id IS NULL AND br.id IS NOT NULL
-                 AND (br.billing_phase IS NULL OR br.billing_phase NOT IN
-                      ('claim_submitted','tpa_settled','paid','final_bill_generated')))
+                (ae.id IS NULL AND br.id IS NOT NULL)
                 OR ae.status IN (
                     'Pending Ingestion','Processing','Files Ready',
                     'Ready for Review','Awaiting Review',
@@ -1147,61 +1142,6 @@ _LINE_ITEM_TEMPLATES = {
 
 _PRIVATE_MULTIPLIER = 12
 
-def _generate_opd_estimate(req, _text, _get_engine):
-    """OPD (never-admitted) patients — itemized consultation/diagnostics/medicines,
-    no HBP package or ward-room math, no ward provisioning (never appears on the
-    ward board / Sabari CCU screen)."""
-    fee   = req.opd_consultation_fee or 0
-    diag  = req.opd_diagnostics or 0
-    meds  = req.opd_medicines or 0
-    expected = fee + diag + meds
-
-    line_items = [
-        {"name": "Consultation Fee",   "amount": fee,  "pct": round(fee  / expected * 100, 1) if expected else 0},
-        {"name": "Diagnostics / Tests","amount": diag, "pct": round(diag / expected * 100, 1) if expected else 0},
-        {"name": "Medicines",          "amount": meds, "pct": round(meds / expected * 100, 1) if expected else 0},
-    ]
-
-    diagnosis_title = (req.icd_override or "").strip() or "OPD Consultation"
-
-    if req.hadm_id is not None:
-        try:
-            with _get_engine().begin() as _conn:
-                _conn.execute(_text("""
-                    INSERT INTO active_patients
-                        (hadm_id, subject_id, status, is_admitted, data_fetch_status,
-                         primary_diagnosis_title, patient_name, admit_time)
-                    VALUES (:h, :h, 'archived', FALSE, 'fetched', :diag, :pname, NOW())
-                    ON CONFLICT (hadm_id) DO UPDATE
-                        SET is_admitted = FALSE,
-                            primary_diagnosis_title = COALESCE(active_patients.primary_diagnosis_title, EXCLUDED.primary_diagnosis_title),
-                            patient_name = COALESCE(active_patients.patient_name, EXCLUDED.patient_name),
-                            updated_at = NOW()
-                """), {"h": req.hadm_id, "diag": diagnosis_title,
-                       "pname": req.patient_name or f"OPD-{req.hadm_id}"})
-        except Exception as _wp:
-            log.warning("OPD provision failed for hadm %s: %s", req.hadm_id, _wp)
-
-    return {
-        "hbp_code":              None,
-        "hbp_package_name":      "OPD Consultation",
-        "hbp_rate":              None,
-        "ward_type":             None,
-        "los_days":              0,
-        "actual_los_days":       0,
-        "complexity":            1.0,
-        "floor_est":             round(expected * 0.9),
-        "expected_est":          expected,
-        "ceiling_est":           round(expected * 1.1),
-        "line_items":            line_items,
-        "pmjay_reference":       "OPD visit — itemized consultation, diagnostics & medicines (no HBP package)",
-        "govt_pays":             None,
-        "patient_pays_estimate": expected,
-        "room_rent_excess":      0,
-        "scheme_note":           None,
-        "ward_admitted":         False,
-    }
-
 class GenerateEstimateRequest(BaseModel):
     hadm_id:           Optional[int] = None
     ward_type:         str  = "Semi-private Ward"
@@ -1216,20 +1156,12 @@ class GenerateEstimateRequest(BaseModel):
     copay_pct:         Optional[float]= None
     room_rent_limit:   Optional[int]  = None
     preauth_amount:    Optional[int]  = None
-    # OPD (never-admitted) patients — no ward/HBP package math, just itemized amounts
-    is_admitted:          bool = True
-    opd_consultation_fee: Optional[int] = None
-    opd_diagnostics:      Optional[int] = None
-    opd_medicines:        Optional[int] = None
 
 @app.post("/api/billing/generate-estimate")
 def generate_billing_estimate(req: GenerateEstimateRequest):
     import json as _json
     from sqlalchemy import text as _text
     from .cloud_sql_db import get_engine as _get_engine
-
-    if not req.is_admitted:
-        return _generate_opd_estimate(req, _text, _get_engine)
 
     # 1. Resolve HBP code — priority: explicit hbp_code > icd_override > DB lookup
     hbp_code = req.hbp_code

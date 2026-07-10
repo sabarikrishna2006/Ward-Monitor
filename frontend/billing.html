@@ -85,7 +85,6 @@ a{color:inherit;text-decoration:none}
 .bd-gray{background:#f3f4f6;color:#4b5563}
 .bd-purple{background:#fdf4ff;color:var(--p)}
 .bd-ok{background:#dcfce7;color:#15803d}
-.bd-opd{background:#f5f3ff;color:#6d28d9;margin-left:4px}
 
 .tw{background:#fff;border:1px solid var(--border);border-radius:8px;overflow:hidden}
 table{width:100%;border-collapse:collapse}
@@ -565,16 +564,17 @@ async function _loadBillingDashboard() {
         reconciledEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);font-size:12px">No completed reconciliations yet. Reconciliations appear here after the final bill is generated.</div>';
       } else {
         const reconRows = post_discharge.map(p => {
-          const isOpd    = p.is_admitted === false;
+          const notAdmitted = p.is_admitted === false;
           const name = p.patient_name || _bilName(p.hadm_id);
           const estTotal = p.expected_est || 0;
           const actTotal = p.actual_charges || 0;
           const variance = estTotal && actTotal ? ((actTotal - estTotal) / estTotal * 100).toFixed(1) : null;
           const varStr   = variance != null ? (variance >= 0 ? '+' : '') + variance + '%' : '—';
           const varColor = variance == null ? 'var(--muted)' : parseFloat(variance) > 15 ? 'var(--t1)' : parseFloat(variance) > 0 ? 'var(--t2)' : 'var(--t3)';
-          const rowClick = isOpd ? `_openOpdBillModal(${p.hadm_id},'view')` : `_ceSelectPatient(${p.hadm_id},'discharge')`;
-          return `<tr style="cursor:pointer" onclick="${rowClick}">
-            <td><b>${name}</b> ${isOpd ? '<span class="bd bd-opd">OPD</span>' : ''}</td>
+          const actionBtns = `<button class="btn btn-sec btn-sm" onclick="_ceViewSignedSummary(${p.hadm_id})">📄 Discharge Summary</button>
+               <button class="btn btn-sec btn-sm" onclick="_ceFinalBillView(${p.hadm_id})">🧾 Bill</button>`;
+          return `<tr>
+            <td><b>${name}</b> ${notAdmitted ? '<span class="bd bd-t1">Not Admitted</span>' : ''}</td>
             <td class="mono" style="font-size:11.5px">${p.mrn}</td>
             <td>${p.admit_date || '—'}</td>
             <td style="font-size:12px">${_bilInsurance(p.hadm_id, p.insurance_co, p.payment_mode, p.is_ab_beneficiary, p.ab_scheme)}</td>
@@ -582,7 +582,7 @@ async function _loadBillingDashboard() {
             <td style="font-weight:700">${actTotal ? '₹' + Math.round(actTotal).toLocaleString('en-IN') : '—'}</td>
             <td style="font-weight:700;color:${varColor}">${varStr}</td>
             <td><span class="bd bd-ok">Reconciled</span></td>
-            <td><button class="btn btn-sec btn-sm" onclick="event.stopPropagation();${rowClick}">View →</button></td>
+            <td><div style="display:flex;gap:6px;flex-wrap:wrap">${actionBtns}</div></td>
           </tr>`;
         }).join('');
         reconciledEl.innerHTML = `<div class="tw"><table>
@@ -672,7 +672,6 @@ let _ce0PendingRaw = [];
 let _ce0ReconciledRaw = [];
 
 function _ce0StatusText(p) {
-  if (p.is_admitted === false) return 'Awaiting Final Bill';
   const isFinalBill = p.phase === 'final_bill';
   const isDischarge = p.phase === 'discharge';
   return p.billing_status
@@ -681,16 +680,14 @@ function _ce0StatusText(p) {
 
 function _ce0BuildRow(p) {
   const name        = p.patient_name || _bilName(p.hadm_id);
-  const isOpd       = p.is_admitted === false;
+  const notAdmitted = p.is_admitted === false;
   const isFinalBill = p.phase === 'final_bill';
   const isDischarge = p.phase === 'discharge';
-  const phaseBadge  = isOpd
-    ? `<span class="bd bd-opd">OPD</span>`
-    : isFinalBill
-      ? `<span class="bd bd-gray">Final Bill</span>`
-      : isDischarge
-        ? `<span class="bd bd-t2">Discharge</span>`
-        : `<span class="bd bd-blue">Admission</span>`;
+  const phaseBadge  = isFinalBill
+    ? `<span class="bd bd-gray">Final Bill</span>`
+    : isDischarge
+      ? `<span class="bd bd-t2">Discharge</span>`
+      : `<span class="bd bd-blue">Admission</span>`;
   const statusText  = _ce0StatusText(p);
   const statusColor = statusText === 'Reconciliation Due'  ? 'bd-t1'
                     : statusText === 'Final Bill Overdue'  ? 'bd-gray'
@@ -699,20 +696,16 @@ function _ce0BuildRow(p) {
   const statusBadge = `<span class="bd ${statusColor}">${statusText}</span>`;
   const insurance   = _bilInsurance(p.hadm_id, p.insurance_co, p.payment_mode, p.is_ab_beneficiary, p.ab_scheme);
   const hasEstimate = !!(p.billing_phase || p.expected_est);
-  const rowClick    = isOpd
-    ? `_openOpdBillModal(${p.hadm_id},'edit')`
-    : isFinalBill ? `_ceFinalBillView(${p.hadm_id})` : `_ceSelectPatient(${p.hadm_id},'${p.phase}')`;
-  const actionBtn   = isOpd
-    ? `<button class="btn btn-pri btn-sm" onclick="event.stopPropagation();_openOpdBillModal(${p.hadm_id},'edit')">Enter Final Bill</button>`
-    : isFinalBill
-      ? `<button class="btn btn-sec btn-sm" onclick="event.stopPropagation();_ceFinalBillView(${p.hadm_id})">View Final Bill →</button>`
-      : isDischarge
-        ? `<button class="btn btn-warn btn-sm" onclick="event.stopPropagation();_ceSelectPatient(${p.hadm_id},'discharge')">Reconcile →</button>`
-        : hasEstimate
-          ? `<button class="btn btn-pri btn-sm" onclick="event.stopPropagation();_ceSelectPatient(${p.hadm_id},'admission')">Live Bill →</button>`
-          : `<button class="btn btn-pri btn-sm" onclick="event.stopPropagation();_ceSelectPatient(${p.hadm_id},'admission')">New Estimate →</button>`;
+  const rowClick    = isFinalBill ? `_ceFinalBillView(${p.hadm_id})` : `_ceSelectPatient(${p.hadm_id},'${p.phase}')`;
+  const actionBtn   = isFinalBill
+    ? `<button class="btn btn-sec btn-sm" onclick="event.stopPropagation();_ceFinalBillView(${p.hadm_id})">View Final Bill →</button>`
+    : isDischarge
+      ? `<button class="btn btn-warn btn-sm" onclick="event.stopPropagation();_ceSelectPatient(${p.hadm_id},'discharge')">Reconcile →</button>`
+      : hasEstimate
+        ? `<button class="btn btn-pri btn-sm" onclick="event.stopPropagation();_ceSelectPatient(${p.hadm_id},'admission')">Live Bill →</button>`
+        : `<button class="btn btn-pri btn-sm" onclick="event.stopPropagation();_ceSelectPatient(${p.hadm_id},'admission')">New Estimate →</button>`;
   return `<tr style="cursor:pointer" onclick="${rowClick}">
-    <td><b>${name}</b></td>
+    <td><b>${name}</b> ${notAdmitted ? '<span class="bd bd-t1">Not Admitted</span>' : ''}</td>
     <td class="mono" style="font-size:11.5px">${p.mrn}</td>
     <td>${p.admit_date || '—'}</td>
     <td style="font-size:12px">${insurance}</td>
@@ -768,41 +761,14 @@ function _ce1UpdateLos() {
   }
 }
 
-function _ce1PatientTypeChange() {
-  const isOpd = document.querySelector('input[name="ptype"]:checked')?.value === 'opd';
-  _CE.patientType = isOpd ? 'opd' : 'admitted';
-  const opdFields      = document.getElementById('ce1-opd-fields');
-  const admittedFields = document.getElementById('ce1-admitted-fields');
-  const abCard         = document.getElementById('ce1-ab-card');
-  const rrltWrap       = document.getElementById('ce1-rrlt-wrap');
-  if (opdFields)      opdFields.style.display      = isOpd ? '' : 'none';
-  if (admittedFields) admittedFields.style.display = isOpd ? 'none' : '';
-  if (abCard)         abCard.style.display         = isOpd ? 'none' : '';
-  if (rrltWrap)        rrltWrap.style.display       = isOpd ? 'none' : '';
-  if (isOpd) _ce1OpdUpdateTotal();
-  // Room Rent/Pre-auth also depend on payment mode — re-evaluate now that OPD/Admitted changed
-  _ce1PayModeChange();
-}
-
-function _ce1OpdUpdateTotal() {
-  const fee  = parseInt(document.getElementById('ce1-opd-fee')?.value)  || 0;
-  const diag = parseInt(document.getElementById('ce1-opd-diag')?.value) || 0;
-  const meds = parseInt(document.getElementById('ce1-opd-meds')?.value) || 0;
-  const totalEl = document.getElementById('ce1-opd-total');
-  if (totalEl) totalEl.textContent = '₹' + (fee + diag + meds).toLocaleString('en-IN');
-}
-
 function _ce1PayModeChange() {
-  const mode  = document.querySelector('input[name="pay"]:checked')?.value || 'Cashless';
-  const isOpd = _CE.patientType === 'opd';
-  // Cashless-only fields — pre-auth is for procedures/admissions, never shown for OPD
+  const mode = document.querySelector('input[name="pay"]:checked')?.value || 'Cashless';
+  // Cashless-only fields
   const cashlessGroup = document.getElementById('ce1-cashless-group');
   // Reimbursement-only fields
   const reimbGroup    = document.getElementById('ce1-reimb-group');
   // Common insurance fields (insco, polno, tpa, copay, rrlt) — hidden for self-pay
   const commonGroup   = document.getElementById('ce1-insur-common');
-  // Room rent limit — only applicable to a ward stay, never shown for OPD
-  const rrltWrap      = document.getElementById('ce1-rrlt-wrap');
   if (!cashlessGroup || !reimbGroup || !commonGroup) return;
   if (mode === 'Self-pay') {
     commonGroup.style.display   = 'none';
@@ -810,10 +776,9 @@ function _ce1PayModeChange() {
     reimbGroup.style.display    = 'none';
   } else {
     commonGroup.style.display   = '';
-    cashlessGroup.style.display = (mode === 'Cashless' && !isOpd) ? '' : 'none';
+    cashlessGroup.style.display = mode === 'Cashless'       ? '' : 'none';
     reimbGroup.style.display    = mode === 'Reimbursement'  ? '' : 'none';
   }
-  if (rrltWrap) rrltWrap.style.display = isOpd ? 'none' : '';
   // Update insurance impact panel if cashless
   _ce1UpdateInsurancePanel();
 }
@@ -909,83 +874,7 @@ async function _ce2Recalc() {
   showScreen('ce2');
 }
 
-async function _ce1SaveOpd() {
-  const payMode = document.querySelector('input[name="pay"]:checked')?.value || 'Cashless';
-  _CE.paymentMode    = payMode;
-  _CE.insuranceCo    = document.getElementById('ce1-insco')?.value || '';
-  _CE.policyNo       = document.getElementById('ce1-polno')?.value || '';
-  _CE.preauthNo      = document.getElementById('ce1-pano')?.value  || '';
-  _CE.preauthAmt     = document.getElementById('ce1-paamt')?.value || '';
-  _CE.copayPct       = document.getElementById('ce1-copay')?.value || '';
-  _CE.roomRentLimit  = document.getElementById('ce1-rrlt')?.value  || '';
-  _CE.opdVisitDate   = document.getElementById('ce1-opd-visitdate')?.value || '';
-  _CE.opdReason      = document.getElementById('ce1-opd-reason')?.value || '';
-  _CE.opdFee         = parseInt(document.getElementById('ce1-opd-fee')?.value)  || 0;
-  _CE.opdDiagnostics = parseInt(document.getElementById('ce1-opd-diag')?.value) || 0;
-  _CE.opdMedicines   = parseInt(document.getElementById('ce1-opd-meds')?.value) || 0;
-  if (!_CE.mrn) _CE.mrn = document.getElementById('ce1-mrn')?.value || '';
-  if (!_CE.hadm_id) {
-    const _mrnVal = parseInt(_CE.mrn);
-    if (_mrnVal > 0) _CE.hadm_id = _mrnVal;
-  }
-
-  const base  = window.FOQAL_API_BASE || `http://${location.hostname}:6010`;
-  const genBtn = document.querySelector('button[onclick="_ce1Save()"]');
-  if (genBtn) { genBtn.disabled = true; genBtn.textContent = 'Generating…'; }
-
-  try {
-    const resp = await fetch(`${base}/api/billing/generate-estimate`, {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({
-        hadm_id:              _CE.hadm_id,
-        is_admitted:          false,
-        icd_override:         _CE.opdReason || null,
-        payment_mode:         _CE.paymentMode,
-        patient_name:         _CE.patientName || null,
-        opd_consultation_fee: _CE.opdFee,
-        opd_diagnostics:      _CE.opdDiagnostics,
-        opd_medicines:        _CE.opdMedicines,
-      }),
-    });
-    if (resp.ok) _CE.estimateData = await resp.json();
-  } catch(e) {
-    console.warn('generate-estimate (OPD) API error:', e);
-  }
-
-  const est = _CE.estimateData || {
-    expected_est: _CE.opdFee + _CE.opdDiagnostics + _CE.opdMedicines,
-    line_items: [
-      {name:'Consultation Fee', amount:_CE.opdFee},
-      {name:'Diagnostics / Tests', amount:_CE.opdDiagnostics},
-      {name:'Medicines', amount:_CE.opdMedicines},
-    ],
-  };
-
-  await _ceSaveRecord({
-    encounter_id:    _CE.encounterId,
-    payment_mode:    _CE.paymentMode,
-    insurance_co:    _CE.insuranceCo,
-    policy_number:   _CE.policyNo,
-    preauth_number:  _CE.preauthNo,
-    preauth_amount:  _CE.preauthAmt ? parseInt(_CE.preauthAmt.replace(/[^\d]/g,'')) : null,
-    copay_pct:       _CE.copayPct ? parseFloat(_CE.copayPct) : null,
-    room_rent_limit: _CE.roomRentLimit ? parseInt(_CE.roomRentLimit.replace(/[^\d]/g,'')) : null,
-    expected_est:    est?.expected_est || null,
-    line_items:      est?.line_items || null,
-    billing_phase:   'initial_estimate',
-  });
-
-  _showBillingToast('✅ OPD estimate saved — patient added to Pending Estimates.', '#2563eb');
-  showScreen('ce0');
-  _switchCe0Tab('pending');
-}
-
 async function _ce1Save() {
-  const isOpd = document.querySelector('input[name="ptype"]:checked')?.value === 'opd';
-  _CE.patientType = isOpd ? 'opd' : 'admitted';
-  if (isOpd) { await _ce1SaveOpd(); return; }
-
   const payMode = document.querySelector('input[name="pay"]:checked')?.value || 'Cashless';
   _CE.paymentMode      = payMode;
   _CE.insuranceCo      = document.getElementById('ce1-insco')?.value || '';
@@ -1112,65 +1001,79 @@ async function _ce1Save() {
   showScreen('ce2');
 }
 
-function _openOpdBillModal(hadmId, mode) {
-  const p = (mode === 'edit' ? _ce0PendingRaw : _ce0ReconciledRaw).find(x => x.hadm_id === hadmId);
-  if (!p) return;
-  const name = p.patient_name || _bilName(p.hadm_id);
-  const fmt  = n => '₹' + Math.round(n||0).toLocaleString('en-IN');
-  const body = document.getElementById('opd-bill-modal-body');
-
-  if (mode === 'edit') {
-    body.innerHTML = `
-      <div style="font-size:15px;font-weight:800;color:var(--ink);margin-bottom:4px">Enter Final Bill — ${name}</div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:18px">${p.mrn} · ${p.admit_date || '—'} · Estimated: ${fmt(p.expected_est)}</div>
-      <div class="fg"><label class="fl">Total Actual Amount (₹)</label>
-        <input class="fi" id="opd-bill-actual" type="number" value="${p.expected_est || ''}">
-      </div>
-      <div class="fg"><label class="fl">Notes (optional)</label>
-        <input class="fi" id="opd-bill-notes" placeholder="e.g. Extra diagnostic test added">
-      </div>
-      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
-        <button class="btn btn-sec" onclick="_closeOpdBillModal()">Cancel</button>
-        <button class="btn btn-pri" onclick="_ceOpdFinalizeSave(${hadmId})">Save Final Bill</button>
-      </div>`;
-  } else {
-    body.innerHTML = `
-      <div style="font-size:15px;font-weight:800;color:var(--ink);margin-bottom:4px">OPD Bill — ${name}</div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:18px">${p.mrn} · ${p.admit_date || '—'}</div>
-      <table style="width:100%;font-size:13px;border-collapse:collapse;margin-bottom:16px"><tbody>
-        <tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 0;color:var(--muted)">Insurance</td><td style="padding:9px 0">${p.insurance_co || '—'}${p.payment_mode ? ' · ' + p.payment_mode : ''}</td></tr>
-        <tr><td style="padding:9px 0;color:var(--muted)">Final Amount</td><td style="padding:9px 0;font-weight:700;color:var(--p)">${fmt(p.actual_charges)}</td></tr>
-      </tbody></table>
-      <div style="display:flex;justify-content:flex-end">
-        <button class="btn btn-sec" onclick="_closeOpdBillModal()">Close</button>
-      </div>`;
-  }
-  document.getElementById('opd-bill-modal').style.display = 'flex';
+/* ── Read-only view of the attending doctor's signed discharge summary ── */
+function _bilSectionsHTML(content) {
+  return (content || '').split(/\n\n(?=\*\*)/).filter(Boolean).map(chunk => {
+    const lines  = chunk.split('\n');
+    const header = lines[0].replace(/\*\*/g, '').trim();
+    const body   = lines.slice(1).join('\n').trim()
+      .replace(/\s*\[Doctor Edited\]/g, '')
+      .replace(/\n/g, '<br>');
+    if (!header) return '';
+    return `<div style="margin-bottom:18px">
+      <div style="font-size:11px;font-weight:800;color:#800080;text-transform:uppercase;letter-spacing:.05em;border-left:3px solid #800080;padding-left:9px;margin-bottom:6px">${header}</div>
+      <div style="font-size:13px;line-height:1.7;color:#1f2937;padding-left:12px">${body || '<em style="color:#9ca3af">—</em>'}</div>
+    </div>`;
+  }).join('');
 }
 
-function _closeOpdBillModal() {
-  document.getElementById('opd-bill-modal').style.display = 'none';
-}
-
-async function _ceOpdFinalizeSave(hadmId) {
-  const actual = parseInt(document.getElementById('opd-bill-actual')?.value) || 0;
-  const notes  = document.getElementById('opd-bill-notes')?.value || null;
-  const base   = window.FOQAL_API_BASE || `http://${location.hostname}:6010`;
+async function _ceViewSignedSummary(hadmId) {
+  const modal = document.getElementById('ds-summary-modal');
+  const body  = document.getElementById('ds-summary-modal-body');
+  body.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted)">Loading discharge summary…</div>';
+  modal.style.display = 'flex';
+  const base = window.FOQAL_API_BASE || `http://${location.hostname}:6010`;
+  const name = _bilName(hadmId);
   try {
-    await fetch(`${base}/api/billing/records/${hadmId}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        actual_charges: actual,
-        billing_phase:  'paid',
-        balance_due:    0,
-        reconciliation_notes: notes,
-      }),
-    });
-  } catch (_) {}
-  _closeOpdBillModal();
-  _showBillingToast('✅ OPD final bill saved.', '#2563eb');
-  _loadBillingDashboard();
+    const patient = await fetch(`${base}/api/billing/patient/${hadmId}`).then(r => r.ok ? r.json() : null);
+    if (!patient || !patient.encounter_id) throw new Error('No encounter found');
+    const summary = await fetch(`${base}/api/encounters/${patient.encounter_id}/summary`).then(r => r.ok ? r.json() : null);
+    const mrn = patient.subject_id ? String(patient.subject_id) : `PT-${hadmId}`;
+
+    if (!summary || !summary.content) {
+      body.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <div style="font-size:15px;font-weight:800;color:var(--ink)">Discharge Summary — ${name}</div>
+          <button class="btn btn-sec btn-sm" onclick="_closeDsSummaryModal()">✕ Close</button>
+        </div>
+        <div style="padding:30px;text-align:center;color:var(--muted);font-size:13px">No signed discharge summary available.</div>`;
+      return;
+    }
+
+    let sig = {};
+    try { sig = JSON.parse(summary.signature_data || '{}'); } catch (_) {}
+    const rawDoc = summary.saved_by_name || sig.full_name || 'Doctor';
+    const doctorName = /^Dr\.?\s/i.test(rawDoc) ? rawDoc : `Dr. ${rawDoc}`;
+    const mci      = sig.mci || '—';
+    const signedAt = summary.signed_at
+      ? new Date(summary.signed_at).toLocaleString('en-IN', {day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})
+      : '—';
+    const version = `v${summary.doc_version || 1}.0`;
+    const sectionsHtml = _bilSectionsHTML(summary.content);
+
+    body.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;gap:12px">
+        <div>
+          <div style="font-size:15px;font-weight:800;color:var(--ink)">Discharge Summary — ${name}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">${mrn} · Signed by ${doctorName} (MCI ${mci}) · ${signedAt} · ${version}</div>
+        </div>
+        <button class="btn btn-sec btn-sm" onclick="_closeDsSummaryModal()">✕ Close</button>
+      </div>
+      <div style="max-height:60vh;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:20px;background:#fafafa">
+        ${sectionsHtml || '<div style="color:var(--muted);font-style:italic;text-align:center;padding:30px">No content available.</div>'}
+      </div>`;
+  } catch (e) {
+    body.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div style="font-size:15px;font-weight:800;color:var(--ink)">Discharge Summary — ${name}</div>
+        <button class="btn btn-sec btn-sm" onclick="_closeDsSummaryModal()">✕ Close</button>
+      </div>
+      <div style="padding:30px;text-align:center;color:var(--muted);font-size:13px">Could not load discharge summary.</div>`;
+  }
+}
+
+function _closeDsSummaryModal() {
+  document.getElementById('ds-summary-modal').style.display = 'none';
 }
 
 function _openCe2bModal() {
@@ -1706,7 +1609,6 @@ ce0: () => `
       <option value="Reconciliation Due">Reconciliation Due</option>
       <option value="Final Bill Overdue">Final Bill Overdue</option>
       <option value="Amendment Requested">Amendment Requested</option>
-      <option value="Awaiting Final Bill">Awaiting Final Bill (OPD)</option>
     </select>
   </div>
   <div id="ce0-table" style="color:var(--muted);padding:16px;font-size:12px">Loading patients…</div>
@@ -1745,38 +1647,10 @@ ${stepFlow('ce1')}
     <div class="card" style="margin-bottom:12px">
       <div class="card-title">Patient &amp; Clinical Details</div>
       <div class="fg">
-        <label class="fl">Patient Type</label>
-        <div style="display:flex;gap:16px;margin-top:4px">
-          <label class="radio-row"><input type="radio" name="ptype" id="ptype-admitted" value="admitted" ${_CE.patientType!=='opd'?'checked':''} onchange="_ce1PatientTypeChange()"> Admitted (Inpatient)</label>
-          <label class="radio-row"><input type="radio" name="ptype" id="ptype-opd" value="opd" ${_CE.patientType==='opd'?'checked':''} onchange="_ce1PatientTypeChange()"> OPD (Not Admitted)</label>
-        </div>
-        <div class="fi-hint" style="margin-top:4px">
-          <b>Admitted</b>: patient is provisioned to a ward bed and appears on the CCU/ward nurse screen.&ensp;
-          <b>OPD</b>: consultation/test only — no ward stay, shows directly in the Billing Dashboard's OPD tab.
-        </div>
-      </div>
-      <div class="fg">
         <label class="fl">Patient ID</label>
         <input class="fi ${hasPatient ? 'valid' : ''}" id="ce1-mrn" value="${_CE.mrn || ''}" ${hasPatient ? 'readonly style="background:var(--surf)"' : ''}>
         ${hasPatient ? `<div class="fi-hint">✓ ${_CE.patientName}${ageSex ? ' · ' + ageSex : ''} · HADM: ${_CE.hadm_id}</div>` : ''}
       </div>
-      <div id="ce1-opd-fields" style="${_CE.patientType==='opd'?'':'display:none'}">
-        <div class="fg">
-          <label class="fl">Visit Date</label>
-          <input class="fi" id="ce1-opd-visitdate" type="date" value="${_CE.opdVisitDate || new Date().toISOString().slice(0,10)}">
-        </div>
-        <div class="fg">
-          <label class="fl">Visit Reason / Diagnosis</label>
-          <input class="fi" id="ce1-opd-reason" value="${_CE.opdReason || ''}" placeholder="e.g. Routine ECG &amp; follow-up">
-        </div>
-        <div class="frow">
-          <div class="fg"><label class="fl">Consultation Fee (₹)</label><input class="fi" id="ce1-opd-fee" type="number" value="${_CE.opdFee || ''}" oninput="_ce1OpdUpdateTotal()" placeholder="e.g. 800"></div>
-          <div class="fg"><label class="fl">Diagnostics / Tests (₹)</label><input class="fi" id="ce1-opd-diag" type="number" value="${_CE.opdDiagnostics || ''}" oninput="_ce1OpdUpdateTotal()" placeholder="e.g. 2500"></div>
-        </div>
-        <div class="fg"><label class="fl">Medicines (₹)</label><input class="fi" id="ce1-opd-meds" type="number" value="${_CE.opdMedicines || ''}" oninput="_ce1OpdUpdateTotal()" placeholder="e.g. 500"></div>
-        <div class="fi-hint" style="margin-top:4px;font-size:13px">Total estimate: <b id="ce1-opd-total">₹0</b></div>
-      </div>
-      <div id="ce1-admitted-fields" style="${_CE.patientType==='opd'?'display:none':''}">
       <div class="frow">
         <div class="fg">
           <label class="fl">Admission Date</label>
@@ -1866,9 +1740,8 @@ ${stepFlow('ce1')}
           </select>
         </div>
       </div>
-      </div>
     </div>
-    <div class="card" id="ce1-ab-card" style="${_CE.patientType==='opd'?'display:none':''}">
+    <div class="card" id="ce1-ab-card">
       <div class="card-title">Ayushman Bharat / Govt. Scheme</div>
       <div class="check-row"><input type="checkbox" id="ab-chk" ${_CE.isAbBeneficiary ? 'checked' : ''} onchange="_ce1SchemeChange()"> <label for="ab-chk">Patient is covered under a government health scheme</label></div>
       <div class="fg"><label class="fl">Scheme</label>
@@ -1908,11 +1781,10 @@ ${stepFlow('ce1')}
       </div>
       <div class="frow">
         <div class="fg"><label class="fl">Co-pay Clause (%)</label><input class="fi" id="ce1-copay" value="${_CE.copayPct || ''}" oninput="_ce1UpdateInsurancePanel()" placeholder="e.g. 10"></div>
-        <div class="fg" id="ce1-rrlt-wrap" style="${_CE.patientType==='opd'?'display:none':''}"><label class="fl">Room Rent Limit (₹/day)</label><input class="fi" id="ce1-rrlt" value="${_CE.roomRentLimit || ''}" oninput="_ce1UpdateInsurancePanel()" placeholder="e.g. 5000"></div>
+        <div class="fg"><label class="fl">Room Rent Limit (₹/day)</label><input class="fi" id="ce1-rrlt" value="${_CE.roomRentLimit || ''}" oninput="_ce1UpdateInsurancePanel()" placeholder="e.g. 5000"></div>
       </div>
     </div>
-    <!-- Cashless-only: Pre-auth fields — not applicable to OPD (no procedure/admission) -->
-    <div id="ce1-cashless-group" style="${(_CE.paymentMode!=='Cashless' || _CE.patientType==='opd')?'display:none':''}">
+    <div id="ce1-cashless-group" style="${_CE.paymentMode!=='Cashless'?'display:none':''}">
       <div class="frow">
         <div class="fg"><label class="fl">Pre-auth Number</label><input class="fi" id="ce1-pano" value="${_CE.preauthNo || ''}" placeholder="TPA authorisation code"></div>
         <div class="fg"><label class="fl">Pre-auth Approved Amount (₹)</label><input class="fi" id="ce1-paamt" value="${_CE.preauthAmt || ''}" oninput="_ce1UpdateInsurancePanel()" placeholder="e.g. 350000"></div>
@@ -2932,10 +2804,10 @@ Foqal CareOS — Billing Department
   </div>
 </div>
 
-<!-- OPD bill modal (Enter Final Bill / View Bill) -->
-<div id="opd-bill-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:9999;align-items:center;justify-content:center">
-  <div style="background:#fff;border-radius:12px;width:100%;max-width:420px;padding:28px 28px 24px;box-shadow:0 20px 60px rgba(0,0,0,0.25);position:relative">
-    <div id="opd-bill-modal-body"></div>
+<!-- Signed discharge summary modal (read-only, Final Bill Completed tab) -->
+<div id="ds-summary-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:9999;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:12px;width:100%;max-width:760px;max-height:85vh;padding:28px 28px 24px;box-shadow:0 20px 60px rgba(0,0,0,0.25);position:relative;overflow:auto">
+    <div id="ds-summary-modal-body"></div>
   </div>
 </div>
 </body>
