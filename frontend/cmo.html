@@ -59,12 +59,23 @@ button{cursor:pointer;font-family:inherit;font-size:inherit}
 .al-warn{background:var(--t2b);color:#92400e;border-color:#fcd34d}
 
 /* ── METRIC CARDS ── */
-.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
 .mc{background:#fff;border:1px solid var(--border);border-radius:10px;padding:22px 20px}
 .mc-val{font-size:36px;font-weight:900;line-height:1;color:var(--p)}
 .mc-val.green{color:var(--t3)}
 .mc-lbl{font-size:11.5px;color:var(--muted);margin-top:6px}
 .mc-sub{font-size:11.5px;color:var(--t3);margin-top:6px;font-weight:600}
+
+/* ── SECTION LABEL (between card groups) ── */
+.sec-lbl{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;
+  letter-spacing:.5px;margin:22px 0 10px}
+.sec-lbl:first-child{margin-top:0}
+
+/* ── ATTENTION TABLE ── */
+.attn-badge{display:inline-block;padding:2px 7px;border-radius:10px;font-size:10.5px;font-weight:700}
+.attn-badge.t1{background:var(--t1b);color:var(--t1)}
+.attn-badge.t2{background:var(--t2b);color:var(--t2)}
+.attn-empty{text-align:center;padding:28px 20px;color:var(--muted);font-size:12.5px}
 
 /* ── TWO-COL ── */
 .two-col{display:grid;grid-template-columns:1.1fr 1fr;gap:16px}
@@ -140,20 +151,45 @@ tr:hover td{background:#fcfcfc}
       <span id="cmo-alert-text">Loading pilot metrics…</span>
     </div>
 
-    <!-- METRIC CARDS -->
+    <!-- SYSTEM STATUS -->
+    <div class="sec-lbl">System Status — Right Now</div>
     <div class="metrics" id="cmo-metric-cards">
-      <div class="mc"><div class="mc-val">—</div><div class="mc-lbl">Documentation Time</div><div class="mc-sub">Loading…</div></div>
-      <div class="mc"><div class="mc-val">—</div><div class="mc-lbl">NABH Compliance Score</div><div class="mc-sub">Loading…</div></div>
-      <div class="mc"><div class="mc-val">—</div><div class="mc-lbl">Cases with T1 Flags Auto-detected</div><div class="mc-sub">Loading…</div></div>
-      <div class="mc"><div class="mc-val">—</div><div class="mc-lbl">Attending Satisfaction</div><div class="mc-sub">Loading…</div></div>
+      <div class="mc"><div class="mc-val">—</div><div class="mc-lbl">Cases In Progress</div><div class="mc-sub">Loading…</div></div>
+      <div class="mc"><div class="mc-val">—</div><div class="mc-lbl">Signed Off Today</div><div class="mc-sub">Loading…</div></div>
+      <div class="mc"><div class="mc-val">—</div><div class="mc-lbl">Pilot Safety Gate</div><div class="mc-sub">Loading…</div></div>
+      <div class="mc"><div class="mc-val">—</div><div class="mc-lbl">Avg Turnaround / Case</div><div class="mc-sub">Loading…</div></div>
+    </div>
+
+    <!-- CASES NEEDING ATTENTION -->
+    <div class="sec-lbl">Cases Needing Attention</div>
+    <div class="card" style="margin-bottom:8px">
+      <div class="card-title">Open cases with an unresolved AI-accuracy flag</div>
+      <div class="tw" style="border:none">
+        <table>
+          <thead>
+            <tr>
+              <th>Patient</th>
+              <th>HADM ID</th>
+              <th>Assigned Doctor</th>
+              <th>Status</th>
+              <th>Flags</th>
+              <th>Open Since</th>
+            </tr>
+          </thead>
+          <tbody id="cmo-attention-body">
+            <tr><td colspan="6" class="muted" style="text-align:center;padding:20px">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <!-- TWO COLUMN BELOW -->
+    <div class="sec-lbl">Quality &amp; Pilot Impact</div>
     <div class="two-col">
 
       <!-- LEFT: Section-wise Accuracy -->
       <div class="card">
-        <div class="card-title">Section-wise Accuracy</div>
+        <div class="card-title">Section-wise Accuracy (NABH sections)</div>
         <div class="tw" style="border:none">
           <table>
             <thead>
@@ -219,6 +255,15 @@ function accColor(pct) {
   if (pct >= 85) return 'var(--t2)';
   return 'var(--t1)';
 }
+function fmtAge(iso) {
+  if (!iso) return '—';
+  const ms = Date.now() - new Date(iso).getTime();
+  if (ms < 0) return '—';
+  const h = Math.floor(ms / 3600000);
+  if (h < 1) return `${Math.max(1, Math.floor(ms / 60000))}m`;
+  if (h < 24) return `${h}h`;
+  return `${Math.floor(h / 24)}d ${h % 24}h`;
+}
 
 async function loadCmoMetrics() {
   const API = window.FOQAL_API_BASE || `http://${location.hostname}:6010`;
@@ -235,31 +280,50 @@ async function loadCmoMetrics() {
 
 function renderCmoMetrics(data) {
   const p = data.pilot, b = data.baseline, d = data.deltas;
+  const sys = data.system_status || {};
+  const gate = data.safety_gate || {};
 
   document.getElementById('cmo-alert-text').innerHTML =
     `<b>Live pilot metrics</b> · ${p.total_summaries} summaries processed · ${p.signed_count} signed off`;
 
+  const gateOk = gate.status === 'ok';
   document.getElementById('cmo-metric-cards').innerHTML = `
     <div class="mc">
-      <div class="mc-val" style="color:${deltaColor(d.doc_time_pct, true)}">${fmtDelta(d.doc_time_pct)}</div>
-      <div class="mc-lbl">Documentation Time</div>
-      <div class="mc-sub">${fmtMinutes(b.doc_time_minutes)} → ${fmtMinutes(p.avg_doc_time_minutes)} avg</div>
+      <div class="mc-val">${sys.in_progress ?? '—'}</div>
+      <div class="mc-lbl">Cases In Progress</div>
+      <div class="mc-sub" style="color:var(--muted)">${sys.awaiting_review ?? 0} awaiting review right now</div>
     </div>
     <div class="mc">
-      <div class="mc-val" style="color:${deltaColor(d.nabh_pct_pts, false)}">${fmtDelta(d.nabh_pct_pts, ' pts')}</div>
-      <div class="mc-lbl">NABH Compliance Score</div>
-      <div class="mc-sub">${b.nabh_compliance_pct}% → ${p.nabh_compliance_pct != null ? p.nabh_compliance_pct + '%' : '—'} average</div>
+      <div class="mc-val">${sys.signed_today ?? '—'}</div>
+      <div class="mc-lbl">Signed Off Today</div>
+      <div class="mc-sub" style="color:var(--muted)">${p.signed_count} signed off total</div>
     </div>
     <div class="mc">
-      <div class="mc-val">${p.t1_flag_rate_pct}%</div>
-      <div class="mc-lbl">Cases with T1 Flags Auto-detected</div>
-      <div class="mc-sub">Flagged pre-sign for review</div>
+      <div class="mc-val" style="color:${gateOk ? 'var(--t3)' : 'var(--t1)'}">${gateOk ? 'OK' : 'PAUSE'}</div>
+      <div class="mc-lbl">Pilot Safety Gate</div>
+      <div class="mc-sub" style="color:${gateOk ? 'var(--t3)' : 'var(--t1)'}">${gate.tier3_rate_pct ?? 0}% tier-3 rate (pause at ${gate.threshold_pct ?? 25}%)</div>
     </div>
     <div class="mc">
-      <div class="mc-val">${p.usability_total_ratings ? 'Avg ' + p.usability_avg_rating + '/5' : '—'}</div>
-      <div class="mc-lbl">Attending Satisfaction</div>
-      <div class="mc-sub">${p.usability_recommend_pct != null ? p.usability_recommend_pct + '% would recommend' : p.usability_total_ratings + ' ratings so far'}</div>
+      <div class="mc-val" style="color:var(--p)">${fmtMinutes(p.avg_doc_time_minutes)}</div>
+      <div class="mc-lbl">Avg Turnaround / Case</div>
+      <div class="mc-sub" style="color:${deltaColor(d.doc_time_pct, true)}">${fmtDelta(d.doc_time_pct)} vs. pre-pilot baseline</div>
     </div>`;
+
+  const attn = data.attention_cases || [];
+  document.getElementById('cmo-attention-body').innerHTML = attn.length
+    ? attn.map(c => `
+      <tr>
+        <td>${c.patient_name}</td>
+        <td class="mono">${c.hadm_id}</td>
+        <td>${c.doctor_name}</td>
+        <td>${c.status}</td>
+        <td>
+          ${c.t1_count ? `<span class="attn-badge t1">${c.t1_count} T1</span>` : ''}
+          ${c.t2_count ? `<span class="attn-badge t2">${c.t2_count} T2</span>` : ''}
+        </td>
+        <td class="muted">${fmtAge(c.created_at)}</td>
+      </tr>`).join('')
+    : `<tr><td colspan="6" class="attn-empty">No open cases currently carrying an AI-accuracy flag.</td></tr>`;
 
   const sections = data.section_accuracy || [];
   document.getElementById('cmo-section-body').innerHTML = sections.length
@@ -276,6 +340,7 @@ function renderCmoMetrics(data) {
     <tr><td class="key">Total summaries signed</td><td class="val">${p.signed_count}</td></tr>
     <tr><td class="key">Rejections</td><td class="val">${p.rejections}</td></tr>
     <tr><td class="key">Avg re-sign time</td><td class="val green">${fmtMinutes(p.avg_resign_minutes)}</td></tr>
+    <tr><td class="key">Attending satisfaction</td><td class="val">${p.usability_total_ratings ? p.usability_avg_rating + '/5' : '—'} <span class="small muted">(${p.usability_total_ratings} rating${p.usability_total_ratings === 1 ? '' : 's'})</span></td></tr>
     <tr><td class="key">PHI breaches</td><td class="val green">0 <span class="small muted">(not actively monitored)</span></td></tr>
     <tr><td class="key">DPDPA consent rate</td><td class="val muted small">Not tracked server-side</td></tr>`;
 

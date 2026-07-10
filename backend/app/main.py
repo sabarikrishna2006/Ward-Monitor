@@ -6093,6 +6093,33 @@ def get_cmo_metrics():
     except Exception:
         usability = {"total_ratings": 0, "avg_rating": 0.0, "distribution": {}}
 
+    try:
+        error_stats = gdb.get_error_stats()
+    except Exception:
+        error_stats = {"tier3_rate_pct": 0, "tier3_count": 0, "total_summaries": 0}
+
+    SAFETY_GATE_THRESHOLD_PCT = 25.0
+    tier3_rate = error_stats.get("tier3_rate_pct") or 0
+    safety_gate = {
+        "status":           "pause" if tier3_rate > SAFETY_GATE_THRESHOLD_PCT else "ok",
+        "tier3_rate_pct":   tier3_rate,
+        "threshold_pct":    SAFETY_GATE_THRESHOLD_PCT,
+        "tier3_count":      error_stats.get("tier3_count", 0),
+    }
+
+    attention_cases = [
+        {
+            "hadm_id":      row[0],
+            "patient_name": row[1] or f"HADM {row[0]}",
+            "status":       row[2],
+            "created_at":   row[3].isoformat() if row[3] else None,
+            "t1_count":     int(row[4] or 0),
+            "t2_count":     int(row[5] or 0),
+            "doctor_name":  row[6] or "Unassigned",
+        }
+        for row in attention_rows
+    ]
+
     return {
         "pilot": {
             "total_summaries":       total_summaries,
@@ -6118,6 +6145,13 @@ def get_cmo_metrics():
             "nabh_pct_pts":  nabh_delta_pct,
         },
         "section_accuracy": sections,
+        "system_status": {
+            "in_progress":      int(status_row[0] or 0),
+            "awaiting_review":  int(status_row[1] or 0),
+            "signed_today":     int(status_row[2] or 0),
+        },
+        "safety_gate": safety_gate,
+        "attention_cases": attention_cases,
         "not_tracked": {
             "phi_breaches": "No PHI-breach logging table exists — no incidents logged, not actively monitored.",
             "dpdpa_consent_rate": "Consent checkbox is client-side only (upload.html) and not persisted to the DB.",
