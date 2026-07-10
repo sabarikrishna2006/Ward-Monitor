@@ -1,6 +1,89 @@
 // Screen — Doctor: My Review Queue
 
-let _dq = { encounters: null, loading: false, error: null, attempt: 0, errorStats: null, regenToasts: [], _pollTimer: null, _rejCounts: {} };
+let _dq = { encounters: null, loading: false, error: null, attempt: 0, errorStats: null, regenToasts: [], slaToasts: [], _pollTimer: null, _rejCounts: {} };
+
+// Open the review screen for an encounter — shared by regen toasts, SLA-alert
+// toasts, and the "Review" button on each queue card.
+function _dqOpenReviewForEnc(enc) {
+  if (!enc?.summary?.content) return false;
+  APP.reviewData = {
+    encounter:     enc,
+    hadmId:        enc.hadm_id,
+    patient:       enc.patient,
+    admission:     enc.admission,
+    summaryId:     enc.summary.id,
+    content:       enc.summary.content,
+    dischargeType: enc.discharge_type || "Standard",
+    docSections:   rv2ParseSummary(enc.summary.content),
+    sectionsJson:  enc.summary.sections_json || null,
+  };
+  const savedResolved = enc.summary?.draft_edits?.resolved || [];
+  Object.assign(_rv2, {
+    auditMode:false, selectedId:null, editingId:null, editText:"",
+    edits:{}, comments:{}, commentingId:null, commentText:"",
+    sourceId:null, sourceTechOpen:false, revisionId:null,
+    revisionText:"", resolved:new Set(savedResolved), bannerDone:false,
+    clinicalCtx:null, ctxLoading:false, ctxError:null, ctxHadmId:null,
+    activeSectionId:null, fullscreen:null,
+    historyOpen:false, historyVersions:null, historyLoading:false, historyError:null,
+    viewingVersionId:null, viewingVersion:null,
+    compareMode:false, compareSelA:null, compareSelB:null,
+    comparePending:false, compareDataA:null, compareDataB:null,
+  });
+  // For regenerated summaries, populate APP.rejFlow from rejection_log so the
+  // amber banner shows in review-v2.js regardless of localStorage state.
+  if ((enc.rejection_count || 0) > 0) {
+    fetch(`${API_BASE}/api/encounters/${enc.hadm_id}/rejection_log`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        const entry = data?.rejections?.[0];
+        if (entry) {
+          APP.rejFlow = { hadmId: enc.hadm_id, patName: null,
+            rejectionReason: entry.rejection_reason, rejectedAt: entry.rejected_at,
+            rejectionLogId: entry.id };
+          try { localStorage.setItem('rejFlow_active', JSON.stringify(APP.rejFlow)); } catch(_) {}
+          if (!entry.re_reviewed_at) {
+            fetch(`${API_BASE}/api/rejection_logs/${entry.id}`, {
+              method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ re_reviewed_at: new Date().toISOString() }),
+            }).catch(() => {});
+          }
+        }
+      }).catch(() => {});
+  }
+  navigate("review");
+  return true;
+}
+
+// Poll the audit log for SLA-breach alerts a ward admin sent for cases in this
+// doctor's queue, and surface them as a toast (dedup'd via localStorage).
+async function _dqCheckSlaAlerts() {
+  try {
+    const rows = await fetch(`${API_BASE}/api/audit_log?limit=30`).then(r => r.ok ? r.json() : []);
+    if (!Array.isArray(rows)) return;
+    let seen = {};
+    try { seen = JSON.parse(localStorage.getItem("dq_sla_seen") || "{}"); } catch(_) {}
+    const myHadmIds = new Set((_dq.encounters || []).map(e => e.hadm_id));
+    for (const r of rows) {
+      if (r.action !== "SLA_ALERT_SENT") continue;
+      if (!myHadmIds.has(r.hadm_id)) continue;
+      if (seen[r.id]) continue;
+      if (_dq.slaToasts.find(t => t.id === r.id)) continue;
+      _dq.slaToasts.push({ id: r.id, hadm_id: r.hadm_id });
+    }
+  } catch(_) {}
+}
+
+function _dqDismissSlaToast(idx) {
+  const t = _dq.slaToasts[idx];
+  if (!t) return;
+  let seen = {};
+  try { seen = JSON.parse(localStorage.getItem("dq_sla_seen") || "{}"); } catch(_) {}
+  seen[t.id] = true;
+  try { localStorage.setItem("dq_sla_seen", JSON.stringify(seen)); } catch(_) {}
+  _dq.slaToasts.splice(idx, 1);
+  renderApp();
+}
 
 function _dqBuildRegenToasts(encs) {
   const regenEncs = encs.filter(e => (e.rejection_count || 0) > 0 && e.status === "Awaiting Review");
@@ -54,6 +137,7 @@ async function dqLoad() {
     }));
     _dq.encounters = withSummaries;
     _dqBuildRegenToasts(withSummaries);
+    await _dqCheckSlaAlerts();
     // Fetch error stats for gate widget (non-blocking)
     apiGetErrorStats().then(s => { _dq.errorStats = s; renderApp(); }).catch(() => {});
   } catch (err) {
@@ -90,8 +174,10 @@ async function dqLoad() {
           withSummaries.forEach(e => {
             if (e.status === 'Awaiting Review') localStorage.removeItem('wa_regen_' + e.hadm_id);
           });
-          renderApp();
         }
+        const prevSlaCount = _dq.slaToasts.length;
+        await _dqCheckSlaAlerts();
+        if (prev !== next || _dq.slaToasts.length !== prevSlaCount) renderApp();
       } catch(_) {}
       _dqLivePoll();
     }, 8000);
@@ -302,6 +388,22 @@ SCREEN_RENDERERS["doctor-queue"] = function renderDoctorQueue() {
         </div>
       </div>
 
+      ${_dq.slaToasts.length > 0 ? `
+        <div style="position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column;gap:8px;width:min(92vw,480px)">
+          ${_dq.slaToasts.map((t, i) => `
+            <div class="dq-sla-toast" data-toast-idx="${i}"
+                 style="background:#FEF2F2;border:1.5px solid #FCA5A5;border-left:4px solid #DC2626;border-radius:10px;padding:12px 16px;box-shadow:0 8px 28px rgba(220,38,38,.28);cursor:pointer;display:flex;align-items:center;gap:10px;animation:fadeUp .25s ease">
+              <span style="font-size:18px;flex-shrink:0;line-height:1">⚠</span>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:13px;font-weight:700;color:#991B1B">SLA Breach Noticed</div>
+                <div style="font-size:12px;color:#7F1D1D;margin-top:2px">${fmtPid(t.hadm_id)} &middot; Ward Admin flagged this case &mdash; tap to review</div>
+              </div>
+              <button class="dq-sla-toast-dismiss" data-toast-idx="${i}"
+                      style="background:none;border:none;cursor:pointer;padding:0 2px;color:#DC2626;font-size:15px;line-height:1;flex-shrink:0">✕</button>
+            </div>
+          `).join("")}
+        </div>` : ""}
+
       ${_dq.regenToasts.length > 0 ? `
         <div style="position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:10px;max-width:320px">
           ${_dq.regenToasts.map((t, i) => `
@@ -336,6 +438,24 @@ SCREEN_SETUP["doctor-queue"] = function setupDoctorQueue() {
     card.addEventListener("mouseleave", () => { card.style.boxShadow = "var(--shadow-sm)"; card.style.transform = ""; });
   });
 
+  // SLA-breach alert toasts (sent by ward admin from the Kanban pipeline)
+  document.querySelectorAll(".dq-sla-toast-dismiss").forEach(btn => {
+    btn.addEventListener("click", e => {
+      e.stopPropagation();
+      _dqDismissSlaToast(parseInt(btn.dataset.toastIdx, 10));
+    });
+  });
+  document.querySelectorAll(".dq-sla-toast").forEach(toast => {
+    toast.addEventListener("click", e => {
+      if (e.target.classList.contains("dq-sla-toast-dismiss")) return;
+      const idx = parseInt(toast.dataset.toastIdx, 10);
+      const t = _dq.slaToasts[idx];
+      const enc = (_dq.encounters || []).find(x => x.hadm_id === t?.hadm_id);
+      _dqDismissSlaToast(idx);
+      _dqOpenReviewForEnc(enc);
+    });
+  });
+
   // Regen notification toasts
   document.querySelectorAll(".dq-regen-toast-dismiss").forEach(btn => {
     btn.addEventListener("click", e => {
@@ -348,47 +468,8 @@ SCREEN_SETUP["doctor-queue"] = function setupDoctorQueue() {
       if (e.target.classList.contains("dq-regen-toast-dismiss")) return;
       const idx = parseInt(toast.dataset.toastIdx, 10);
       const t = _dq.regenToasts[idx];
-      if (!t?.enc?.summary?.content) { _dqDismissToast(idx); return; }
-      const enc = t.enc;
-      APP.reviewData = {
-        encounter: enc, hadmId: enc.hadm_id, patient: enc.patient,
-        admission: enc.admission, summaryId: enc.summary.id,
-        content: enc.summary.content, dischargeType: enc.discharge_type || "Standard",
-        docSections: rv2ParseSummary(enc.summary.content),
-      };
-      Object.assign(_rv2, {
-        auditMode:false, selectedId:null, editingId:null, editText:"",
-        edits:{}, comments:{}, commentingId:null, commentText:"",
-        sourceId:null, sourceTechOpen:false, revisionId:null,
-        revisionText:"", resolved:new Set(), bannerDone:false,
-        clinicalCtx:null, ctxLoading:false, ctxError:null, ctxHadmId:null,
-        activeSectionId:null, fullscreen:null,
-        historyOpen:false, historyVersions:null, historyLoading:false, historyError:null,
-        viewingVersionId:null, viewingVersion:null,
-        compareMode:false, compareSelA:null, compareSelB:null,
-        comparePending:false, compareDataA:null, compareDataB:null,
-      });
-      if ((enc.rejection_count || 0) > 0) {
-        fetch(`${API_BASE}/api/encounters/${enc.hadm_id}/rejection_log`)
-          .then(r => r.ok ? r.json() : null)
-          .then(data => {
-            const entry = data?.rejections?.[0];
-            if (entry) {
-              APP.rejFlow = { hadmId: enc.hadm_id, patName: null,
-                rejectionReason: entry.rejection_reason, rejectedAt: entry.rejected_at,
-                rejectionLogId: entry.id };
-              try { localStorage.setItem("rejFlow_active", JSON.stringify(APP.rejFlow)); } catch(_) {}
-              if (!entry.re_reviewed_at) {
-                fetch(`${API_BASE}/api/rejection_logs/${entry.id}`, {
-                  method: "PATCH", headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ re_reviewed_at: new Date().toISOString() }),
-                }).catch(() => {});
-              }
-            }
-          }).catch(() => {});
-      }
       _dqDismissToast(idx);
-      navigate("review");
+      _dqOpenReviewForEnc(t?.enc);
     });
   });
 
@@ -397,64 +478,8 @@ SCREEN_SETUP["doctor-queue"] = function setupDoctorQueue() {
       e.stopPropagation();
       const idx = parseInt(btn.dataset.encIdx, 10);
       const enc = _dq.encounters[idx];
-      if (!enc?.summary?.content) return;
-
-      APP.reviewData = {
-        encounter:     enc,
-        hadmId:        enc.hadm_id,
-        patient:       enc.patient,
-        admission:     enc.admission,
-        summaryId:     enc.summary.id,
-        content:       enc.summary.content,
-        dischargeType: enc.discharge_type || "Standard",
-        docSections:   rv2ParseSummary(enc.summary.content),
-        sectionsJson:  enc.summary.sections_json || null,
-      };
-
-      // Reset review state for fresh session.
-      const savedResolved = enc.summary?.draft_edits?.resolved || [];
-      Object.assign(_rv2, {
-        auditMode:false, selectedId:null, editingId:null, editText:"",
-        edits:{}, comments:{}, commentingId:null, commentText:"",
-        sourceId:null, sourceTechOpen:false, revisionId:null,
-        revisionText:"", resolved:new Set(savedResolved), bannerDone:false,
-        clinicalCtx:null, ctxLoading:false, ctxError:null, ctxHadmId:null,
-        activeSectionId:null, fullscreen:null,
-        historyOpen:false, historyVersions:null, historyLoading:false, historyError:null,
-        viewingVersionId:null, viewingVersion:null,
-        compareMode:false, compareSelA:null, compareSelB:null,
-        comparePending:false, compareDataA:null, compareDataB:null,
-      });
-
-      // For regenerated summaries, populate APP.rejFlow from rejection_log so the
-      // amber banner shows in review-v2.js regardless of localStorage state.
-      if ((enc.rejection_count || 0) > 0) {
-        fetch(`${API_BASE}/api/encounters/${enc.hadm_id}/rejection_log`)
-          .then(r => r.ok ? r.json() : null)
-          .then(data => {
-            const entry = data?.rejections?.[0];
-            if (entry) {
-              APP.rejFlow = {
-                hadmId: enc.hadm_id, patName: null,
-                rejectionReason: entry.rejection_reason,
-                rejectedAt: entry.rejected_at,
-                rejectionLogId: entry.id,
-              };
-              try { localStorage.setItem('rejFlow_active', JSON.stringify(APP.rejFlow)); } catch(_) {}
-              // Step 6: record that doctor opened the regenerated summary
-              if (!entry.re_reviewed_at) {
-                fetch(`${API_BASE}/api/rejection_logs/${entry.id}`, {
-                  method: 'PATCH',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ re_reviewed_at: new Date().toISOString() }),
-                }).catch(() => {});
-              }
-            }
-          })
-          .catch(() => {});
-      }
-
-      navigate("review");
+      _dqOpenReviewForEnc(enc);
     });
   });
+
 };

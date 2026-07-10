@@ -5806,6 +5806,29 @@ def notify_doctor(hadm_id: int, rejection_log_id: Optional[int] = None):
     }
 
 
+@app.post("/api/encounters/{hadm_id}/sla_alert")
+def send_sla_alert(hadm_id: int):
+    """Ward Admin follow-up: nudge the assigned doctor about a 4-hour SLA breach.
+
+    Just logs a non-PHI audit-log entry — the doctor queue polls /api/audit_log
+    and surfaces it as a toast (see _dqCheckSlaAlerts in doctor-queue.js).
+    """
+    enc = gdb.get_encounter_by_hadm(hadm_id)
+    if not enc:
+        raise HTTPException(404, f"No encounter for HADM {hadm_id}")
+    now_iso = datetime.utcnow().isoformat()
+    case_ref = f"PT-{str(hadm_id)[:2]}-XXXX"
+    try:
+        gdb.log_action("SLA_ALERT_SENT", hadm_id=hadm_id, details={
+            "case_ref": case_ref,
+            "message": "A discharge summary assigned to you has been in review for over 4 hours "
+                       "and has breached the SLA. Please complete your review at the earliest.",
+        })
+    except Exception:
+        pass
+    return {"ok": True, "sent_at": now_iso, "case_ref": case_ref}
+
+
 @app.get("/api/encounters/{hadm_id}/rejection_log")
 def get_rejection_log(hadm_id: int):
     """Get full rejection audit trail for an encounter."""
@@ -6071,6 +6094,35 @@ def get_cmo_metrics():
             WHERE nabh_section IS NOT NULL
             GROUP BY nabh_section
             ORDER BY nabh_section
+        """)).fetchall()
+
+        # What's happening right now, system-wide.
+        status_row = conn.execute(_text("""
+            SELECT
+                COUNT(*) FILTER (WHERE status NOT IN ('Signed Off', 'Rejected'))          AS in_progress,
+                COUNT(*) FILTER (WHERE status IN (
+                    'Ready for Review', 'Awaiting Review', 'Awaiting Confirmation', 'Verifying Claims'
+                ))                                                                         AS awaiting_review,
+                COUNT(*) FILTER (WHERE status = 'Signed Off'
+                    AND updated_at >= date_trunc('day', NOW()))                            AS signed_today
+            FROM app_encounters
+        """)).fetchone()
+
+        # Specific open cases currently carrying an AI-accuracy flag — the "where" behind
+        # the aggregate T1/T2 rates: which patient, whose queue, how long it's been sitting.
+        attention_rows = conn.execute(_text("""
+            SELECT
+                ae.hadm_id, ap.patient_name, ae.status, ae.created_at,
+                COALESCE(s.gap_t1, 0) AS t1, COALESCE(s.gap_t2, 0) AS t2,
+                u.full_name AS doctor_name
+            FROM app_encounters ae
+            JOIN app_summaries s ON s.encounter_id = ae.id
+            LEFT JOIN active_patients ap ON ap.hadm_id = ae.hadm_id
+            LEFT JOIN app_users u ON u.id = ae.assigned_to
+            WHERE ae.status != 'Signed Off'
+              AND (COALESCE(s.gap_t1, 0) > 0 OR COALESCE(s.gap_t2, 0) > 0)
+            ORDER BY COALESCE(s.gap_t1, 0) DESC, ae.created_at ASC
+            LIMIT 10
         """)).fetchall()
 
     total_summaries = int(core[1] or 0)

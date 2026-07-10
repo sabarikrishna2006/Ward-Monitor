@@ -630,10 +630,28 @@ function showScreen(id) {
 }
 
 /* ─── MODAL ─── */
-function openModal(id, extra) {
+function openModal(id, extra, extra2) {
   const box = document.getElementById('modal-box');
-  box.innerHTML = MODALS[id] ? MODALS[id](extra) : '';
+  box.innerHTML = MODALS[id] ? MODALS[id](extra, extra2) : '';
   document.getElementById('modal-overlay').classList.add('open');
+}
+
+async function waSendSlaAlert(hadmId, btn) {
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+  try {
+    await _waFetch(`/api/encounters/${hadmId}/sla_alert`, { method: 'POST' });
+    const box = document.getElementById('modal-box');
+    if (box) {
+      box.innerHTML = `<div style="padding:28px;text-align:center">
+        <div style="width:44px;height:44px;border-radius:50%;background:var(--t3b);display:flex;align-items:center;justify-content:center;margin:0 auto 12px;color:var(--t3);font-size:22px">✓</div>
+        <div style="font-weight:700;color:var(--ink)">Alert sent to Dr. Sharma</div>
+      </div>`;
+    }
+    setTimeout(closeModal, 1200);
+  } catch (e) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Send Alert to Dr. Sharma'; }
+    alert('Failed to send alert: ' + (e?.message || e));
+  }
 }
 function closeModal() {
   document.getElementById('modal-overlay').classList.remove('open');
@@ -717,7 +735,7 @@ ${breaches.length ? `<div class="alert al-err" style="margin-bottom:16px">⚠ <s
       <div class="kcard-id">${fmtPid(e.hadm_id, e.display_id)}</div>
       <div class="kcard-meta">${ago(e.updated_at||e.created_at)}</div>
       ${br?'<div class="kcard-breach">⚠ SLA BREACH</div>':''}
-      ${br?`<div style="margin-top:6px;display:flex;gap:4px"><button class="btn btn-danger btn-xs" onclick="openModal('follow-up','${fmtPid(e.hadm_id, e.display_id)}')">Follow Up</button><button class="btn btn-sec btn-xs" onclick="showScreen('a2')">Audit</button></div>`:''}
+      ${br?`<div style="margin-top:6px;display:flex;gap:4px"><button class="btn btn-danger btn-xs" onclick="openModal('follow-up','${fmtPid(e.hadm_id, e.display_id)}',${e.hadm_id})">Follow Up</button></div>`:''}
     </div>`; }).join('') : noCase}
   </div>
   <div class="kc">
@@ -1115,16 +1133,16 @@ a3: () => {
 
 /* ─── MODALS ─── */
 const MODALS = {
-  'follow-up': (name) => `
+  'follow-up': (name, hadmId) => `
 <div class="modal-t">Follow Up — ${name}</div>
-<div class="modal-b">PT-24-0087 has breached the 4-hour SLA in the In Review stage. Send a follow-up notification to Dr. Anand Sharma?</div>
+<div class="modal-b">${name} has breached the 4-hour SLA in the In Review stage. Send a follow-up notification to Dr. Anand Sharma?</div>
 <div style="background:var(--surf);border:1px solid var(--border);border-radius:6px;padding:12px 14px;margin-bottom:16px;font-size:12px">
   <div class="bold" style="margin-bottom:4px">📱 Draft Notification (Non-PHI)</div>
-  <div style="color:var(--ink2)">A discharge summary assigned to you has been in review for over 4 hours and has breached the SLA. Please complete your review at the earliest. Case ref: PT-24-XXXX.</div>
+  <div style="color:var(--ink2)">A discharge summary assigned to you has been in review for over 4 hours and has breached the SLA. Please complete your review at the earliest. Case ref: ${name}.</div>
 </div>
 <div class="modal-f">
   <button class="btn btn-sec" onclick="closeModal()">Cancel</button>
-  <button class="btn btn-danger" onclick="closeModal()">Send Alert to Dr. Sharma</button>
+  <button class="btn btn-danger" onclick="waSendSlaAlert(${hadmId}, this)">Send Alert to Dr. Sharma</button>
 </div>`,
 
   'regen': (name) => `
