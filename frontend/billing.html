@@ -404,6 +404,56 @@ function _ceReset() {
   _ce4Data  = null;
 }
 
+function _applyPatientDetails(d) {
+  if (!d) return;
+  _CE.hadm_id       = d.hadm_id;
+  // MRN = MIMIC subject_id (patient-level ID, not admission-level hadm_id)
+  _CE.mrn           = d.subject_id ? String(d.subject_id) : `PT-${d.hadm_id}`;
+  _CE.patientName   = _bilName(d.hadm_id);
+  _CE.age           = d.anchor_age;
+  _CE.gender        = d.gender;
+  _CE.diagnosis     = d.primary_diagnosis_title || '';
+  _CE.diagnosisCode = d.primary_diagnosis_code || '';
+  // admit_time/discharge_time/expected_discharge come back from the backend
+  // already shifted -100y for display (see _shift_mimic_date in main.py) —
+  // real MIMIC years like 2186 would otherwise show up on screen.
+  _CE.admitDate     = d.admit_time ? d.admit_time.slice(0,10) : '';
+  // Use expected_discharge (actual ± seeded offset) — NOT the real MIMIC discharge
+  _CE.dischargeDate      = d.expected_discharge || (d.discharge_time ? d.discharge_time.slice(0,10) : '');
+  _CE.actualDischargeDate = d.discharge_time ? d.discharge_time.slice(0,10) : '';
+  _CE.losDays       = d.expected_los || d.los_days || 7;
+  _CE.dischargeType = d.discharge_type || 'Standard';
+  _CE.encounterId   = d.encounter_id;
+  _CE.primaryProcedure    = d.primary_procedure_title || '';
+  _CE.primaryProcedureIcd = d.primary_procedure_icd  || '';
+  // Insurance always pre-fills from DB (seeded at startup for all patients)
+  _CE.paymentMode   = d.payment_mode   || 'Cashless';
+  _CE.insuranceCo   = d.insurance_co   || '';
+  _CE.policyNo      = d.policy_number  || '';
+  _CE.preauthNo     = d.preauth_number || '';
+  _CE.preauthAmt    = d.preauth_amount  ? String(d.preauth_amount) : '';
+  // Actuals/settlements only meaningful once billing has progressed
+  if (d.billing_phase) {
+    _CE.actualCharges = d.actual_charges;
+    _CE.insurancePaid = d.insurance_paid;
+    _CE.advancePaid   = d.advance_paid;
+    _CE.balanceDue    = d.balance_due;
+  }
+}
+
+async function _refetchPatientDetails() {
+  if (!_CE.hadm_id) return null;
+  const base = window.FOQAL_API_BASE || 'http://localhost:6010';
+  try {
+    const r = await fetch(`${base}/api/billing/patient/${_CE.hadm_id}`);
+    const d = r.ok ? await r.json() : null;
+    _applyPatientDetails(d);
+    return d;
+  } catch (e) {
+    return null;
+  }
+}
+
 function _ceSelectPatient(hadm_id, phase) {
   _ce4Data = null;   // reset CE4 cache when switching patient
   _ce4Fetching = false;
@@ -412,36 +462,7 @@ function _ceSelectPatient(hadm_id, phase) {
     .then(r => r.ok ? r.json() : null)
     .then(d => {
       if (!d) return;
-      _CE.hadm_id       = d.hadm_id;
-      // MRN = MIMIC subject_id (patient-level ID, not admission-level hadm_id)
-      _CE.mrn           = d.subject_id ? String(d.subject_id) : `PT-${d.hadm_id}`;
-      _CE.patientName   = _bilName(d.hadm_id);
-      _CE.age           = d.anchor_age;
-      _CE.gender        = d.gender;
-      _CE.diagnosis     = d.primary_diagnosis_title || '';
-      _CE.diagnosisCode = d.primary_diagnosis_code || '';
-      _CE.admitDate     = d.admit_time ? d.admit_time.slice(0,10) : '';
-      // Use expected_discharge (actual ± seeded offset) — NOT the real MIMIC discharge
-      _CE.dischargeDate      = d.expected_discharge || (d.discharge_time ? d.discharge_time.slice(0,10) : '');
-      _CE.actualDischargeDate = d.discharge_time ? d.discharge_time.slice(0,10) : '';
-      _CE.losDays       = d.expected_los || d.los_days || 7;
-      _CE.dischargeType = d.discharge_type || 'Standard';
-      _CE.encounterId   = d.encounter_id;
-      _CE.primaryProcedure    = d.primary_procedure_title || '';
-      _CE.primaryProcedureIcd = d.primary_procedure_icd  || '';
-      // Insurance always pre-fills from DB (seeded at startup for all patients)
-      _CE.paymentMode   = d.payment_mode   || 'Cashless';
-      _CE.insuranceCo   = d.insurance_co   || '';
-      _CE.policyNo      = d.policy_number  || '';
-      _CE.preauthNo     = d.preauth_number || '';
-      _CE.preauthAmt    = d.preauth_amount  ? String(d.preauth_amount) : '';
-      // Actuals/settlements only meaningful once billing has progressed
-      if (d.billing_phase) {
-        _CE.actualCharges = d.actual_charges;
-        _CE.insurancePaid = d.insurance_paid;
-        _CE.advancePaid   = d.advance_paid;
-        _CE.balanceDue    = d.balance_due;
-      }
+      _applyPatientDetails(d);
       if (phase === 'discharge') {
         showScreen('ce4');
       } else if (d.billing_phase || d.expected_est > 0 || d.floor_est > 0) {
@@ -870,8 +891,12 @@ async function _ce1Save() {
             .then(d => {
               if (d?.status === 'fetched') {
                 // Only NOW does real clinical data exist -- safe to ask the
-                // ML model for a prediction. Fire-and-forget: re-render CE2
-                // if the user is still on that screen when it lands.
+                // ML model for a prediction, and to pull the real admission
+                // date / primary procedure (CE1 was rendered before this
+                // sync completed, so those fields were still placeholders).
+                // Fire-and-forget: re-render CE1/CE2 if the user is still on
+                // one of those screens when it lands.
+                _refetchPatientDetails().then(() => { if (CURRENT === 'ce1') showScreen('ce1'); });
                 _fetchMlEstimate().then(() => { if (CURRENT === 'ce2') showScreen('ce2'); });
                 // Immediately trigger vitals sync on ward backend so NEWS2 shows without waiting 15 min
                 return fetch(`${_wardBase}/api/patients/${_CE.hadm_id}/sync-vitals`, { method: 'POST' });

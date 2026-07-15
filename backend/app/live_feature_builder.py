@@ -65,7 +65,7 @@ def build_live_feature_row(hadm_id: int, conn, feature_cols: list,
 
     ap = conn.execute(text("""
         SELECT hadm_id, subject_id, gender, anchor_age, insurance, admission_type,
-               admit_time, primary_diagnosis_title, created_at
+               admit_time, primary_diagnosis_title, created_at, estimate_generated_at
         FROM active_patients WHERE hadm_id = :h
     """), {"h": hadm_id}).fetchone()
     if ap is None:
@@ -78,14 +78,16 @@ def build_live_feature_row(hadm_id: int, conn, feature_cols: list,
 
     if hospital_day is None:
         # admit_time is MIMIC's de-identified, shifted date (e.g. year 2140) --
-        # NOT usable against real wall-clock "today". created_at (when staff
-        # actually admitted this patient into OUR app, a real current-era
-        # timestamp) is the right anchor for "what day of the live
-        # simulation are we on". admit_time is still used below for placing
-        # each individual clinical event at its correct relative day WITHIN
-        # the stay, since that preserves MIMIC's real event spacing.
-        created_date = ap.created_at.date() if isinstance(ap.created_at, datetime) else ap.created_at
-        hospital_day = max((date.today() - created_date).days, 0)
+        # NOT usable against real wall-clock "today". estimate_generated_at
+        # (stamped fresh every time "Generate Cost Estimate" is clicked, even
+        # for a pre-existing hadm_id) is the right Day-0 anchor -- falls back
+        # to created_at only for older rows from before that column existed.
+        # admit_time is still used below for placing each individual clinical
+        # event at its correct relative day WITHIN the stay, since that
+        # preserves MIMIC's real event spacing.
+        anchor = ap.estimate_generated_at or ap.created_at
+        anchor_date = anchor.date() if isinstance(anchor, datetime) else anchor
+        hospital_day = max((date.today() - anchor_date).days, 0)
 
     # ── Static fields ──────────────────────────────────────────────────
     icu_flag = conn.execute(text(

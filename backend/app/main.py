@@ -496,6 +496,22 @@ async def startup_event():
             log.warning(f"Migration 025 stmt skipped ({_stmt[:60]}…): {_e}")
     log.info(f"Migration 025: {_m025_ok}/{len(_migration_025_stmts)} statements applied")
 
+    # Migration 026 — estimate_generated_at: the "Day 0" anchor for ML hospital_day
+    # calculations. Distinct from active_patients.created_at (set once, whenever
+    # the patient row first entered our system, which can predate this by days
+    # if the hadm_id was previously used in testing) -- this is stamped fresh
+    # every time "Generate Cost Estimate" is clicked, even for a pre-existing
+    # hadm_id, so re-running the estimate flow always restarts that patient's
+    # day count at 0.
+    try:
+        with _get_engine().begin() as _conn:
+            _conn.execute(_text(
+                "ALTER TABLE active_patients ADD COLUMN IF NOT EXISTS estimate_generated_at TIMESTAMPTZ"
+            ))
+        log.info("Migration 026: estimate_generated_at column ensured")
+    except Exception as _e:
+        log.warning(f"Migration 026 skipped: {_e}")
+
     # ── Seed synthetic OPD (never-admitted) patients ──────────────────────────
     try:
         import json as _json
@@ -795,6 +811,25 @@ def get_dashboard_stats():
 
 
 # ── Billing Dashboard ─────────────────────────────────────────────────────────
+def _shift_mimic_date(dt, years: int = 100):
+    """MIMIC-IV de-identifies real admission dates by shifting them decades
+    into the future (e.g. year 2186) -- fine for internal day-math (which
+    uses relative offsets, not this absolute value), but confusing to show
+    a billing staffer on screen. Shifts back `years` for display only."""
+    if not dt:
+        return dt
+    try:
+        from datetime import datetime as _dt3
+        d = dt if not isinstance(dt, str) else _dt3.fromisoformat(dt.replace("Z", ""))
+        try:
+            return d.replace(year=d.year - years)
+        except ValueError:
+            # Feb 29 shifted onto a non-leap year
+            return d.replace(year=d.year - years, day=28)
+    except Exception:
+        return dt
+
+
 @app.get("/api/billing/dashboard")
 def billing_dashboard():
     """
@@ -808,7 +843,7 @@ def billing_dashboard():
     _COLS = """
         ap.hadm_id, ap.subject_id, ap.gender, ap.anchor_age,
         ap.patient_name, ap.is_admitted,
-        ap.admit_time, ap.discharge_time, ap.los_days, ap.created_at,
+        ap.admit_time, ap.discharge_time, ap.los_days, ap.created_at, ap.estimate_generated_at,
         ap.primary_diagnosis_title,
         br.insurance_co, br.payment_mode,
         ae.id          AS encounter_id,
@@ -882,6 +917,7 @@ def billing_dashboard():
         try:
             from datetime import datetime as _dt
             d = dt if not isinstance(dt, str) else _dt.fromisoformat(dt.replace("Z", ""))
+            d = _shift_mimic_date(d)
             return d.strftime("%d %b %Y")
         except Exception:
             return str(dt)[:10]
@@ -889,16 +925,17 @@ def billing_dashboard():
     def _hospital_day(p):
         # ap.admit_time is MIMIC's de-identified, arbitrarily shifted date
         # (e.g. year 2140) -- not usable against real wall-clock "today".
-        # created_at (when this patient was actually admitted into the live
-        # app) is the right anchor, same as live_feature_builder.py.
-        created = p.get("created_at")
-        if not created:
+        # estimate_generated_at (stamped fresh on every "Generate Cost
+        # Estimate" click, same as live_feature_builder.py) is the right
+        # Day-0 anchor; created_at is only a fallback for older rows.
+        anchor = p.get("estimate_generated_at") or p.get("created_at")
+        if not anchor:
             return None
         try:
             from datetime import datetime as _dt2, date as _date2
-            d = created if not isinstance(created, str) else _dt2.fromisoformat(created.replace("Z", ""))
-            created_date = d.date() if isinstance(d, _dt2) else d
-            return max((_date2.today() - created_date).days, 0)
+            d = anchor if not isinstance(anchor, str) else _dt2.fromisoformat(anchor.replace("Z", ""))
+            anchor_date = d.date() if isinstance(d, _dt2) else d
+            return max((_date2.today() - anchor_date).days, 0)
         except Exception:
             return None
 
@@ -1104,8 +1141,8 @@ def generate_billing_estimate(req: GenerateEstimateRequest):
                 _conn.execute(_text("""
                     INSERT INTO active_patients (hadm_id, subject_id, status, ward_location, ward,
                                                  data_fetch_status, primary_diagnosis_title,
-                                                 patient_name, admit_time)
-                    VALUES (:h, :h, 'active', :wloc, :wname, 'pending', :diag, :pname, NOW())
+                                                 patient_name, admit_time, estimate_generated_at)
+                    VALUES (:h, :h, 'active', :wloc, :wname, 'pending', :diag, :pname, NOW(), NOW())
                     ON CONFLICT (hadm_id) DO UPDATE
                         SET status = CASE WHEN active_patients.status IN ('signed_off','archived')
                                           THEN 'active'
@@ -1118,6 +1155,7 @@ def generate_billing_estimate(req: GenerateEstimateRequest):
                                 ELSE 'pending' END,
                             patient_name = COALESCE(active_patients.patient_name, EXCLUDED.patient_name),
                             primary_diagnosis_title = COALESCE(active_patients.primary_diagnosis_title, EXCLUDED.primary_diagnosis_title),
+                            estimate_generated_at = NOW(),
                             updated_at = NOW()
                 """), {"h": req.hadm_id, "diag": "Pending clinical data fetch…", "wloc": _ward_loc, "wname": _ward_name,
                        "pname": req.patient_name or _synth_name(req.hadm_id)})
@@ -1381,7 +1419,7 @@ def get_live_charges(hadm_id: int):
         "patient_name":        (pt[0] if pt else None),
         "anchor_age":          (pt[1] if pt else None),
         "gender":              (pt[2] if pt else None),
-        "admit_time":          (str(pt[3])[:10] if pt and pt[3] else None),
+        "admit_time":          (str(_shift_mimic_date(pt[3]))[:10] if pt and pt[3] else None),
         "diagnosis":           (pt[4] if pt else None),
         "billing_phase":       br_data.get("billing_phase"),
         "estimate_total":      estimate_total,
@@ -1496,7 +1534,6 @@ def get_billing_patient(hadm_id: int):
             else:
                 actual_dt = actual_discharge
             expected_dt = actual_dt + _td(days=offset)
-            expected_discharge = expected_dt.date().isoformat()
             admit_time = result.get("admit_time")
             if admit_time:
                 admit_date = (
@@ -1504,11 +1541,15 @@ def get_billing_patient(hadm_id: int):
                     if isinstance(admit_time, str) else
                     admit_time.date() if hasattr(admit_time, "date") else admit_time
                 )
-                exp_date = _date.fromisoformat(expected_discharge)
+                exp_date = expected_dt.date()
                 expected_los = max(1, (exp_date - admit_date).days)
+            # Freshly computed (not yet saved by the user) -- shift to display-space now.
+            expected_discharge = _shift_mimic_date(expected_dt).date().isoformat()
 
     result["expected_discharge"] = expected_discharge
     result["expected_los"] = expected_los
+    result["admit_time"] = str(_shift_mimic_date(result.get("admit_time")) or "") or None
+    result["discharge_time"] = str(_shift_mimic_date(result.get("discharge_time")) or "") or None
     result["primary_procedure_icd"] = proc_row[0] if proc_row else None
     result["primary_procedure_version"] = proc_row[1] if proc_row else None
     result["primary_procedure_title"] = proc_row[2] if proc_row else None
