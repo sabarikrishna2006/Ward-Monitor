@@ -2326,8 +2326,8 @@ let _liveShown      = 0;   // how many charges have been "revealed" so far
 let _liveTimer      = null;
 let _livePhaseTimer = null;
 let _liveMlTimer    = null;
-const _LIVE_REVEAL_INTERVAL  = 4500; // ms between same-day charges appearing
-const _LIVE_DAY_GAP_INTERVAL = 9000; // ms pause when the next charge crosses into a new calendar day
+const _LIVE_REVEAL_INTERVAL  = 900000; // ms between charges appearing (15 min)
+const _LIVE_DAY_GAP_INTERVAL = 900000; // ms pause when the next charge crosses into a new calendar day (15 min)
 const _LIVE_ML_POLL_MS       = 30000; // ML prediction refresh cadence -- picks up new hospital_day automatically
 
 let _liveWaiting = false; // true = no charges yet, polling fast
