@@ -948,52 +948,17 @@ def billing_dashboard():
         """)).fetchall()
 
     def _p5_amounts(r):
-        """Compute estimated and actual gross charges for a post-discharge patient."""
-        from datetime import datetime as _dt5
-        admit_dt5  = r.get("admit_time")
-        disc_dt5   = r.get("discharge_time")
-        actual_los5 = 7
-        if admit_dt5 and disc_dt5:
-            try:
-                a5 = _dt5.fromisoformat(str(admit_dt5).replace("Z","")) if isinstance(admit_dt5,str) else admit_dt5
-                d5 = _dt5.fromisoformat(str(disc_dt5).replace("Z",""))  if isinstance(disc_dt5, str) else disc_dt5
-                actual_los5 = max(1, (d5 - a5).days)
-            except Exception:
-                pass
-        # Expected LOS always less than actual (CE1 underestimates) — seeded offset
-        exp_los5 = r.get("expected_los_days") or 0
-        if not exp_los5 or exp_los5 >= actual_los5:
-            import random as _r5
-            rng5 = _r5.Random(r["hadm_id"])
-            off5 = rng5.choice([-4, -3, -2])
-            exp_los5 = max(1, actual_los5 + off5)
-        hbp5       = r.get("hbp_rate") or 40600
-        ward5      = WARD_DAILY_RATES.get(r.get("ward_type") or "Semi-private Ward", 4500)
-        is_ab5     = bool(r.get("is_ab_beneficiary"))
-        scheme5    = (r.get("ab_scheme") or "").upper()
-        if is_ab5 and ("PM-JAY" in scheme5 or "PMJAY" in scheme5):
-            smult5 = 1
-        elif is_ab5 and "CGHS" in scheme5:
-            smult5 = 4
-        elif is_ab5 and "ESI" in scheme5:
-            smult5 = 3.5
-        else:
-            smult5 = _PRIVATE_MULTIPLIER
-        # CE1-style estimated complexity (based on expected LOS)
-        extra_est5  = max(exp_los5 - 14, 0)
-        est_comp5   = 1.0 + min(extra_est5, 86) / 86 * 0.28
-        est_gross5  = round(hbp5 * smult5 * est_comp5 + exp_los5 * ward5)
-        # CE4-style actual complexity (actual LOS + ICU/proc premiums → always higher)
-        icu5        = float(r.get("icu_days") or 0)
-        proc5       = int(r.get("proc_count") or 0)
-        extra_act5  = max(actual_los5 - 14, 0)
-        act_comp5   = (1.0 + min(extra_act5, 86) / 86 * 0.28
-                       + min(icu5 / max(actual_los5, 1), 0.5) * 0.20
-                       + min(proc5 / 5.0, 1.0) * 0.12)
-        act_gross5  = round(hbp5 * smult5 * act_comp5 + actual_los5 * ward5)
+        """Real saved estimated/actual gross charges for a post-discharge patient.
+        No synthetic PM-JAY-based reconstruction -- if a real value hasn't been
+        saved yet (e.g. CE1/CE4 haven't run for this patient), show 0/None
+        rather than fabricating a plausible-looking number. Real ML estimates
+        are computed on-demand via GET /api/billing/ml-estimate/{hadm_id} and
+        GET /api/billing/reconciliation/{hadm_id}, not precomputed here for
+        every dashboard row (would mean one XGBoost call per row on every
+        dashboard load)."""
         return (
-            r.get("expected_est")   or est_gross5,
-            r.get("actual_charges") or act_gross5,
+            r.get("expected_est")   or 0,
+            r.get("actual_charges") or 0,
         )
 
     phase5_rows_dicts = [dict(row._mapping) for row in p5_rows]
@@ -1038,120 +1003,21 @@ def billing_dashboard():
     }
 
 
-# ── PM-JAY Package Reference Data ────────────────────────────────────────────
-# Source: Assam AT-AL AMRITA BHIYAN PM-JAY Package Master + NHA HBP 2.2 costing framework
-# Private hospital multiplier (×12) calibrated so MC011A × 12 ≈ ₹4.87L (matches prototype)
-
-PMJAY_CARDIOLOGY = {
-    "MC011A": {"name": "PTCA with Diagnostic Angiogram",            "rate": 40600, "template": "interventional"},
-    "MC003A": {"name": "Balloon Dilatation – Coarctation of Aorta", "rate": 38600, "template": "interventional"},
-    "MC007A": {"name": "ASD Device Closure",                         "rate": 36900, "template": "structural"},
-    "MC005A": {"name": "Balloon Mitral Valvotomy",                   "rate": 35700, "template": "interventional"},
-    "MC016A": {"name": "Double Chamber Permanent Pacemaker",         "rate": 33000, "template": "device"},
-    "MC002A": {"name": "Catheter directed Thrombolysis – DVT",       "rate": 30800, "template": "interventional"},
-    "MC017A": {"name": "Peripheral Angioplasty",                      "rate": 34500, "template": "interventional"},
-    "MC020A": {"name": "Systemic Thrombolysis / Medical Management",  "rate": 17900, "template": "medical"},
-}
-
-ICD_TO_PMJAY = {
-    # Coronary / ischaemic
-    "I21": "MC011A", "I22": "MC011A", "I23": "MC011A", "I24": "MC011A", "I25": "MC011A",
-    # Cardiomyopathy / heart failure
-    "I42": "MC011A", "I43": "MC011A", "I50": "MC011A",
-    # Arrhythmia / conduction
-    "I44": "MC016A", "I45": "MC016A", "I46": "MC016A", "I47": "MC016A", "I48": "MC016A", "I49": "MC016A",
-    # Valve disease
-    "I05": "MC005A", "I06": "MC005A", "I07": "MC005A", "I08": "MC005A",  # Rheumatic valve
-    "I34": "MC005A", "I36": "MC005A",                                      # Non-rheumatic mitral/tricuspid
-    "I35": "MC007A", "I37": "MC007A",                                      # Aortic/pulmonary valve
-    # Pericardial / myocarditis
-    "I30": "MC020A", "I31": "MC020A", "I32": "MC020A", "I33": "MC020A", "I40": "MC020A", "I41": "MC020A",
-    # Vascular / DVT / PE
-    "I26": "MC002A", "I27": "MC002A", "I28": "MC002A",
-    "I70": "MC017A", "I71": "MC017A", "I72": "MC017A", "I73": "MC017A", "I74": "MC017A",
-    # Hypertension / other circulatory
-    "I10": "MC020A", "I11": "MC020A", "I12": "MC020A", "I13": "MC020A", "I15": "MC020A",
-    # Non-cardiac — default to medical management (MC020A)
-    # Respiratory
-    "J06": "MC020A", "J09": "MC020A", "J10": "MC020A", "J11": "MC020A", "J12": "MC020A",
-    "J13": "MC020A", "J14": "MC020A", "J15": "MC020A", "J18": "MC020A",
-    "J44": "MC020A", "J45": "MC020A", "J80": "MC020A", "J96": "MC020A",
-    # Sepsis / infectious
-    "A40": "MC020A", "A41": "MC020A", "B34": "MC020A",
-    # Renal
-    "N17": "MC020A", "N18": "MC020A", "N19": "MC020A",
-    # GI
-    "K25": "MC020A", "K26": "MC020A", "K70": "MC020A", "K72": "MC020A", "K92": "MC020A",
-    # Neurological
-    "G93": "MC020A",
-    # Haematology
-    "D62": "MC020A", "D65": "MC020A",
-    # Musculoskeletal / rheumatic
-    "M05": "MC020A", "M06": "MC020A", "M32": "MC020A",
-}
-
-WARD_DAILY_RATES = {
-    "General Ward":     2500,
-    "Semi-private Ward": 4500,
-    "Private Room":     8000,
-    "ICU":             15000,
-}
-
-# NHA HBP 2.2 costing framework — % of non-room budget per line item
-_LINE_ITEM_TEMPLATES = {
-    "interventional": [
-        ("Cardiac Procedure / Surgery",   0.38),
-        ("Medicines & Consumables",        0.24),
-        ("Diagnostics & Investigations",   0.12),
-        ("ICU / HDU Charges",              0.10),
-        ("Nursing & Ward Services",        0.08),
-        ("Specialist Consultation",        0.05),
-        ("Physiotherapy & Rehab",          0.02),
-        ("Miscellaneous",                  0.01),
-    ],
-    "structural": [
-        ("Cardiac Procedure / Surgery",   0.38),
-        ("Medicines & Consumables",        0.24),
-        ("Diagnostics & Investigations",   0.12),
-        ("ICU / HDU Charges",              0.10),
-        ("Nursing & Ward Services",        0.08),
-        ("Specialist Consultation",        0.05),
-        ("Physiotherapy & Rehab",          0.02),
-        ("Miscellaneous",                  0.01),
-    ],
-    "device": [
-        ("Device / Implant Cost",          0.42),
-        ("Procedure Charges",              0.20),
-        ("Medicines & Consumables",        0.16),
-        ("Diagnostics & Investigations",   0.10),
-        ("ICU / HDU Charges",              0.06),
-        ("Nursing & Ward Services",        0.04),
-        ("Miscellaneous",                  0.02),
-    ],
-    "medical": [
-        ("Medicines & Consumables",        0.34),
-        ("Diagnostics & Investigations",   0.19),
-        ("ICU / HDU Charges",              0.14),
-        ("Nursing & Ward Services",        0.13),
-        ("Specialist Consultation",        0.08),
-        ("Procedures & Interventions",     0.06),
-        ("Physiotherapy & Rehab",          0.04),
-        ("Miscellaneous",                  0.02),
-    ],
-}
-
-_PRIVATE_MULTIPLIER = 12
+# ── Ward rate constant — single source of truth is cost_ml_model/pricing_config.json ──
+import json as _json_top
+with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "pricing_config.json")) as _pf:
+    WARD_RATE = _json_top.load(_pf)["rates"]["WARD_RATE"]
 
 class GenerateEstimateRequest(BaseModel):
     hadm_id:           Optional[int] = None
     ward_type:         str  = "Semi-private Ward"
     los_days:          int  = 7
-    hbp_code:          Optional[str]  = None
-    icd_override:      Optional[str]  = None   # frontend dropdown selection
     is_ab_beneficiary: bool = False
     ab_scheme:         Optional[str]  = None
     patient_name:      Optional[str]  = None   # deterministic synthetic name from billing UI
-    # Insurance fields — used to compute patient-facing liability in the estimate
+    # Insurance metadata — saved for later use by CE4 reconciliation, not used
+    # to compute an estimate here (real ML predictions need the BigQuery fetch
+    # this endpoint triggers to complete first — see cost_predictor.py).
     payment_mode:      Optional[str]  = None
     copay_pct:         Optional[float]= None
     room_rent_limit:   Optional[int]  = None
@@ -1159,120 +1025,18 @@ class GenerateEstimateRequest(BaseModel):
 
 @app.post("/api/billing/generate-estimate")
 def generate_billing_estimate(req: GenerateEstimateRequest):
+    """
+    Admits the patient into the app (active_patients, ward provisioning,
+    triggers the BigQuery clinical-data fetch) so they appear on the ward
+    board. Does NOT compute a cost estimate here -- the ML model needs real
+    fetched clinical data to predict from, which doesn't exist yet at this
+    exact moment (the fetch this endpoint triggers runs asynchronously,
+    after this returns). Call GET /api/billing/ml-estimate/{hadm_id} once
+    that fetch completes (frontend does this after prefetch-all succeeds).
+    """
     import json as _json
     from sqlalchemy import text as _text
     from .cloud_sql_db import get_engine as _get_engine
-
-    # 1. Resolve HBP code — priority: explicit hbp_code > icd_override > DB lookup
-    hbp_code = req.hbp_code
-    if not hbp_code:
-        icd = (req.icd_override or "").strip()
-        if not icd and req.hadm_id is not None:
-            # Fall back to patient's actual diagnosis code from DB
-            with _get_engine().connect() as conn:
-                row = conn.execute(
-                    _text("SELECT primary_diagnosis_code FROM active_patients WHERE hadm_id = :h"),
-                    {"h": req.hadm_id}
-                ).fetchone()
-            icd = (row[0] or "").strip() if row else ""
-        prefix = icd[:3].upper()
-        if icd and icd[0].isdigit():
-            # ICD-9-CM (numeric codes) — use medical management
-            hbp_code = "MC020A"
-        else:
-            # ICD-10 — map prefix; default to PTCA for unmapped cardiac codes
-            hbp_code = ICD_TO_PMJAY.get(prefix, "MC011A")
-
-    pkg = PMJAY_CARDIOLOGY.get(hbp_code, PMJAY_CARDIOLOGY["MC011A"])
-
-    # 2. Cost calculation
-    actual_los  = req.los_days
-    est_los     = min(actual_los, 14)          # estimate LOS capped at 14 days
-    ward_rate   = WARD_DAILY_RATES.get(req.ward_type, 4500)
-
-    # Complexity multiplier: actual LOS > 14 → higher-acuity patient → costlier clinical care
-    extra_days  = max(actual_los - 14, 0)
-    complexity  = 1.0 + min(extra_days, 86) / 86 * 0.28
-
-    # Clinical base (procedures, medicines, diagnostics — EXCLUDING room)
-    # Room is ADDITIVE on top so ward type changes the total, not just redistributes
-    clinical    = round(pkg["rate"] * _PRIVATE_MULTIPLIER * complexity)
-    room_cost   = est_los * ward_rate
-    expected    = clinical + room_cost
-
-    floor_est   = round(expected * 0.82)
-    ceiling_est = round(expected * 1.28)
-
-    # 3. Build line items — room first, then template % applied to clinical base
-    template = _LINE_ITEM_TEMPLATES.get(pkg["template"], _LINE_ITEM_TEMPLATES["interventional"])
-    room_label = f"Room Charges ({est_los}d × ₹{ward_rate:,})"
-    line_items = [{"name": room_label, "amount": room_cost, "pct": round(room_cost / expected * 100, 1)}]
-    for name, pct in template:
-        amt = round(clinical * pct)
-        line_items.append({"name": name, "amount": amt, "pct": round(amt / expected * 100, 1)})
-
-    # ── Scheme / insurance liability ──────────────────────────────────────────
-    govt_pays: Optional[int]  = None
-    patient_pays_estimate: Optional[int] = None
-    room_rent_excess_est   = 0
-    scheme_note: Optional[str] = None
-
-    scheme_str = (req.ab_scheme or "").upper()
-    ward_rate_used = WARD_DAILY_RATES.get(req.ward_type, 4500)
-
-    if req.is_ab_beneficiary and scheme_str:
-        if "PM-JAY" in scheme_str or "PMJAY" in scheme_str:
-            govt_pays             = pkg["rate"]
-            patient_pays_estimate = 0
-            scheme_note = (
-                f"PM-JAY covers ₹{pkg['rate']:,} (HBP package rate {hbp_code}). "
-                f"Patient liability: ₹0"
-            )
-        elif "CGHS" in scheme_str:
-            cghs_clinical = round(pkg["rate"] * 4 * complexity)
-            cghs_total    = cghs_clinical + room_cost
-            govt_pays     = cghs_total
-            # Patient pays ~15% of private rate (excess above CGHS ceiling + non-covered items)
-            patient_pays_estimate = round(expected * 0.15)
-            scheme_note = (
-                f"CGHS rate applied (~4× PM-JAY). "
-                f"CGHS covers ₹{cghs_total:,}. "
-                f"Patient pays excess/non-covered items (~15% of private rate = ₹{patient_pays_estimate:,})"
-            )
-        elif "ESI" in scheme_str:
-            esi_clinical = round(pkg["rate"] * 3.5 * complexity)
-            esi_total    = esi_clinical + room_cost
-            govt_pays    = esi_total
-            patient_pays_estimate = 0
-            scheme_note = (
-                f"ESI covers full cost. "
-                f"ESI reimburses ₹{esi_total:,}. "
-                f"Patient liability: ₹0"
-            )
-        elif "HARYANA" in scheme_str:
-            haryana_clinical = round(pkg["rate"] * 3 * complexity)
-            haryana_total    = haryana_clinical + room_cost
-            govt_pays        = haryana_total
-            patient_pays_estimate = round(expected * 0.10)
-            scheme_note = (
-                f"Haryana Govt Scheme covers ₹{haryana_total:,}. "
-                f"Patient pays ~10% of private rate = ₹{patient_pays_estimate:,}"
-            )
-        else:
-            patient_pays_estimate = expected
-    else:
-        # Private — compute cashless insurance breakdown
-        pay_mode = (req.payment_mode or "").lower()
-        if pay_mode == "cashless" and req.copay_pct is not None:
-            if req.room_rent_limit:
-                room_rent_excess_est = max(0, (ward_rate_used - req.room_rent_limit) * est_los)
-            copay_amount      = round(expected * req.copay_pct / 100)
-            max_ins_cover     = expected - copay_amount
-            insurance_covers  = min(max_ins_cover, req.preauth_amount) if req.preauth_amount else max_ins_cover
-            patient_pays_estimate = expected - insurance_covers + room_rent_excess_est
-        else:
-            # Reimbursement / self-pay — patient pays full gross upfront
-            patient_pays_estimate = expected
 
     # Provision patient into active_patients so they appear on Sabari's ward board.
     # Map billing ward_type → ward_location used by the ward board filter.
@@ -1338,7 +1102,7 @@ def generate_billing_estimate(req: GenerateEstimateRequest):
                             patient_name = COALESCE(active_patients.patient_name, EXCLUDED.patient_name),
                             primary_diagnosis_title = COALESCE(active_patients.primary_diagnosis_title, EXCLUDED.primary_diagnosis_title),
                             updated_at = NOW()
-                """), {"h": req.hadm_id, "diag": pkg["name"], "wloc": _ward_loc, "wname": _ward_name,
+                """), {"h": req.hadm_id, "diag": "Pending clinical data fetch…", "wloc": _ward_loc, "wname": _ward_name,
                        "pname": req.patient_name or _synth_name(req.hadm_id)})
             ward_admitted = True
             # NOTE: app_encounters is intentionally NOT created here. That table drives
@@ -1349,24 +1113,11 @@ def generate_billing_estimate(req: GenerateEstimateRequest):
             log.warning("billing→ward provision failed for hadm %s: %s", req.hadm_id, _wp)
 
     return {
-        "hbp_code":             hbp_code,
-        "hbp_package_name":     pkg["name"],
-        "hbp_rate":             pkg["rate"],
-        "ward_type":            req.ward_type,
-        "los_days":             est_los,
-        "actual_los_days":      actual_los,
-        "complexity":           round(complexity, 3),
-        "floor_est":            floor_est,
-        "expected_est":         expected,
-        "ceiling_est":          ceiling_est,
-        "line_items":           line_items,
-        "pmjay_reference":      f"NHA HBP 2.2 · {hbp_code} · PM-JAY rate ₹{pkg['rate']:,} · Private ×{_PRIVATE_MULTIPLIER}" + (f" · complexity ×{round(complexity,2)}" if complexity > 1.0 else ""),
-        # Scheme / insurance breakdown
-        "govt_pays":            govt_pays,
-        "patient_pays_estimate":patient_pays_estimate,
-        "room_rent_excess":     room_rent_excess_est,
-        "scheme_note":          scheme_note,
-        "ward_admitted":        ward_admitted,
+        "ward_type":     req.ward_type,
+        "los_days":      req.los_days,
+        "ward_admitted": ward_admitted,
+        "note":          "Cost estimate not computed here -- fetch GET /api/billing/ml-estimate/{hadm_id} "
+                          "once clinical data has synced (after prefetch-all completes).",
     }
 
 
@@ -1424,6 +1175,30 @@ def get_billing_record(hadm_id: int):
     if not row:
         raise HTTPException(status_code=404, detail="No billing record for this patient")
     return dict(row._mapping)
+
+@app.get("/api/billing/ml-estimate/{hadm_id}")
+def get_ml_cost_estimate(hadm_id: int, hospital_day: Optional[int] = None):
+    """
+    ML-predicted final-bill range (P10/P50/P90), from the trained XGBoost
+    quantile model in cost_ml_model/. As-of-end-of-day semantics: pass
+    hospital_day to get the prediction as of that specific day, or omit it
+    to use (today - admit_time).days -- "as of the most recently completed
+    day", refreshing automatically as real time passes and new events post.
+
+    Tries live data first (any real admitted patient, computed fresh from
+    active_patients/ap_* tables via live_feature_builder.py); falls back to
+    our precomputed historical DCM cohort CSV for demo/testing hadm_ids that
+    haven't been admitted through the live app. Response includes "source"
+    ("live" or "precomputed_dcm_cohort") so the frontend can distinguish them.
+    """
+    from sqlalchemy import text as _text
+    from .cloud_sql_db import get_engine as _get_engine
+    from .cost_predictor import cost_predictor
+    try:
+        with _get_engine().connect() as conn:
+            return cost_predictor.predict_auto(hadm_id, conn, hospital_day)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 @app.get("/api/billing/live-charges/{hadm_id}")
 def get_live_charges(hadm_id: int):
@@ -1873,14 +1648,15 @@ def get_billing_reconciliation(hadm_id: int):
         expected_los_days = max(1, actual_los + off2)
     los_diff = actual_los - expected_los_days
 
-    # Billing params
-    _no_ce1       = not r.get("hbp_code") or not (r.get("expected_est") or 0)
+    # ── ML-predicted cost (replaces the old PM-JAY package-rate lookup
+    # entirely — this is the single source of truth for all scheme
+    # calculations below, not just PM-JAY specifically). ──────────────────────
+    from .cost_predictor import cost_predictor
+    _no_ce1 = not (r.get("expected_est") or 0)
     ward_type_val = r.get("ward_type") or "Semi-private Ward"
-    ward_rate_val = WARD_DAILY_RATES.get(ward_type_val, 4500)
     is_ab_val     = bool(r.get("is_ab_beneficiary"))
     ab_scheme_raw = r.get("ab_scheme") or ""
     ab_scheme_val = ab_scheme_raw.upper()
-    # Determine if the scheme is one we actually implement (no silent defaults)
     _known_ab = (
         "PM-JAY" in ab_scheme_val or "PMJAY" in ab_scheme_val or
         "CGHS"   in ab_scheme_val or
@@ -1889,105 +1665,73 @@ def get_billing_reconciliation(hadm_id: int):
     )
     is_known_ab = is_ab_val and _known_ab
 
-    if is_known_ab and ("PM-JAY" in ab_scheme_val or "PMJAY" in ab_scheme_val):
-        _scheme_mult = 1
-    elif is_known_ab and "CGHS" in ab_scheme_val:
-        _scheme_mult = 4
-    elif is_known_ab and "ESI" in ab_scheme_val:
-        _scheme_mult = 3.5
-    elif is_known_ab and "HARYANA" in ab_scheme_val:
-        _scheme_mult = 3
-    else:
-        _scheme_mult = _PRIVATE_MULTIPLIER
+    # "Estimated" side: the ML total as originally quoted at CE1 time (saved),
+    # or a fresh Day-0 prediction if CE1 was never run. No item breakdown here
+    # -- the model predicts a total range, not a per-category FUTURE
+    # breakdown, so showing one would be fabricated, not real.
+    try:
+        with _get_engine().connect() as _ml_conn_est:
+            _ml_est = cost_predictor.predict_auto(hadm_id, _ml_conn_est, hospital_day=0)
+    except Exception as _mle:
+        log.warning(f"ML Day-0 estimate failed for CE4 hadm {hadm_id}: {_mle}")
+        _ml_est = None
+    est_gross_ce1 = r.get("expected_est") or round(_ml_est["predicted_final_bill_p50"]) if _ml_est else 0
+    computed_estimate_items = []  # intentionally empty -- see note above
 
-    if _no_ce1:
-        # CE1 was never run — derive HBP code from the patient's actual diagnosis
-        _diag        = (r.get("primary_diagnosis_code") or "").strip()
-        _prefix      = _diag[:3].upper()
-        hbp_code_val = ("MC020A" if (_diag and _diag[0].isdigit())
-                        else ICD_TO_PMJAY.get(_prefix, "MC020A"))
-        _pkg_recon   = PMJAY_CARDIOLOGY.get(hbp_code_val, PMJAY_CARDIOLOGY["MC020A"])
-        hbp_rate_val = _pkg_recon["rate"]
-    else:
-        hbp_code_val = r.get("hbp_code")
-        _pkg_recon   = PMJAY_CARDIOLOGY.get(hbp_code_val, PMJAY_CARDIOLOGY["MC011A"])
-        hbp_rate_val = r.get("hbp_rate") or _pkg_recon["rate"]
-
-    _tmpl_recon = _LINE_ITEM_TEMPLATES.get(_pkg_recon["template"], _LINE_ITEM_TEMPLATES["interventional"])
-
-    # ── CE1-style estimated total ──────────────────────────────────────────────
-    extra_days_est = max(expected_los_days - 14, 0)
-    est_complexity = 1.0 + min(extra_days_est, 86) / 86 * 0.28
-    est_clinical   = round(hbp_rate_val * _scheme_mult * est_complexity)
-    est_room_ce1   = expected_los_days * ward_rate_val
-    est_gross_ce1  = est_clinical + est_room_ce1
-    est_room_label_ce1 = f"Room Charges ({expected_los_days}d × ₹{ward_rate_val:,})"
-    computed_estimate_items = [
-        {"name": est_room_label_ce1, "amount": est_room_ce1, "pct": round(est_room_ce1 / est_gross_ce1 * 100, 1)}
-    ]
-    for _name, _pct in _tmpl_recon:
-        _amt_est = round(est_clinical * _pct)
-        computed_estimate_items.append({"name": _name, "amount": _amt_est, "pct": round(_amt_est / est_gross_ce1 * 100, 1)})
-
-    # ── Auto-save estimate to billing_records if CE1 was never run ────────────
-    if _no_ce1:
-        _floor_auto   = round(est_gross_ce1 * 0.82)
-        _ceiling_auto = round(est_gross_ce1 * 1.28)
+    if _no_ce1 and est_gross_ce1:
+        _floor_auto   = round(_ml_est["predicted_final_bill_p10"]) if _ml_est else round(est_gross_ce1 * 0.82)
+        _ceiling_auto = round(_ml_est["predicted_final_bill_p90"]) if _ml_est else round(est_gross_ce1 * 1.28)
         try:
             with _get_engine().begin() as _conn:
                 _conn.execute(_text("""
                     INSERT INTO billing_records (
-                        hadm_id, billing_phase,
-                        hbp_code, hbp_package_name, hbp_rate,
-                        ward_type, selected_band,
-                        expected_est, floor_est, ceiling_est,
-                        expected_los_days
+                        hadm_id, billing_phase, ward_type, selected_band,
+                        expected_est, floor_est, ceiling_est, expected_los_days
                     ) VALUES (
-                        :h, 'reconciliation',
-                        :code, :name, :rate,
-                        :ward, 'expected',
+                        :h, 'reconciliation', :ward, 'expected',
                         :exp, :floor, :ceil, :los
                     )
                     ON CONFLICT (hadm_id) DO UPDATE SET
-                        hbp_code         = COALESCE(billing_records.hbp_code,          EXCLUDED.hbp_code),
-                        hbp_package_name = COALESCE(billing_records.hbp_package_name,  EXCLUDED.hbp_package_name),
-                        hbp_rate         = COALESCE(billing_records.hbp_rate,           EXCLUDED.hbp_rate),
                         ward_type        = COALESCE(billing_records.ward_type,          EXCLUDED.ward_type),
                         expected_est     = COALESCE(NULLIF(billing_records.expected_est, 0), EXCLUDED.expected_est),
                         floor_est        = COALESCE(NULLIF(billing_records.floor_est,    0), EXCLUDED.floor_est),
                         ceiling_est      = COALESCE(NULLIF(billing_records.ceiling_est,  0), EXCLUDED.ceiling_est),
                         expected_los_days= COALESCE(billing_records.expected_los_days,  EXCLUDED.expected_los_days)
                 """), {
-                    "h": hadm_id, "code": hbp_code_val,
-                    "name": _pkg_recon["name"], "rate": hbp_rate_val,
-                    "ward": ward_type_val,
+                    "h": hadm_id, "ward": ward_type_val,
                     "exp": est_gross_ce1, "floor": _floor_auto, "ceil": _ceiling_auto,
                     "los": expected_los_days,
                 })
-            log.info(f"CE4 auto-generated estimate for hadm {hadm_id}: {hbp_code_val} ₹{est_gross_ce1:,}")
+            log.info(f"CE4 auto-generated ML estimate for hadm {hadm_id}: Rs {est_gross_ce1:,}")
         except Exception as _ae:
             log.warning(f"CE4 auto-estimate save failed for hadm {hadm_id}: {_ae}")
 
-    # ── CE4 actual total: seeded 6–16 % over the ORIGINAL CE1 estimate ────────
-    # Use saved expected_est (what billing staff actually generated at CE1).
-    # This ensures actual is always 6-16% above what was quoted to the patient,
-    # regardless of scheme/multiplier differences between CE1 and CE4 time.
-    import random as _vrng_mod
-    _vrng_inst    = _vrng_mod.Random(hadm_id * 17 + 3)
-    _variance_pct = _vrng_inst.uniform(0.06, 0.16)
-    _saved_ce1    = r.get("expected_est") or 0
-    _base_for_actual = _saved_ce1 if _saved_ce1 > 0 else est_gross_ce1
-    actual_gross  = round(_base_for_actual * (1 + _variance_pct))
-    actual_room   = actual_los * ward_rate_val
-    # Clinical pool = actual_gross minus room; clamp so room never exceeds gross
-    actual_clinical_pool = max(actual_gross - actual_room, round(actual_gross * 0.30))
-    actual_room_label = f"Room Charges ({actual_los}d × ₹{ward_rate_val:,})"
-    computed_actual_items = [
-        {"name": actual_room_label, "amount": actual_room, "pct": round(actual_room / actual_gross * 100, 1)}
-    ]
-    for _name, _pct in _tmpl_recon:
-        _amt = round(actual_clinical_pool * _pct)
-        computed_actual_items.append({"name": _name, "amount": _amt, "pct": round(_amt / actual_gross * 100, 1)})
+    # "Actual" side: by discharge, everything is KNOWN, not predicted -- use
+    # the real cumulative cost + real per-category breakdown computed at the
+    # discharge day, not a synthetic variance simulation.
+    try:
+        with _get_engine().connect() as _ml_conn_act:
+            _ml_actual = cost_predictor.predict_auto(hadm_id, _ml_conn_act, hospital_day=actual_los)
+    except Exception as _mla:
+        log.warning(f"ML discharge-day estimate failed for CE4 hadm {hadm_id}: {_mla}")
+        _ml_actual = None
+
+    if _ml_actual:
+        actual_gross = round(_ml_actual["cumulative_cost_so_far"])
+        _bd = _ml_actual["cost_breakdown"]
+        computed_actual_items = [
+            {"name": "Ward Charges",       "amount": round(_bd.get("ward", 0))},
+            {"name": "ICU / HDU Charges",  "amount": round(_bd.get("icu", 0))},
+            {"name": "Procedures",         "amount": round(_bd.get("procedures", 0))},
+            {"name": "Medicines & Consumables", "amount": round(_bd.get("medicines", 0))},
+            {"name": "Labs & Diagnostics", "amount": round(_bd.get("labs", 0))},
+        ]
+        for item in computed_actual_items:
+            item["pct"] = round(item["amount"] / actual_gross * 100, 1) if actual_gross else 0.0
+    else:
+        actual_gross = r.get("actual_charges") or est_gross_ce1
+        computed_actual_items = []
+    _variance_pct = (actual_gross - est_gross_ce1) / est_gross_ce1 if est_gross_ce1 else 0.0
 
     # Scheme-aware final patient payment on actual charges
     pay_mode_recon  = (r.get("payment_mode") or "").lower()
@@ -1996,11 +1740,15 @@ def get_billing_reconciliation(hadm_id: int):
     rrlt_recon      = r.get("room_rent_limit") or 0
     preauth_recon   = r.get("preauth_amount") or 0
 
+    # Government/scheme coverage now reimburses at the ML-predicted "as
+    # quoted" total (est_gross_ce1) instead of an official PM-JAY package
+    # rate -- we no longer have that table. Hospital absorbs the gap if the
+    # real (actual_gross) total came in higher than what was quoted.
     if is_known_ab and ("PM-JAY" in ab_scheme_val or "PMJAY" in ab_scheme_val):
         patient_final     = 0
-        govt_final        = hbp_rate_val
-        hospital_writeoff = max(0, actual_gross - hbp_rate_val)
-        scheme_summary    = f"PM-JAY package rate ₹{hbp_rate_val:,} — Patient pays ₹0. Hospital write-off: ₹{hospital_writeoff:,}"
+        govt_final        = est_gross_ce1
+        hospital_writeoff = max(0, actual_gross - est_gross_ce1)
+        scheme_summary    = f"PM-JAY covers the quoted estimate ₹{est_gross_ce1:,} — Patient pays ₹0. Hospital write-off: ₹{hospital_writeoff:,}"
     elif is_known_ab and "CGHS" in ab_scheme_val:
         cghs_covers   = round(actual_gross * 0.85)
         patient_final = round(actual_gross * 0.15)
@@ -2011,13 +1759,13 @@ def get_billing_reconciliation(hadm_id: int):
         govt_final     = actual_gross
         scheme_summary = f"ESI reimburses ₹{actual_gross:,}. Patient pays ₹0"
     elif is_known_ab and "HARYANA" in ab_scheme_val:
-        _state_rate    = hbp_rate_val or actual_gross
+        _state_rate    = est_gross_ce1 or actual_gross
         patient_final  = 0
         govt_final     = _state_rate
         scheme_summary = f"Haryana State Scheme covers ₹{_state_rate:,}. Patient pays ₹0"
     elif pay_mode_recon == "cashless":
         copay_pct_eff  = copay_pct_recon or 10   # default 10% copay if not set at CE1
-        rr_excess      = max(0, (ward_rate_val - rrlt_recon) * actual_los) if rrlt_recon else 0
+        rr_excess      = max(0, (WARD_RATE - rrlt_recon) * actual_los) if rrlt_recon else 0
         copay_amt      = round(actual_gross * copay_pct_eff / 100)
         ins_covers     = min(actual_gross - copay_amt, preauth_recon) if preauth_recon else (actual_gross - copay_amt)
         patient_final  = copay_amt + rr_excess
@@ -2085,21 +1833,18 @@ def get_billing_reconciliation(hadm_id: int):
             "signed_at":       signed_str or "",
         },
         "estimate": {
-            "hbp_code":         hbp_code_val,
-            "hbp_package_name": _pkg_recon["name"],
-            "hbp_rate":         hbp_rate_val,
-            "floor_est":        r.get("floor_est") or (round(est_gross_ce1 * 0.82) if _no_ce1 else None),
+            "floor_est":        r.get("floor_est") or (round(_ml_est["predicted_final_bill_p10"]) if _ml_est else None),
             "expected_est":     r.get("expected_est") or (est_gross_ce1 if _no_ce1 else None),
-            "ceiling_est":      r.get("ceiling_est") or (round(est_gross_ce1 * 1.28) if _no_ce1 else None),
+            "ceiling_est":      r.get("ceiling_est") or (round(_ml_est["predicted_final_bill_p90"]) if _ml_est else None),
             "selected_band":    band,
             "est_total":        est_total,
             "line_items":       line_items,
             "auto_generated":   _no_ce1,
+            "source":           "ml_model",
         },
         "ab_info": {
             "is_ab_beneficiary": bool(r.get("is_ab_beneficiary")),
             "ab_scheme":         r.get("ab_scheme") or "",
-            "hbp_rate":          hbp_rate_val,
         },
         "actuals_saved": {
             "actual_line_items":    actual_items,

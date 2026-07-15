@@ -620,52 +620,8 @@ async function _loadBillingDashboard() {
 
 function _scrollTo(id) { document.getElementById(id)?.scrollIntoView({behavior:'smooth'}); }
 
-/* ── Client-side PM-JAY estimate fallback (mirrors backend logic exactly) ── */
-const _PMJAY_JS = {
-  MC011A:{name:'PTCA with Diagnostic Angiogram',rate:40600,tmpl:'interventional'},
-  MC003A:{name:'Balloon Dilatation – Coarctation',rate:38600,tmpl:'interventional'},
-  MC007A:{name:'ASD Device Closure',rate:36900,tmpl:'interventional'},
-  MC005A:{name:'Balloon Mitral Valvotomy',rate:35700,tmpl:'interventional'},
-  MC016A:{name:'Double Chamber Permanent Pacemaker',rate:33000,tmpl:'device'},
-  MC017A:{name:'Temporary Pacemaker Implantation',rate:34500,tmpl:'device'},
-  MC002A:{name:'Catheter directed Thrombolysis – DVT',rate:30800,tmpl:'interventional'},
-  MC020A:{name:'Systemic Thrombolysis / Medical Management',rate:17900,tmpl:'medical'},
-};
-const _ICD_JS = {
-  I42:'MC011A',I50:'MC011A',I21:'MC011A',I22:'MC011A',I25:'MC011A',
-  I48:'MC016A',I47:'MC016A',I34:'MC005A',I35:'MC007A',
-  I10:'MC020A',I26:'MC002A',I27:'MC020A',I28:'MC020A',
-  J18:'MC020A',J44:'MC020A',J45:'MC020A',A41:'MC020A',
-  N17:'MC020A',N18:'MC020A',K57:'MC020A',K92:'MC020A',
-  G93:'MC020A',I63:'MC020A',I64:'MC020A',D64:'MC020A',M32:'MC020A',
-};
-const _WARD_JS = {'General Ward':2500,'Semi-private Ward':4500,'Private Room':8000,'ICU':15000};
-const _TMPL_JS = {
-  interventional:[['Cardiac Procedure / Surgery',0.38],['Medicines & Consumables',0.24],['Diagnostics & Investigations',0.12],['ICU / HDU Charges',0.10],['Nursing & Ward Services',0.08],['Specialist Consultation',0.05],['Physiotherapy & Rehab',0.02],['Miscellaneous',0.01]],
-  medical:[['Procedures & Interventions',0.06],['Medicines & Consumables',0.34],['Diagnostics & Investigations',0.19],['ICU / HDU Charges',0.14],['Nursing & Ward Services',0.13],['Specialist Consultation',0.08],['Physiotherapy & Rehab',0.04],['Miscellaneous',0.02]],
-  device:[['Cardiac Procedure / Surgery',0.38],['Medicines & Consumables',0.24],['Diagnostics & Investigations',0.12],['ICU / HDU Charges',0.10],['Nursing & Ward Services',0.08],['Specialist Consultation',0.05],['Physiotherapy & Rehab',0.02],['Miscellaneous',0.01]],
-};
-function _calcEstimateClient(icd, wardType, losDays) {
-  const prefix = (icd||'').slice(0,3).toUpperCase();
-  const hbpCode = (icd && icd[0]>='0' && icd[0]<='9') ? 'MC020A' : (_ICD_JS[prefix]||'MC011A');
-  const pkg = _PMJAY_JS[hbpCode]||_PMJAY_JS.MC011A;
-  const estLos = Math.min(losDays||7, 14);
-  const wardRate = _WARD_JS[wardType]||4500;
-  const extra = Math.max((losDays||7)-14, 0);
-  const complexity = 1.0 + Math.min(extra,86)/86*0.28;
-  const clinical = Math.round(pkg.rate*12*complexity);
-  const roomCost = estLos*wardRate;
-  const expected = clinical+roomCost;
-  const tmpl = _TMPL_JS[pkg.tmpl]||_TMPL_JS.interventional;
-  const lineItems = [{name:`Room Charges (${estLos}d x Rs.${wardRate.toLocaleString('en-IN')})`,amount:roomCost,pct:+(roomCost/expected*100).toFixed(1)}];
-  for(const [n,pct] of tmpl){const a=Math.round(clinical*pct);lineItems.push({name:n,amount:a,pct:+(a/expected*100).toFixed(1)});}
-  return {
-    hbp_code:hbpCode,hbp_package_name:pkg.name,hbp_rate:pkg.rate,ward_type:wardType,
-    los_days:estLos,actual_los_days:losDays||7,complexity:+complexity.toFixed(3),
-    floor_est:Math.round(expected*0.82),expected_est:expected,ceiling_est:Math.round(expected*1.28),
-    line_items:lineItems,pmjay_reference:`NHA HBP 2.2 · ${hbpCode} · PM-JAY rate Rs.${pkg.rate.toLocaleString('en-IN')} · Private x12`,
-  };
-}
+/* ── PM-JAY logic removed entirely -- ML model (cost_predictor.py) is now
+   the only source of cost estimates. See _fetchMlEstimate(). ── */
 
 let _ce0Tab = 'pending';
 let _ce0PendingRaw = [];
@@ -835,44 +791,11 @@ function _ce1SchemeChange() {
   banner.innerHTML = `${info.icon} <b>${scheme}</b> — ${info.msg}`;
 }
 
-// CE2 live recalculate — called when ward type or LOS changes on CE2 screen
-async function _ce2Recalc() {
-  const wardEl = document.getElementById('ce2-ward');
-  const losEl  = document.getElementById('ce2-los');
-  if (!wardEl || !losEl) return;
-  _CE.wardType = wardEl.value;
-  _CE.losDays  = parseInt(losEl.value) || _CE.losDays || 7;
-
-  const btn = document.getElementById('ce2-recalc-btn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Updating…'; }
-
-  const base = window.FOQAL_API_BASE || `http://${location.hostname}:6010`;
-  try {
-    const selectedIcd = _CE.diagnosisCode || '';
-    const resp = await fetch(`${base}/api/billing/generate-estimate`, {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({
-        hadm_id:           _CE.hadm_id,
-        ward_type:         _CE.wardType,
-        los_days:          _CE.losDays,
-        is_ab_beneficiary: _CE.isAbBeneficiary,
-        ab_scheme:         _CE.abScheme || null,
-        icd_override:      selectedIcd || null,
-        payment_mode:      _CE.paymentMode || null,
-        copay_pct:         _CE.copayPct ? parseFloat(_CE.copayPct) : null,
-        room_rent_limit:   _CE.roomRentLimit ? parseInt(_CE.roomRentLimit) : null,
-        preauth_amount:    _CE.preauthAmt ? parseInt(_CE.preauthAmt.replace(/[^\d]/g,'')) : null,
-      }),
-    });
-    if (resp.ok) {
-      _CE.estimateData = await resp.json();
-    }
-  } catch(e) {
-    console.warn('ce2 recalc failed', e);
-  }
-  showScreen('ce2');
-}
+// _ce2Recalc() removed -- was dead code (unreferenced anywhere in the UI),
+// and ward_type/los_days don't feed the ML model anyway, so "recalculating"
+// off those inputs no longer means anything. To refresh the ML estimate
+// itself (e.g. new clinical data has posted since the page loaded), call
+// _fetchMlEstimate() again -- see the "Refresh Estimate" button on CE2.
 
 async function _ce1Save() {
   const payMode = document.querySelector('input[name="pay"]:checked')?.value || 'Cashless';
@@ -902,15 +825,15 @@ async function _ce1Save() {
   const copayPctFloat  = _CE.copayPct   ? parseFloat(_CE.copayPct) : null;
   const rrltInt        = _CE.roomRentLimit ? parseInt(_CE.roomRentLimit.replace(/[^\d]/g,'')) : null;
 
-  // Generate estimate — use backend for real patients, client-side for manual entry
+  // Admit the patient (ward provisioning + triggers BigQuery clinical-data
+  // fetch). Cost estimate is NOT computed here -- the ML model needs the
+  // real fetched clinical data, which doesn't exist until the prefetch-all
+  // call below completes. See _fetchMlEstimate().
   const base = window.FOQAL_API_BASE || `http://${location.hostname}:6010`;
   const genBtn = document.querySelector('button[onclick="_ce1Save()"]');
   if (genBtn) { genBtn.disabled = true; genBtn.textContent = 'Generating…'; }
 
-  const selectedIcd = document.getElementById('ce1-diag')?.value || _CE.diagnosisCode || '';
-
   if (_CE.hadm_id) {
-    // Real patient — call backend with insurance fields so scheme/liability is computed
     try {
       const resp = await fetch(`${base}/api/billing/generate-estimate`, {
         method: 'POST',
@@ -921,7 +844,6 @@ async function _ce1Save() {
           los_days:          _CE.losDays,
           is_ab_beneficiary: _CE.isAbBeneficiary,
           ab_scheme:         _CE.abScheme || null,
-          icd_override:      selectedIcd || null,
           payment_mode:      _CE.paymentMode,
           copay_pct:         copayPctFloat,
           room_rent_limit:   rrltInt,
@@ -946,6 +868,10 @@ async function _ce1Save() {
             .then(r => r.ok ? r.json() : null)
             .then(d => {
               if (d?.status === 'fetched') {
+                // Only NOW does real clinical data exist -- safe to ask the
+                // ML model for a prediction. Fire-and-forget: re-render CE2
+                // if the user is still on that screen when it lands.
+                _fetchMlEstimate().then(() => { if (CURRENT === 'ce2') showScreen('ce2'); });
                 // Immediately trigger vitals sync on ward backend so NEWS2 shows without waiting 15 min
                 return fetch(`${_wardBase}/api/patients/${_CE.hadm_id}/sync-vitals`, { method: 'POST' });
               }
@@ -964,12 +890,6 @@ async function _ce1Save() {
     }
   }
 
-  // No hadm_id (manual entry) OR backend failed → calculate client-side
-  if (!_CE.estimateData) {
-    _CE.estimateData = _calcEstimateClient(selectedIcd, _CE.wardType, _CE.losDays);
-  }
-
-  const est = _CE.estimateData;
   await _ceSaveRecord({
     encounter_id:    _CE.encounterId,
     payment_mode:    _CE.paymentMode,
@@ -982,22 +902,41 @@ async function _ce1Save() {
     ward_type:       _CE.wardType,
     is_ab_beneficiary: _CE.isAbBeneficiary,
     ab_scheme:       _CE.abScheme || null,
-    hbp_code:        est?.hbp_code || null,
-    hbp_package_name:est?.hbp_package_name || null,
-    hbp_rate:        est?.hbp_rate || null,
-    floor_est:       est?.floor_est || null,
-    expected_est:    est?.expected_est || null,
-    ceiling_est:     est?.ceiling_est || null,
-    line_items:      est?.line_items || null,
-    // Migration 017 — expected discharge and scheme/insurance breakdown
+    // Migration 017 — expected discharge (scheme/insurance liability now
+    // computed from the ML estimate once it lands, not saved here)
     expected_discharge_date: _CE.dischargeDate || null,
     expected_los_days:       _CE.losDays || null,
-    patient_pays_estimate:   est?.patient_pays_estimate ?? null,
-    govt_pays:               est?.govt_pays ?? null,
-    room_rent_excess:        est?.room_rent_excess ?? null,
-    scheme_note:             est?.scheme_note || null,
     billing_phase:   'initial_estimate',
   });
+  // Try once immediately too (covers the case where data was already
+  // fetched previously, e.g. re-visiting an existing admission's CE1 flow).
+  await _fetchMlEstimate();
+  showScreen('ce2');
+}
+
+// ML-predicted range (P10/P50/P90) + real cost breakdown -- the only cost
+// estimate source now (PM-JAY removed). Best-effort: silently skipped if
+// unavailable (e.g. clinical data hasn't finished syncing yet).
+async function _fetchMlEstimate() {
+  if (!_CE.hadm_id) { _CE.mlEstimateData = null; return; }
+  const base = window.FOQAL_API_BASE || `http://${location.hostname}:6010`;
+  try {
+    const resp = await fetch(`${base}/api/billing/ml-estimate/${_CE.hadm_id}`);
+    _CE.mlEstimateData = resp.ok ? await resp.json() : null;
+  } catch (e) {
+    console.warn('ml-estimate fetch failed', e);
+    _CE.mlEstimateData = null;
+  }
+}
+
+// "Refresh Estimate" button on CE2 -- re-pulls the ML prediction using
+// whatever clinical data has posted since the page loaded (the model
+// naturally gives a different, usually tighter, answer with more days
+// of real data behind it -- see cost_ml_model's convergence findings).
+async function _ce2Refresh() {
+  const btn = document.getElementById('ce2-refresh-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Refreshing…'; }
+  await _fetchMlEstimate();
   showScreen('ce2');
 }
 
@@ -1419,7 +1358,7 @@ function _ce5PrintHtml(forDownload) {
     const hbpRate = ab_info.hbp_rate || recon.govt_pay_final || 0;
     billRows = `
       <tr><td>Gross Hospital Charges</td><td style="text-align:right">${fmt(gross)}</td></tr>
-      <tr><td>PM-JAY Package Rate (Govt. pays)</td><td style="text-align:right;color:green">− ${fmt(hbpRate)}</td></tr>
+      <tr><td>PM-JAY Covers (ML-quoted estimate)</td><td style="text-align:right;color:green">− ${fmt(hbpRate)}</td></tr>
       <tr><td style="color:#888;font-size:11px">Hospital Adjustment</td><td style="text-align:right;color:#888;font-size:11px">− ${fmt(Math.max(0,gross-hbpRate))}</td></tr>
       <tr style="border-top:2px solid #000;font-weight:800"><td>Patient Balance</td><td style="text-align:right">₹0</td></tr>`;
   } else {
@@ -1664,70 +1603,14 @@ ${stepFlow('ce1')}
         </div>
       </div>
       <div class="fg">
-        <label class="fl">Primary Diagnosis (ICD) — drives estimate template</label>
-        <select class="fi" id="ce1-diag">
-          ${(() => {
-            const cur = _CE.diagnosisCode || '';
-            const curLabel = cur ? `${cur} — ${_CE.diagnosis || ''}` : (_CE.diagnosis || 'Unknown');
-            // If patient code not in our standard list, show it first as custom entry
-            const knownCodes = ['I21','I22','I25','I42','I43','I50','I48','I47','I44','I45','I46','I49','I05','I06','I07','I08','I34','I35','I36','I37','I10','I11','I12','I13','I15','I26','I27','I70','I71','I73','I74','I30','I33','I40','A41','J15','J18','J44','J80','J96','N17','N18','K72','K92','G93','D65'];
-            const isKnown = knownCodes.includes(cur.substring(0,3).toUpperCase()) || knownCodes.includes(cur.substring(0,4).toUpperCase());
-            const customOpt = !isKnown && cur ? `<option value="${cur}" selected>${curLabel}</option>` : '';
-            const sel = v => cur.startsWith(v) ? 'selected' : '';
-            return `${customOpt}
-              <optgroup label="── Coronary / Ischaemic · PTCA ₹4.87L ──">
-                <option value="I21" ${sel('I21')}>I21 — Acute myocardial infarction</option>
-                <option value="I22" ${sel('I22')}>I22 — Subsequent myocardial infarction</option>
-                <option value="I25" ${sel('I25')}>I25 — Chronic ischaemic heart disease</option>
-              </optgroup>
-              <optgroup label="── Cardiomyopathy / Heart Failure · PTCA ₹4.87L ──">
-                <option value="I42" ${sel('I42')}>I42 — Dilated cardiomyopathy</option>
-                <option value="I43" ${sel('I43')}>I43 — Cardiomyopathy in other diseases</option>
-                <option value="I50" ${sel('I50')}>I50 — Heart failure</option>
-              </optgroup>
-              <optgroup label="── Arrhythmia · Pacemaker ₹3.96L ──">
-                <option value="I48" ${sel('I48')}>I48 — Atrial fibrillation / flutter</option>
-                <option value="I47" ${sel('I47')}>I47 — Ventricular tachycardia</option>
-                <option value="I44" ${sel('I44')}>I44 — AV block</option>
-                <option value="I45" ${sel('I45')}>I45 — Other conduction disorders</option>
-                <option value="I49" ${sel('I49')}>I49 — Other cardiac arrhythmias</option>
-              </optgroup>
-              <optgroup label="── Valve Disease · Valvotomy ₹4.28L ──">
-                <option value="I05" ${sel('I05')}>I05 — Rheumatic mitral valve stenosis</option>
-                <option value="I06" ${sel('I06')}>I06 — Rheumatic aortic valve disease</option>
-                <option value="I08" ${sel('I08')}>I08 — Rheumatic mitral + aortic valve</option>
-                <option value="I34" ${sel('I34')}>I34 — Non-rheumatic mitral valve</option>
-                <option value="I35" ${sel('I35')}>I35 — Non-rheumatic aortic valve</option>
-              </optgroup>
-              <optgroup label="── Vascular · Peripheral Angioplasty ₹4.14L ──">
-                <option value="I26" ${sel('I26')}>I26 — Pulmonary embolism / DVT</option>
-                <option value="I70" ${sel('I70')}>I70 — Atherosclerosis / PVD</option>
-                <option value="I71" ${sel('I71')}>I71 — Aortic aneurysm</option>
-                <option value="I73" ${sel('I73')}>I73 — Peripheral vascular disease</option>
-              </optgroup>
-              <optgroup label="── Medical Management · ₹2.15L ──">
-                <option value="I10" ${sel('I10')}>I10 — Essential hypertension</option>
-                <option value="I11" ${sel('I11')}>I11 — Hypertensive heart disease</option>
-                <option value="I13" ${sel('I13')}>I13 — Hypertensive heart + CKD</option>
-                <option value="A41" ${sel('A41')}>A41 — Sepsis</option>
-                <option value="J18" ${sel('J18')}>J18 — Pneumonia</option>
-                <option value="J44" ${sel('J44')}>J44 — COPD</option>
-                <option value="J80" ${sel('J80')}>J80 — ARDS</option>
-                <option value="J96" ${sel('J96')}>J96 — Respiratory failure</option>
-                <option value="N17" ${sel('N17')}>N17 — Acute kidney injury</option>
-                <option value="N18" ${sel('N18')}>N18 — Chronic kidney disease</option>
-                <option value="K72" ${sel('K72')}>K72 — Hepatic failure</option>
-                <option value="K92" ${sel('K92')}>K92 — GI haemorrhage</option>
-                <option value="G93" ${sel('G93')}>G93 — Encephalopathy / brain disorders</option>
-                <option value="D65" ${sel('D65')}>D65 — DIC / coagulation disorder</option>
-              </optgroup>`;
-          })()}
-        </select>
+        <label class="fl">Primary Diagnosis</label>
+        <input class="fi" value="${_CE.diagnosisCode ? _CE.diagnosisCode + ' — ' + (_CE.diagnosis || '') : (_CE.diagnosis || 'Auto-fetched by ML model from patient data')}" readonly style="background:var(--surf)">
+        <div class="fi-hint">Auto-fetched — no manual selection needed, the ML model reads this directly from the patient's real diagnosis data.</div>
       </div>
       <div class="fg">
         <label class="fl">Primary Procedure (ICD-9-CM)</label>
-        <input class="fi" id="ce1-proc" value="${_CE.primaryProcedureIcd ? _CE.primaryProcedureIcd + (_CE.primaryProcedure ? ' — ' + _CE.primaryProcedure : '') : ''}" ${_CE.primaryProcedureIcd ? 'readonly style="background:var(--surf)"' : 'placeholder="e.g. 36.01 — PTCA"'}>
-        ${_CE.primaryProcedureIcd ? `<div class="fi-hint">✓ Auto-filled from MIMIC procedures (ICD-${_CE.primaryProcedureIcd})</div>` : ''}
+        <input class="fi" id="ce1-proc" value="${_CE.primaryProcedureIcd ? _CE.primaryProcedureIcd + (_CE.primaryProcedure ? ' — ' + _CE.primaryProcedure : '') : ''}" readonly style="background:var(--surf)">
+        ${_CE.primaryProcedureIcd ? `<div class="fi-hint">✓ Auto-filled from MIMIC procedures (ICD-${_CE.primaryProcedureIcd})</div>` : '<div class="fi-hint">Auto-fetched once clinical data syncs</div>'}
       </div>
       <div class="frow">
         <div class="fg"><label class="fl">Expected LOS (days)</label><input class="fi" id="ce1-los" type="number" value="${_CE.losDays || 7}"></div>
@@ -1814,58 +1697,84 @@ ${stepFlow('ce1')}
    CE2 — COST BANDS
 ════════════════════════════════════ */
 ce2: () => {
-  const est   = _CE.estimateData;
-  const floor = est?.floor_est    || 320000;
-  const exp   = est?.expected_est || 480000;
-  const ceil  = est?.ceiling_est  || 650000;
-  const fmt   = n => '₹' + (n||0).toLocaleString('en-IN');
+  const fmt = n => '₹' + (n||0).toLocaleString('en-IN');
+  const ml  = _CE.mlEstimateData;
 
-  const selAmt = _CE.cost === 'floor' ? floor : _CE.cost === 'ceiling' ? ceil : exp;
+  // No estimate yet -- clinical data is still syncing (see _ce1Save's
+  // prefetch-all chain) or this hadm_id genuinely has no data available.
+  if (!ml) {
+    return `
+<div class="bc">
+  <span class="bc-link" onclick="showScreen('ce0')">Module B</span>
+  <span class="bc-sep">/</span>
+  <span class="bc-link" onclick="showScreen('ce1')">CE Input</span>
+  <span class="bc-sep">/</span><span>Cost Estimate</span>
+</div>
+${stepFlow('ce2')}
+<div class="sh">
+  <h1 class="sh-title">Cost Estimate — ${_CE.mrn || 'Patient'}</h1>
+  <span class="sh-id">CE2</span>
+</div>
+<div class="card" style="padding:40px;text-align:center">
+  <div style="font-size:14px;font-weight:700;margin-bottom:8px">Estimate not ready yet</div>
+  <div style="font-size:13px;color:var(--muted);margin-bottom:20px">The ML model needs this patient's real clinical data, which is still syncing from MIMIC. This usually takes a few moments after admission.</div>
+  <button class="btn btn-pri" id="ce2-refresh-btn" onclick="_ce2Refresh()">↻ Check Again</button>
+</div>`;
+  }
 
-  // Line items: use real data or show a loading note
-  const lineItems = est?.line_items || [];
-  const lineTotal = lineItems.reduce((s, i) => s + (i.amount || 0), 0);
+  const floor = ml.predicted_final_bill_p10;
+  const exp   = ml.predicted_final_bill_p50;
+  const ceil  = ml.predicted_final_bill_p90;
+  const bd    = ml.cost_breakdown || {};
 
-  const lineTable = lineItems.length
+  const breakdownRows = [
+    ['Ward Charges', bd.ward], ['ICU / HDU Charges', bd.icu],
+    ['Procedures', bd.procedures], ['Medicines & Consumables', bd.medicines],
+    ['Labs & Diagnostics', bd.labs],
+  ].filter(([, amt]) => amt);
+  const breakdownTotal = breakdownRows.reduce((s, [, a]) => s + a, 0);
+
+  const lineTable = breakdownRows.length
     ? `<table style="width:100%;font-size:12.5px">
       <thead><tr>
         <th style="background:none;font-size:10px;padding:6px 0">Line Item</th>
         <th style="background:none;font-size:10px;padding:6px 0;text-align:right">Amount</th>
-        <th style="background:none;font-size:10px;padding:6px 0;text-align:right">%</th>
       </tr></thead>
       <tbody>
-        ${lineItems.map(i => `<tr style="border-bottom:1px solid var(--border)">
-          <td style="padding:7px 0;color:var(--ink2)">${i.name}</td>
-          <td style="padding:7px 0;text-align:right;font-weight:600">${fmt(i.amount)}</td>
-          <td style="padding:7px 0;text-align:right;color:var(--muted);font-size:11px">${i.pct}%</td>
+        ${breakdownRows.map(([name, amt]) => `<tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:7px 0;color:var(--ink2)">${name}</td>
+          <td style="padding:7px 0;text-align:right;font-weight:600">${fmt(amt)}</td>
         </tr>`).join('')}
         <tr style="border-top:2px solid var(--border)">
-          <td style="padding:8px 0;font-weight:800">Total (Expected)</td>
-          <td style="padding:8px 0;text-align:right;font-weight:900;color:var(--p);font-size:15px" colspan="2">${fmt(lineTotal)}</td>
+          <td style="padding:8px 0;font-weight:800">Charged So Far (Day ${ml.hospital_day})</td>
+          <td style="padding:8px 0;text-align:right;font-weight:900;color:var(--p);font-size:15px">${fmt(breakdownTotal)}</td>
         </tr>
       </tbody>
     </table>`
-    : `<div style="color:var(--muted);font-size:12px;padding:12px 0">Breakdown not available — estimate was not generated from backend.</div>`;
+    : `<div style="color:var(--muted);font-size:12px;padding:12px 0">No charges recorded yet (Day ${ml.hospital_day}).</div>`;
 
-  // Insurance / scheme breakdown — use backend-computed values if available
-  const preauthAmt     = _CE.preauthAmt ? parseInt(_CE.preauthAmt.replace(/[^\d]/g,'')) : 0;
-  const ptLiable       = est?.patient_pays_estimate != null ? est.patient_pays_estimate : (exp - (preauthAmt || Math.round(exp * 0.52)));
-  const insEst         = est?.govt_pays != null ? est.govt_pays : (preauthAmt || Math.round(exp * 0.52));
-  const rrExcessEst    = est?.room_rent_excess || 0;
-  const schemeNote     = est?.scheme_note || null;
-
-  // PM-JAY reference
-  const pmjayCard = est ? `
-    <div class="card">
-      <div class="card-title">PM-JAY / NHA Reference</div>
-      <table style="width:100%;font-size:12.5px"><tbody>
-        <tr style="border-bottom:1px solid var(--border)"><td style="padding:7px 0;color:var(--muted)">HBP Code</td><td style="padding:7px 0;text-align:right;font-family:var(--mono);font-weight:700">${est.hbp_code}</td></tr>
-        <tr style="border-bottom:1px solid var(--border)"><td style="padding:7px 0;color:var(--muted)">Package</td><td style="padding:7px 0;text-align:right;font-size:11.5px">${est.hbp_package_name}</td></tr>
-        <tr style="border-bottom:1px solid var(--border)"><td style="padding:7px 0;color:var(--muted)">Govt. package rate</td><td style="padding:7px 0;text-align:right;font-weight:700;color:var(--t3)">${fmt(est.hbp_rate)}</td></tr>
-        <tr style="border-bottom:1px solid var(--border)"><td style="padding:7px 0;color:var(--muted)">Private est. (×12)</td><td style="padding:7px 0;text-align:right;font-weight:700">${fmt(est.expected_est)}</td></tr>
-        <tr><td style="padding:7px 0;color:var(--muted);font-size:10px" colspan="2">${est.pmjay_reference}</td></tr>
-      </tbody></table>
-    </div>` : '';
+  // Simple scheme-aware patient liability off the ML P50 -- same logic as
+  // backend CE4 reconciliation, applied client-side for the pre-discharge view.
+  const schemeStr = (_CE.abScheme || '').toUpperCase();
+  let ptLiable, insEst, schemeNote, rrExcessEst = 0;
+  if (_CE.isAbBeneficiary && (schemeStr.includes('PM-JAY') || schemeStr.includes('PMJAY') || schemeStr.includes('ESI') || schemeStr.includes('HARYANA'))) {
+    ptLiable = 0; insEst = exp;
+    schemeNote = `${_CE.abScheme} covers the estimated total. Patient liability: ₹0`;
+  } else if (_CE.isAbBeneficiary && schemeStr.includes('CGHS')) {
+    insEst = Math.round(exp * 0.85); ptLiable = Math.round(exp * 0.15);
+    schemeNote = `CGHS covers ${fmt(insEst)}. Patient pays ~15% (excess + non-covered) = ${fmt(ptLiable)}`;
+  } else if ((_CE.paymentMode || '').toLowerCase() === 'cashless') {
+    const copayPct = parseFloat(_CE.copayPct) || 10;
+    const rrlt = _CE.roomRentLimit ? parseInt(_CE.roomRentLimit.replace(/[^\d]/g,'')) : 0;
+    const wardRate = bd.ward && ml.hospital_day != null ? bd.ward / (ml.hospital_day + 1) : 0;
+    rrExcessEst = rrlt ? Math.max(0, Math.round((wardRate - rrlt) * (ml.hospital_day + 1))) : 0;
+    const copayAmt = Math.round(exp * copayPct / 100);
+    insEst = exp - copayAmt;
+    ptLiable = copayAmt + rrExcessEst;
+    schemeNote = null;
+  } else {
+    ptLiable = exp; insEst = 0; schemeNote = null;
+  }
 
   return `
 <div class="bc">
@@ -1879,39 +1788,39 @@ ${stepFlow('ce2')}
   <h1 class="sh-title">Cost Estimate — ${_CE.mrn || 'Patient'}</h1>
   <span class="sh-id">CE2</span>
   <div class="sh-actions">
-    <span class="muted small">${[_CE.patientName, _CE.age ? _CE.age+'Y' : null, _CE.gender, _CE.diagnosis].filter(Boolean).join(' · ')}</span>
+    <span class="muted small">${[_CE.patientName, _CE.age ? _CE.age+'Y' : null, _CE.gender, _CE.diagnosis].filter(Boolean).join(' · ')} · ML prediction, Day ${ml.hospital_day} (${ml.source === 'live' ? 'live data' : 'demo data'})</span>
   </div>
 </div>
 <div class="cb-row">
   <div class="cb-opt${_CE.cost==='floor'?' sel':''}" onclick="_CE.cost='floor';showScreen('ce2')">
-    <div class="cb-tag">Floor Estimate</div>
+    <div class="cb-tag">Low (P10)</div>
     <div class="cb-amt">${fmt(floor)}</div>
-    <div class="cb-desc">Conservative — Best case scenario. No complications, standard LOS.</div>
+    <div class="cb-desc">10% chance the final bill is below this.</div>
   </div>
   <div class="cb-opt${_CE.cost==='expected'?' sel':''}" onclick="_CE.cost='expected';showScreen('ce2')">
-    <div class="cb-tag">Expected</div>
+    <div class="cb-tag">Typical (P50)</div>
     <div class="cb-amt">${fmt(exp)}</div>
-    <div class="cb-desc">Most likely — Based on ${_CE.diagnosis ? _CE.diagnosis.split(' ')[0] : 'diagnosis'} profile · ${_CE.losDays || est?.los_days || 7}-day est. LOS${est?.complexity > 1 ? ' · complexity ×' + est.complexity.toFixed(2) : ''}.</div>
+    <div class="cb-desc">Most likely final bill, per the ML model.</div>
     <div class="cb-rec">★ Recommended</div>
   </div>
   <div class="cb-opt${_CE.cost==='ceiling'?' sel':''}" onclick="_CE.cost='ceiling';showScreen('ce2')">
-    <div class="cb-tag">Ceiling</div>
+    <div class="cb-tag">High (P90)</div>
     <div class="cb-amt">${fmt(ceil)}</div>
-    <div class="cb-desc">Worst case — Includes potential complications, extended stay, procedures.</div>
+    <div class="cb-desc">10% chance the final bill is above this.</div>
   </div>
 </div>
 
 <div class="grid2">
   <div class="card">
-    <div class="card-title">Cost Breakdown — Expected ${fmt(exp)}</div>
+    <div class="card-title">Cost Breakdown (charged so far)</div>
     ${lineTable}
+    <div style="font-size:10px;color:var(--muted);margin-top:8px">XGBoost quantile model, trained on real DCM admissions. The P10–P90 range projects the FULL stay; this breakdown shows only what's been charged through Day ${ml.hospital_day} — future days aren't itemized yet.</div>
   </div>
   <div>
     <div class="card" style="margin-bottom:12px">
       <div class="card-title">${_CE.isAbBeneficiary && _CE.abScheme ? _CE.abScheme + ' Coverage' : 'Mediclaim Breakdown' + (_CE.insuranceCo ? ' — ' + _CE.insuranceCo.split(' ')[0] : '')}</div>
       ${schemeNote ? `<div class="alert al-ok" style="margin-bottom:8px;font-size:12px">✅ ${schemeNote}</div>` : ''}
       <table style="width:100%;font-size:12.5px"><tbody>
-        ${!_CE.isAbBeneficiary && preauthAmt ? `<tr style="border-bottom:1px solid var(--border)"><td style="padding:7px 0;color:var(--muted)">Pre-auth approved</td><td style="padding:7px 0;text-align:right;font-weight:700">${fmt(preauthAmt)}</td></tr>` : ''}
         ${_CE.isAbBeneficiary ? `<tr style="border-bottom:1px solid var(--border)"><td style="padding:7px 0;color:var(--muted)">Scheme reimburses</td><td style="padding:7px 0;text-align:right;font-weight:700;color:var(--ok)">${fmt(insEst)}</td></tr>` : `<tr style="border-bottom:1px solid var(--border)"><td style="padding:7px 0;color:var(--muted)">Est. insurance payout</td><td style="padding:7px 0;text-align:right;font-weight:700">${fmt(insEst)}</td></tr>`}
         ${rrExcessEst ? `<tr style="border-bottom:1px solid var(--border)"><td style="padding:7px 0;color:var(--err)">Room rent excess</td><td style="padding:7px 0;text-align:right;color:var(--err);font-weight:600">+${fmt(rrExcessEst)}</td></tr>` : ''}
         <tr style="border-top:2px solid var(--border)"><td style="padding:7px 0;font-weight:800">Estimated Patient Liability</td><td style="padding:7px 0;text-align:right;font-weight:900;font-size:15px;color:${ptLiable === 0 ? 'var(--ok)' : 'var(--p)'}">${fmt(ptLiable)}</td></tr>
@@ -1919,9 +1828,9 @@ ${stepFlow('ce2')}
         <tr><td style="padding:7px 0;color:var(--muted)">Room rent limit</td><td style="padding:7px 0;text-align:right">${_CE.roomRentLimit ? '₹' + parseInt(_CE.roomRentLimit.replace(/[^\d]/g,'')).toLocaleString('en-IN') + '/day' : '—'}</td></tr>` : ''}
       </tbody></table>
     </div>
-    ${pmjayCard}
     <div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end">
-      <button class="btn btn-sec" onclick="showScreen('ce1')">← Recalculate</button>
+      <button class="btn btn-sec" id="ce2-refresh-btn" onclick="_ce2Refresh()">↻ Refresh Estimate</button>
+      <button class="btn btn-sec" onclick="showScreen('ce1')">← Back</button>
       <button class="btn btn-pri" onclick="_openCe2bModal()">Confirm →</button>
     </div>
   </div>
@@ -1932,11 +1841,11 @@ ${stepFlow('ce2')}
    CE3 — PRINT / EMAIL / PDF
 ════════════════════════════════════ */
 ce3: () => {
-  const est  = _CE.estimateData;
+  const ml   = _CE.mlEstimateData;
   const fmt  = n => '₹' + (n||0).toLocaleString('en-IN');
   const band = _CE.cost || 'expected';
-  const bandAmt = band === 'floor' ? (est?.floor_est||320000) : band === 'ceiling' ? (est?.ceiling_est||650000) : (est?.expected_est||480000);
-  const bandLabel = band.charAt(0).toUpperCase() + band.slice(1);
+  const bandAmt = band === 'floor' ? (ml?.predicted_final_bill_p10||0) : band === 'ceiling' ? (ml?.predicted_final_bill_p90||0) : (ml?.predicted_final_bill_p50||0);
+  const bandLabel = band === 'floor' ? 'Low (P10)' : band === 'ceiling' ? 'High (P90)' : 'Typical (P50)';
   const now  = new Date().toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
   return `
 <div class="bc">
@@ -2033,8 +1942,8 @@ ${stepFlow('ce4')}
     return parts.join(' ');
   })();
 
-  const bandLabel = { floor: 'Conservative', expected: 'Expected', ceiling: 'Worst-case' }[estimate.selected_band] || 'Expected';
-  const estBandDisplay = `${bandLabel} band — ${fmt(estimate.est_total)}`;
+  const bandLabel = { floor: 'Low (P10)', expected: 'Typical (P50)', ceiling: 'High (P90)' }[estimate.selected_band] || 'Typical (P50)';
+  const estBandDisplay = `ML estimate, ${bandLabel} — ${fmt(estimate.est_total)}`;
 
   const varRows = lineItems.map((item, i) => {
     const est      = item.amount || 0;
@@ -2069,8 +1978,8 @@ ${stepFlow('ce4')}
         ? `<br><b>Patient pays: ${fmt(_patientFinal)}</b>${_govtFinal ? ` · Scheme reimburses: ${fmt(_govtFinal)}` : ''}`
         : '';
       return `<div class="alert ${schemeClass}" style="margin-bottom:12px">
-        ${schemeIcon} <b>${scheme} — ${estimate.hbp_package_name || estimate.hbp_code || '—'}</b><br>
-        ${_schemeSummary || `Government reimburses up to ${fmt(ab_info.hbp_rate)}.`}${patientLine}
+        ${schemeIcon} <b>${scheme}</b><br>
+        ${_schemeSummary || `Government reimburses up to ${fmt(_govtFinal)}.`}${patientLine}
       </div>`;
     }
     if (_reconPayMode === 'cashless' && _schemeSummary) {
@@ -2136,7 +2045,7 @@ ${stepFlow('ce4')}
     </div>
     <div class="fg" style="margin-top:8px">
       <label class="fl">Estimate reference</label>
-      <input class="fi" value="${estimate.hbp_code ? estimate.hbp_code + ' · ' + (estimate.hbp_package_name || '') + ' · ' + estBandDisplay : estBandDisplay}" readonly style="background:var(--surf);font-size:11px">
+      <input class="fi" value="${estBandDisplay}" readonly style="background:var(--surf);font-size:11px">
     </div>
   </div>
   <div>
@@ -2204,7 +2113,7 @@ ce5: () => {
         <td style="padding:9px 0;text-align:right;font-weight:600">${fmt(gross)}</td>
       </tr>
       <tr style="border-bottom:1px solid var(--border)">
-        <td style="padding:9px 0;color:var(--muted)">PM-JAY Package Rate (Govt. pays)</td>
+        <td style="padding:9px 0;color:var(--muted)">PM-JAY Covers (ML-quoted estimate)</td>
         <td style="padding:9px 0;text-align:right;font-weight:600;color:var(--ok)">− ${fmt(hbpRate)}</td>
       </tr>
       <tr style="border-bottom:1px solid var(--border)">
@@ -2638,13 +2547,17 @@ SCREENS['ce_live'] = function() {
 };
 
 function _ce3PrintHtml() {
-  const est   = _CE.estimateData;
+  const ml    = _CE.mlEstimateData;
   const fmt   = n => '₹' + (n||0).toLocaleString('en-IN');
   const band  = _CE.cost || 'expected';
-  const bandAmt = band==='floor' ? (est?.floor_est||320000) : band==='ceiling' ? (est?.ceiling_est||650000) : (est?.expected_est||480000);
-  const bandLabel = band.charAt(0).toUpperCase()+band.slice(1);
-  const lineRows = (est?.line_items||[]).map(i =>
-    `<tr><td>${i.name}</td><td style="text-align:right">${fmt(i.amount)}</td><td style="text-align:right">${i.pct}%</td></tr>`
+  const bandAmt = band==='floor' ? (ml?.predicted_final_bill_p10||0) : band==='ceiling' ? (ml?.predicted_final_bill_p90||0) : (ml?.predicted_final_bill_p50||0);
+  const bandLabel = band === 'floor' ? 'Low (P10)' : band === 'ceiling' ? 'High (P90)' : 'Typical (P50)';
+  const bd = ml?.cost_breakdown || {};
+  const lineRows = [
+    ['Ward Charges', bd.ward], ['ICU / HDU Charges', bd.icu], ['Procedures', bd.procedures],
+    ['Medicines & Consumables', bd.medicines], ['Labs & Diagnostics', bd.labs],
+  ].filter(([, amt]) => amt).map(([name, amt]) =>
+    `<tr><td>${name}</td><td style="text-align:right">${fmt(amt)}</td></tr>`
   ).join('');
   const now = new Date().toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
   return `<!DOCTYPE html><html><head><title>Cost Estimate — ${_CE.mrn||''}</title>
@@ -2668,16 +2581,15 @@ function _ce3PrintHtml() {
   <tr><td class="label">Diagnosis</td><td>${_CE.diagnosis||'—'}</td></tr>
   <tr><td class="label">Admission</td><td>${_CE.admitDate||'—'} &nbsp;(${_CE.losDays||'—'} days)</td></tr>
   <tr><td class="label">Ward / Bed</td><td>${_CE.wardType||'—'}</td></tr>
-  <tr><td class="label">HBP Code</td><td>${est?.hbp_code||'—'} — ${est?.hbp_package_name||'—'}</td></tr>
 </tbody></table>
 <div class="section">
-  <div class="label">Selected Estimate Band</div>
+  <div class="label">Selected Estimate</div>
   <div class="val">${fmt(bandAmt)} (${bandLabel})</div>
-  <div style="font-size:11px;color:#555;margin-top:4px">Floor: ${fmt(est?.floor_est||0)} &nbsp;·&nbsp; Expected: ${fmt(est?.expected_est||0)} &nbsp;·&nbsp; Ceiling: ${fmt(est?.ceiling_est||0)}</div>
+  <div style="font-size:11px;color:#555;margin-top:4px">Low: ${fmt(ml?.predicted_final_bill_p10||0)} &nbsp;·&nbsp; Typical: ${fmt(ml?.predicted_final_bill_p50||0)} &nbsp;·&nbsp; High: ${fmt(ml?.predicted_final_bill_p90||0)}</div>
 </div>
 <div class="section">
-  <b style="font-size:12px">Cost Breakdown</b>
-  <table><thead><tr><th>Line Item</th><th style="text-align:right">Amount</th><th style="text-align:right">%</th></tr></thead>
+  <b style="font-size:12px">Cost Breakdown (charged through Day ${ml?.hospital_day ?? '—'})</b>
+  <table><thead><tr><th>Line Item</th><th style="text-align:right">Amount</th></tr></thead>
   <tbody>${lineRows}</tbody></table>
 </div>
 <div class="section">
@@ -2688,7 +2600,7 @@ function _ce3PrintHtml() {
     <tr><td class="label">Pre-auth No.</td><td>${_CE.preauthNo||'—'}</td></tr>
   </tbody></table>
 </div>
-<div class="footer">⚠ This is a cost estimate only. Actual charges may vary at discharge (reconciliation). &nbsp;|&nbsp; NHA HBP 2.2 reference rates · Private multiplier ×12</div>
+<div class="footer">⚠ This is an ML-predicted estimate (XGBoost quantile model, trained on real DCM admissions), not a fixed quote. Actual charges may vary at discharge (reconciliation).</div>
 </body></html>`;
 }
 
@@ -2722,14 +2634,18 @@ function _ce3Notify() {
     return;
   }
 
-  const est      = _CE.estimateData;
+  const ml       = _CE.mlEstimateData;
   const fmt      = n => 'Rs.' + (n||0).toLocaleString('en-IN');
   const band     = _CE.cost || 'expected';
-  const bandAmt  = band==='floor' ? (est?.floor_est||0) : band==='ceiling' ? (est?.ceiling_est||0) : (est?.expected_est||0);
-  const bandLabel= band.charAt(0).toUpperCase()+band.slice(1);
+  const bandAmt  = band==='floor' ? (ml?.predicted_final_bill_p10||0) : band==='ceiling' ? (ml?.predicted_final_bill_p90||0) : (ml?.predicted_final_bill_p50||0);
+  const bandLabel= band === 'floor' ? 'Low (P10)' : band === 'ceiling' ? 'High (P90)' : 'Typical (P50)';
   const now      = new Date().toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
 
-  const lineText = (est?.line_items||[]).map(i => `  ${i.name}: ${fmt(i.amount)} (${i.pct}%)`).join('\n');
+  const bd = ml?.cost_breakdown || {};
+  const lineText = [
+    ['Ward Charges', bd.ward], ['ICU / HDU Charges', bd.icu], ['Procedures', bd.procedures],
+    ['Medicines & Consumables', bd.medicines], ['Labs & Diagnostics', bd.labs],
+  ].filter(([, amt]) => amt).map(([name, amt]) => `  ${name}: ${fmt(amt)}`).join('\n');
 
   const subject = encodeURIComponent(`Cost Estimate — ${_CE.mrn||'Patient'} | Foqal CareOS`);
   const body = encodeURIComponent(
@@ -2749,10 +2665,10 @@ Ward / Bed   : ${_CE.wardType||'—'}
 ━━━━━━━━━━━━━━━━━━━━━━
 COST ESTIMATE
 ━━━━━━━━━━━━━━━━━━━━━━
-Selected Band  : ${bandLabel} — ${fmt(bandAmt)}
-Floor Estimate : ${fmt(est?.floor_est||0)}
-Expected       : ${fmt(est?.expected_est||0)}
-Ceiling        : ${fmt(est?.ceiling_est||0)}
+Selected Estimate : ${bandLabel} — ${fmt(bandAmt)}
+Low (P10)         : ${fmt(ml?.predicted_final_bill_p10||0)}
+Typical (P50)     : ${fmt(ml?.predicted_final_bill_p50||0)}
+High (P90)        : ${fmt(ml?.predicted_final_bill_p90||0)}
 
 COST BREAKDOWN
 ${lineText}
@@ -2765,7 +2681,7 @@ Insurer      : ${_CE.insuranceCo||'—'}
 Pre-auth No. : ${_CE.preauthNo||'—'}
 
 ━━━━━━━━━━━━━━━━━━━━━━
-Note: This is a cost estimate only. Actual charges may vary at discharge during reconciliation. Reference: NHA HBP 2.2 rates × private multiplier.
+Note: This is an ML-predicted estimate (XGBoost quantile model, trained on real DCM admissions), not a fixed quote. Actual charges may vary at discharge during reconciliation.
 
 Generated: ${now}
 Foqal CareOS — Billing Department
