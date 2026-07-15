@@ -663,7 +663,8 @@ function _ce0BuildRow(p) {
   return `<tr style="cursor:pointer" onclick="${rowClick}">
     <td><b>${name}</b> ${notAdmitted ? '<span class="bd bd-t1">Not Admitted</span>' : ''}</td>
     <td class="mono" style="font-size:11.5px">${p.mrn}</td>
-    <td>${p.admit_date || '—'} ${(!isFinalBill && !isDischarge && p.hospital_day != null) ? `<span class="bd bd-blue" style="margin-left:4px">Day ${p.hospital_day}</span>` : ''}</td>
+    <td>${p.admit_date || '—'}</td>
+    <td>${(!isFinalBill && !isDischarge && p.hospital_day != null) ? `<span class="bd bd-blue">Day ${p.hospital_day}</span>` : '—'}</td>
     <td style="font-size:12px">${insurance}</td>
     <td>${phaseBadge}</td>
     <td>${statusBadge}</td>
@@ -688,7 +689,7 @@ function _ce0FilterPending() {
   } else {
     tableEl.innerHTML = `<div class="tw"><table>
       <thead><tr>
-        <th>Patient</th><th>MRN</th><th>Admitted</th><th>Insurance</th><th>Phase</th><th>Status</th><th>Action</th>
+        <th>Patient</th><th>MRN</th><th>Admitted</th><th>Day</th><th>Insurance</th><th>Phase</th><th>Status</th><th>Action</th>
       </tr></thead>
       <tbody>${list.map(_ce0BuildRow).join('')}
       </tbody>
