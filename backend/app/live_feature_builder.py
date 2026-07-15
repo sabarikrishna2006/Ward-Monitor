@@ -22,8 +22,8 @@ from typing import Optional
 import pandas as pd
 from sqlalchemy import text
 
-DOWNLOADS_DIR = r"c:\Users\ASUS\Downloads"
 PROJECT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..")
+MAPPINGS_DIR = os.path.join(PROJECT_DIR, "cost_ml_model", "pricing_mappings")
 
 with open(os.path.join(PROJECT_DIR, "pricing_config.json")) as f:
     _RATES = json.load(f)["rates"]
@@ -38,11 +38,11 @@ _LAB_MAP = None
 def _load_mappings():
     global _PROC_MAP, _MED_MAP, _LAB_MAP
     if _PROC_MAP is None:
-        _PROC_MAP = pd.read_csv(os.path.join(DOWNLOADS_DIR, "procedure_mapping_v1.csv")) \
+        _PROC_MAP = pd.read_csv(os.path.join(MAPPINGS_DIR, "procedure_mapping_v1.csv")) \
             .set_index("us_procedure_code")["price_in_rupees"]
-        _MED_MAP = pd.read_csv(os.path.join(DOWNLOADS_DIR, "medicine_mapping_v1.csv")) \
+        _MED_MAP = pd.read_csv(os.path.join(MAPPINGS_DIR, "medicine_mapping_v1.csv")) \
             .set_index("us_medicine")["price_in_rupees"]
-        _LAB_MAP = pd.read_csv(os.path.join(DOWNLOADS_DIR, "lab_mapping_v1.csv")) \
+        _LAB_MAP = pd.read_csv(os.path.join(MAPPINGS_DIR, "lab_mapping_v1.csv")) \
             .set_index("us_lab_itemid")["price_in_rupees"]
 
 

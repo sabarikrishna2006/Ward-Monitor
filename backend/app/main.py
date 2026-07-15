@@ -808,7 +808,7 @@ def billing_dashboard():
     _COLS = """
         ap.hadm_id, ap.subject_id, ap.gender, ap.anchor_age,
         ap.patient_name, ap.is_admitted,
-        ap.admit_time, ap.discharge_time, ap.los_days,
+        ap.admit_time, ap.discharge_time, ap.los_days, ap.created_at,
         ap.primary_diagnosis_title,
         br.insurance_co, br.payment_mode,
         ae.id          AS encounter_id,
@@ -886,6 +886,22 @@ def billing_dashboard():
         except Exception:
             return str(dt)[:10]
 
+    def _hospital_day(p):
+        # ap.admit_time is MIMIC's de-identified, arbitrarily shifted date
+        # (e.g. year 2140) -- not usable against real wall-clock "today".
+        # created_at (when this patient was actually admitted into the live
+        # app) is the right anchor, same as live_feature_builder.py.
+        created = p.get("created_at")
+        if not created:
+            return None
+        try:
+            from datetime import datetime as _dt2, date as _date2
+            d = created if not isinstance(created, str) else _dt2.fromisoformat(created.replace("Z", ""))
+            created_date = d.date() if isinstance(d, _dt2) else d
+            return max((_date2.today() - created_date).days, 0)
+        except Exception:
+            return None
+
     def _to_action(p, phase):
         bp = p.get("billing_phase") or ""
         if phase == "final_bill":
@@ -904,6 +920,7 @@ def billing_dashboard():
             "is_admitted":    bool(p.get("is_admitted", True)),
             "admit_date":     _fmt(p.get("admit_time")),
             "discharge_date": _fmt(p.get("discharge_time")),
+            "hospital_day":   _hospital_day(p),
             "insurance_co":   p.get("insurance_co") or "",
             "payment_mode":   p.get("payment_mode") or "",
             "encounter_id":   p.get("encounter_id"),
@@ -1199,6 +1216,9 @@ def get_ml_cost_estimate(hadm_id: int, hospital_day: Optional[int] = None):
             return cost_predictor.predict_auto(hadm_id, conn, hospital_day)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logging.getLogger(__name__).exception(f"ML estimate failed for hadm_id={hadm_id}")
+        raise HTTPException(status_code=503, detail=f"ML estimate temporarily unavailable: {e}")
 
 @app.get("/api/billing/live-charges/{hadm_id}")
 def get_live_charges(hadm_id: int):

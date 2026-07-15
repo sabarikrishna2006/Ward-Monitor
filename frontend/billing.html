@@ -663,7 +663,7 @@ function _ce0BuildRow(p) {
   return `<tr style="cursor:pointer" onclick="${rowClick}">
     <td><b>${name}</b> ${notAdmitted ? '<span class="bd bd-t1">Not Admitted</span>' : ''}</td>
     <td class="mono" style="font-size:11.5px">${p.mrn}</td>
-    <td>${p.admit_date || '—'}</td>
+    <td>${p.admit_date || '—'} ${(!isFinalBill && !isDischarge && p.hospital_day != null) ? `<span class="bd bd-blue" style="margin-left:4px">Day ${p.hospital_day}</span>` : ''}</td>
     <td style="font-size:12px">${insurance}</td>
     <td>${phaseBadge}</td>
     <td>${statusBadge}</td>
@@ -2321,13 +2321,79 @@ const MODALS = {
    When billing_phase becomes reconciliation_pending → auto-switches to CE4.
 ════════════════════════════════════════════════════════════════════ */
 let _liveData       = null;
+let _liveMl         = null;  // ML prediction as of today (GET /api/billing/ml-estimate)
 let _liveShown      = 0;   // how many charges have been "revealed" so far
 let _liveTimer      = null;
 let _livePhaseTimer = null;
+let _liveMlTimer    = null;
 const _LIVE_REVEAL_INTERVAL  = 4500; // ms between same-day charges appearing
 const _LIVE_DAY_GAP_INTERVAL = 9000; // ms pause when the next charge crosses into a new calendar day
+const _LIVE_ML_POLL_MS       = 30000; // ML prediction refresh cadence -- picks up new hospital_day automatically
 
 let _liveWaiting = false; // true = no charges yet, polling fast
+
+async function _liveFetchMl() {
+  if (!_CE.hadm_id) return;
+  const base = window.FOQAL_API_BASE || 'http://localhost:6010';
+  try {
+    const res = await fetch(`${base}/api/billing/ml-estimate/${_CE.hadm_id}`);
+    _liveMl = res.ok ? await res.json() : null;
+  } catch (e) {
+    _liveMl = null;
+  }
+  if (CURRENT === 'ce_live') _liveRenderMl();
+}
+
+function _liveRenderMl() {
+  const dayBadge = document.getElementById('live-day-badge');
+  const rangeBox = document.getElementById('live-ml-range');
+  const bdBox    = document.getElementById('live-ml-breakdown');
+  if (!dayBadge && !rangeBox && !bdBox) return;
+  const fmt = n => '₹' + (n||0).toLocaleString('en-IN');
+
+  if (!_liveMl) {
+    if (dayBadge) dayBadge.textContent = '';
+    if (rangeBox) rangeBox.innerHTML = `<div style="color:var(--muted);font-size:12px;padding:8px 0">ML prediction not ready yet — clinical data may still be syncing.</div>`;
+    if (bdBox) bdBox.innerHTML = '';
+    return;
+  }
+
+  if (dayBadge) dayBadge.textContent = `Day ${_liveMl.hospital_day}`;
+
+  if (rangeBox) {
+    rangeBox.innerHTML = `
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <div style="flex:1;min-width:120px;background:#f5f3ff;border:1px solid #ddd6fe;border-radius:8px;padding:10px 14px">
+          <div style="font-size:10px;color:#7c3aed;font-weight:700;text-transform:uppercase">Low (P10)</div>
+          <div style="font-size:17px;font-weight:800;color:#111827">${fmt(_liveMl.predicted_final_bill_p10)}</div>
+        </div>
+        <div style="flex:1;min-width:120px;background:#f5f3ff;border:2px solid #7c3aed;border-radius:8px;padding:10px 14px">
+          <div style="font-size:10px;color:#7c3aed;font-weight:700;text-transform:uppercase">Typical (P50)</div>
+          <div style="font-size:17px;font-weight:800;color:#111827">${fmt(_liveMl.predicted_final_bill_p50)}</div>
+        </div>
+        <div style="flex:1;min-width:120px;background:#f5f3ff;border:1px solid #ddd6fe;border-radius:8px;padding:10px 14px">
+          <div style="font-size:10px;color:#7c3aed;font-weight:700;text-transform:uppercase">High (P90)</div>
+          <div style="font-size:17px;font-weight:800;color:#111827">${fmt(_liveMl.predicted_final_bill_p90)}</div>
+        </div>
+      </div>`;
+  }
+
+  if (bdBox) {
+    const bd = _liveMl.cost_breakdown || {};
+    const rows = [
+      ['Ward Charges', bd.ward], ['ICU / HDU Charges', bd.icu], ['Procedures', bd.procedures],
+      ['Medicines & Consumables', bd.medicines], ['Labs & Diagnostics', bd.labs],
+    ].filter(([, amt]) => amt);
+    bdBox.innerHTML = rows.length
+      ? `<table style="width:100%;font-size:12.5px">
+          <tbody>${rows.map(([name, amt]) => `<tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:6px 0;color:var(--ink2)">${name}</td>
+            <td style="padding:6px 0;text-align:right;font-weight:600">${fmt(amt)}</td>
+          </tr>`).join('')}</tbody>
+        </table>`
+      : `<div style="color:var(--muted);font-size:12px;padding:8px 0">No charges recorded yet.</div>`;
+  }
+}
 
 async function _liveFetch() {
   if (!_CE.hadm_id) return;
@@ -2396,13 +2462,17 @@ function _liveStart() {
   _liveWaiting = false;
   clearTimeout(_liveTimer);
   clearInterval(_livePhaseTimer);
+  clearInterval(_liveMlTimer);
   _liveFetch();
   _liveSchedulePoll(20000);
+  _liveFetchMl();
+  _liveMlTimer = setInterval(_liveFetchMl, _LIVE_ML_POLL_MS);
 }
 
 function _liveStop() {
   clearTimeout(_liveTimer);
   clearInterval(_livePhaseTimer);
+  clearInterval(_liveMlTimer);
 }
 
 function _liveUpdateHeader() {
@@ -2412,8 +2482,11 @@ function _liveUpdateHeader() {
   const phaseEl = document.getElementById('live-phase-badge');
   if (!totalEl) return;
 
-  const charged = (_liveData.charges || []).slice(0, _liveShown).reduce((s,c)=>s+c.cost,0);
-  const est     = _liveData.estimate_total || 0;
+  // Prefer the ML model's real cumulative cost / P50 projection once available;
+  // falls back to the legacy per-event tally only before the first ML fetch resolves.
+  const charged = _liveMl ? _liveMl.cumulative_cost_so_far
+    : (_liveData.charges || []).slice(0, _liveShown).reduce((s,c)=>s+c.cost,0);
+  const est     = _liveMl ? _liveMl.predicted_final_bill_p50 : (_liveData.estimate_total || 0);
 
   totalEl.textContent = '₹' + charged.toLocaleString('en-IN');
   // Hide progress bar if no estimate was saved yet
@@ -2468,8 +2541,7 @@ function _liveRevealNext() {
       <div style="font-size:11px;color:#6b7280;margin-top:1px">${c.detail || ''} · ${(c.time||'').slice(0,16)}</div>
     </div>
     <div style="text-align:right;flex-shrink:0">
-      <div style="font-size:14px;font-weight:800;color:${col}">₹${c.cost.toLocaleString('en-IN')}</div>
-      <div style="font-size:10px;color:#9ca3af">Running: ₹${((_liveData.charges||[]).slice(0,_liveShown).reduce((s,x)=>s+x.cost,0)).toLocaleString('en-IN')}</div>
+      <div style="font-size:10px;color:#9ca3af;font-weight:700;text-transform:uppercase">${c.category || c.type || 'Logged'}</div>
     </div>`;
   feed.prepend(row);
   _liveUpdateHeader();
@@ -2493,7 +2565,6 @@ SCREENS['ce_live'] = function() {
   const name  = _liveData?.patient_name || _CE.patientName || '—';
   const diag  = _liveData?.diagnosis    || _CE.diagnosis   || '—';
   const admit = _liveData?.admit_time   || _CE.admitDate   || '—';
-  const est   = (_liveData?.estimate_total || 0);
   const phase = _liveData?.billing_phase || '—';
   const isReconcReady = phase === 'reconciliation_pending';
 
@@ -2503,7 +2574,7 @@ SCREENS['ce_live'] = function() {
 <div class="sh" style="margin-bottom:12px">
   <div>
     <h1 class="sh-title" style="margin-bottom:2px">Live Bill — ${name}</h1>
-    <div style="font-size:12px;color:var(--muted)">${diag} · Admitted ${admit}</div>
+    <div style="font-size:12px;color:var(--muted)">${diag} · Admitted ${admit} (Day 0) <span id="live-day-badge" class="bd bd-blue" style="margin-left:6px"></span></div>
   </div>
   <div class="sh-actions">
     <span id="live-phase-badge" style="padding:4px 12px;border-radius:12px;font-size:11px;font-weight:700;color:#fff;background:#0369a1">${phase}</span>
@@ -2515,7 +2586,7 @@ SCREENS['ce_live'] = function() {
 <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:18px 22px;margin-bottom:16px">
   <div style="display:flex;align-items:flex-end;gap:24px;margin-bottom:12px;flex-wrap:wrap">
     <div>
-      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Charges Accrued</div>
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Charges Accrued (real, ML-priced)</div>
       <div id="live-running-total" style="font-size:34px;font-weight:900;color:var(--ink);font-variant-numeric:tabular-nums">₹0</div>
     </div>
   </div>
@@ -2524,19 +2595,23 @@ SCREENS['ce_live'] = function() {
   </div>
 </div>
 
-<!-- Estimate line items breakdown -->
-<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
-  ${(_liveData?.estimate_line_items||[]).map(li=>`
-    <div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:8px;padding:8px 14px;min-width:140px">
-      <div style="font-size:10px;color:#7c3aed;font-weight:700;text-transform:uppercase;letter-spacing:.4px">${li.name}</div>
-      <div style="font-size:15px;font-weight:800;color:#111827;margin-top:2px">₹${(li.amount||0).toLocaleString('en-IN')}</div>
-      <div style="font-size:10px;color:#9ca3af">${li.pct||0}% of total</div>
-    </div>`).join('')}
+<!-- ML predicted final-bill range, as of today's hospital day -->
+<div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:18px 22px;margin-bottom:16px">
+  <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Predicted Final Bill (as of today)</div>
+  <div id="live-ml-range">
+    <div style="color:var(--muted);font-size:12px;padding:8px 0">Loading ML prediction…</div>
+  </div>
 </div>
 
-<!-- Live charge feed -->
+<!-- Real cost breakdown by category (ML features), charged through today -->
+<div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:18px 22px;margin-bottom:16px">
+  <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Cost Breakdown (charged so far)</div>
+  <div id="live-ml-breakdown"></div>
+</div>
+
+<!-- Live activity feed -->
 <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">
-  Live Charge Feed <span style="font-weight:400;color:#9ca3af;font-size:11px">(most recent first)</span>
+  Live Activity Feed <span style="font-weight:400;color:#9ca3af;font-size:11px">(most recent first — real MIMIC events, priced via the ML breakdown above)</span>
 </div>
 <div id="live-feed" style="max-height:420px;overflow-y:auto;padding-right:4px">
   <div data-loading="1" style="padding:40px;text-align:center;color:var(--muted);font-size:13px">
