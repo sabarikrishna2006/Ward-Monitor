@@ -35,15 +35,21 @@ _MED_MAP = None
 _LAB_MAP = None
 
 
+def _dedup_price_map(df: pd.DataFrame, key_col: str) -> pd.Series:
+    """A duplicated key (e.g. the same medicine name mapped twice, which
+    the medicine mapping file has 44 rows of) makes .set_index()[col].get(k)
+    return a pandas Series instead of a scalar price -- silently breaking
+    every downstream arithmetic op on it. Average duplicate rows down to
+    one price per key so lookups are always scalars."""
+    return df.groupby(key_col)["price_in_rupees"].mean()
+
+
 def _load_mappings():
     global _PROC_MAP, _MED_MAP, _LAB_MAP
     if _PROC_MAP is None:
-        _PROC_MAP = pd.read_csv(os.path.join(MAPPINGS_DIR, "procedure_mapping_v1.csv")) \
-            .set_index("us_procedure_code")["price_in_rupees"]
-        _MED_MAP = pd.read_csv(os.path.join(MAPPINGS_DIR, "medicine_mapping_v1.csv")) \
-            .set_index("us_medicine")["price_in_rupees"]
-        _LAB_MAP = pd.read_csv(os.path.join(MAPPINGS_DIR, "lab_mapping_v1.csv")) \
-            .set_index("us_lab_itemid")["price_in_rupees"]
+        _PROC_MAP = _dedup_price_map(pd.read_csv(os.path.join(MAPPINGS_DIR, "procedure_mapping_v1.csv")), "us_procedure_code")
+        _MED_MAP = _dedup_price_map(pd.read_csv(os.path.join(MAPPINGS_DIR, "medicine_mapping_v1.csv")), "us_medicine")
+        _LAB_MAP = _dedup_price_map(pd.read_csv(os.path.join(MAPPINGS_DIR, "lab_mapping_v1.csv")), "us_lab_itemid")
 
 
 def _to_hospital_day(event_dates, admit_date):

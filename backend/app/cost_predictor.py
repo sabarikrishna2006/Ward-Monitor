@@ -34,6 +34,23 @@ _MODEL_PATH = os.path.join(_COST_ML_DIR, "models", "xgb_quantile.joblib")
 _DATA_PATH = os.path.join(_COST_ML_DIR, "data", "dcm_model_ready_data.csv")
 
 
+def _clamp_quantiles_to_reality(p10: float, p50: float, p90: float, cumulative_cost_so_far: float):
+    """
+    The final bill can never be less than what's already been charged --
+    costs only accumulate in this system, they're never credited back. A
+    quantile model has no built-in awareness of that constraint (it's
+    especially unreliable on Day 0, where MAPE runs ~106%), so without
+    this it can and does predict a "Floor" below money already spent,
+    which reads as a nonsensical, broken number to anyone looking at the
+    screen. Enforce the floor, then re-sort so P10 <= P50 <= P90 still
+    holds after the clamp.
+    """
+    p10 = max(p10, cumulative_cost_so_far)
+    p50 = max(p50, p10)
+    p90 = max(p90, p50)
+    return p10, p50, p90
+
+
 class CostPredictor:
     """Wraps the trained XGBoost quantile model. Loads once, reused across requests."""
 
@@ -95,6 +112,8 @@ class CostPredictor:
         # independently. Sorting doesn't fix the model, just guarantees the
         # 3 numbers we hand back are always in the sensible order a user
         # expects (low <= typical <= high).
+        p10, p50, p90 = _clamp_quantiles_to_reality(
+            p10, p50, p90, float(row["cumulative_cost_so_far"].iloc[0]))
 
         this_hospital_day = int(row["hospital_day"].iloc[0])
         # Cumulative breakdown by category, days 0..this_hospital_day -- the
@@ -140,6 +159,8 @@ class CostPredictor:
         X, breakdown, today_breakdown = build_live_feature_row(hadm_id, conn, self._features, hospital_day)
         pred_log = self._model.predict(X)[0]
         p10, p50, p90 = np.sort(np.expm1(pred_log))
+        p10, p50, p90 = _clamp_quantiles_to_reality(
+            p10, p50, p90, float(X["cumulative_cost_so_far"].iloc[0]))
 
         return {
             "hadm_id": int(hadm_id),
