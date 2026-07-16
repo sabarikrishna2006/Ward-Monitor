@@ -107,12 +107,21 @@ class CostPredictor:
             "ward": round(float(history["day_ward_cost"].sum()), 2),
             "icu": round(float(history["day_icu_cost"].sum()), 2),
         }
+        today_breakdown = {
+            "procedures": round(float(row["day_procedures_cost"].iloc[0]), 2),
+            "medicines": round(float(row["day_medicines_cost"].iloc[0]), 2),
+            "labs": round(float(row["day_labs_cost"].iloc[0]), 2),
+            "ward": round(float(row["day_ward_cost"].iloc[0]), 2),
+            "icu": round(float(row["day_icu_cost"].iloc[0]), 2),
+            "total": round(float(row["day_total_cost"].iloc[0]), 2),
+        }
 
         return {
             "hadm_id": int(hadm_id),
             "hospital_day": this_hospital_day,
             "cumulative_cost_so_far": round(float(row["cumulative_cost_so_far"].iloc[0]), 2),
             "cost_breakdown": breakdown,
+            "today_breakdown": today_breakdown,
             "predicted_final_bill_p10": round(float(p10), 2),
             "predicted_final_bill_p50": round(float(p50), 2),
             "predicted_final_bill_p90": round(float(p90), 2),
@@ -128,7 +137,7 @@ class CostPredictor:
         self._load()
         from .live_feature_builder import build_live_feature_row
 
-        X, breakdown = build_live_feature_row(hadm_id, conn, self._features, hospital_day)
+        X, breakdown, today_breakdown = build_live_feature_row(hadm_id, conn, self._features, hospital_day)
         pred_log = self._model.predict(X)[0]
         p10, p50, p90 = np.sort(np.expm1(pred_log))
 
@@ -137,6 +146,7 @@ class CostPredictor:
             "hospital_day": int(X["hospital_day"].iloc[0]),
             "cumulative_cost_so_far": round(float(X["cumulative_cost_so_far"].iloc[0]), 2),
             "cost_breakdown": {k: round(float(v), 2) for k, v in breakdown.items()},
+            "today_breakdown": today_breakdown,
             "predicted_final_bill_p10": round(float(p10), 2),
             "predicted_final_bill_p50": round(float(p50), 2),
             "predicted_final_bill_p90": round(float(p90), 2),

@@ -494,6 +494,7 @@ let _ce4Fetching = false;
 
 function showScreen(id) {
   if (CURRENT === 'ce_live' && id !== 'ce_live') _liveStop();
+  if (CURRENT === 'ce2' && id !== 'ce2') _ce2StopAutoPoll();
   CURRENT = id;
   const fn = SCREENS[id];
   document.getElementById('main').innerHTML = fn ? fn() : '<div style="padding:40px;color:var(--muted)">Screen not found.</div>';
@@ -964,6 +965,20 @@ async function _ce2Refresh() {
   if (btn) { btn.disabled = true; btn.textContent = 'Refreshing…'; }
   await _fetchMlEstimate();
   showScreen('ce2');
+}
+
+// Auto-poll while CE2 is waiting on the first ML estimate (clinical data
+// still syncing from MIMIC) -- so it resolves on its own instead of
+// requiring a manual "Check Again" click every time.
+let _ce2AutoPollTimer = null;
+function _ce2StopAutoPoll() { clearInterval(_ce2AutoPollTimer); _ce2AutoPollTimer = null; }
+function _ce2StartAutoPoll() {
+  _ce2StopAutoPoll();
+  _ce2AutoPollTimer = setInterval(async () => {
+    if (CURRENT !== 'ce2') { _ce2StopAutoPoll(); return; }
+    await _fetchMlEstimate();
+    if (_CE.mlEstimateData) { _ce2StopAutoPoll(); showScreen('ce2'); }
+  }, 5000);
 }
 
 /* ── Read-only view of the attending doctor's signed discharge summary ── */
@@ -1729,6 +1744,7 @@ ce2: () => {
   // No estimate yet -- clinical data is still syncing (see _ce1Save's
   // prefetch-all chain) or this hadm_id genuinely has no data available.
   if (!ml) {
+    setTimeout(_ce2StartAutoPoll, 0);
     return `
 <div class="bc">
   <span class="bc-link" onclick="showScreen('ce0')">Module B</span>
@@ -1742,9 +1758,15 @@ ${stepFlow('ce2')}
   <span class="sh-id">CE2</span>
 </div>
 <div class="card" style="padding:40px;text-align:center">
-  <div style="font-size:14px;font-weight:700;margin-bottom:8px">Estimate not ready yet</div>
-  <div style="font-size:13px;color:var(--muted);margin-bottom:20px">The ML model needs this patient's real clinical data, which is still syncing from MIMIC. This usually takes a few moments after admission.</div>
-  <button class="btn btn-pri" id="ce2-refresh-btn" onclick="_ce2Refresh()">↻ Check Again</button>
+  <div style="font-size:32px;margin-bottom:12px;animation:livePulse 2s ease-in-out infinite">⏳</div>
+  <div style="font-size:14px;font-weight:700;margin-bottom:8px">Syncing clinical data from MIMIC…</div>
+  <div style="font-size:13px;color:var(--muted);margin-bottom:16px">This usually takes a few moments after admission. The estimate will appear automatically once ready — no need to keep clicking.</div>
+  <div style="display:flex;justify-content:center;gap:6px;margin-bottom:20px">
+    <span style="width:8px;height:8px;border-radius:50%;background:#d1d5db;animation:liveDot 1.4s ease-in-out infinite"></span>
+    <span style="width:8px;height:8px;border-radius:50%;background:#d1d5db;animation:liveDot 1.4s ease-in-out .2s infinite"></span>
+    <span style="width:8px;height:8px;border-radius:50%;background:#d1d5db;animation:liveDot 1.4s ease-in-out .4s infinite"></span>
+  </div>
+  <button class="btn btn-sec" id="ce2-refresh-btn" onclick="_ce2Refresh()">↻ Check Now</button>
 </div>`;
   }
 
@@ -2374,17 +2396,25 @@ function _liveRenderMl() {
   const dayBadge = document.getElementById('live-day-badge');
   const rangeBox = document.getElementById('live-ml-range');
   const bdBox    = document.getElementById('live-ml-breakdown');
-  if (!dayBadge && !rangeBox && !bdBox) return;
+  const todayBox = document.getElementById('live-today-breakdown');
+  const todayDayNum = document.getElementById('live-today-day-num');
+  if (!dayBadge && !rangeBox && !bdBox && !todayBox) return;
   const fmt = n => '₹' + (n||0).toLocaleString('en-IN');
 
   if (!_liveMl) {
     if (dayBadge) dayBadge.textContent = '';
-    if (rangeBox) rangeBox.innerHTML = `<div style="color:var(--muted);font-size:12px;padding:8px 0">ML prediction not ready yet — clinical data may still be syncing.</div>`;
+    if (rangeBox) rangeBox.innerHTML = `
+      <div style="text-align:center;padding:12px 0">
+        <div style="font-size:24px;margin-bottom:6px;animation:livePulse 2s ease-in-out infinite">⏳</div>
+        <div style="color:var(--muted);font-size:12px">Syncing clinical data from MIMIC — prediction will appear automatically (checking every 30s)…</div>
+      </div>`;
     if (bdBox) bdBox.innerHTML = '';
+    if (todayBox) todayBox.innerHTML = `<div style="color:var(--muted);font-size:12px;padding:8px 0">Loading today's activity…</div>`;
     return;
   }
 
   if (dayBadge) dayBadge.textContent = `Day ${_liveMl.hospital_day}`;
+  if (todayDayNum) todayDayNum.textContent = _liveMl.hospital_day;
 
   if (rangeBox) {
     rangeBox.innerHTML = `
@@ -2418,6 +2448,36 @@ function _liveRenderMl() {
           </tr>`).join('')}</tbody>
         </table>`
       : `<div style="color:var(--muted);font-size:12px;padding:8px 0">No charges recorded yet.</div>`;
+  }
+
+  if (todayBox) {
+    const td = _liveMl.today_breakdown || {};
+    const todayRows = [
+      ['Labs (today)', td.labs], ['Medicines (today)', td.medicines], ['Procedures (today)', td.procedures],
+      ['Ward Charge (today)', td.ward], ['ICU / HDU Charge (today)', td.icu],
+    ].filter(([, amt]) => amt);
+    const todayTable = todayRows.length
+      ? `<table style="width:100%;font-size:12.5px">
+          <tbody>${todayRows.map(([name, amt]) => `<tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:6px 0;color:var(--ink2)">${name}</td>
+            <td style="padding:6px 0;text-align:right;font-weight:600">${fmt(amt)}</td>
+          </tr>`).join('')}
+          <tr><td style="padding:8px 0 2px;font-weight:700;color:var(--ink)">Today's Total</td>
+              <td style="padding:8px 0 2px;text-align:right;font-weight:800;color:var(--ink)">${fmt(td.total)}</td></tr>
+          </tbody>
+        </table>`
+      : `<div style="color:var(--muted);font-size:12px;padding:4px 0 10px">No new activity logged yet today.</div>`;
+
+    todayBox.innerHTML = `
+      ${todayTable}
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+        <div style="font-size:12px;color:var(--ink2)">Cumulative Cost So Far</div>
+        <div style="font-size:16px;font-weight:800;color:var(--ink)">${fmt(_liveMl.cumulative_cost_so_far)}</div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
+        <div style="font-size:12px;color:var(--ink2)">Predicted Final Cost (P50)</div>
+        <div style="font-size:16px;font-weight:800;color:#7c3aed">${fmt(_liveMl.predicted_final_bill_p50)}</div>
+      </div>`;
   }
 }
 
@@ -2635,15 +2695,11 @@ SCREENS['ce_live'] = function() {
   <div id="live-ml-breakdown"></div>
 </div>
 
-<!-- Live activity feed -->
-<div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">
-  Live Activity Feed <span style="font-weight:400;color:#9ca3af;font-size:11px">(most recent first — real MIMIC events, priced via the ML breakdown above)</span>
-</div>
-<div id="live-feed" style="max-height:420px;overflow-y:auto;padding-right:4px">
-  <div data-loading="1" style="padding:40px;text-align:center;color:var(--muted);font-size:13px">
-    <div style="font-size:28px;margin-bottom:8px">⏳</div>
-    Loading charges…
-  </div>
+<!-- Today's day-wise breakdown -- exactly the inputs the ML model is using -->
+<div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:18px 22px;margin-bottom:16px">
+  <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Today's Breakdown (Day <span id="live-today-day-num">–</span>)</div>
+  <div style="font-size:11px;color:#9ca3af;margin-bottom:10px">What the ML model is seeing for today, on top of everything charged so far</div>
+  <div id="live-today-breakdown"></div>
 </div>`;
 };
 

@@ -157,6 +157,15 @@ def build_live_feature_row(hadm_id: int, conn, feature_cols: list,
     cumulative_cost_so_far = sum(breakdown.values())
     cost_per_day_so_far = cumulative_cost_so_far / (hospital_day + 1)
 
+    today_breakdown = {
+        "procedures": round(day_procedures_cost, 2),
+        "medicines": round(day_medicines_cost, 2),
+        "labs": round(day_labs_cost, 2),
+        "ward": round(day_ward_cost, 2),
+        "icu": round(day_icu_cost, 2),
+        "total": round(day_total_cost, 2),
+    }
+
     # ── Assemble raw fields, then align to the model's exact one-hot columns ──
     row = {
         "age_at_admission": ap.anchor_age,
@@ -192,4 +201,4 @@ def build_live_feature_row(hadm_id: int, conn, feature_cols: list,
     if diagnosis_col not in out and "primary_diagnosis_grouped_Other" in out:
         out["primary_diagnosis_grouped_Other"] = 1  # unseen diagnosis -> "Other" bucket
 
-    return pd.DataFrame([out])[feature_cols], breakdown
+    return pd.DataFrame([out])[feature_cols], breakdown, today_breakdown
