@@ -41,23 +41,6 @@ _MODEL_PATH = os.path.join(_COST_ML_DIR, "models", "xgb_quantile_remaining_based
 _DATA_PATH = os.path.join(_COST_ML_DIR, "data", "dcm_model_ready_data.csv")
 
 
-def _clamp_quantiles_to_reality(p10: float, p50: float, p90: float, cumulative_cost_so_far: float):
-    """
-    The final bill can never be less than what's already been charged --
-    costs only accumulate in this system, they're never credited back. A
-    quantile model has no built-in awareness of that constraint (it's
-    especially unreliable on Day 0, where MAPE runs ~106%), so without
-    this it can and does predict a "Floor" below money already spent,
-    which reads as a nonsensical, broken number to anyone looking at the
-    screen. Enforce the floor, then re-sort so P10 <= P50 <= P90 still
-    holds after the clamp.
-    """
-    p10 = max(p10, cumulative_cost_so_far)
-    p50 = max(p50, p10)
-    p90 = max(p90, p50)
-    return p10, p50, p90
-
-
 class CostPredictor:
     """Wraps the trained XGBoost quantile model. Loads once, reused across requests."""
 
@@ -118,10 +101,10 @@ class CostPredictor:
         # total bill -- clamp at >=0 (can't owe negative future money), sort
         # to guard quantile crossing, then add back the known cumulative
         # cost. This makes "Floor >= money already charged" a structural
-        # guarantee, not a hope -- see _MODEL_PATH comment for the numbers.
+        # guarantee from the model itself, not a hardcoded rule bolted on
+        # after -- see _MODEL_PATH comment for the numbers.
         pred_remaining = np.clip(np.expm1(pred_log), 0, None)
         p10, p50, p90 = cumulative + np.sort(pred_remaining)
-        p10, p50, p90 = _clamp_quantiles_to_reality(p10, p50, p90, cumulative)
 
         this_hospital_day = int(row["hospital_day"].iloc[0])
         # Cumulative breakdown by category, days 0..this_hospital_day -- the
@@ -172,7 +155,6 @@ class CostPredictor:
         # bill directly.
         pred_remaining = np.clip(np.expm1(pred_log), 0, None)
         p10, p50, p90 = cumulative + np.sort(pred_remaining)
-        p10, p50, p90 = _clamp_quantiles_to_reality(p10, p50, p90, cumulative)
 
         return {
             "hadm_id": int(hadm_id),
