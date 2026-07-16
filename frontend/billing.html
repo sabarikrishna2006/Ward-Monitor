@@ -2410,6 +2410,7 @@ function _liveRenderMl() {
       </div>`;
     if (bdBox) bdBox.innerHTML = '';
     if (todayBox) todayBox.innerHTML = `<div style="color:var(--muted);font-size:12px;padding:8px 0">Loading today's activity…</div>`;
+    _liveUpdateHeader();
     return;
   }
 
@@ -2439,15 +2440,13 @@ function _liveRenderMl() {
     const rows = [
       ['Ward Charges', bd.ward], ['ICU / HDU Charges', bd.icu], ['Procedures', bd.procedures],
       ['Medicines & Consumables', bd.medicines], ['Labs & Diagnostics', bd.labs],
-    ].filter(([, amt]) => amt);
-    bdBox.innerHTML = rows.length
-      ? `<table style="width:100%;font-size:12.5px">
+    ];
+    bdBox.innerHTML = `<table style="width:100%;font-size:12.5px">
           <tbody>${rows.map(([name, amt]) => `<tr style="border-bottom:1px solid var(--border)">
             <td style="padding:6px 0;color:var(--ink2)">${name}</td>
-            <td style="padding:6px 0;text-align:right;font-weight:600">${fmt(amt)}</td>
+            <td style="padding:6px 0;text-align:right;font-weight:600">${fmt(amt || 0)}</td>
           </tr>`).join('')}</tbody>
-        </table>`
-      : `<div style="color:var(--muted);font-size:12px;padding:8px 0">No charges recorded yet.</div>`;
+        </table>`;
   }
 
   if (todayBox) {
@@ -2455,18 +2454,16 @@ function _liveRenderMl() {
     const todayRows = [
       ['Labs (today)', td.labs], ['Medicines (today)', td.medicines], ['Procedures (today)', td.procedures],
       ['Ward Charge (today)', td.ward], ['ICU / HDU Charge (today)', td.icu],
-    ].filter(([, amt]) => amt);
-    const todayTable = todayRows.length
-      ? `<table style="width:100%;font-size:12.5px">
+    ];
+    const todayTable = `<table style="width:100%;font-size:12.5px">
           <tbody>${todayRows.map(([name, amt]) => `<tr style="border-bottom:1px solid var(--border)">
             <td style="padding:6px 0;color:var(--ink2)">${name}</td>
-            <td style="padding:6px 0;text-align:right;font-weight:600">${fmt(amt)}</td>
+            <td style="padding:6px 0;text-align:right;font-weight:600">${fmt(amt || 0)}</td>
           </tr>`).join('')}
           <tr><td style="padding:8px 0 2px;font-weight:700;color:var(--ink)">Today's Total</td>
               <td style="padding:8px 0 2px;text-align:right;font-weight:800;color:var(--ink)">${fmt(td.total)}</td></tr>
           </tbody>
-        </table>`
-      : `<div style="color:var(--muted);font-size:12px;padding:4px 0 10px">No new activity logged yet today.</div>`;
+        </table>`;
 
     todayBox.innerHTML = `
       ${todayTable}
@@ -2479,6 +2476,12 @@ function _liveRenderMl() {
         <div style="font-size:16px;font-weight:800;color:#7c3aed">${fmt(_liveMl.predicted_final_bill_p50)}</div>
       </div>`;
   }
+
+  // The header total depends on _liveMl -- refresh it here now that this
+  // function is the only remaining path that updates when real ML data
+  // arrives (the old trigger, _liveRevealNext, no longer fires now that
+  // the random-cost activity feed it drove has been removed).
+  _liveUpdateHeader();
 }
 
 async function _liveFetch() {
@@ -2568,20 +2571,25 @@ function _liveUpdateHeader() {
   const phaseEl = document.getElementById('live-phase-badge');
   if (!totalEl) return;
 
-  // Prefer the ML model's real cumulative cost / P50 projection once available;
-  // falls back to the legacy per-event tally only before the first ML fetch resolves.
-  const charged = _liveMl ? _liveMl.cumulative_cost_so_far
-    : (_liveData.charges || []).slice(0, _liveShown).reduce((s,c)=>s+c.cost,0);
-  const est     = _liveMl ? _liveMl.predicted_final_bill_p50 : (_liveData.estimate_total || 0);
-
-  totalEl.textContent = '₹' + charged.toLocaleString('en-IN');
-  // Hide progress bar if no estimate was saved yet
-  const barWrap = barEl?.parentElement;
-  if (barWrap) barWrap.style.display = est > 0 ? '' : 'none';
-  if (barEl && est > 0) {
-    const pct = Math.min(100, Math.round(charged / est * 100));
-    barEl.style.width = pct + '%';
-    barEl.style.background = pct > 90 ? '#dc2626' : pct > 70 ? '#d97706' : '#059669';
+  // Only ever show the ML model's real cumulative cost here -- never the
+  // legacy random per-event tally. Showing a fabricated number (even
+  // briefly, before _liveMl loads) is worse than showing "loading", since
+  // it looks like a real charge and can't be told apart from one.
+  if (!_liveMl) {
+    totalEl.textContent = 'Loading…';
+    const barWrap = barEl?.parentElement;
+    if (barWrap) barWrap.style.display = 'none';
+  } else {
+    const charged = _liveMl.cumulative_cost_so_far;
+    const est     = _liveMl.predicted_final_bill_p50 || 0;
+    totalEl.textContent = '₹' + charged.toLocaleString('en-IN');
+    const barWrap = barEl?.parentElement;
+    if (barWrap) barWrap.style.display = est > 0 ? '' : 'none';
+    if (barEl && est > 0) {
+      const pct = Math.min(100, Math.round(charged / est * 100));
+      barEl.style.width = pct + '%';
+      barEl.style.background = pct > 90 ? '#dc2626' : pct > 70 ? '#d97706' : '#059669';
+    }
   }
   if (phaseEl) {
     const phase = _liveData.billing_phase || 'initial_estimate';
