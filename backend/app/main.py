@@ -925,19 +925,28 @@ def billing_dashboard():
     def _hospital_day(p):
         # ap.admit_time is MIMIC's de-identified, arbitrarily shifted date
         # (e.g. year 2140) -- not usable against real wall-clock "today".
-        # estimate_generated_at (stamped fresh on every "Generate Cost
-        # Estimate" click, same as live_feature_builder.py) is the right
-        # Day-0 anchor; created_at is only a fallback for older rows.
-        anchor = p.get("estimate_generated_at") or p.get("created_at")
+        # Must match live_feature_builder.py's build_live_feature_row() logic
+        # exactly, or the Dashboard and the Live Bill screen show different
+        # day numbers for the same patient. Day 0 = the moment "Generate
+        # Cost Estimate" is actually clicked (estimate_generated_at) -- no
+        # created_at fallback, since row-insert time drifts the day counter
+        # upward for reasons unrelated to this patient's actual care. Freeze
+        # at the patient's real MIMIC length-of-stay (los_days) once reached.
+        anchor = p.get("estimate_generated_at")
         if not anchor:
-            return None
-        try:
-            from datetime import datetime as _dt2, date as _date2
-            d = anchor if not isinstance(anchor, str) else _dt2.fromisoformat(anchor.replace("Z", ""))
-            anchor_date = d.date() if isinstance(d, _dt2) else d
-            return max((_date2.today() - anchor_date).days, 0)
-        except Exception:
-            return None
+            day = 0
+        else:
+            try:
+                from datetime import datetime as _dt2, date as _date2
+                d = anchor if not isinstance(anchor, str) else _dt2.fromisoformat(anchor.replace("Z", ""))
+                anchor_date = d.date() if isinstance(d, _dt2) else d
+                day = max((_date2.today() - anchor_date).days, 0)
+            except Exception:
+                return None
+        los_days = p.get("los_days")
+        if los_days is not None:
+            day = min(day, int(los_days))
+        return day
 
     def _to_action(p, phase):
         bp = p.get("billing_phase") or ""
