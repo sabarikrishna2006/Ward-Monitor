@@ -862,7 +862,10 @@ def billing_dashboard():
         br.actual_charges    AS actual_charges,
         br.is_ab_beneficiary AS is_ab_beneficiary,
         br.ab_scheme         AS ab_scheme,
-        COALESCE(ae.created_at, ap.admit_time) AS sort_key
+        -- Real admission recency, most-recently-admitted first. NOT ap.admit_time --
+        -- that's MIMIC's de-identified, arbitrarily shifted date (e.g. year 2186),
+        -- meaningless for real-world chronological ordering.
+        COALESCE(ae.created_at, ap.estimate_generated_at, ap.created_at) AS sort_key
     """
     with _get_engine().connect() as conn:
         admission_rows = conn.execute(_text(f"""

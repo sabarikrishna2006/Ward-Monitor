@@ -296,12 +296,11 @@ function _bilSignedToast(p) {
     ? `📝 Amendment requested for ${name} — awaiting revised summary`
     : `✅ ${name} signed off — ready for reconciliation`;
   const bg   = isAmendment ? '#7c3aed' : '#d97706';
-  const t = document.createElement('div');
-  t.style.cssText = `position:fixed;top:24px;right:24px;background:${bg};color:#fff;padding:14px 20px;border-radius:10px;font-size:13.5px;font-weight:600;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.2);max-width:360px;line-height:1.4;cursor:pointer`;
-  t.textContent = msg;
-  t.onclick = () => t.remove();
-  document.body.appendChild(t);
-  setTimeout(() => t.remove(), 6000);
+  // Was its own ad-hoc top-right toast, which collided visually with the
+  // "Reconciliation Required" bar (also anchored near the top of the page)
+  // whenever both fired for the same event. Bottom-right stack, same as
+  // every other billing toast, avoids the collision entirely.
+  _showBillingToast(msg, bg);
 }
 
 async function _bilPoll() {
@@ -717,7 +716,10 @@ function _ce0BuildRow(p) {
     <td><b>${name}</b> ${notAdmitted ? '<span class="bd bd-t1">Not Admitted</span>' : ''}</td>
     <td class="mono" style="font-size:11.5px">${p.mrn}</td>
     <td>${p.admit_time_raw ? _fmtDateDisplay(_mimicShiftDate(p.admit_time_raw, _mimicShiftDelta(p.admit_time_raw, p.estimate_generated_at))) : (p.admit_date || '—')}</td>
-    <td>${(!isFinalBill && !isDischarge && p.hospital_day != null) ? `<span class="bd bd-blue">Day ${p.hospital_day}</span>` : '—'}</td>
+    <td>${p.hospital_day == null ? '—'
+      : (!isFinalBill && !isDischarge)
+        ? `<span class="bd bd-blue">Day ${p.hospital_day}</span>`
+        : `<span class="bd bd-gray">LOS ${p.hospital_day}d</span>`}</td>
     <td style="font-size:12px">${insurance}</td>
     <td>${phaseBadge}</td>
     <td>${statusBadge}</td>
@@ -1123,6 +1125,11 @@ function _openCe2bModal() {
   document.getElementById('ce2b-patient').textContent    = _CE.patientName ? `${_CE.mrn || '—'} — ${_CE.patientName}` : (_CE.mrn || '—');
   document.getElementById('ce2b-band').textContent       = `${bandLabel} — ${fmt(bandAmt)}`;
   document.getElementById('ce2b-insurance').textContent  = `${_CE.insuranceCo || '—'} · ${_CE.paymentMode || '—'}`;
+  // Pre-auth only exists for Cashless -- it was showing "—" for every other
+  // mode instead of just not being there at all, which read as "why do I
+  // need this for Reimbursement" rather than "this doesn't apply here."
+  const preauthRow = document.getElementById('ce2b-preauth-row');
+  if (preauthRow) preauthRow.style.display = _CE.paymentMode === 'Cashless' ? '' : 'none';
   document.getElementById('ce2b-preauth').textContent    = _CE.preauthNo || '—';
   document.getElementById('ce2b-enteredby').textContent  = user.full_name || 'Billing Staff';
   document.getElementById('ce2b-ts').textContent         = new Date().toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
@@ -1180,15 +1187,35 @@ function _ce2bSave() {
   showScreen('ce3');
 }
 
+// Multiple toasts can legitimately fire in quick succession (e.g. "patient
+// admitted" followed a few seconds later by "clinical data synced") -- stack
+// them vertically instead of dropping each new one on top of the last.
+let _billingToasts = [];
+function _billingRestackToasts() {
+  let bottom = 24;
+  for (const el of _billingToasts) {
+    el.style.bottom = bottom + 'px';
+    bottom += el.offsetHeight + 12;
+  }
+}
 function _showBillingToast(html, color) {
   color = color || '#2563eb';
   const t = document.createElement('div');
-  t.style.cssText = `position:fixed;bottom:24px;right:24px;z-index:9999;background:${color};color:#fff;` +
+  t.style.cssText = `position:fixed;right:24px;z-index:9999;background:${color};color:#fff;` +
     `padding:14px 20px;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.25);` +
-    `max-width:340px;font-size:13px;line-height:1.5;transition:opacity .4s;`;
+    `max-width:340px;font-size:13px;line-height:1.5;transition:opacity .4s,bottom .3s;`;
   t.innerHTML = html;
   document.body.appendChild(t);
-  setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 450); }, 4500);
+  _billingToasts.push(t);
+  _billingRestackToasts();
+  setTimeout(() => {
+    t.style.opacity = '0';
+    setTimeout(() => {
+      t.remove();
+      _billingToasts = _billingToasts.filter(el => el !== t);
+      _billingRestackToasts();
+    }, 450);
+  }, 4500);
 }
 
 /* ── CE4 — Reconciliation Logic ── */
@@ -1275,9 +1302,14 @@ async function _ce4Distill() {
 function _ce4ComputeVariance() {
   if (!_ce4Data) return;
   const reconItems = _ce4Data.reconciliation?.computed_actual_items || [];
-  const lineItems  = (_ce4Data.estimate.line_items?.length)
-    ? _ce4Data.estimate.line_items
-    : (_ce4Data.reconciliation?.computed_estimate_items?.length ? _ce4Data.reconciliation.computed_estimate_items : reconItems);
+  const _hasRealEst = !!(_ce4Data.estimate.line_items?.length || _ce4Data.reconciliation?.computed_estimate_items?.length);
+  const _estT  = _ce4Data.estimate.est_total || 0;
+  const _actS  = reconItems.reduce((s, it) => s + (it.amount || 0), 0);
+  const lineItems  = _hasRealEst
+    ? (_ce4Data.estimate.line_items?.length ? _ce4Data.estimate.line_items : _ce4Data.reconciliation.computed_estimate_items)
+    : (_actS > 0 && _estT > 0
+        ? reconItems.map(it => ({ name: it.name, amount: Math.round((it.amount / _actS) * _estT) }))
+        : reconItems);
   let estTotal = 0, actTotal = 0, allFilled = true;
   const fmt = n => '₹' + Math.round(n).toLocaleString('en-IN');
 
@@ -1532,26 +1564,57 @@ function _ce5Download() {
 }
 
 function _ce5Email() {
-  const toast = document.createElement('div');
-  toast.style.cssText = 'position:fixed;top:24px;right:24px;background:#16a34a;color:#fff;padding:12px 20px;border-radius:8px;font-size:13.5px;font-weight:600;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,.15)';
-  toast.textContent = `📧 Bill emailed to patient (${_CE.mrn || 'PT'}) — copy saved to records.`;
-  document.body.appendChild(toast);
-  setTimeout(() => toast.remove(), 4000);
+  _showBillingToast(`📧 Bill emailed to patient (${_CE.mrn || 'PT'}) — copy saved to records.`, '#16a34a');
 }
 
 /* ── CE5 — Insurance claim submission ── */
 function _ce5SubmitClaim(insLabel) {
-  const btn    = document.getElementById('ce5-submit-claim-btn');
-  const badge  = document.getElementById('ce5-claim-status-badge');
+  const btn      = document.getElementById('ce5-submit-claim-btn');
+  const badge    = document.getElementById('ce5-claim-status-badge');
+  const recon    = _ce4Data?.reconciliation || {};
+  const claimType = (recon.payment_mode || _CE.paymentMode || '').toLowerCase() === 'reimbursement' ? 'Reimbursement' : 'Cashless';
   if (btn)  { btn.disabled = true; btn.textContent = 'Submitting…'; }
   _ceSaveRecord({ billing_phase: 'claim_submitted' }).then(() => {
     if (badge) { badge.className = 'bd bd-ok'; badge.textContent = 'Submitted to ' + insLabel; }
     if (btn)   { btn.textContent = '✓ Submitted'; btn.style.color = 'var(--ok)'; }
-    const toast = document.createElement('div');
-    toast.style.cssText = 'position:fixed;top:24px;right:24px;background:#16a34a;color:#fff;padding:12px 20px;border-radius:8px;font-size:13.5px;font-weight:600;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,.15)';
-    toast.textContent = `✅ Claim submitted to ${insLabel}. Reference saved.`;
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 4000);
+    _showBillingToast(`✅ Claim submitted to ${insLabel}. Reference saved.`, '#16a34a');
+
+    // Reimbursement specifically needs the PATIENT to file the claim with
+    // their insurer -- Cashless goes through the hospital's TPA portal, not
+    // an email the patient sends themselves, so this only applies there.
+    if (claimType === 'Reimbursement') {
+      const fmt = n => '₹' + Math.round(n || 0).toLocaleString('en-IN');
+      const gross = recon.actual_gross || 0;
+      const subject = encodeURIComponent(`Reimbursement Claim — ${_CE.patientName || 'Patient'} — Policy ${_CE.policyNo || ''}`);
+      const body = encodeURIComponent(
+`To ${insLabel} Claims Department,
+
+I am submitting a reimbursement claim for hospitalisation expenses under my policy.
+
+━━━━━━━━━━━━━━━━━━━━━━
+POLICY DETAILS
+━━━━━━━━━━━━━━━━━━━━━━
+Policyholder   : ${_CE.patientName || '—'}
+Policy Number  : ${_CE.policyNo || '—'}
+${_CE.claimNo ? `Claim Number   : ${_CE.claimNo}\n` : ''}Sum Insured    : ${_CE.sumInsured ? fmt(parseInt(_CE.sumInsured)) : '—'}
+
+━━━━━━━━━━━━━━━━━━━━━━
+HOSPITALISATION DETAILS
+━━━━━━━━━━━━━━━━━━━━━━
+Patient MRN    : ${_CE.mrn || '—'}
+Admission      : ${_CE.admitDate || '—'}
+Discharge      : ${_CE.dischargeDate || '—'}
+Total Bill Paid: ${fmt(gross)}
+
+I have paid the full hospital bill and am attaching the discharge summary, itemised final bill, and payment receipt for claim processing. Please process the reimbursement to my registered bank account at your earliest convenience.
+
+Regards,
+${_CE.patientName || 'Patient'}
+`);
+      const gmailUrl = `https://mail.google.com/mail/?view=cm&su=${subject}&body=${body}`;
+      window.open(gmailUrl, '_blank');
+      _showBillingToast('📧 Claim email opened — attach the discharge summary, bill, and receipt before sending.', '#2563eb');
+    }
   });
 }
 
@@ -2000,13 +2063,20 @@ ${stepFlow('ce4')}
   const reconItems   = reconciliation?.computed_actual_items || [];
   // computed_estimate_items is always empty by design (the ML model predicts
   // a total range, not a per-category future breakdown -- no real
-  // "estimated per line item" exists to show). Falls through to the real
-  // actual breakdown so the table has something real to display, rather
-  // than silently rendering zero rows -- an empty array is truthy in JS,
-  // so this needed a .length check, not a bare `||`.
-  const lineItems    = (estimate.line_items?.length)
-    ? estimate.line_items
-    : (reconciliation?.computed_estimate_items?.length ? reconciliation.computed_estimate_items : reconItems);
+  // "estimated per line item" ever existed to show). Scale the real actual
+  // breakdown's category MIX to the ML's quoted total instead: "if the bill
+  // had come in at what was estimated, this is roughly how it would have
+  // split by category." Keeps the Estimated column honest (a real, distinct
+  // number) rather than just duplicating the Actual column with an always-0%
+  // variance, which silently implied every estimate was perfect.
+  const _estTotal  = estimate.est_total || 0;
+  const _actualSum = reconItems.reduce((s, it) => s + (it.amount || 0), 0);
+  const _hasRealEstimateItems = !!(estimate.line_items?.length || reconciliation?.computed_estimate_items?.length);
+  const lineItems = _hasRealEstimateItems
+    ? (estimate.line_items?.length ? estimate.line_items : reconciliation.computed_estimate_items)
+    : (_actualSum > 0 && _estTotal > 0
+        ? reconItems.map(it => ({ name: it.name, amount: Math.round((it.amount / _actualSum) * _estTotal) }))
+        : reconItems);
   const savedActuals = actuals_saved ? (actuals_saved.actual_line_items || []) : [];
   const fmt = n => '₹' + Math.round(n || 0).toLocaleString('en-IN');
 
@@ -2337,7 +2407,7 @@ ${headerAlert}
         <table style="width:100%;font-size:12px"><tbody>
           <tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 0;color:var(--muted)">Insurer</td><td style="padding:6px 0;font-weight:600">${insCo}</td></tr>
           <tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 0;color:var(--muted)">Type</td><td style="padding:6px 0">${claimType}</td></tr>
-          <tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 0;color:var(--muted)">Pre-auth no.</td><td style="padding:6px 0;font-family:var(--mono)">${_CE.preauthNo || '—'}</td></tr>
+          ${claimType === 'Cashless' ? `<tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 0;color:var(--muted)">Pre-auth no.</td><td style="padding:6px 0;font-family:var(--mono)">${_CE.preauthNo || '—'}</td></tr>` : ''}
           <tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 0;color:var(--muted)">Claim status</td><td style="padding:6px 0"><span id="ce5-claim-status-badge" class="bd bd-t2">Pending Submission</span></td></tr>
           <tr><td style="padding:6px 0;color:var(--muted)">Submit claim</td><td style="padding:6px 0">
             <button id="ce5-submit-claim-btn" class="btn btn-sec btn-xs" onclick="_ce5SubmitClaim('${insLabel}')">Submit to ${insLabel}</button>
@@ -2963,7 +3033,7 @@ Foqal CareOS — Billing Department
       <tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 0;color:var(--muted);width:110px">Patient</td><td id="ce2b-patient" style="padding:9px 0;font-weight:700"></td></tr>
       <tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 0;color:var(--muted)">Selected band</td><td id="ce2b-band" style="padding:9px 0;font-weight:700"></td></tr>
       <tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 0;color:var(--muted)">Insurance</td><td id="ce2b-insurance" style="padding:9px 0"></td></tr>
-      <tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 0;color:var(--muted)">Pre-auth No.</td><td id="ce2b-preauth" style="padding:9px 0;font-family:var(--mono);font-size:11.5px"></td></tr>
+      <tr id="ce2b-preauth-row" style="border-bottom:1px solid var(--border)"><td style="padding:9px 0;color:var(--muted)">Pre-auth No.</td><td id="ce2b-preauth" style="padding:9px 0;font-family:var(--mono);font-size:11.5px"></td></tr>
       <tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 0;color:var(--muted)">Entered by</td><td id="ce2b-enteredby" style="padding:9px 0"></td></tr>
       <tr><td style="padding:9px 0;color:var(--muted)">Timestamp</td><td id="ce2b-ts" style="padding:9px 0;font-family:var(--mono);font-size:11.5px"></td></tr>
     </tbody></table>
