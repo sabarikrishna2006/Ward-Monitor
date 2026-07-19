@@ -1078,13 +1078,6 @@ def billing_dashboard():
     }
 
 
-# ── Ward/ICU rate constants — single source of truth is cost_ml_model/pricing_config.json ──
-import json as _json_top
-with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "pricing_config.json")) as _pf:
-    _rates_top = _json_top.load(_pf)["rates"]
-    WARD_RATE = _rates_top["WARD_RATE"]
-    ICU_RATE  = _rates_top["ICU_RATE"]
-
 class GenerateEstimateRequest(BaseModel):
     hadm_id:           Optional[int] = None
     ward_type:         str  = "Semi-private Ward"
@@ -1819,7 +1812,6 @@ def get_billing_reconciliation(hadm_id: int):
     pay_mode_recon  = (r.get("payment_mode") or "").lower()
     ins_co_recon    = r.get("insurance_co") or ""
     copay_pct_recon = r.get("copay_pct") or 0
-    rrlt_recon      = r.get("room_rent_limit") or 0
     preauth_recon   = r.get("preauth_amount") or 0
 
     # Government/scheme coverage now reimburses at the ML-predicted "as
@@ -1847,23 +1839,9 @@ def get_billing_reconciliation(hadm_id: int):
         scheme_summary = f"Haryana State Scheme covers ₹{_state_rate:,}. Patient pays ₹0"
     elif pay_mode_recon == "cashless":
         copay_pct_eff  = copay_pct_recon or 10   # default 10% copay if not set at CE1
-        # Room rent excess -- charged separately for ward vs ICU days (real day
-        # counts, derived from the actual cost breakdown), not the flat WARD_RATE
-        # applied across the whole stay. ICU's real per-day rate (₹8,000) is
-        # nearly always above any room rent limit, so treating ICU days as
-        # ward-rate days understated the excess for exactly the ICU-heavy
-        # admissions this cohort mostly consists of.
-        if rrlt_recon and _ml_actual:
-            _bd_rr      = _ml_actual["cost_breakdown"]
-            ward_days   = _bd_rr.get("ward", 0) / WARD_RATE if WARD_RATE else 0
-            icu_days_rr = _bd_rr.get("icu", 0)  / ICU_RATE  if ICU_RATE  else 0
-            rr_excess   = round(max(0, WARD_RATE - rrlt_recon) * ward_days
-                               + max(0, ICU_RATE  - rrlt_recon) * icu_days_rr)
-        else:
-            rr_excess = 0
         copay_amt      = round(actual_gross * copay_pct_eff / 100)
         ins_covers     = min(actual_gross - copay_amt, preauth_recon) if preauth_recon else (actual_gross - copay_amt)
-        patient_final  = copay_amt + rr_excess
+        patient_final  = copay_amt
         govt_final     = None
         ins_label      = ins_co_recon.split()[0] if ins_co_recon else "Insurance"
         scheme_summary = f"{ins_label} (Cashless) covers ₹{ins_covers:,}. Patient copay {copay_pct_eff}%: ₹{patient_final:,}"
