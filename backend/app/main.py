@@ -811,24 +811,12 @@ def get_dashboard_stats():
 
 
 # ── Billing Dashboard ─────────────────────────────────────────────────────────
-def _shift_mimic_date(dt, years: int = 100):
-    """MIMIC-IV de-identifies real admission dates by shifting them decades
-    into the future (e.g. year 2186) -- fine for internal day-math (which
-    uses relative offsets, not this absolute value), but confusing to show
-    a billing staffer on screen. Shifts back `years` for display only."""
-    if not dt:
-        return dt
-    try:
-        from datetime import datetime as _dt3
-        d = dt if not isinstance(dt, str) else _dt3.fromisoformat(dt.replace("Z", ""))
-        try:
-            return d.replace(year=d.year - years)
-        except ValueError:
-            # Feb 29 shifted onto a non-leap year
-            return d.replace(year=d.year - years, day=28)
-    except Exception:
-        return dt
-
+# NOTE: MIMIC dates (admit_time, discharge_time, etc.) are returned RAW
+# everywhere below, on purpose -- the ML models are trained against these
+# real values and nothing here should risk touching what they see. Any
+# "make this look like a recent date" display shift belongs in the
+# frontend only (see _mimicShiftDelta/_mimicDisplay in billing.html),
+# applied purely for what's rendered on screen.
 
 @app.get("/api/billing/dashboard")
 def billing_dashboard():
@@ -917,7 +905,6 @@ def billing_dashboard():
         try:
             from datetime import datetime as _dt
             d = dt if not isinstance(dt, str) else _dt.fromisoformat(dt.replace("Z", ""))
-            d = _shift_mimic_date(d)
             return d.strftime("%d %b %Y")
         except Exception:
             return str(dt)[:10]
@@ -966,6 +953,11 @@ def billing_dashboard():
             "is_admitted":    bool(p.get("is_admitted", True)),
             "admit_date":     _fmt(p.get("admit_time")),
             "discharge_date": _fmt(p.get("discharge_time")),
+            # Raw passthrough so the frontend can compute its own display
+            # shift (see _mimicShiftDelta in billing.html) -- not used for
+            # anything server-side.
+            "admit_time_raw":         p.get("admit_time").isoformat() if p.get("admit_time") else None,
+            "estimate_generated_at":  p.get("estimate_generated_at").isoformat() if p.get("estimate_generated_at") else None,
             "hospital_day":   _hospital_day(p),
             "insurance_co":   p.get("insurance_co") or "",
             "payment_mode":   p.get("payment_mode") or "",
@@ -1001,7 +993,7 @@ def billing_dashboard():
                    br.is_ab_beneficiary, br.ab_scheme,
                    ap.subject_id, ap.gender, ap.anchor_age, ap.is_admitted,
                    ap.primary_diagnosis_title,
-                   ap.admit_time, ap.discharge_time,
+                   ap.admit_time, ap.discharge_time, ap.estimate_generated_at, ap.created_at,
                    COALESCE((SELECT SUM(i.los) FROM ap_icustays i WHERE i.hadm_id = br.hadm_id), 0) AS icu_days,
                    COALESCE((SELECT COUNT(*) FROM ap_procedures p WHERE p.hadm_id = br.hadm_id), 0) AS proc_count
             FROM billing_records br
@@ -1036,6 +1028,8 @@ def billing_dashboard():
             "gender":         r.get("gender", ""),
             "age":            r.get("anchor_age", ""),
             "admit_date":     _fmt(r.get("admit_time")),
+            "admit_time_raw":        r.get("admit_time").isoformat() if r.get("admit_time") else None,
+            "estimate_generated_at": r.get("estimate_generated_at").isoformat() if r.get("estimate_generated_at") else None,
             "diagnosis":      (r.get("primary_diagnosis_title") or "")[:60],
             "phase":          "post_discharge",
             "billing_phase":  r["billing_phase"],
@@ -1282,7 +1276,8 @@ def get_live_charges(hadm_id: int):
             "SELECT billing_phase, expected_est AS total_estimate, line_items FROM billing_records WHERE hadm_id = :h"
         ), {"h": hadm_id}).fetchone()
         pt = conn.execute(_text(
-            "SELECT patient_name, anchor_age, gender, admit_time, primary_diagnosis_title FROM active_patients WHERE hadm_id = :h"
+            "SELECT patient_name, anchor_age, gender, admit_time, primary_diagnosis_title, estimate_generated_at"
+            " FROM active_patients WHERE hadm_id = :h"
         ), {"h": hadm_id}).fetchone()
 
         # Real MIMIC data for this patient
@@ -1428,8 +1423,9 @@ def get_live_charges(hadm_id: int):
         "patient_name":        (pt[0] if pt else None),
         "anchor_age":          (pt[1] if pt else None),
         "gender":              (pt[2] if pt else None),
-        "admit_time":          (str(_shift_mimic_date(pt[3]))[:10] if pt and pt[3] else None),
+        "admit_time":          (str(pt[3])[:10] if pt and pt[3] else None),
         "diagnosis":           (pt[4] if pt else None),
+        "estimate_generated_at": (pt[5].isoformat() if pt and pt[5] else None),
         "billing_phase":       br_data.get("billing_phase"),
         "estimate_total":      estimate_total,
         "estimate_line_items": line_items,
@@ -1490,13 +1486,12 @@ def upsert_billing_record(hadm_id: int, req: BillingRecordUpsert):
 @app.get("/api/billing/patient/{hadm_id}")
 def get_billing_patient(hadm_id: int):
     """Patient details for CE1 pre-fill — active_patients + encounter + billing_record."""
-    from datetime import datetime as _dt
     from sqlalchemy import text as _text
     from .cloud_sql_db import get_engine as _get_engine
     with _get_engine().connect() as conn:
         row = conn.execute(_text("""
             SELECT ap.hadm_id, ap.subject_id, ap.gender, ap.anchor_age,
-                   ap.admit_time, ap.discharge_time, ap.los_days,
+                   ap.admit_time, ap.discharge_time, ap.los_days, ap.estimate_generated_at,
                    ap.primary_diagnosis_title, ap.primary_diagnosis_code,
                    ae.id AS encounter_id, ae.status AS enc_status,
                    ae.discharge_type,
@@ -1539,10 +1534,9 @@ def get_billing_patient(hadm_id: int):
             try:
                 from .los_predictor import los_predictor
                 los_pred = los_predictor.predict_live(hadm_id, conn)
-                # LOS model's admit_date is real MIMIC-space -- shift to
-                # display-space same as every other MIMIC date shown on screen.
-                exp_dt = _dt.fromisoformat(los_pred["expected_discharge_date"])
-                expected_discharge = _shift_mimic_date(exp_dt).date().isoformat()
+                # Raw MIMIC-space date -- frontend shifts it for display,
+                # same as admit_time/discharge_time below.
+                expected_discharge = los_pred["expected_discharge_date"]
                 expected_los = round(los_pred["hospital_day"] + los_pred["predicted_remaining_days"])
             except Exception as _e:
                 log.warning(f"LOS prediction unavailable for hadm {hadm_id}: {_e}")
@@ -1550,8 +1544,9 @@ def get_billing_patient(hadm_id: int):
 
     result["expected_discharge"] = expected_discharge
     result["expected_los"] = expected_los
-    result["admit_time"] = str(_shift_mimic_date(result.get("admit_time")) or "") or None
-    result["discharge_time"] = str(_shift_mimic_date(result.get("discharge_time")) or "") or None
+    result["admit_time"] = str(result.get("admit_time") or "") or None
+    result["discharge_time"] = str(result.get("discharge_time") or "") or None
+    result["estimate_generated_at"] = result.get("estimate_generated_at").isoformat() if result.get("estimate_generated_at") else None
     result["primary_procedure_icd"] = proc_row[0] if proc_row else None
     result["primary_procedure_version"] = proc_row[1] if proc_row else None
     result["primary_procedure_title"] = proc_row[2] if proc_row else None

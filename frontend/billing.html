@@ -357,6 +357,7 @@ const _CE = {
   cost:          'expected',
   hadm_id:       null,
   mrn:           null,
+  subjectId:     null,
   patientName:   null,
   age:           null,
   gender:        null,
@@ -403,24 +404,54 @@ function _ceReset() {
   _ce4Data  = null;
 }
 
+// MIMIC-IV de-identifies real dates by shifting each patient a DIFFERENT,
+// random number of years into the future (some ~50y, others 150y+) --
+// the backend always returns these RAW (the ML models are trained on the
+// real values, so nothing shifts them server-side). For display only, we
+// anchor this admission's own admit_time onto the real moment we started
+// tracking it (estimate_generated_at) and shift every other date for this
+// same patient by that exact same delta -- guarantees the shown admission
+// date is never in the future, while preserving the true day-gaps between
+// admission/discharge/events.
+function _mimicShiftDelta(admitRaw, anchorRaw) {
+  if (!admitRaw || !anchorRaw) return 0;
+  const admit = new Date(admitRaw), anchor = new Date(anchorRaw);
+  if (isNaN(admit) || isNaN(anchor)) return 0;
+  return anchor.getTime() - admit.getTime();
+}
+function _mimicShiftDate(rawDateStr, deltaMs) {
+  if (!rawDateStr) return '';
+  const d = new Date(rawDateStr);
+  if (isNaN(d)) return rawDateStr;
+  return new Date(d.getTime() + (deltaMs || 0)).toISOString().slice(0, 10);
+}
+function _fmtDateDisplay(isoDateStr) {
+  if (!isoDateStr) return '';
+  const d = new Date(isoDateStr + 'T00:00:00');
+  if (isNaN(d)) return isoDateStr;
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
 function _applyPatientDetails(d) {
   if (!d) return;
   _CE.hadm_id       = d.hadm_id;
-  // MRN = MIMIC subject_id (patient-level ID, not admission-level hadm_id)
-  _CE.mrn           = d.subject_id ? String(d.subject_id) : `PT-${d.hadm_id}`;
+  // Patient ID = hadm_id (the actual key used everywhere in this app) --
+  // NOT subject_id, which is a different MIMIC-level identifier that was
+  // confusingly swapping into this same field once real data synced.
+  _CE.mrn           = String(d.hadm_id);
+  _CE.subjectId     = d.subject_id ? String(d.subject_id) : '';
   _CE.patientName   = _bilName(d.hadm_id);
   _CE.age           = d.anchor_age;
   _CE.gender        = d.gender;
   _CE.diagnosis     = d.primary_diagnosis_title || '';
   _CE.diagnosisCode = d.primary_diagnosis_code || '';
-  // admit_time/discharge_time/expected_discharge come back from the backend
-  // already shifted -100y for display (see _shift_mimic_date in main.py) —
-  // real MIMIC years like 2186 would otherwise show up on screen.
-  _CE.admitDate     = d.admit_time ? d.admit_time.slice(0,10) : '';
-  // Use expected_discharge (actual ± seeded offset) — NOT the real MIMIC discharge
-  _CE.dischargeDate      = d.expected_discharge || (d.discharge_time ? d.discharge_time.slice(0,10) : '');
-  _CE.actualDischargeDate = d.discharge_time ? d.discharge_time.slice(0,10) : '';
-  _CE.losDays       = d.expected_los || d.los_days || 7;
+  const _delta = _mimicShiftDelta(d.admit_time, d.estimate_generated_at);
+  _CE.admitDate     = d.admit_time ? _mimicShiftDate(d.admit_time, _delta) : '';
+  // Use expected_discharge (LOS-model prediction, or a staff-saved override) — NOT the real MIMIC discharge
+  _CE.dischargeDate      = d.expected_discharge ? _mimicShiftDate(d.expected_discharge, _delta)
+                            : (d.discharge_time ? _mimicShiftDate(d.discharge_time, _delta) : '');
+  _CE.actualDischargeDate = d.discharge_time ? _mimicShiftDate(d.discharge_time, _delta) : '';
+  _CE.losDays       = d.expected_los || d.los_days || null;
   _CE.dischargeType = d.discharge_type || 'Standard';
   _CE.encounterId   = d.encounter_id;
   // Insurance always pre-fills from DB (seeded at startup for all patients)
@@ -557,7 +588,7 @@ async function _loadBillingDashboard() {
         return `<tr style="cursor:pointer" onclick="_ceSelectPatient(${p.hadm_id},'${destPhase}')">
           <td><b>${name}</b><br><span style="font-size:10px;color:var(--muted)">${fmtPid(p.hadm_id, p.display_id)}</span></td>
           <td class="mono" style="font-size:11.5px">${p.mrn}</td>
-          <td>${p.admit_date || '—'}</td>
+          <td>${p.admit_time_raw ? _fmtDateDisplay(_mimicShiftDate(p.admit_time_raw, _mimicShiftDelta(p.admit_time_raw, p.estimate_generated_at))) : (p.admit_date || '—')}</td>
           <td>${phaseLbl}</td>
           <td><span class="bd bd-ok">Estimate Saved</span></td>
           <td style="font-weight:700;color:var(--p)">${amt ? '₹' + Math.round(amt).toLocaleString('en-IN') : '—'}</td>
@@ -595,7 +626,7 @@ async function _loadBillingDashboard() {
           return `<tr>
             <td><b>${name}</b> ${notAdmitted ? '<span class="bd bd-t1">Not Admitted</span>' : ''}</td>
             <td class="mono" style="font-size:11.5px">${p.mrn}</td>
-            <td>${p.admit_date || '—'}</td>
+            <td>${p.admit_time_raw ? _fmtDateDisplay(_mimicShiftDate(p.admit_time_raw, _mimicShiftDelta(p.admit_time_raw, p.estimate_generated_at))) : (p.admit_date || '—')}</td>
             <td style="font-size:12px">${_bilInsurance(p.hadm_id, p.insurance_co, p.payment_mode, p.is_ab_beneficiary, p.ab_scheme)}</td>
             <td style="font-weight:700">${estTotal ? '₹' + Math.round(estTotal).toLocaleString('en-IN') : '—'}</td>
             <td style="font-weight:700">${actTotal ? '₹' + Math.round(actTotal).toLocaleString('en-IN') : '—'}</td>
@@ -682,7 +713,7 @@ function _ce0BuildRow(p) {
   return `<tr style="cursor:pointer" onclick="${rowClick}">
     <td><b>${name}</b> ${notAdmitted ? '<span class="bd bd-t1">Not Admitted</span>' : ''}</td>
     <td class="mono" style="font-size:11.5px">${p.mrn}</td>
-    <td>${p.admit_date || '—'}</td>
+    <td>${p.admit_time_raw ? _fmtDateDisplay(_mimicShiftDate(p.admit_time_raw, _mimicShiftDelta(p.admit_time_raw, p.estimate_generated_at))) : (p.admit_date || '—')}</td>
     <td>${(!isFinalBill && !isDischarge && p.hospital_day != null) ? `<span class="bd bd-blue">Day ${p.hospital_day}</span>` : '—'}</td>
     <td style="font-size:12px">${insurance}</td>
     <td>${phaseBadge}</td>
@@ -1046,7 +1077,7 @@ async function _ceViewSignedSummary(hadmId) {
     const patient = await fetch(`${base}/api/billing/patient/${hadmId}`).then(r => r.ok ? r.json() : null);
     if (!patient || !patient.encounter_id) throw new Error('No encounter found');
     const summary = await fetch(`${base}/api/encounters/${patient.encounter_id}/summary`).then(r => r.ok ? r.json() : null);
-    const mrn = patient.subject_id ? String(patient.subject_id) : `PT-${hadmId}`;
+    const mrn = String(hadmId);
 
     if (!summary || !summary.content) {
       body.innerHTML = `
@@ -1190,25 +1221,7 @@ function _ceFinalBillView(hadm_id) {
     fetch(`${base}/api/billing/patient/${hadm_id}`).then(r => r.ok ? r.json() : null).catch(() => null),
     fetch(`${base}/api/billing/reconciliation/${hadm_id}`).then(r => r.ok ? r.json() : null).catch(() => null),
   ]).then(([patient, recon]) => {
-    if (patient) {
-      _CE.hadm_id             = patient.hadm_id;
-      _CE.mrn                 = patient.subject_id ? String(patient.subject_id) : `PT-${patient.hadm_id}`;
-      _CE.patientName         = _bilName(patient.hadm_id);
-      _CE.age                 = patient.anchor_age;
-      _CE.gender              = patient.gender;
-      _CE.diagnosis           = patient.primary_diagnosis_title || '';
-      _CE.admitDate           = patient.admit_time ? patient.admit_time.slice(0,10) : '';
-      _CE.dischargeDate       = patient.expected_discharge || (patient.discharge_time ? patient.discharge_time.slice(0,10) : '');
-      _CE.actualDischargeDate = patient.discharge_time ? patient.discharge_time.slice(0,10) : '';
-      _CE.losDays             = patient.expected_los || patient.los_days || 7;
-      _CE.dischargeType       = patient.discharge_type || 'Standard';
-      _CE.encounterId         = patient.encounter_id;
-      _CE.paymentMode         = patient.payment_mode || 'Cashless';
-      _CE.insuranceCo         = patient.insurance_co || '';
-      _CE.policyNo            = patient.policy_number || '';
-      _CE.preauthNo           = patient.preauth_number || '';
-      _CE.preauthAmt          = patient.preauth_amount ? String(patient.preauth_amount) : '';
-    }
+    if (patient) _applyPatientDetails(patient);
     if (recon) {
       _ce4Data = recon;
       if (recon.actuals_saved) {
@@ -1667,7 +1680,7 @@ ${stepFlow('ce1')}
       <div class="fg">
         <label class="fl">Patient ID</label>
         <input class="fi ${hasPatient ? 'valid' : ''}" id="ce1-mrn" value="${_CE.mrn || ''}" ${hasPatient ? 'readonly style="background:var(--surf)"' : 'onblur="_ce1PatientIdBlur()" placeholder="Enter HADM ID and click away to start syncing"'}>
-        ${hasPatient ? `<div class="fi-hint">✓ ${_CE.patientName}${ageSex ? ' · ' + ageSex : ''} · HADM: ${_CE.hadm_id}</div>` : ''}
+        ${hasPatient ? `<div class="fi-hint">✓ ${_CE.patientName}${ageSex ? ' · ' + ageSex : ''}${_CE.subjectId ? ' · Subject: ' + _CE.subjectId : ''}</div>` : ''}
       </div>
       <div class="frow">
         <div class="fg">
@@ -1693,7 +1706,11 @@ ${stepFlow('ce1')}
         <div class="fi-hint">Auto-fetched — no manual selection needed, the ML model reads this directly from the patient's real diagnosis data.</div>
       </div>
       <div class="frow">
-        <div class="fg"><label class="fl">Expected LOS (days)</label><input class="fi" id="ce1-los" type="number" value="${_CE.losDays || 7}" readonly style="background:var(--surf)"></div>
+        <div class="fg"><label class="fl">Expected LOS (days)</label>
+          ${_CE.syncing && !_CE.losDays
+            ? `<div class="fi" style="display:flex;align-items:center;gap:8px;color:var(--muted)"><span style="animation:livePulse 1.4s ease-in-out infinite">⏳</span> Calculating…</div>`
+            : `<input class="fi" id="ce1-los" type="number" value="${_CE.losDays || ''}" readonly style="background:var(--surf)">`}
+        </div>
         <div class="fg"><label class="fl">Ward / Bed Type</label>
           <select class="fi" id="ce1-ward">
             <option>General Ward</option>
@@ -2697,7 +2714,9 @@ function _liveRevealNext() {
 SCREENS['ce_live'] = function() {
   const name  = _liveData?.patient_name || _CE.patientName || '—';
   const diag  = _liveData?.diagnosis    || _CE.diagnosis   || '—';
-  const admit = _liveData?.admit_time   || _CE.admitDate   || '—';
+  const admit = (_liveData?.admit_time
+    ? _mimicShiftDate(_liveData.admit_time, _mimicShiftDelta(_liveData.admit_time, _liveData.estimate_generated_at))
+    : _CE.admitDate) || '—';
   const phase = _liveData?.billing_phase || '—';
   const isReconcReady = phase === 'reconciliation_pending';
 
