@@ -394,20 +394,25 @@ const LAZY = {
   'ICU Events':'procedureevents',
 };
 
+// Structured categories accept .csv (parsed into rows) PLUS common document
+// formats (stored as reference attachments only, not parsed -- see
+// ingest_file()'s reference-only path in main.py for why: there's no
+// per-row structure to extract from a scanned PDF report or Word doc).
+const _REF_DOC_TYPES = '.pdf,.doc,.docx,.jpg,.jpeg,.png';
 const FILE_SLOTS = [
-  {k:'labs',         title:'Labs & Investigations',  accepts:'.csv'},
-  {k:'meds',         title:'Medications',            accepts:'.csv'},
-  {k:'notes',        title:'Clinical Notes',         accepts:'.csv,.txt,.pdf'},
-  {k:'diagnoses',    title:'Diagnoses (ICD)',        accepts:'.csv'},
-  {k:'procedures',   title:'Procedures',             accepts:'.csv'},
-  {k:'vitals',       title:'Vitals / Chart Events',  accepts:'.csv'},
-  {k:'icu',          title:'ICU Events',             accepts:'.csv'},
-  {k:'fluids',       title:'Fluids I/O',             accepts:'.csv'},
-  {k:'microbiology', title:'Microbiology',           accepts:'.csv'},
-  {k:'transfers',    title:'Transfers',              accepts:'.csv'},
-  {k:'icustays',     title:'ICU Stays',              accepts:'.csv'},
-  {k:'poe',          title:'Physician Orders',        accepts:'.csv'},
-  {k:'pharmacy',     title:'Pharmacy',               accepts:'.csv'},
+  {k:'labs',         title:'Labs & Investigations',  accepts:'.csv,'+_REF_DOC_TYPES},
+  {k:'meds',         title:'Medications',            accepts:'.csv,'+_REF_DOC_TYPES},
+  {k:'notes',        title:'Clinical Notes',         accepts:'.csv,.txt,'+_REF_DOC_TYPES},
+  {k:'diagnoses',    title:'Diagnoses (ICD)',        accepts:'.csv,'+_REF_DOC_TYPES},
+  {k:'procedures',   title:'Procedures',             accepts:'.csv,'+_REF_DOC_TYPES},
+  {k:'vitals',       title:'Vitals / Chart Events',  accepts:'.csv,'+_REF_DOC_TYPES},
+  {k:'icu',          title:'ICU Events',             accepts:'.csv,'+_REF_DOC_TYPES},
+  {k:'fluids',       title:'Fluids I/O',             accepts:'.csv,'+_REF_DOC_TYPES},
+  {k:'microbiology', title:'Microbiology',           accepts:'.csv,'+_REF_DOC_TYPES},
+  {k:'transfers',    title:'Transfers',              accepts:'.csv,'+_REF_DOC_TYPES},
+  {k:'icustays',     title:'ICU Stays',              accepts:'.csv,'+_REF_DOC_TYPES},
+  {k:'poe',          title:'Physician Orders',        accepts:'.csv,'+_REF_DOC_TYPES},
+  {k:'pharmacy',     title:'Pharmacy',               accepts:'.csv,'+_REF_DOC_TYPES},
 ];
 
 // Extra required slots per discharge type (appended to the base grid when that type is selected)
@@ -910,7 +915,7 @@ function fileSlotHTML(s) {
         <div class="uz-ico">${svg('upload',13)}</div>
         <div>
           <div class="uz-n">${s.title}${pill}${reqBadge}${optBadge}</div>
-          <div class="uz-s">${fname||`Click to upload · ${s.accepts}`}</div>
+          <div class="uz-s">${fname||`Click to upload · .csv, or PDF/DOC/image as reference`}</div>
           ${noteLine}
         </div>
       </div>

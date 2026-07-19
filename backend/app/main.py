@@ -530,6 +530,22 @@ async def startup_event():
     except Exception as _e:
         log.warning(f"Migration 027 skipped: {_e}")
 
+    # Migration 028 — file_content/mime_type on app_uploaded_files: non-CSV
+    # uploads (PDF/DOCX/images) get stored as reference attachments (raw
+    # bytes, no structured parsing -- there's no real per-row data to extract
+    # from a scanned report), viewable/downloadable later.
+    try:
+        with _get_engine().begin() as _conn:
+            _conn.execute(_text(
+                "ALTER TABLE app_uploaded_files ADD COLUMN IF NOT EXISTS file_content BYTEA"
+            ))
+            _conn.execute(_text(
+                "ALTER TABLE app_uploaded_files ADD COLUMN IF NOT EXISTS mime_type    VARCHAR(120)"
+            ))
+        log.info("Migration 028: file_content/mime_type columns ensured")
+    except Exception as _e:
+        log.warning(f"Migration 028 skipped: {_e}")
+
     # ── Seed synthetic OPD (never-admitted) patients ──────────────────────────
     try:
         import json as _json
@@ -2252,34 +2268,6 @@ async def ingest_file(
     """
     log.info(f"[INGEST-START] HADM {hadm_id} | {file_type} | {file.filename}")
     content = await file.read()
-    try:
-        text = content.decode("utf-8-sig")
-    except UnicodeDecodeError:
-        text = content.decode("latin-1")
-
-    reader = list(csv.DictReader(io.StringIO(text)))
-    if not reader:
-        raise HTTPException(400, "CSV is empty or has no header row")
-
-    subject_id = hadm_id  # placeholder subject_id
-
-    # Resolve or create encounter
-    enc = gdb.get_encounter_by_hadm(hadm_id)
-    if enc:
-        enc_id = enc["id"]
-    else:
-        enc = gdb.create_encounter(hadm_id, status="Pending Ingestion")
-        enc_id = enc["id"]
-
-    # Do NOT auto-advance to "Files Ready" here — the resident must explicitly click
-    # "Submit — All Files Uploaded" which calls /mark_files_ready. This prevents a single
-    # partial upload from notifying ward admin before all required files are present.
-
-    inserted = 0
-    errors: list = []
-
-    # Base for auto-generated PKs: microseconds since epoch
-    _pk_base = int(time.time() * 1_000_000)
 
     _type_label = {
         "labs":          "Labs",
@@ -2292,6 +2280,57 @@ async def ingest_file(
         "transfers":     "Transfers",
         "icustays":      "ICU Stays",
     }.get(file_type, "Other")
+
+    # Resolve or create encounter (shared by both the CSV and reference paths)
+    enc = gdb.get_encounter_by_hadm(hadm_id)
+    if enc:
+        enc_id = enc["id"]
+    else:
+        enc = gdb.create_encounter(hadm_id, status="Pending Ingestion")
+        enc_id = enc["id"]
+
+    # Non-CSV uploads (PDF/DOCX/images/scanned reports) have no real per-row
+    # structure to extract -- store them as reference attachments (raw bytes
+    # + metadata) instead of trying to CSV-parse binary content, which would
+    # either crash or silently insert garbage rows.
+    if not (file.filename or "").lower().endswith(".csv"):
+        file_rec = gdb.create_file_record(
+            encounter_id=enc_id,
+            file_type=_type_label,
+            file_name=file.filename,
+            file_size=len(content),
+            file_content=content,
+            mime_type=file.content_type,
+        )
+        log.info(f"[INGEST-REFERENCE] HADM {hadm_id} | {file_type} | {file.filename} stored as reference attachment ({len(content)} bytes)")
+        return {
+            "status": "stored_reference",
+            "file_id": file_rec["id"],
+            "encounter_id": enc_id,
+            "rows_inserted": 0,
+            "note": "Stored as a reference document — not parsed into structured data.",
+        }
+
+    try:
+        text = content.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        text = content.decode("latin-1")
+
+    reader = list(csv.DictReader(io.StringIO(text)))
+    if not reader:
+        raise HTTPException(400, "CSV is empty or has no header row")
+
+    subject_id = hadm_id  # placeholder subject_id
+
+    # Do NOT auto-advance to "Files Ready" here — the resident must explicitly click
+    # "Submit — All Files Uploaded" which calls /mark_files_ready. This prevents a single
+    # partial upload from notifying ward admin before all required files are present.
+
+    inserted = 0
+    errors: list = []
+
+    # Base for auto-generated PKs: microseconds since epoch
+    _pk_base = int(time.time() * 1_000_000)
 
     file_rec = gdb.create_file_record(
         encounter_id=enc_id,
@@ -2738,6 +2777,21 @@ _DISPLAY_LABEL_TO_KEY = {
     "vitals": "vitals",
     "datetime events": "datetime", "datetime": "datetime",
 }
+
+@app.get("/api/uploaded_files/{file_id}/download")
+def download_uploaded_file(file_id: str):
+    """Serve a stored reference attachment's raw bytes (PDF/DOCX/image uploads
+    that were never CSV-parsed -- see ingest_file()'s reference-only path)."""
+    from fastapi.responses import Response
+    rec = gdb.get_file_content(file_id)
+    if not rec or not rec.get("file_content"):
+        raise HTTPException(status_code=404, detail="File not found or has no stored content")
+    return Response(
+        content=bytes(rec["file_content"]),
+        media_type=rec.get("mime_type") or "application/octet-stream",
+        headers={"Content-Disposition": f'inline; filename="{rec.get("file_name") or "file"}"'},
+    )
+
 
 @app.delete("/api/uploaded_files/{file_id}")
 async def delete_uploaded_file(file_id: str, file_type: str, hadm_id: int):

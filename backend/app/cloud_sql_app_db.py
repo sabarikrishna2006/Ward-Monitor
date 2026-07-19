@@ -588,7 +588,8 @@ def list_summaries() -> List[Dict]:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def create_file_record(encounter_id: str, file_type: str,
-                       file_name: str, file_size: int = 0) -> Dict:
+                       file_name: str, file_size: int = 0,
+                       file_content: bytes = None, mime_type: str = None) -> Dict:
     fid = _new_id()
     ft_key = _normalize_file_type(file_type)
     with get_engine().begin() as conn:
@@ -599,17 +600,28 @@ def create_file_record(encounter_id: str, file_type: str,
         conn.execute(text("""
             INSERT INTO app_uploaded_files
                 (id, hadm_id, encounter_id, file_type, file_name, file_size,
-                 indexed_status, upload_date)
+                 file_content, mime_type, indexed_status, upload_date)
             VALUES
-                (:id, :hadm, :enc, :ft, :fn, :fs, 'pending', CURRENT_DATE)
+                (:id, :hadm, :enc, :ft, :fn, :fs, :fc, :mt, 'pending', CURRENT_DATE)
         """), {
             "id": fid, "hadm": hadm_id, "enc": encounter_id,
             "ft": ft_key, "fn": file_name, "fs": file_size,
+            "fc": file_content, "mt": mime_type,
         })
         row = conn.execute(
             text("SELECT * FROM app_uploaded_files WHERE id = :id"), {"id": fid}
         ).fetchone()
     return _row_to_dict(row)
+
+
+def get_file_content(file_id: str) -> Optional[Dict]:
+    """Fetch a stored reference-document's raw bytes for download/view."""
+    with get_engine().connect() as conn:
+        row = conn.execute(text("""
+            SELECT file_name, mime_type, file_content
+            FROM app_uploaded_files WHERE id = :id
+        """), {"id": file_id}).fetchone()
+    return _row_to_dict(row) if row else None
 
 
 def list_files_by_encounter(encounter_id: str) -> List[Dict]:
