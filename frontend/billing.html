@@ -786,43 +786,14 @@ function _ce1PayModeChange() {
     cashlessGroup.style.display = mode === 'Cashless'       ? '' : 'none';
     reimbGroup.style.display    = mode === 'Reimbursement'  ? '' : 'none';
   }
-  // Update insurance impact panel if cashless
-  _ce1UpdateInsurancePanel();
 }
 
-function _ce1UpdateInsurancePanel() {
-  const panel = document.getElementById('ce1-ins-impact');
-  if (!panel) return;
-  const mode     = document.querySelector('input[name="pay"]:checked')?.value || '';
-  const los      = parseInt(document.getElementById('ce1-los')?.value) || 7;
-  const ward     = document.getElementById('ce1-ward')?.value || 'Semi-private Ward';
-  const wardRates = {'General Ward':2500,'Semi-private Ward':4500,'Private Room':8000,'ICU':15000};
-  const wardRate = wardRates[ward] || 4500;
-  const copay    = parseFloat(document.getElementById('ce1-copay')?.value) || 0;
-  const rrlt     = parseInt((document.getElementById('ce1-rrlt')?.value || '').replace(/[^\d]/g,'')) || 0;
-  const preauth  = parseInt((document.getElementById('ce1-paamt')?.value || '').replace(/[^\d]/g,'')) || 0;
-  const est      = _CE.estimateData?.expected_est;
-
-  if (mode !== 'Cashless' || !est) { panel.style.display = 'none'; return; }
-  panel.style.display = '';
-
-  const gross        = est;
-  const rrExcess     = rrlt ? Math.max(0, (wardRate - rrlt) * los) : 0;
-  const copayAmt     = Math.round(gross * copay / 100);
-  const insCovers    = preauth ? Math.min(gross - copayAmt, preauth) : (gross - copayAmt);
-  const patientLiable = gross - insCovers + rrExcess;
-  const fmt          = n => '₹' + Math.round(n||0).toLocaleString('en-IN');
-
-  panel.innerHTML = `
-    <div class="card-title" style="font-size:12px;margin-bottom:8px">Insurance Impact (Cashless)</div>
-    <table style="width:100%;font-size:12px">
-      <tr><td style="padding:4px 0;color:var(--ink2)">Estimated Gross Bill</td><td style="text-align:right;font-weight:700">${fmt(gross)}</td></tr>
-      ${rrExcess ? `<tr><td style="padding:4px 0;color:var(--err)">Room Rent Excess (₹${wardRate.toLocaleString('en-IN')}/d − limit ₹${rrlt.toLocaleString('en-IN')}/d × ${los}d)</td><td style="text-align:right;color:var(--err);font-weight:600">+${fmt(rrExcess)}</td></tr>` : ''}
-      ${copay ? `<tr><td style="padding:4px 0;color:var(--muted)">Co-pay ${copay}%</td><td style="text-align:right;color:var(--muted)">+${fmt(copayAmt)}</td></tr>` : ''}
-      ${preauth ? `<tr><td style="padding:4px 0;color:var(--ink2)">Insurance Covers (pre-auth cap)</td><td style="text-align:right;color:var(--ok)">−${fmt(insCovers)}</td></tr>` : ''}
-      <tr style="border-top:2px solid var(--border)"><td style="padding:6px 0;font-weight:800">Est. Patient Liability</td><td style="text-align:right;font-weight:900;color:var(--p);font-size:15px">${fmt(patientLiable)}</td></tr>
-    </table>`;
-}
+// _ce1UpdateInsurancePanel() removed -- it was dead code (always hid itself
+// immediately, since _CE.estimateData.expected_est hasn't existed since the
+// ML refactor moved cost estimation to a separate async fetch) and used fake
+// hardcoded ward rates unrelated to the real WARD_RATE/ICU_RATE. CE2's
+// "Mediclaim Breakdown" card already shows this same insurance-impact split
+// correctly, off the real ML P50 estimate.
 
 function _ce1SchemeChange() {
   const isAb  = document.getElementById('ab-chk')?.checked || false;
@@ -902,7 +873,10 @@ async function _ce1Save() {
   _CE.copayPct         = document.getElementById('ce1-copay')?.value || '';
   _CE.roomRentLimit    = document.getElementById('ce1-rrlt')?.value  || '';
   _CE.losDays          = parseInt(document.getElementById('ce1-los')?.value)  || _CE.losDays || 7;
-  _CE.wardType         = document.getElementById('ce1-ward')?.value  || 'Semi-private Ward';
+  // Ward/bed picker removed from CE1 -- that's a clinical/nursing placement
+  // call, not billing's, and every real admission in this cohort ends up in
+  // CCU/ICU anyway. _CE.wardType stays fixed at its default (still routes
+  // ward provisioning to the CCU board, same as before).
   _CE.dischargeDate    = document.getElementById('ce1-disc')?.value  || _CE.dischargeDate || '';
   _CE.isAbBeneficiary  = document.getElementById('ab-chk')?.checked || false;
   _CE.abScheme         = document.getElementById('ce1-abscheme')?.value || '';
@@ -1705,20 +1679,11 @@ ${stepFlow('ce1')}
           : `<input class="fi" value="${_CE.diagnosisCode ? _CE.diagnosisCode + ' — ' + (_CE.diagnosis || '') : (_CE.diagnosis || 'Auto-fetched by ML model from patient data')}" readonly style="background:var(--surf)">`}
         <div class="fi-hint">Auto-fetched — no manual selection needed, the ML model reads this directly from the patient's real diagnosis data.</div>
       </div>
-      <div class="frow">
-        <div class="fg"><label class="fl">Expected LOS (days)</label>
-          ${_CE.syncing && !_CE.losDays
-            ? `<div class="fi" style="display:flex;align-items:center;gap:8px;color:var(--muted)"><span style="animation:livePulse 1.4s ease-in-out infinite">⏳</span> Calculating…</div>`
-            : `<input class="fi" id="ce1-los" type="number" value="${_CE.losDays || ''}" readonly style="background:var(--surf)">`}
-        </div>
-        <div class="fg"><label class="fl">Ward / Bed Type</label>
-          <select class="fi" id="ce1-ward">
-            <option>General Ward</option>
-            <option selected>Semi-private Ward</option>
-            <option>Private Room</option>
-            <option>ICU</option>
-          </select>
-        </div>
+      <div class="fg">
+        <label class="fl">Expected LOS (days)</label>
+        ${_CE.syncing && !_CE.losDays
+          ? `<div class="fi" style="display:flex;align-items:center;gap:8px;color:var(--muted)"><span style="animation:livePulse 1.4s ease-in-out infinite">⏳</span> Calculating…</div>`
+          : `<input class="fi" id="ce1-los" type="number" value="${_CE.losDays || ''}" readonly style="background:var(--surf)">`}
       </div>
     </div>
     <div class="card" id="ce1-ab-card">
@@ -1760,14 +1725,14 @@ ${stepFlow('ce1')}
         <div class="fg"><label class="fl">TPA Name</label><input class="fi" id="ce1-tpa" value="${_CE.tpaName || ''}" placeholder="e.g. Medi Assist, Paramount"></div>
       </div>
       <div class="frow">
-        <div class="fg"><label class="fl">Co-pay Clause (%)</label><input class="fi" id="ce1-copay" value="${_CE.copayPct || ''}" oninput="_ce1UpdateInsurancePanel()" placeholder="e.g. 10"></div>
-        <div class="fg"><label class="fl">Room Rent Limit (₹/day)</label><input class="fi" id="ce1-rrlt" value="${_CE.roomRentLimit || ''}" oninput="_ce1UpdateInsurancePanel()" placeholder="e.g. 5000"></div>
+        <div class="fg"><label class="fl">Co-pay Clause (%)</label><input class="fi" id="ce1-copay" value="${_CE.copayPct || ''}" placeholder="e.g. 10"></div>
+        <div class="fg"><label class="fl">Room Rent Limit (₹/day)</label><input class="fi" id="ce1-rrlt" value="${_CE.roomRentLimit || ''}" placeholder="e.g. 5000"></div>
       </div>
     </div>
     <div id="ce1-cashless-group" style="${_CE.paymentMode!=='Cashless'?'display:none':''}">
       <div class="frow">
         <div class="fg"><label class="fl">Pre-auth Number</label><input class="fi" id="ce1-pano" value="${_CE.preauthNo || ''}" placeholder="TPA authorisation code"></div>
-        <div class="fg"><label class="fl">Pre-auth Approved Amount (₹)</label><input class="fi" id="ce1-paamt" value="${_CE.preauthAmt || ''}" oninput="_ce1UpdateInsurancePanel()" placeholder="e.g. 350000"></div>
+        <div class="fg"><label class="fl">Pre-auth Approved Amount (₹)</label><input class="fi" id="ce1-paamt" value="${_CE.preauthAmt || ''}" placeholder="e.g. 350000"></div>
       </div>
       <div class="fi-hint">Pre-auth is mandatory for cashless treatment — obtain from TPA before procedure.</div>
     </div>
@@ -1779,8 +1744,6 @@ ${stepFlow('ce1')}
       </div>
       <div class="fi-hint">Patient will pay full hospital bill and claim reimbursement directly from insurer (4–6 weeks).</div>
     </div>
-    <!-- Insurance impact panel — shown live for cashless -->
-    <div id="ce1-ins-impact" style="display:none;background:var(--surf);border-radius:8px;padding:12px;margin-top:8px;border:1px solid var(--border)"></div>
     <div class="divider"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px">
       <button class="btn btn-sec" onclick="_CE.hadm_id=null;showScreen('ce0')">← Back</button>
@@ -1832,7 +1795,7 @@ ${stepFlow('ce2')}
   const bd    = ml.cost_breakdown || {};
 
   const breakdownRows = [
-    ['Ward Charges', bd.ward], ['ICU / HDU Charges', bd.icu],
+    ['Ward Charges', bd.ward], ['ICU / CCU Charges', bd.icu],
     ['Procedures', bd.procedures], ['Medicines & Consumables', bd.medicines],
     ['Labs & Diagnostics', bd.labs],
   ].filter(([, amt]) => amt);
@@ -2494,7 +2457,7 @@ function _liveRenderMl() {
   if (bdBox) {
     const bd = _liveMl.cost_breakdown || {};
     const rows = [
-      ['Ward Charges', bd.ward], ['ICU / HDU Charges', bd.icu], ['Procedures', bd.procedures],
+      ['Ward Charges', bd.ward], ['ICU / CCU Charges', bd.icu], ['Procedures', bd.procedures],
       ['Medicines & Consumables', bd.medicines], ['Labs & Diagnostics', bd.labs],
     ];
     bdBox.innerHTML = `<table style="width:100%;font-size:12.5px">
@@ -2509,7 +2472,7 @@ function _liveRenderMl() {
     const td = _liveMl.today_breakdown || {};
     const todayRows = [
       ['Labs (today)', td.labs], ['Medicines (today)', td.medicines], ['Procedures (today)', td.procedures],
-      ['Ward Charge (today)', td.ward], ['ICU / HDU Charge (today)', td.icu],
+      ['Ward Charge (today)', td.ward], ['ICU / CCU Charge (today)', td.icu],
     ];
     const todayTable = `<table style="width:100%;font-size:12.5px">
           <tbody>${todayRows.map(([name, amt]) => `<tr style="border-bottom:1px solid var(--border)">
@@ -2777,7 +2740,7 @@ function _ce3PrintHtml() {
   const bandLabel = band === 'floor' ? 'Low (P10)' : band === 'ceiling' ? 'High (P90)' : 'Typical (P50)';
   const bd = ml?.cost_breakdown || {};
   const lineRows = [
-    ['Ward Charges', bd.ward], ['ICU / HDU Charges', bd.icu], ['Procedures', bd.procedures],
+    ['Ward Charges', bd.ward], ['ICU / CCU Charges', bd.icu], ['Procedures', bd.procedures],
     ['Medicines & Consumables', bd.medicines], ['Labs & Diagnostics', bd.labs],
   ].filter(([, amt]) => amt).map(([name, amt]) =>
     `<tr><td>${name}</td><td style="text-align:right">${fmt(amt)}</td></tr>`
@@ -2866,7 +2829,7 @@ function _ce3Notify() {
 
   const bd = ml?.cost_breakdown || {};
   const lineText = [
-    ['Ward Charges', bd.ward], ['ICU / HDU Charges', bd.icu], ['Procedures', bd.procedures],
+    ['Ward Charges', bd.ward], ['ICU / CCU Charges', bd.icu], ['Procedures', bd.procedures],
     ['Medicines & Consumables', bd.medicines], ['Labs & Diagnostics', bd.labs],
   ].filter(([, amt]) => amt).map(([name, amt]) => `  ${name}: ${fmt(amt)}`).join('\n');
 
