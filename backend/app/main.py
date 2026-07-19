@@ -512,6 +512,24 @@ async def startup_event():
     except Exception as _e:
         log.warning(f"Migration 026 skipped: {_e}")
 
+    # Migration 027 — tpa_name/sum_insured/claim_number: CE1 captured these
+    # into _CE client-side but never sent them to the backend, so they were
+    # silently discarded on every save/reload. Real fields now.
+    try:
+        with _get_engine().begin() as _conn:
+            _conn.execute(_text(
+                "ALTER TABLE billing_records ADD COLUMN IF NOT EXISTS tpa_name      VARCHAR(120)"
+            ))
+            _conn.execute(_text(
+                "ALTER TABLE billing_records ADD COLUMN IF NOT EXISTS sum_insured   BIGINT"
+            ))
+            _conn.execute(_text(
+                "ALTER TABLE billing_records ADD COLUMN IF NOT EXISTS claim_number  VARCHAR(60)"
+            ))
+        log.info("Migration 027: tpa_name/sum_insured/claim_number columns ensured")
+    except Exception as _e:
+        log.warning(f"Migration 027 skipped: {_e}")
+
     # ── Seed synthetic OPD (never-admitted) patients ──────────────────────────
     try:
         import json as _json
@@ -1060,10 +1078,12 @@ def billing_dashboard():
     }
 
 
-# ── Ward rate constant — single source of truth is cost_ml_model/pricing_config.json ──
+# ── Ward/ICU rate constants — single source of truth is cost_ml_model/pricing_config.json ──
 import json as _json_top
 with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "pricing_config.json")) as _pf:
-    WARD_RATE = _json_top.load(_pf)["rates"]["WARD_RATE"]
+    _rates_top = _json_top.load(_pf)["rates"]
+    WARD_RATE = _rates_top["WARD_RATE"]
+    ICU_RATE  = _rates_top["ICU_RATE"]
 
 class GenerateEstimateRequest(BaseModel):
     hadm_id:           Optional[int] = None
@@ -1190,6 +1210,9 @@ class BillingRecordUpsert(BaseModel):
     preauth_amount:     Optional[int]  = None
     copay_pct:          Optional[float]= None
     room_rent_limit:    Optional[int]  = None
+    tpa_name:           Optional[str]  = None  # Cashless only — claims processor, migration 027
+    sum_insured:        Optional[int]  = None  # Reimbursement only — policy coverage ceiling
+    claim_number:       Optional[str]  = None  # Reimbursement only — pre-filed claim reference
     selected_band:      Optional[str]  = None
     floor_est:          Optional[int]  = None
     expected_est:       Optional[int]  = None
@@ -1499,6 +1522,7 @@ def get_billing_patient(hadm_id: int):
                    br.payment_mode, br.insurance_co, br.policy_number,
                    br.preauth_number, br.preauth_amount, br.copay_pct,
                    br.room_rent_limit, br.selected_band,
+                   br.tpa_name, br.sum_insured, br.claim_number,
                    br.floor_est, br.expected_est, br.ceiling_est,
                    br.actual_charges, br.insurance_paid, br.advance_paid, br.balance_due,
                    br.expected_discharge_date, br.expected_los_days
@@ -1823,7 +1847,20 @@ def get_billing_reconciliation(hadm_id: int):
         scheme_summary = f"Haryana State Scheme covers ₹{_state_rate:,}. Patient pays ₹0"
     elif pay_mode_recon == "cashless":
         copay_pct_eff  = copay_pct_recon or 10   # default 10% copay if not set at CE1
-        rr_excess      = max(0, (WARD_RATE - rrlt_recon) * actual_los) if rrlt_recon else 0
+        # Room rent excess -- charged separately for ward vs ICU days (real day
+        # counts, derived from the actual cost breakdown), not the flat WARD_RATE
+        # applied across the whole stay. ICU's real per-day rate (₹8,000) is
+        # nearly always above any room rent limit, so treating ICU days as
+        # ward-rate days understated the excess for exactly the ICU-heavy
+        # admissions this cohort mostly consists of.
+        if rrlt_recon and _ml_actual:
+            _bd_rr      = _ml_actual["cost_breakdown"]
+            ward_days   = _bd_rr.get("ward", 0) / WARD_RATE if WARD_RATE else 0
+            icu_days_rr = _bd_rr.get("icu", 0)  / ICU_RATE  if ICU_RATE  else 0
+            rr_excess   = round(max(0, WARD_RATE - rrlt_recon) * ward_days
+                               + max(0, ICU_RATE  - rrlt_recon) * icu_days_rr)
+        else:
+            rr_excess = 0
         copay_amt      = round(actual_gross * copay_pct_eff / 100)
         ins_covers     = min(actual_gross - copay_amt, preauth_recon) if preauth_recon else (actual_gross - copay_amt)
         patient_final  = copay_amt + rr_excess

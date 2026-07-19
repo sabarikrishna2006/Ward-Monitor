@@ -460,6 +460,11 @@ function _applyPatientDetails(d) {
   _CE.policyNo      = d.policy_number  || '';
   _CE.preauthNo     = d.preauth_number || '';
   _CE.preauthAmt    = d.preauth_amount  ? String(d.preauth_amount) : '';
+  _CE.tpaName       = d.tpa_name    || '';
+  _CE.sumInsured    = d.sum_insured ? String(d.sum_insured) : '';
+  _CE.claimNo       = d.claim_number || '';
+  _CE.roomRentLimit = d.room_rent_limit ? String(d.room_rent_limit) : '';
+  _CE.copayPct      = d.copay_pct != null ? String(d.copay_pct) : '';
   // Actuals/settlements only meaningful once billing has progressed
   if (d.billing_phase) {
     _CE.actualCharges = d.actual_charges;
@@ -802,15 +807,17 @@ function _ce1SchemeChange() {
   if (!banner) return;
   if (!isAb) { banner.style.display = 'none'; return; }
   banner.style.display = '';
+  // Matches the real reconciliation logic in main.py's get_billing_reconciliation()
+  // -- no more HBP package rates, everything reimburses off the ML-quoted estimate.
   const schemeInfo = {
-    'PM-JAY':                   { cls:'al-ok',   icon:'✅', msg:'PM-JAY (Ayushman Bharat) — Government covers HBP package rate. <b>Patient pays ₹0.</b> Hospital cannot charge more than the package rate; any excess is absorbed by the hospital.' },
-    'Haryana Government Scheme':{ cls:'al-ok',   icon:'✅', msg:'Haryana Govt Scheme — Government covers ~3× PM-JAY rate. <b>Patient pays ~10%</b> of private rate (excess above scheme ceiling).' },
-    'CGHS':                     { cls:'al-info', icon:'ℹ️', msg:'CGHS (Central Govt Health Scheme) — CGHS rate schedule applied (~4× PM-JAY). <b>Patient pays ~15%</b> of private rate (gap above CGHS ceiling + non-covered items such as branded drugs, room upgrades).' },
-    'ESI':                      { cls:'al-ok',   icon:'✅', msg:'ESI (Employees\' State Insurance) — ESI covers full cost at negotiated rates. <b>Patient pays ₹0</b> for covered services. Hospital claims from ESIC.' },
+    'PM-JAY':                   { msg:'PM-JAY (Ayushman Bharat) — Government reimburses the ML-quoted estimate. <b>Patient pays ₹0.</b> If actual charges exceed the quote, the hospital absorbs the difference.' },
+    'Haryana Government Scheme':{ msg:'Haryana Government Scheme — State scheme reimburses the ML-quoted estimate, same as PM-JAY. <b>Patient pays ₹0.</b> Hospital absorbs any excess over the quote.' },
+    'CGHS':                     { msg:'CGHS (Central Govt Health Scheme) — Covers 85% of actual charges at discharge. <b>Patient pays ~15%</b> (room-rent excess + non-covered items such as branded drugs).' },
+    'ESI':                      { msg:'ESI (Employees\' State Insurance) — Covers 100% of actual charges at discharge. <b>Patient pays ₹0.</b> Hospital claims directly from ESIC.' },
   };
-  const info = schemeInfo[scheme] || { cls:'al-info', icon:'ℹ️', msg:'Government scheme selected — rates and patient liability will be calculated accordingly.' };
-  banner.className = `alert ${info.cls}`;
-  banner.innerHTML = `${info.icon} <b>${scheme}</b> — ${info.msg}`;
+  const info = schemeInfo[scheme] || { msg:'Government scheme selected — rates and patient liability will be calculated accordingly.' };
+  banner.className = 'alert al-info';
+  banner.innerHTML = `ℹ️ <b>${scheme}</b> — ${info.msg}`;
 }
 
 // Fires as soon as a hadm_id is typed into CE1's Patient ID field (New Entry
@@ -969,6 +976,9 @@ async function _ce1Save() {
     preauth_amount:  preauthAmtInt,
     copay_pct:       copayPctFloat,
     room_rent_limit: rrltInt,
+    tpa_name:        _CE.tpaName    || null,
+    sum_insured:     _CE.sumInsured ? parseInt(String(_CE.sumInsured).replace(/[^\d]/g,'')) : null,
+    claim_number:    _CE.claimNo    || null,
     ward_type:       _CE.wardType,
     is_ab_beneficiary: _CE.isAbBeneficiary,
     ab_scheme:       _CE.abScheme || null,
@@ -1717,7 +1727,7 @@ ${stepFlow('ce1')}
     <div id="ce1-insur-common" style="${_CE.paymentMode==='Self-pay'?'display:none':''}">
       <div class="fg"><label class="fl">Insurance Company</label>
         <select class="fi" id="ce1-insco">
-          ${['Star Health &amp; Allied Insurance','Niva Bupa Health Insurance','HDFC Ergo Health','Care Health Insurance','New India Assurance'].map(c=>`<option ${_CE.insuranceCo===c?'selected':''}>${c}</option>`).join('')}
+          ${_BIL_INSURERS.map(c=>`<option ${_CE.insuranceCo===c?'selected':''}>${c}</option>`).join('')}
         </select>
       </div>
       <div class="frow">
@@ -1824,6 +1834,7 @@ ${stepFlow('ce2')}
   // backend CE4 reconciliation, applied client-side for the pre-discharge view.
   const schemeStr = (_CE.abScheme || '').toUpperCase();
   let ptLiable, insEst, schemeNote, rrExcessEst = 0;
+  let schemeNoteClass = 'al-ok', schemeNoteIcon = '✅';
   if (_CE.isAbBeneficiary && (schemeStr.includes('PM-JAY') || schemeStr.includes('PMJAY') || schemeStr.includes('ESI') || schemeStr.includes('HARYANA'))) {
     ptLiable = 0; insEst = exp;
     schemeNote = `${_CE.abScheme} covers the estimated total. Patient liability: ₹0`;
@@ -1833,12 +1844,29 @@ ${stepFlow('ce2')}
   } else if ((_CE.paymentMode || '').toLowerCase() === 'cashless') {
     const copayPct = parseFloat(_CE.copayPct) || 10;
     const rrlt = _CE.roomRentLimit ? parseInt(_CE.roomRentLimit.replace(/[^\d]/g,'')) : 0;
-    const wardRate = bd.ward && ml.hospital_day != null ? bd.ward / (ml.hospital_day + 1) : 0;
-    rrExcessEst = rrlt ? Math.max(0, Math.round((wardRate - rrlt) * (ml.hospital_day + 1))) : 0;
+    // Ward and ICU days charged separately against the same room rent limit --
+    // ICU's real per-day rate (₹8,000) is nearly always above any typical
+    // limit, so folding ICU days into a flat "ward rate" average understated
+    // the excess for ICU-heavy admissions. Matches backend CE4 logic.
+    const WARD_RATE_JS = 2000, ICU_RATE_JS = 8000;  // pricing_config.json
+    const wardDaysEst = bd.ward ? bd.ward / WARD_RATE_JS : 0;
+    const icuDaysEst  = bd.icu  ? bd.icu  / ICU_RATE_JS  : 0;
+    rrExcessEst = rrlt
+      ? Math.round(Math.max(0, WARD_RATE_JS - rrlt) * wardDaysEst + Math.max(0, ICU_RATE_JS - rrlt) * icuDaysEst)
+      : 0;
     const copayAmt = Math.round(exp * copayPct / 100);
     insEst = exp - copayAmt;
     ptLiable = copayAmt + rrExcessEst;
     schemeNote = null;
+  } else if ((_CE.paymentMode || '').toLowerCase() === 'reimbursement') {
+    // Matches backend CE4 logic: patient pays the full amount now, claims
+    // back from the insurer afterward -- not the hospital's concern once
+    // paid, so this is a "claim later" note, not money subtracted here.
+    const insLabel = (_CE.insuranceCo || 'your insurer').split(' ')[0];
+    const claimEst = Math.round(exp * 0.80);
+    ptLiable = exp; insEst = 0;
+    schemeNote = `Reimbursement — you pay ${fmt(exp)} now, then claim up to ${fmt(claimEst)} back from ${insLabel} separately.`;
+    schemeNoteClass = 'al-info'; schemeNoteIcon = 'ℹ️';
   } else {
     ptLiable = exp; insEst = 0; schemeNote = null;
   }
@@ -1886,7 +1914,7 @@ ${stepFlow('ce2')}
   <div>
     <div class="card" style="margin-bottom:12px">
       <div class="card-title">${_CE.isAbBeneficiary && _CE.abScheme ? _CE.abScheme + ' Coverage' : 'Mediclaim Breakdown' + (_CE.insuranceCo ? ' — ' + _CE.insuranceCo.split(' ')[0] : '')}</div>
-      ${schemeNote ? `<div class="alert al-ok" style="margin-bottom:8px;font-size:12px">✅ ${schemeNote}</div>` : ''}
+      ${schemeNote ? `<div class="alert ${schemeNoteClass}" style="margin-bottom:8px;font-size:12px">${schemeNoteIcon} ${schemeNote}</div>` : ''}
       <table style="width:100%;font-size:12.5px"><tbody>
         ${_CE.isAbBeneficiary ? `<tr style="border-bottom:1px solid var(--border)"><td style="padding:7px 0;color:var(--muted)">Scheme reimburses</td><td style="padding:7px 0;text-align:right;font-weight:700;color:var(--ok)">${fmt(insEst)}</td></tr>` : `<tr style="border-bottom:1px solid var(--border)"><td style="padding:7px 0;color:var(--muted)">Est. insurance payout</td><td style="padding:7px 0;text-align:right;font-weight:700">${fmt(insEst)}</td></tr>`}
         ${rrExcessEst ? `<tr style="border-bottom:1px solid var(--border)"><td style="padding:7px 0;color:var(--err)">Room rent excess</td><td style="padding:7px 0;text-align:right;color:var(--err);font-weight:600">+${fmt(rrExcessEst)}</td></tr>` : ''}
@@ -2783,7 +2811,15 @@ function _ce3PrintHtml() {
   <table style="width:auto"><tbody>
     <tr><td class="label" style="padding-right:24px">Mode</td><td>${_CE.paymentMode||'—'}</td></tr>
     <tr><td class="label">Insurer</td><td>${_CE.insuranceCo||'—'}</td></tr>
+    ${_CE.paymentMode==='Cashless' ? `
+    <tr><td class="label">TPA</td><td>${_CE.tpaName||'—'}</td></tr>
     <tr><td class="label">Pre-auth No.</td><td>${_CE.preauthNo||'—'}</td></tr>
+    <tr><td class="label">Co-pay</td><td>${_CE.copayPct ? _CE.copayPct+'%' : '—'}</td></tr>
+    ` : ''}
+    ${_CE.paymentMode==='Reimbursement' ? `
+    <tr><td class="label">Sum Insured</td><td>${_CE.sumInsured ? fmt(parseInt(_CE.sumInsured)) : '—'}</td></tr>
+    <tr><td class="label">Claim No.</td><td>${_CE.claimNo||'Not yet filed'}</td></tr>
+    ` : ''}
   </tbody></table>
 </div>
 <div class="footer">⚠ This is an ML-predicted estimate (XGBoost quantile model, trained on real DCM admissions), not a fixed quote. Actual charges may vary at discharge (reconciliation).</div>
@@ -2863,8 +2899,12 @@ ${lineText}
 INSURANCE / PAYMENT
 ━━━━━━━━━━━━━━━━━━━━━━
 Payment Mode : ${_CE.paymentMode||'—'}
-Insurer      : ${_CE.insuranceCo||'—'}
+Insurer      : ${_CE.insuranceCo||'—'}${_CE.paymentMode==='Cashless' ? `
+TPA          : ${_CE.tpaName||'—'}
 Pre-auth No. : ${_CE.preauthNo||'—'}
+Co-pay       : ${_CE.copayPct ? _CE.copayPct+'%' : '—'}` : ''}${_CE.paymentMode==='Reimbursement' ? `
+Sum Insured  : ${_CE.sumInsured ? fmt(parseInt(_CE.sumInsured)) : '—'}
+Claim No.    : ${_CE.claimNo||'Not yet filed'}` : ''}
 
 ━━━━━━━━━━━━━━━━━━━━━━
 Note: This is an ML-predicted estimate (XGBoost quantile model, trained on real DCM admissions), not a fixed quote. Actual charges may vary at discharge during reconciliation.
