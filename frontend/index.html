@@ -355,7 +355,7 @@ a{color:inherit;text-decoration:none}
     }
 
     // Local Attending Doctor credentials — bypasses API
-    if ((email === 'dr.attending' || email === 'dr.attending@foqal.in' || email === 'ashmit24134@iiitd.ac.in') && (pw === 'Attending@2026' || pw === 'zxcvbnm')) {
+    if ((email === 'dr.attending' || email === 'dr.attending@foqal.in') && (pw === 'Attending@2026' || pw === 'zxcvbnm')) {
       sessionStorage.setItem('foqal_token', 'attending-local');
       sessionStorage.setItem('foqal_user', JSON.stringify({ full_name: 'Dr. Raj Mehta', role: 'doctor', email: 'dr.attending@foqal.in' }));
       window.location.href = '/doctor-queue.html';
@@ -396,7 +396,7 @@ a{color:inherit;text-decoration:none}
     }
 
     // ── Ward Monitor (Sabari Project) — Resident Doctor ─────────────────────
-    if ((email === 'dr.anand' || email === 'dr.anand@foqal.in' || email === 'ashmit24134@iiitd.ac.in') && (pw === 'Resident@2026' || pw === '12345678')) {
+    if ((email === 'dr.anand' || email === 'dr.anand@foqal.in') && pw === 'Resident@2026') {
       const user = { name: 'Dr. Anand Sharma', role: 'resident', roleLabel: 'Resident Doctor',
                      shift: 'Day Shift', ward: 'Ward 4B/4C', empId: 'EMP-0004' };
       window.location.href = `${_sabariBase}/?foqal_token=local-resident&foqal_user=${encodeURIComponent(JSON.stringify(user))}`;

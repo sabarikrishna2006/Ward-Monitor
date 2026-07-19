@@ -1277,7 +1277,7 @@ function _ce4ComputeVariance() {
   const reconItems = _ce4Data.reconciliation?.computed_actual_items || [];
   const lineItems  = (_ce4Data.estimate.line_items?.length)
     ? _ce4Data.estimate.line_items
-    : (_ce4Data.reconciliation?.computed_estimate_items || reconItems);
+    : (_ce4Data.reconciliation?.computed_estimate_items?.length ? _ce4Data.reconciliation.computed_estimate_items : reconItems);
   let estTotal = 0, actTotal = 0, allFilled = true;
   const fmt = n => '₹' + Math.round(n).toLocaleString('en-IN');
 
@@ -1878,18 +1878,18 @@ ${stepFlow('ce2')}
 </div>
 <div class="cb-row">
   <div class="cb-opt${_CE.cost==='floor'?' sel':''}" onclick="_CE.cost='floor';showScreen('ce2')">
-    <div class="cb-tag">Low (P10)</div>
+    <div class="cb-tag">Low</div>
     <div class="cb-amt">${fmt(floor)}</div>
     <div class="cb-desc">10% chance the final bill is below this.</div>
   </div>
   <div class="cb-opt${_CE.cost==='expected'?' sel':''}" onclick="_CE.cost='expected';showScreen('ce2')">
-    <div class="cb-tag">Typical (P50)</div>
+    <div class="cb-tag">Typical</div>
     <div class="cb-amt">${fmt(exp)}</div>
     <div class="cb-desc">Most likely final bill, per the ML model.</div>
     <div class="cb-rec">★ Recommended</div>
   </div>
   <div class="cb-opt${_CE.cost==='ceiling'?' sel':''}" onclick="_CE.cost='ceiling';showScreen('ce2')">
-    <div class="cb-tag">High (P90)</div>
+    <div class="cb-tag">High</div>
     <div class="cb-amt">${fmt(ceil)}</div>
     <div class="cb-desc">10% chance the final bill is above this.</div>
   </div>
@@ -1928,7 +1928,7 @@ ce3: () => {
   const fmt  = n => '₹' + (n||0).toLocaleString('en-IN');
   const band = _CE.cost || 'expected';
   const bandAmt = band === 'floor' ? (ml?.predicted_final_bill_p10||0) : band === 'ceiling' ? (ml?.predicted_final_bill_p90||0) : (ml?.predicted_final_bill_p50||0);
-  const bandLabel = band === 'floor' ? 'Low (P10)' : band === 'ceiling' ? 'High (P90)' : 'Typical (P50)';
+  const bandLabel = band === 'floor' ? 'Low' : band === 'ceiling' ? 'High' : 'Typical';
   const now  = new Date().toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
   return `
 <div class="bc">
@@ -1998,11 +1998,15 @@ ${stepFlow('ce4')}
 
   const { patient, discharge, estimate, ab_info, actuals_saved, reconciliation } = _ce4Data;
   const reconItems   = reconciliation?.computed_actual_items || [];
-  // If no CE1 estimate was saved, use CE1-formula computed items (expected LOS × LOS-complexity)
-  // so the estimated column is always different from the actual column
+  // computed_estimate_items is always empty by design (the ML model predicts
+  // a total range, not a per-category future breakdown -- no real
+  // "estimated per line item" exists to show). Falls through to the real
+  // actual breakdown so the table has something real to display, rather
+  // than silently rendering zero rows -- an empty array is truthy in JS,
+  // so this needed a .length check, not a bare `||`.
   const lineItems    = (estimate.line_items?.length)
     ? estimate.line_items
-    : (reconciliation?.computed_estimate_items || reconItems);
+    : (reconciliation?.computed_estimate_items?.length ? reconciliation.computed_estimate_items : reconItems);
   const savedActuals = actuals_saved ? (actuals_saved.actual_line_items || []) : [];
   const fmt = n => '₹' + Math.round(n || 0).toLocaleString('en-IN');
 
@@ -2025,7 +2029,7 @@ ${stepFlow('ce4')}
     return parts.join(' ');
   })();
 
-  const bandLabel = { floor: 'Low (P10)', expected: 'Typical (P50)', ceiling: 'High (P90)' }[estimate.selected_band] || 'Typical (P50)';
+  const bandLabel = { floor: 'Low', expected: 'Typical', ceiling: 'High' }[estimate.selected_band] || 'Typical';
   const estBandDisplay = `ML estimate, ${bandLabel} — ${fmt(estimate.est_total)}`;
 
   const varRows = lineItems.map((item, i) => {
@@ -2456,15 +2460,15 @@ function _liveRenderMl() {
     rangeBox.innerHTML = `
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <div style="flex:1;min-width:120px;background:#f7edf7;border:1px solid #c060c0;border-radius:8px;padding:10px 14px">
-          <div style="font-size:10px;color:#800080;font-weight:700;text-transform:uppercase">Floor (P10)</div>
+          <div style="font-size:10px;color:#800080;font-weight:700;text-transform:uppercase">Floor</div>
           <div style="font-size:17px;font-weight:800;color:#111827">${fmt(_liveMl.predicted_final_bill_p10)}</div>
         </div>
         <div style="flex:1;min-width:120px;background:#f7edf7;border:2px solid #800080;border-radius:8px;padding:10px 14px">
-          <div style="font-size:10px;color:#800080;font-weight:700;text-transform:uppercase">Most Likely (P50)</div>
+          <div style="font-size:10px;color:#800080;font-weight:700;text-transform:uppercase">Most Likely</div>
           <div style="font-size:17px;font-weight:800;color:#111827">${fmt(_liveMl.predicted_final_bill_p50)}</div>
         </div>
         <div style="flex:1;min-width:120px;background:#f7edf7;border:1px solid #c060c0;border-radius:8px;padding:10px 14px">
-          <div style="font-size:10px;color:#800080;font-weight:700;text-transform:uppercase">Ceiling (P90)</div>
+          <div style="font-size:10px;color:#800080;font-weight:700;text-transform:uppercase">Ceiling</div>
           <div style="font-size:17px;font-weight:800;color:#111827">${fmt(_liveMl.predicted_final_bill_p90)}</div>
         </div>
       </div>`;
@@ -2690,6 +2694,41 @@ function _liveRevealNext() {
   }
 })();
 
+// Shows what was actually entered on CE1 -- payment mode, insurer, and the
+// mode-specific details (TPA/co-pay for Cashless, sum insured/claim# for
+// Reimbursement, or the govt scheme) -- so this doesn't disappear once the
+// estimate is generated and the patient moves off CE1 onto this tracking screen.
+function _liveInsuranceBlock() {
+  const rows = [];
+  if (_CE.isAbBeneficiary && _CE.abScheme) {
+    rows.push(['Scheme', _CE.abScheme]);
+  } else {
+    rows.push(['Payment Mode', _CE.paymentMode || '—']);
+    if (_CE.paymentMode !== 'Self-pay') {
+      rows.push(['Insurance Company', _CE.insuranceCo || '—']);
+      if (_CE.policyNo) rows.push(['Policy Number', _CE.policyNo]);
+      if (_CE.paymentMode === 'Cashless') {
+        if (_CE.tpaName)  rows.push(['TPA', _CE.tpaName]);
+        if (_CE.copayPct) rows.push(['Co-pay Clause', _CE.copayPct + '%']);
+      } else if (_CE.paymentMode === 'Reimbursement') {
+        if (_CE.sumInsured) rows.push(['Sum Insured', '₹' + parseInt(_CE.sumInsured).toLocaleString('en-IN')]);
+        rows.push(['Claim Number', _CE.claimNo || 'Not yet filed']);
+      }
+    }
+  }
+  return `
+<div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:18px 22px;margin-bottom:16px">
+  <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Insurance &amp; Payment</div>
+  <div style="display:flex;flex-wrap:wrap;gap:20px">
+    ${rows.map(([label, val]) => `
+      <div>
+        <div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.4px">${label}</div>
+        <div style="font-size:13px;font-weight:600;color:var(--ink)">${val}</div>
+      </div>`).join('')}
+  </div>
+</div>`;
+}
+
 SCREENS['ce_live'] = function() {
   const name  = _liveData?.patient_name || _CE.patientName || '—';
   const diag  = _liveData?.diagnosis    || _CE.diagnosis   || '—';
@@ -2726,6 +2765,8 @@ SCREENS['ce_live'] = function() {
   </div>
 </div>
 
+${_liveInsuranceBlock()}
+
 <!-- ML predicted final-bill range, as of today's hospital day -->
 <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:18px 22px;margin-bottom:16px">
   <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Predicted Final Bill (as of today)</div>
@@ -2753,7 +2794,7 @@ function _ce3PrintHtml() {
   const fmt   = n => '₹' + (n||0).toLocaleString('en-IN');
   const band  = _CE.cost || 'expected';
   const bandAmt = band==='floor' ? (ml?.predicted_final_bill_p10||0) : band==='ceiling' ? (ml?.predicted_final_bill_p90||0) : (ml?.predicted_final_bill_p50||0);
-  const bandLabel = band === 'floor' ? 'Low (P10)' : band === 'ceiling' ? 'High (P90)' : 'Typical (P50)';
+  const bandLabel = band === 'floor' ? 'Low' : band === 'ceiling' ? 'High' : 'Typical';
   const bd = ml?.cost_breakdown || {};
   const lineRows = [
     ['Ward Charges', bd.ward], ['ICU / CCU Charges', bd.icu], ['Procedures', bd.procedures],
@@ -2848,7 +2889,7 @@ function _ce3Notify() {
   const fmt      = n => 'Rs.' + (n||0).toLocaleString('en-IN');
   const band     = _CE.cost || 'expected';
   const bandAmt  = band==='floor' ? (ml?.predicted_final_bill_p10||0) : band==='ceiling' ? (ml?.predicted_final_bill_p90||0) : (ml?.predicted_final_bill_p50||0);
-  const bandLabel= band === 'floor' ? 'Low (P10)' : band === 'ceiling' ? 'High (P90)' : 'Typical (P50)';
+  const bandLabel= band === 'floor' ? 'Low' : band === 'ceiling' ? 'High' : 'Typical';
   const now      = new Date().toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
 
   const bd = ml?.cost_breakdown || {};
@@ -2876,9 +2917,9 @@ Ward / Bed   : ${_CE.wardType||'—'}
 COST ESTIMATE
 ━━━━━━━━━━━━━━━━━━━━━━
 Selected Estimate : ${bandLabel} — ${fmt(bandAmt)}
-Low (P10)         : ${fmt(ml?.predicted_final_bill_p10||0)}
-Typical (P50)     : ${fmt(ml?.predicted_final_bill_p50||0)}
-High (P90)        : ${fmt(ml?.predicted_final_bill_p90||0)}
+Low     : ${fmt(ml?.predicted_final_bill_p10||0)}
+Typical : ${fmt(ml?.predicted_final_bill_p50||0)}
+High    : ${fmt(ml?.predicted_final_bill_p90||0)}
 
 COST BREAKDOWN
 ${lineText}
