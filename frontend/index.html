@@ -140,30 +140,41 @@ a{color:inherit;text-decoration:none}
   text-transform:uppercase;
   letter-spacing:.6px;
   color:var(--muted);
-  margin-bottom:10px;
+  margin-bottom:12px;
   text-align:center;
+}
+.cred-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
 }
 .cred-row{
   display:flex;
-  align-items:center;
-  gap:10px;
-  padding:8px 12px;
+  flex-direction:column;
+  gap:5px;
+  padding:9px 10px;
   border:1px solid var(--border);
-  border-radius:7px;
+  border-radius:8px;
   background:#fafafa;
-  margin-bottom:7px;
   cursor:pointer;
-  transition:border-color .12s,background .12s;
+  transition:border-color .12s,background .12s,box-shadow .12s,transform .12s;
 }
-.cred-row:hover{border-color:var(--p);background:#fdf5ff}
+.cred-row:hover{
+  border-color:var(--p);
+  background:#fdf5ff;
+  box-shadow:0 2px 6px rgba(128,0,128,.12);
+  transform:translateY(-1px);
+}
+.cred-row:active{transform:translateY(0)}
 .cred-badge{
-  font-size:10px;
+  display:inline-block;
+  font-size:9.5px;
   font-weight:700;
-  padding:2px 7px;
+  padding:2.5px 7px;
   border-radius:4px;
   color:#fff;
   white-space:nowrap;
-  flex-shrink:0;
+  width:fit-content;
 }
 .cb-ccu{background:#7c3aed}
 .cb-gw{background:#16a34a}
@@ -174,8 +185,7 @@ a{color:inherit;text-decoration:none}
 .cb-ward{background:#0f766e}
 .cb-cmo{background:#1d4ed8}
 .cb-super{background:#6b21a8}
-.cred-name{font-size:12px;font-weight:600;color:var(--ink);flex:1}
-.cred-fill-hint{font-size:10.5px;color:var(--p);font-weight:600}
+.cred-name{font-size:11.5px;font-weight:600;color:var(--ink)}
 
 /* ── ERROR BANNER ── */
 .err-banner{
@@ -239,50 +249,43 @@ a{color:inherit;text-decoration:none}
     <div class="cred-section">
       <div class="cred-section-title">Quick sign-in — click to fill</div>
 
-      <div class="cred-row" onclick="fillCreds('rekha.devi@foqal.in','WardNurse@2026')">
-        <span class="cred-badge cb-ccu">CCU Nurse</span>
-        <span class="cred-name">Rekha Devi</span>
-        <span class="cred-fill-hint">Fill →</span>
-      </div>
-      <div class="cred-row" onclick="fillCreds('prathima.m@foqal.in','GWNurse@2026')">
-        <span class="cred-badge cb-gw">GW Nurse</span>
-        <span class="cred-name">Prathima M</span>
-        <span class="cred-fill-hint">Fill →</span>
-      </div>
-      <div class="cred-row" onclick="fillCreds('leena.kurup@foqal.in','ChargeNurse@2026')">
-        <span class="cred-badge cb-charge">Head Nurse</span>
-        <span class="cred-name">Leena Kurup</span>
-        <span class="cred-fill-hint">Fill →</span>
-      </div>
-      <div class="cred-row" onclick="fillCreds('dr.anand@foqal.in','Resident@2026')">
-        <span class="cred-badge cb-res">Resident</span>
-        <span class="cred-name">Dr. Anand Sharma</span>
-        <span class="cred-fill-hint">Fill →</span>
-      </div>
-      <div class="cred-row" onclick="fillCreds('bill','12345678')">
-        <span class="cred-badge cb-bill">Billing</span>
-        <span class="cred-name">Ravi Kumar</span>
-        <span class="cred-fill-hint">Fill →</span>
-      </div>
-      <div class="cred-row" onclick="fillCreds('dr.attending@foqal.in','Attending@2026')">
-        <span class="cred-badge cb-attend">Attending</span>
-        <span class="cred-name">Dr. Raj Mehta</span>
-        <span class="cred-fill-hint">Fill →</span>
-      </div>
-      <div class="cred-row" onclick="fillCreds('ward123','12345678')">
-        <span class="cred-badge cb-ward">Ward Admin</span>
-        <span class="cred-name">Arun Pillai</span>
-        <span class="cred-fill-hint">Fill →</span>
-      </div>
-      <div class="cred-row" onclick="fillCreds('cmo','zxcvbnm')">
-        <span class="cred-badge cb-cmo">CMO</span>
-        <span class="cred-name">Dr. Nitin Gupta</span>
-        <span class="cred-fill-hint">Fill →</span>
-      </div>
-      <div class="cred-row" onclick="fillCreds('super','12345678')">
-        <span class="cred-badge cb-super">Super Admin</span>
-        <span class="cred-name">Super Admin</span>
-        <span class="cred-fill-hint">Fill →</span>
+      <div class="cred-grid">
+        <div class="cred-row" onclick="fillCreds('rekha.devi@foqal.in','WardNurse@2026')">
+          <span class="cred-badge cb-ccu">CCU Nurse</span>
+          <span class="cred-name">Rekha Devi</span>
+        </div>
+        <div class="cred-row" onclick="fillCreds('prathima.m@foqal.in','GWNurse@2026')">
+          <span class="cred-badge cb-gw">GW Nurse</span>
+          <span class="cred-name">Prathima M</span>
+        </div>
+        <div class="cred-row" onclick="fillCreds('leena.kurup@foqal.in','ChargeNurse@2026')">
+          <span class="cred-badge cb-charge">Head Nurse</span>
+          <span class="cred-name">Leena Kurup</span>
+        </div>
+        <div class="cred-row" onclick="fillCreds('ashmit24134@iiitd.ac.in','12345678')">
+          <span class="cred-badge cb-res">Resident</span>
+          <span class="cred-name">Dr. Anand Sharma</span>
+        </div>
+        <div class="cred-row" onclick="fillCreds('ashmit24134@iiitd.ac.in','zxcvbnm')">
+          <span class="cred-badge cb-attend">Attending</span>
+          <span class="cred-name">Dr. Raj Mehta</span>
+        </div>
+        <div class="cred-row" onclick="fillCreds('bill','12345678')">
+          <span class="cred-badge cb-bill">Billing</span>
+          <span class="cred-name">Ravi Kumar</span>
+        </div>
+        <div class="cred-row" onclick="fillCreds('ward123','12345678')">
+          <span class="cred-badge cb-ward">Ward Admin</span>
+          <span class="cred-name">Arun Pillai</span>
+        </div>
+        <div class="cred-row" onclick="fillCreds('cmo','zxcvbnm')">
+          <span class="cred-badge cb-cmo">CMO</span>
+          <span class="cred-name">Dr. Nitin Gupta</span>
+        </div>
+        <div class="cred-row" onclick="fillCreds('super','12345678')">
+          <span class="cred-badge cb-super">Super Admin</span>
+          <span class="cred-name">Super Admin</span>
+        </div>
       </div>
     </div>
   </div>
@@ -352,7 +355,7 @@ a{color:inherit;text-decoration:none}
     }
 
     // Local Attending Doctor credentials — bypasses API
-    if ((email === 'dr.attending' || email === 'dr.attending@foqal.in') && pw === 'Attending@2026') {
+    if ((email === 'dr.attending' || email === 'dr.attending@foqal.in' || email === 'ashmit24134@iiitd.ac.in') && (pw === 'Attending@2026' || pw === 'zxcvbnm')) {
       sessionStorage.setItem('foqal_token', 'attending-local');
       sessionStorage.setItem('foqal_user', JSON.stringify({ full_name: 'Dr. Raj Mehta', role: 'doctor', email: 'dr.attending@foqal.in' }));
       window.location.href = '/doctor-queue.html';
@@ -393,7 +396,7 @@ a{color:inherit;text-decoration:none}
     }
 
     // ── Ward Monitor (Sabari Project) — Resident Doctor ─────────────────────
-    if ((email === 'dr.anand' || email === 'dr.anand@foqal.in') && pw === 'Resident@2026') {
+    if ((email === 'dr.anand' || email === 'dr.anand@foqal.in' || email === 'ashmit24134@iiitd.ac.in') && (pw === 'Resident@2026' || pw === '12345678')) {
       const user = { name: 'Dr. Anand Sharma', role: 'resident', roleLabel: 'Resident Doctor',
                      shift: 'Day Shift', ward: 'Ward 4B/4C', empId: 'EMP-0004' };
       window.location.href = `${_sabariBase}/?foqal_token=local-resident&foqal_user=${encodeURIComponent(JSON.stringify(user))}`;
