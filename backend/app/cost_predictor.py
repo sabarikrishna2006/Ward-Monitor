@@ -147,7 +147,7 @@ class CostPredictor:
         self._load()
         from .live_feature_builder import build_live_feature_row
 
-        X, breakdown, today_breakdown = build_live_feature_row(hadm_id, conn, self._features, hospital_day)
+        X, breakdown, today_breakdown, _admit_date = build_live_feature_row(hadm_id, conn, self._features, hospital_day)
         cumulative = float(X["cumulative_cost_so_far"].iloc[0])
         pred_log = self._model.predict(X)[0]
         # Same remaining-cost reconstruction as predict() above -- see

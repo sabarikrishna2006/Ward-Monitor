@@ -174,6 +174,14 @@ def build_live_feature_row(hadm_id: int, conn, feature_cols: list,
     cumulative_cost_so_far = sum(breakdown.values())
     cost_per_day_so_far = cumulative_cost_so_far / (hospital_day + 1)
 
+    # LOS submodel's extra engineered features (cost_ml_model/train_los_predictor_experiment.py) --
+    # harmless to compute unconditionally: the cost model's feature_cols doesn't
+    # include these keys, so they're silently dropped for that caller below.
+    cumulative_procedures_so_far = sum(1 for d in range(hospital_day + 1) if proc_by_day.get(d, 0) > 0)
+    cumulative_medicines_so_far = sum(1 for d in range(hospital_day + 1) if med_by_day.get(d, 0) > 0)
+    cumulative_labs_so_far = sum(1 for d in range(hospital_day + 1) if lab_by_day.get(d, 0) > 0)
+    cost_trend_ratio = (day_total_cost / cost_per_day_so_far) if cost_per_day_so_far else 1.0
+
     today_breakdown = {
         "procedures": round(day_procedures_cost, 2),
         "medicines": round(day_medicines_cost, 2),
@@ -201,6 +209,11 @@ def build_live_feature_row(hadm_id: int, conn, feature_cols: list,
         "day_ward_cost": day_ward_cost,
         "day_icu_cost": day_icu_cost,
         "day_total_cost": day_total_cost,
+        "cumulative_icu_days_so_far": cumulative_icu_days_so_far,
+        "cumulative_procedures_so_far": cumulative_procedures_so_far,
+        "cumulative_medicines_so_far": cumulative_medicines_so_far,
+        "cumulative_labs_so_far": cumulative_labs_so_far,
+        "cost_trend_ratio": cost_trend_ratio,
     }
 
     out = {c: 0 for c in feature_cols}
@@ -218,4 +231,4 @@ def build_live_feature_row(hadm_id: int, conn, feature_cols: list,
     if diagnosis_col not in out and "primary_diagnosis_grouped_Other" in out:
         out["primary_diagnosis_grouped_Other"] = 1  # unseen diagnosis -> "Other" bucket
 
-    return pd.DataFrame([out])[feature_cols], breakdown, today_breakdown
+    return pd.DataFrame([out])[feature_cols], breakdown, today_breakdown, admit_date

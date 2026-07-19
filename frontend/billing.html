@@ -368,8 +368,7 @@ const _CE = {
   losDays:       null,
   dischargeType: 'Standard',
   encounterId:   null,
-  primaryProcedure:    '',   // from MIMIC ap_procedures seq_num=1
-  primaryProcedureIcd: '',
+  syncing:       false,  // true while the early Patient-ID-blur admit+sync is in flight
   // CE1 insurance
   paymentMode:   'Cashless',
   insuranceCo:   '',
@@ -399,7 +398,7 @@ function _ceReset() {
   Object.keys(_CE).forEach(k => { _CE[k] = null; });
   Object.assign(_CE, { cost: keep.cost, wardType: keep.wardType, paymentMode: keep.paymentMode,
     dischargeType: 'Standard', isAbBeneficiary: false, abScheme: '', estimateData: null,
-    primaryProcedure: '', primaryProcedureIcd: '', paymentRef: '' });
+    syncing: false, paymentRef: '' });
   _liveData = null;
   _ce4Data  = null;
 }
@@ -424,8 +423,6 @@ function _applyPatientDetails(d) {
   _CE.losDays       = d.expected_los || d.los_days || 7;
   _CE.dischargeType = d.discharge_type || 'Standard';
   _CE.encounterId   = d.encounter_id;
-  _CE.primaryProcedure    = d.primary_procedure_title || '';
-  _CE.primaryProcedureIcd = d.primary_procedure_icd  || '';
   // Insurance always pre-fills from DB (seeded at startup for all patients)
   _CE.paymentMode   = d.payment_mode   || 'Cashless';
   _CE.insuranceCo   = d.insurance_co   || '';
@@ -812,6 +809,47 @@ function _ce1SchemeChange() {
   const info = schemeInfo[scheme] || { cls:'al-info', icon:'ℹ️', msg:'Government scheme selected — rates and patient liability will be calculated accordingly.' };
   banner.className = `alert ${info.cls}`;
   banner.innerHTML = `${info.icon} <b>${scheme}</b> — ${info.msg}`;
+}
+
+// Fires as soon as a hadm_id is typed into CE1's Patient ID field (New Entry
+// mode, before "Generate Cost Estimate" is clicked) -- provisions + kicks off
+// the BigQuery sync early so Admission Date / Primary Diagnosis / Expected
+// Discharge can populate live while the rest of the form is still being
+// filled in, instead of only starting once Save is clicked.
+async function _ce1PatientIdBlur() {
+  if (_CE.hadm_id) return;  // already a real patient -- field is readonly, this can't fire
+  const val = document.getElementById('ce1-mrn')?.value?.trim();
+  const hid = parseInt(val);
+  if (!hid || hid <= 0) return;
+
+  _CE.hadm_id     = hid;
+  _CE.mrn         = val;
+  _CE.patientName = _bilName(hid);
+  _CE.syncing     = true;
+  showScreen('ce1');
+
+  const base = window.FOQAL_API_BASE || `http://${location.hostname}:6010`;
+  try {
+    const resp = await fetch(`${base}/api/billing/generate-estimate`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ hadm_id: hid, ward_type: 'Semi-private Ward', los_days: 7, patient_name: _CE.patientName }),
+    });
+    const data = resp.ok ? await resp.json() : null;
+    if (data?.ward_admitted) {
+      const _dataBase = window.FOQAL_DATA_BASE || `http://${location.hostname}:6020`;
+      const pf = await fetch(`${_dataBase}/api/patient/${hid}/prefetch-all`, { method: 'POST' });
+      const pfData = pf.ok ? await pf.json() : null;
+      if (pfData?.status === 'fetched') {
+        await _refetchPatientDetails();
+        _fetchMlEstimate();
+      }
+    }
+  } catch (e) {
+    console.warn('early patient sync failed:', e);
+  } finally {
+    _CE.syncing = false;
+    if (CURRENT === 'ce1') showScreen('ce1');
+  }
 }
 
 // _ce2Recalc() removed -- was dead code (unreferenced anywhere in the UI),
@@ -1628,33 +1666,34 @@ ${stepFlow('ce1')}
       <div class="card-title">Patient &amp; Clinical Details</div>
       <div class="fg">
         <label class="fl">Patient ID</label>
-        <input class="fi ${hasPatient ? 'valid' : ''}" id="ce1-mrn" value="${_CE.mrn || ''}" ${hasPatient ? 'readonly style="background:var(--surf)"' : ''}>
+        <input class="fi ${hasPatient ? 'valid' : ''}" id="ce1-mrn" value="${_CE.mrn || ''}" ${hasPatient ? 'readonly style="background:var(--surf)"' : 'onblur="_ce1PatientIdBlur()" placeholder="Enter HADM ID and click away to start syncing"'}>
         ${hasPatient ? `<div class="fi-hint">✓ ${_CE.patientName}${ageSex ? ' · ' + ageSex : ''} · HADM: ${_CE.hadm_id}</div>` : ''}
       </div>
       <div class="frow">
         <div class="fg">
           <label class="fl">Admission Date</label>
-          <input class="fi ${hasPatient?'valid':''}" id="ce1-admit" type="date" value="${_CE.admitDate || ''}" ${hasPatient?'readonly style="background:var(--surf)"':''} onchange="_ce1UpdateLos()">
-          ${hasPatient?'<div class="fi-hint">✓ From MIMIC admissions</div>':''}
+          ${_CE.syncing && !_CE.admitDate
+            ? `<div class="fi" style="display:flex;align-items:center;gap:8px;color:var(--muted)"><span style="animation:livePulse 1.4s ease-in-out infinite">⏳</span> Syncing…</div>`
+            : `<input class="fi ${hasPatient?'valid':''}" id="ce1-admit" type="date" value="${_CE.admitDate || ''}" ${hasPatient?'readonly style="background:var(--surf)"':''} onchange="_ce1UpdateLos()">`}
+          ${hasPatient && !_CE.syncing ?'<div class="fi-hint">✓ From MIMIC admissions</div>':''}
         </div>
         <div class="fg">
           <label class="fl">Expected Discharge</label>
-          <input class="fi" id="ce1-disc" type="date" value="${_CE.dischargeDate || ''}" onchange="_ce1UpdateLos()">
-          ${hasPatient?'<div class="fi-hint">Estimated — edit if clinical team expects different date</div>':''}
+          ${_CE.syncing && !_CE.dischargeDate
+            ? `<div class="fi" style="display:flex;align-items:center;gap:8px;color:var(--muted)"><span style="animation:livePulse 1.4s ease-in-out infinite">⏳</span> Predicting…</div>`
+            : `<input class="fi" id="ce1-disc" type="date" value="${_CE.dischargeDate || ''}" onchange="_ce1UpdateLos()">`}
+          ${hasPatient && !_CE.syncing ? '<div class="fi-hint">ML LOS-model prediction — edit if clinical team expects different date</div>' : ''}
         </div>
       </div>
       <div class="fg">
         <label class="fl">Primary Diagnosis</label>
-        <input class="fi" value="${_CE.diagnosisCode ? _CE.diagnosisCode + ' — ' + (_CE.diagnosis || '') : (_CE.diagnosis || 'Auto-fetched by ML model from patient data')}" readonly style="background:var(--surf)">
+        ${_CE.syncing && !_CE.diagnosis
+          ? `<div class="fi" style="display:flex;align-items:center;gap:8px;color:var(--muted)"><span style="animation:livePulse 1.4s ease-in-out infinite">⏳</span> Syncing clinical data from MIMIC…</div>`
+          : `<input class="fi" value="${_CE.diagnosisCode ? _CE.diagnosisCode + ' — ' + (_CE.diagnosis || '') : (_CE.diagnosis || 'Auto-fetched by ML model from patient data')}" readonly style="background:var(--surf)">`}
         <div class="fi-hint">Auto-fetched — no manual selection needed, the ML model reads this directly from the patient's real diagnosis data.</div>
       </div>
-      <div class="fg">
-        <label class="fl">Primary Procedure (ICD-9-CM)</label>
-        <input class="fi" id="ce1-proc" value="${_CE.primaryProcedureIcd ? _CE.primaryProcedureIcd + (_CE.primaryProcedure ? ' — ' + _CE.primaryProcedure : '') : ''}" readonly style="background:var(--surf)">
-        ${_CE.primaryProcedureIcd ? `<div class="fi-hint">✓ Auto-filled from MIMIC procedures (ICD-${_CE.primaryProcedureIcd})</div>` : '<div class="fi-hint">Auto-fetched once clinical data syncs</div>'}
-      </div>
       <div class="frow">
-        <div class="fg"><label class="fl">Expected LOS (days)</label><input class="fi" id="ce1-los" type="number" value="${_CE.losDays || 7}"></div>
+        <div class="fg"><label class="fl">Expected LOS (days)</label><input class="fi" id="ce1-los" type="number" value="${_CE.losDays || 7}" readonly style="background:var(--surf)"></div>
         <div class="fg"><label class="fl">Ward / Bed Type</label>
           <select class="fi" id="ce1-ward">
             <option>General Ward</option>

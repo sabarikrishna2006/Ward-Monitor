@@ -1490,8 +1490,7 @@ def upsert_billing_record(hadm_id: int, req: BillingRecordUpsert):
 @app.get("/api/billing/patient/{hadm_id}")
 def get_billing_patient(hadm_id: int):
     """Patient details for CE1 pre-fill — active_patients + encounter + billing_record."""
-    import random as _random
-    from datetime import timedelta as _td, date as _date, datetime as _dt
+    from datetime import datetime as _dt
     from sqlalchemy import text as _text
     from .cloud_sql_db import get_engine as _get_engine
     with _get_engine().connect() as conn:
@@ -1524,36 +1523,30 @@ def get_billing_patient(hadm_id: int):
             LIMIT 1
         """), {"h": hadm_id}).fetchone()
 
-    result = dict(row._mapping)
+        result = dict(row._mapping)
 
-    # Use previously saved expected_discharge if available, otherwise compute
-    saved_expected = result.get("expected_discharge_date")
-    if saved_expected:
-        expected_discharge = str(saved_expected)[:10]
-        expected_los = result.get("expected_los_days")
-    else:
-        actual_discharge = result.get("discharge_time")
-        expected_discharge = None
-        expected_los = None
-        if actual_discharge:
-            rng = _random.Random(hadm_id)
-            offset = rng.choice([-4, -3, -2])  # CE1 underestimates LOS by 2-4 days
-            if isinstance(actual_discharge, str):
-                actual_dt = _dt.fromisoformat(actual_discharge.replace("Z", ""))
-            else:
-                actual_dt = actual_discharge
-            expected_dt = actual_dt + _td(days=offset)
-            admit_time = result.get("admit_time")
-            if admit_time:
-                admit_date = (
-                    _dt.fromisoformat(admit_time.replace("Z", "")).date()
-                    if isinstance(admit_time, str) else
-                    admit_time.date() if hasattr(admit_time, "date") else admit_time
-                )
-                exp_date = expected_dt.date()
-                expected_los = max(1, (exp_date - admit_date).days)
-            # Freshly computed (not yet saved by the user) -- shift to display-space now.
-            expected_discharge = _shift_mimic_date(expected_dt).date().isoformat()
+        # Use previously saved expected_discharge if available (staff already
+        # reviewed/edited it) -- otherwise ask the LOS submodel
+        # (cost_ml_model/train_los_predictor_experiment.py) for a live
+        # prediction off this patient's real synced data.
+        saved_expected = result.get("expected_discharge_date")
+        if saved_expected:
+            expected_discharge = str(saved_expected)[:10]
+            expected_los = result.get("expected_los_days")
+        else:
+            expected_discharge = None
+            expected_los = None
+            try:
+                from .los_predictor import los_predictor
+                los_pred = los_predictor.predict_live(hadm_id, conn)
+                # LOS model's admit_date is real MIMIC-space -- shift to
+                # display-space same as every other MIMIC date shown on screen.
+                exp_dt = _dt.fromisoformat(los_pred["expected_discharge_date"])
+                expected_discharge = _shift_mimic_date(exp_dt).date().isoformat()
+                expected_los = round(los_pred["hospital_day"] + los_pred["predicted_remaining_days"])
+            except Exception as _e:
+                log.warning(f"LOS prediction unavailable for hadm {hadm_id}: {_e}")
+                pass  # clinical data not synced yet -- leave both None, frontend shows a loader
 
     result["expected_discharge"] = expected_discharge
     result["expected_los"] = expected_los
