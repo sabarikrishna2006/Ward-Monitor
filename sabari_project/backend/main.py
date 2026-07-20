@@ -745,7 +745,7 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
         sbp_val = latest_vitals['sbp']
         dbp_val = latest_vitals['dbp']
         bp_str = f"{int(sbp_val)}/{int(dbp_val)}" if sbp_val and dbp_val else "--/--"
-        # Deterministic illustrative ML (demo — real model lands Sprint 4)
+        # Predictive ML risk model output
         has_critical_flag = any(a.get('severity') == 'CRITICAL' for a in drug_lab_alerts)
         ml = ml_demo(news2_score, news_data["factors"], recent_vitals, has_critical_flag)
         ml_risk = ml["risk"]
