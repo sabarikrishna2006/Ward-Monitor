@@ -644,9 +644,9 @@ function showScreen(id) {
 }
 
 /* ─── MODAL ─── */
-function openModal(id, extra, extra2) {
+function openModal(id, extra, extra2, extra3) {
   const box = document.getElementById('modal-box');
-  box.innerHTML = MODALS[id] ? MODALS[id](extra, extra2) : '';
+  box.innerHTML = MODALS[id] ? MODALS[id](extra, extra2, extra3) : '';
   document.getElementById('modal-overlay').classList.add('open');
 }
 
