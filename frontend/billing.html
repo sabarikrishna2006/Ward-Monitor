@@ -1444,59 +1444,23 @@ async function _ce4Save() {
   const saveBtn = document.getElementById('ce4-save-btn');
   if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving…'; }
 
+  // No separate payment-gateway/release step anymore -- generating the final
+  // bill settles the patient immediately (billing_phase goes straight to
+  // 'paid'), so the row disappears from every pending bucket and shows up in
+  // Final Bill Completed right away. Bill Actions/Insurance Claim/etc. are
+  // still reachable read-only from there via the "🧾 Bill" button (CE5).
   const _recon = _ce4Data?.reconciliation || {};
   await _ceSaveRecord({
     actual_line_items:    actualLineItems,
     actual_charges:       actualTotal,
     reconciliation_notes: notes || null,
     actual_los_days:      _recon.actual_los || null,
-    billing_phase:        'final_bill_generated',
+    billing_phase:        'paid',
   });
 
-  // Keep _ce4Data alive so CE5 can read reconciliation/ab_info
-  // It is cleared in _ceSelectPatient() when the next patient is loaded
-  showScreen('ce5');
-}
-
-/* ── CE5 — Payment mode panel ── */
-function _ce5PayMode(radio) {
-  const panel = document.getElementById('ce5-pay-panel');
-  if (!panel) return;
-  const val = radio.value;
-  if (val === 'upi') {
-    panel.innerHTML = `<div style="background:var(--surf);border:1px solid var(--border);border-radius:8px;padding:16px;text-align:center">
-      <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Scan to pay via UPI</div>
-      <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=upi://pay?pa=foqalcare.pay@icici&tn=Hospital+Bill&am=0" alt="UPI QR" style="width:120px;height:120px;border-radius:4px;display:block;margin:0 auto 8px" onerror="this.style.display='none'">
-      <div style="font-family:var(--mono);font-size:13px;font-weight:700;color:var(--ink1);margin-bottom:2px">foqalcare.pay@icici</div>
-      <div style="font-size:11px;color:var(--muted)">ICICI Bank · Foqal CareOS</div>
-    </div>`;
-  } else if (val === 'cash') {
-    panel.innerHTML = `<div style="background:var(--surf);border:1px solid var(--border);border-radius:8px;padding:16px">
-      <div style="font-weight:700;margin-bottom:6px">Cash Payment</div>
-      <div style="font-size:13px;color:var(--ink2)">Please proceed to the <b>Billing Counter (Ground Floor)</b> with this bill printout. Collect cash receipt after payment.</div>
-      <div style="margin-top:10px;padding:8px 12px;background:#fef9c3;border-radius:6px;font-size:12px;color:#854d0e">⚠️ Exact change preferred. Receipts must be collected before patient discharge.</div>
-    </div>`;
-  } else if (val === 'card') {
-    panel.innerHTML = `<div style="background:var(--surf);border:1px solid var(--border);border-radius:8px;padding:16px">
-      <div style="font-weight:700;margin-bottom:6px">Credit / Debit Card</div>
-      <div style="font-size:13px;color:var(--ink2)">Please proceed to the <b>POS terminal</b> at the Billing Counter. All major cards accepted.</div>
-      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-        ${['Visa','Mastercard','RuPay','Amex'].map(c=>`<span style="padding:4px 10px;border:1px solid var(--border);border-radius:4px;font-size:11.5px;font-weight:600">${c}</span>`).join('')}
-      </div>
-      <div style="margin-top:10px;font-size:11px;color:var(--muted)">EMI options available for bills above ₹10,000 on select banks.</div>
-    </div>`;
-  } else if (val === 'neft') {
-    panel.innerHTML = `<div style="background:var(--surf);border:1px solid var(--border);border-radius:8px;padding:16px">
-      <div style="font-weight:700;margin-bottom:8px">NEFT / RTGS Transfer</div>
-      <table style="width:100%;font-size:12.5px">
-        <tr><td style="padding:4px 0;color:var(--muted)">Beneficiary</td><td style="font-weight:600">Foqal CareOS</td></tr>
-        <tr><td style="padding:4px 0;color:var(--muted)">Account No.</td><td style="font-family:var(--mono)">007701523456</td></tr>
-        <tr><td style="padding:4px 0;color:var(--muted)">IFSC</td><td style="font-family:var(--mono)">ICIC0000077</td></tr>
-        <tr><td style="padding:4px 0;color:var(--muted)">Bank</td><td>ICICI Bank, Sector 38, Gurugram</td></tr>
-      </table>
-      <div style="margin-top:8px;font-size:11px;color:var(--muted)">Use patient MRN <b>${_CE.mrn || ''}</b> as payment reference. RTGS settlements credited within 2 hours.</div>
-    </div>`;
-  }
+  _showBillingToast('✅ Final bill generated — moved to Final Bill Completed.', '#16a34a');
+  _ce0Tab = 'reconciled';
+  showScreen('ce0');
 }
 
 /* ── CE5 — Print / Download ── */
@@ -1665,20 +1629,6 @@ ${_CE.patientName || 'Patient'}
       window.open(gmailUrl, '_blank');
       _showBillingToast('📧 Claim email opened — attach the discharge summary, bill, and receipt before sending.', '#2563eb');
     }
-  });
-}
-
-function _ce5MarkPaid() {
-  const ref = document.getElementById('ce5-payref')?.value || '';
-  const mode = document.querySelector('input[name="pay-mode"]:checked')?.nextSibling?.textContent?.trim() || 'UPI';
-  _CE.paymentRef = ref;
-  _ceSaveRecord({
-    payment_ref:         ref,
-    payment_mode_final:  mode,
-    billing_phase:       'paid',
-  }).then(() => {
-    closeModal();
-    showScreen('ce0');
   });
 }
 
@@ -2415,23 +2365,6 @@ ${headerAlert}
   <div class="card">
     <div class="card-title">Bill Summary</div>
     ${billSummaryHtml}
-    <div class="divider"></div>
-    <div class="card-title">Payment Mode</div>
-    <label class="radio-row"><input type="radio" name="pay-mode" value="cash" onchange="_ce5PayMode(this)"> Cash</label>
-    <label class="radio-row"><input type="radio" name="pay-mode" value="upi"  onchange="_ce5PayMode(this)" checked> UPI / QR Code</label>
-    <label class="radio-row"><input type="radio" name="pay-mode" value="card" onchange="_ce5PayMode(this)"> Credit / Debit Card</label>
-    <label class="radio-row"><input type="radio" name="pay-mode" value="neft" onchange="_ce5PayMode(this)"> NEFT / RTGS</label>
-    <div id="ce5-pay-panel" style="margin:12px 0">
-      <div style="background:var(--surf);border:1px solid var(--border);border-radius:8px;padding:16px;text-align:center">
-        <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Scan to pay via UPI</div>
-        <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=upi://pay?pa=foqalcare.pay@icici&tn=Hospital+Bill&am=0" alt="UPI QR" style="width:120px;height:120px;border-radius:4px;display:block;margin:0 auto 8px" onerror="this.outerHTML='<div style=\'width:120px;height:120px;background:var(--border);border-radius:6px;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--muted)\'>QR</div>'">
-        <div style="font-family:var(--mono);font-size:13px;font-weight:700;color:var(--ink1);margin-bottom:2px">foqalcare.pay@icici</div>
-        <div style="font-size:11px;color:var(--muted)">ICICI Bank · Foqal CareOS</div>
-      </div>
-    </div>
-    <button class="btn btn-pri" style="width:100%;justify-content:center;margin-top:4px" onclick="openModal('payment-confirm')">
-      Mark as Paid &amp; Release Patient
-    </button>
   </div>
   <div>
     <div class="card" style="margin-bottom:12px">
@@ -2501,28 +2434,6 @@ const MODALS = {
   <button class="btn btn-sec" onclick="closeModal()">Cancel</button>
   <button class="btn btn-pri" onclick="_ce1ConfirmSync(${hid}, '${val.replace(/'/g, "\\'")}')">Confirm &amp; Start Sync</button>
 </div>`,
-  'payment-confirm': () => {
-    // Use the same source CE5 uses — _ce4Data.reconciliation.patient_pay_final
-    const recon   = _ce4Data?.reconciliation || {};
-    const isGovt  = _ce4Data?.ab_info?.is_ab_beneficiary;
-    const patientPayFinal = recon.patient_pay_final ?? null;
-    const gross   = recon.actual_gross || _CE.actualCharges || 0;
-    const balance = patientPayFinal !== null ? patientPayFinal
-                  : isGovt ? 0
-                  : gross;
-    const fmt = n => '₹' + (n||0).toLocaleString('en-IN');
-    return `
-<div class="modal-t">Confirm Payment Received?</div>
-<div class="modal-b">Balance of <b style="color:var(--t1)">${fmt(balance)}</b> confirmed received. Patient ${_CE.mrn || '—'}${_CE.patientName ? ' (' + _CE.patientName + ')' : ''} will be cleared for discharge.</div>
-<div style="background:var(--surf);border:1px solid var(--border);border-radius:6px;padding:12px 14px;margin-bottom:16px">
-  <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Payment Reference</div>
-  <input id="ce5-payref" class="fi" placeholder="UPI Ref / Transaction ID" style="font-family:var(--mono)">
-</div>
-<div class="modal-f">
-  <button class="btn btn-sec" onclick="closeModal()">Cancel</button>
-  <button class="btn btn-pri" onclick="_ce5MarkPaid()">Confirm &amp; Clear Discharge</button>
-</div>`;
-  },
   'opd-patient': (p) => {
     const fmt = n => '₹' + Math.round(n||0).toLocaleString('en-IN');
     const name = p.patient_name || _bilName(p.hadm_id);
