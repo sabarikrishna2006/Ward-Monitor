@@ -47,19 +47,35 @@ a{color:inherit;text-decoration:none}
   display:flex;flex-direction:column;flex-shrink:0;
   transition: width 0.25s ease; overflow: hidden;
 }
+/* Collapsed = narrow icon-only rail (matches ward-admin.html / super-admin.html),
+   not a full hide -- hovering the rail temporarily re-expands it so labels are
+   reachable without a second click. Desktop only; mobile still uses .open (below). */
 #sidebar-wrap.collapsed {
-  width: 0; border-right: none;
+  width: var(--sb-collapsed, 56px);
 }
-.sb-header{padding:14px 14px 8px;font-size:10px;font-weight:800;letter-spacing:1px;color:var(--muted);text-transform:uppercase}
+#sidebar-wrap.collapsed .sb-header,
+#sidebar-wrap.collapsed .sb-sep,
+#sidebar-wrap.collapsed .sb-text{ display:none }
+#sidebar-wrap.collapsed .sb-item{ justify-content:center; padding:9px 0 }
+
+#sidebar-wrap.collapsed:hover{ width:var(--sb) }
+#sidebar-wrap.collapsed:hover .sb-header,
+#sidebar-wrap.collapsed:hover .sb-sep,
+#sidebar-wrap.collapsed:hover .sb-text{ display:block }
+#sidebar-wrap.collapsed:hover .sb-item{ justify-content:flex-start; padding:8px 14px }
+
+.sb-header{padding:14px 14px 8px;font-size:10px;font-weight:800;letter-spacing:1px;color:var(--muted);text-transform:uppercase;white-space:nowrap}
 #sidebar{overflow-y:auto;flex:1}
-.sb-sep{padding:16px 14px 6px;font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)}
+.sb-sep{padding:16px 14px 6px;font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);white-space:nowrap}
 .sb-item{
   display:flex;align-items:center;gap:8px;padding:8px 14px;
-  font-size:12.5px;color:var(--ink2);cursor:pointer;
-  border-left:3px solid transparent;transition:all .1s;
+  font-size:12.5px;color:var(--ink2);cursor:pointer;white-space:nowrap;
+  border-left:3px solid transparent;transition:background .1s,color .1s;
 }
 .sb-item:hover{background:var(--surf)}
 .sb-item.active{background:var(--pl);color:var(--p);border-left-color:var(--p);font-weight:600}
+.sb-item.active .sb-icon{color:var(--p)}
+.sb-icon{width:16px;height:16px;flex-shrink:0;color:#9aa3b0;transition:color .1s}
 
 /* ── CONTENT ── */
 /* min-height:0 on the flex chain is required for #main to scroll instead of
@@ -315,14 +331,15 @@ tr.acked-row td:first-child{box-shadow:inset 3px 0 0 var(--t3)}
 /* ── HAMBURGER BUTTON ── */
 .ham-btn{
   display:flex;
-  width:40px;height:40px;
+  width:30px;height:30px;
   align-items:center;justify-content:center;
-  border:none;background:none;padding:0;
-  border-radius:6px;flex-shrink:0;
+  border:1px solid var(--border);background:#fff;padding:0;
+  border-radius:6px;flex-shrink:0;color:var(--muted);
+  transition:all .12s;
 }
-.ham-btn:hover{background:var(--surf)}
-.ham-icon{display:flex;flex-direction:column;gap:5px;width:20px}
-.ham-icon span{display:block;height:2px;background:var(--ink);border-radius:2px}
+.ham-btn:hover{background:var(--surf);color:var(--ink)}
+.ham-icon{display:flex;flex-direction:column;gap:3px;width:14px}
+.ham-icon span{display:block;height:1.5px;background:currentColor;border-radius:2px}
 
 /* ── SIDEBAR OVERLAY (mobile) ── */
 #sidebar-overlay{

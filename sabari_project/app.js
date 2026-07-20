@@ -70,9 +70,41 @@ window.toggleSidebar = function() {
     const isOpen = sw.classList.toggle('open');
     if (ov) ov.classList.toggle('open', isOpen);
   } else {
-    sw.classList.toggle('collapsed');
+    const collapsed = sw.classList.toggle('collapsed');
+    try { localStorage.setItem('foqal_sidebar_collapsed', collapsed ? '1' : '0'); } catch(_) {}
   }
 };
+(function initSidebarState() {
+  if (window.innerWidth <= 768) return;
+  let saved = null;
+  try { saved = localStorage.getItem('foqal_sidebar_collapsed'); } catch(_) {}
+  const sw = document.getElementById('sidebar-wrap');
+  if (sw && saved !== null) sw.classList.toggle('collapsed', saved === '1');
+})();
+
+/* Icon-rail icons for the collapsed sidebar -- one per nav item id, reused
+   across every role's NAV list. Same 16x16 stroke style as ward-admin.html's
+   .sb-icon so the collapsed rail looks consistent across the whole app. */
+const NAV_ICONS = {
+  n1:        '<path d="M2 9h2.5l1.5-4 2 8 1.5-5H14"/>',
+  n1b:       '<circle cx="8" cy="5.5" r="2.5"/><path d="M3 14c0-2.8 2.2-5 5-5s5 2.2 5 5"/>',
+  n2:        '<path d="M8 2 1 14h14L8 2z"/><path d="M8 6.5v3.2"/><circle cx="8" cy="11.7" r=".9" fill="currentColor" stroke="none"/>',
+  n3:        '<path d="M3 2v12"/><path d="M3 3h9l-2 3 2 3H3"/>',
+  n4:        '<path d="M2 4h12M2 8h8M2 12h10"/><circle cx="13" cy="12" r="1.3" fill="currentColor" stroke="none"/>',
+  n4b:       '<circle cx="8" cy="8" r="6.2"/><path d="M5.3 8.2l1.8 1.8 3.6-3.8"/>',
+  n5:        '<path d="M2 4h12M2 8h8M2 12h10"/><circle cx="13" cy="12" r="1.3" fill="currentColor" stroke="none"/>',
+  n5b:       '<path d="M3 4h10M3 8h10M3 12h10"/><circle cx="6" cy="4" r="1.3" fill="#fff"/><circle cx="10" cy="8" r="1.3" fill="#fff"/><circle cx="5" cy="12" r="1.3" fill="#fff"/>',
+  n6:        '<path d="M2 5h9l-2.5-2.5"/><path d="M14 11H5l2.5 2.5"/>',
+  n6b:       '<circle cx="8" cy="8" r="6.2"/><path d="M5.3 8.2l1.8 1.8 3.6-3.8"/>',
+  dl1:       '<path d="M4 8a4 4 0 018 0v3a4 4 0 01-8 0V8z"/><path d="M4 8h8"/>',
+  dl3:       '<path d="M4 8a4 4 0 018 0v3a4 4 0 01-8 0V8z"/><path d="M4 8h8"/>',
+  dlcosign:  '<path d="M3 13l2.2-.5L13 4.7a1.4 1.4 0 00-2-2L3.2 10.6 3 13z"/>',
+};
+function _navIcon(id) {
+  const p = NAV_ICONS[id];
+  if (!p) return '';
+  return `<svg class="sb-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">${p}</svg>`;
+}
 
 function closeSidebar() {
   const sw = document.getElementById('sidebar-wrap');
@@ -417,7 +449,7 @@ function renderSidebar() {
   const items = NAV[APP.role] || [];
   document.getElementById('sidebar').innerHTML = items.map(it => {
     if (it.separator) return `<div class="sb-sep">${it.label}</div>`;
-    return `<div class="sb-item${APP.screen === it.id ? ' active' : ''}" onclick="nav('${it.id}')">${it.label}</div>`;
+    return `<div class="sb-item${APP.screen === it.id ? ' active' : ''}" onclick="nav('${it.id}')" title="${it.label}">${_navIcon(it.id)}<span class="sb-text">${it.label}</span></div>`;
   }).join('');
 }
 
