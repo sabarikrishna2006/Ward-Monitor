@@ -151,6 +151,14 @@ let _ddLivePollTimer = null;
 function _ddLivePoll() {
   clearTimeout(_ddLivePollTimer);
   _ddLivePollTimer = setTimeout(async () => {
+    // SLA-alert check runs in its own try/catch, independent of the
+    // encounters-diff logic below -- a hiccup fetching/merging encounters
+    // must not silently skip the SLA check for that whole cycle.
+    try {
+      const prevSlaCount = _dd.slaToasts.length;
+      await _ddCheckSlaAlerts();
+      if (_dd.slaToasts.length !== prevSlaCount) renderApp();
+    } catch (_) {}
     try {
       const base = window.FOQAL_API_BASE || 'http://localhost:6010';
       const fresh = await fetch(`${base}/api/encounters`).then(r => r.ok ? r.json() : null);
@@ -198,11 +206,9 @@ function _ddLivePoll() {
         }
         if (changed) {
           _ddMaybeStartPoll();
+          renderApp();
         }
       }
-      const prevSlaCount = _dd.slaToasts.length;
-      await _ddCheckSlaAlerts();
-      if (changed || _dd.slaToasts.length !== prevSlaCount) renderApp();
     } catch (_) {}
     _ddLivePoll();
   }, 8000);
