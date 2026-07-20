@@ -168,7 +168,6 @@ SCREEN_SETUP["signed"] = async function setupSigned() {
     const docName  = /^Dr\.?\s/i.test(_raw) ? _raw : `Dr. ${_raw}`;
     const docId    = _sgDoctorId(docName, rd.hadmId);
     const desig    = rd.signedDesig    || sig.designation || 'Attending Physician';
-    const hospital = rd.signedHospital || sig.hospital    || '—';
     const signedAt = rd.signedAt
       ? new Date(rd.signedAt).toLocaleString('en-IN', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:false }) + ' IST'
       : '—';
@@ -199,7 +198,7 @@ ${_secHTML || '<p style="color:#9ca3af;font-style:italic">No content available.<
 <div style="margin-top:40px;padding-top:20px;border-top:2px solid #e5e7eb;display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start">
   <div>
     <div style="font-size:10px;font-weight:800;background:#800080;color:#fff;display:inline-block;padding:2px 8px;border-radius:3px;margin-bottom:12px;letter-spacing:.05em">DIGITALLY SIGNED</div>
-    ${[['Signed by', docName, ''], ['Designation', desig, ''], ['Doctor ID', docId, 'font-family:monospace;font-size:12px'], ['Hospital', hospital, ''], ['Timestamp', signedAt, 'font-family:monospace;font-size:11px']].map(([l,v,s])=>`
+    ${[['Signed by', docName, ''], ['Designation', desig, ''], ['Doctor ID', docId, 'font-family:monospace;font-size:12px'], ['Timestamp', signedAt, 'font-family:monospace;font-size:11px']].map(([l,v,s])=>`
     <div style="margin-bottom:9px"><div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">${l}</div><div style="font-size:13px;font-weight:600;color:#111;${s}">${v}</div></div>`).join('')}
   </div>
   ${sigImg ? `<div><div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Doctor Signature</div><img src="${sigImg}" style="max-width:220px;border:1.5px solid #e5e7eb;border-radius:6px;padding:8px"></div>` : '<div></div>'}

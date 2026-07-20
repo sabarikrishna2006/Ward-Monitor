@@ -544,6 +544,23 @@ async function loadDashboard(isRetry) {
 
     _myRows = _visibleRows(myEncs);
 
+    // System-wide stat, not scoped to this resident's queue -- must run
+    // regardless of whether _myRows is empty, otherwise it silently never
+    // loads (was sitting after the early-return below) and the tile just
+    // shows its hardcoded "—" placeholder forever.
+    document.getElementById('s-time').textContent = 'N/A';
+    fetch(`${API}/api/dashboard`).then(r => r.ok ? r.json() : null).then(stats => {
+      if (!stats) return;
+      const s = stats.cards?.avg_gen_s;
+      let label = 'N/A';
+      if (s != null) {
+        if (s < 60)        label = s.toFixed(0) + 's';
+        else if (s < 3600) label = (s / 60).toFixed(1) + 'm';
+        else               label = (s / 3600).toFixed(1) + 'h';
+      }
+      document.getElementById('s-time').textContent = label;
+    }).catch(() => {});
+
     if (!_myRows.length) {
       document.getElementById('s-pending').textContent = 0;
       document.getElementById('s-review').textContent  = 0;
@@ -566,19 +583,6 @@ async function loadDashboard(isRetry) {
         _showSummaryReadyBanner(r.hadm_id, synth(r.hadm_id).name);
       }
     });
-    document.getElementById('s-time').textContent = '—';
-
-    fetch(`${API}/api/dashboard`).then(r => r.ok ? r.json() : null).then(stats => {
-      if (!stats) return;
-      const s = stats.cards?.avg_gen_s;
-      let label = '—';
-      if (s != null) {
-        if (s < 60)        label = s.toFixed(0) + 's';
-        else if (s < 3600) label = (s / 60).toFixed(1) + 'm';
-        else               label = (s / 3600).toFixed(1) + 'h';
-      }
-      document.getElementById('s-time').textContent = label;
-    }).catch(() => {});
 
   } catch (err) {
     if (_loadAttempt < MAX_ATTEMPTS) {
