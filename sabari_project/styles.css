@@ -6,6 +6,7 @@
   --t3:#059669;--t3b:#ecfdf5;
   --ink:#111827;--ink2:#374151;--muted:#6b7280;
   --border:#e5e7eb;--surf:#f9fafb;
+  --disch:#0d9488;--disch-b:#f0fdfa;
   --font:system-ui,-apple-system,'Segoe UI',sans-serif;
   --mono:'SF Mono','Menlo','Consolas',monospace;
   --sb:220px;--ab:56px;--tb:38px;
@@ -31,8 +32,6 @@ a{color:inherit;text-decoration:none}
 .alogo em{color:var(--ink);font-style:normal;font-weight:400}
 
 .role-chip{padding:3px 10px;border-radius:12px;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;white-space:nowrap;background:var(--surf);color:var(--muted)}
-#hdr-role.Bedside.Nurse{background:#f0f9ff;color:#0369a1}
-#hdr-role.Charge.Nurse{background:#e0f2fe;color:#075985}
 
 #hdr-meta{display:flex;align-items:center;gap:8px;margin-left:12px}
 
@@ -95,9 +94,10 @@ a{color:inherit;text-decoration:none}
 
 /* ── STATS BAR ── */
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
-.stat{background:#fff;border:1px solid var(--border);border-radius:8px;padding:16px}
+.stat{background:#fff;border:1px solid var(--border);border-radius:8px;padding:16px;transition:box-shadow .12s,background .12s}
 .stat-v{font-size:32px;font-weight:800;line-height:1;color:var(--ink)}
 .stat-l{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:6px}
+.stat.active-filter{box-shadow:0 0 0 2px var(--p) inset;background:var(--pl)}
 
 /* ── BUTTONS ── */
 .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:6px;font-size:12.5px;font-weight:600;border:1px solid transparent;cursor:pointer;transition:all .15s;white-space:nowrap}
@@ -109,6 +109,8 @@ a{color:inherit;text-decoration:none}
 .btn-danger:hover{background:#b91c1c;border-color:#b91c1c}
 .btn-warn{background:#fffbeb;color:#92400e;border-color:#fcd34d}
 .btn-warn:hover{background:#fef3c7}
+.btn-go{background:var(--t3);color:#fff;border-color:var(--t3)}
+.btn-go:hover{background:#047857;border-color:#047857}
 .btn-sm{padding:5px 12px;font-size:11.5px}
 .btn-xs{padding:3px 8px;font-size:11px}
 
@@ -118,6 +120,7 @@ a{color:inherit;text-decoration:none}
 .bd-t2{background:var(--t2b);color:var(--t2)}
 .bd-t3{background:var(--t3b);color:var(--t3)}
 .bd-gray{background:#f3f4f6;color:#4b5563}
+.bd-muted{background:#f3f4f6;color:var(--muted)}
 
 /* ── TABLE ── */
 /* overflow-x:auto (not hidden) — with hidden, any table wider than the viewport
@@ -142,11 +145,28 @@ tr[onclick]{cursor:pointer}
 .v-warn{color:var(--t2);font-weight:700}
 tr.stale td{color:var(--muted);opacity:.65}
 
+/* The pinned/sticky last column (.tw table td:last-child, below) sets
+   background:inherit, which pulls from the <tr> itself — but row tinting is
+   applied to the <td> children (.row-crit td etc.), not the <tr>, so the
+   sticky column silently drops out of the colored row. These restore it,
+   with enough selector weight to beat the sticky rule's specificity. */
+.tw .row-crit td:last-child{background:var(--t1b)}
+.tw .row-crit:hover td:last-child{background:#fee2e2}
+.tw .row-warn td:last-child{background:var(--t2b)}
+.tw .row-warn:hover td:last-child{background:#fef3c7}
+.tw .row-discharge td:last-child{background:#f0fdfa}
+
+/* Acknowledged row: a quiet accent on the patient cell only — never a full
+   row tint, so it never fights the critical/warning background above it. */
+tr.acked-row td:first-child{box-shadow:inset 3px 0 0 var(--t3)}
+
 /* ── CARD ── */
 .card{background:#fff;border:1px solid var(--border);border-radius:8px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,0.02)}
 .card-title{font-size:13px;font-weight:700;color:var(--ink);margin-bottom:14px;letter-spacing:-0.2px}
 
 /* ── FORM ── */
+.frow{display:flex;gap:16px}
+.frow .fg{flex:1}
 .fg{margin-bottom:16px}
 .fl{display:block;font-size:11.5px;font-weight:600;color:var(--ink2);margin-bottom:6px}
 .fi{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;color:var(--ink);background:#fff;transition:all .15s}
@@ -199,10 +219,11 @@ tr.stale td{color:var(--muted);opacity:.65}
 .row-discharge td{background:#f0fdfa !important}
 
 /* ── ROLE CHIP ── */
-.role-chip.gw_nurse{color:#059669}.role-chip.nurse{color:#7c3aed}.role-chip.charge_nurse{color:#d97706}.role-chip.doctor,.role-chip.resident{color:#2563eb}
+.role-chip.gw_nurse{color:#059669}.role-chip.nurse{color:#7c3aed}.role-chip.charge{color:#d97706}.role-chip.doctor,.role-chip.resident{color:#2563eb}
 
 /* ── TIMELINE ── */
 .tl{padding:8px 0;margin-bottom:16px}
+.tl-date{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);padding:4px 0 10px;border-bottom:1px solid var(--border);margin-bottom:6px}
 .tl-item{display:flex;gap:14px;padding:12px 0;position:relative}
 .tl-item:not(:last-child)::before{content:'';position:absolute;left:15px;top:38px;bottom:-12px;width:2px;background:var(--border)}
 .tl-dot{width:32px;height:32px;border-radius:50%;background:var(--pl);border:2px solid var(--p);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--p);flex-shrink:0}
@@ -242,6 +263,7 @@ tr.stale td{color:var(--muted);opacity:.65}
 .muted{color:var(--muted)}
 .small{font-size:11.5px}
 .bold{font-weight:700}
+.text-center{text-align:center}
 .flex-r{display:flex;align-items:center;gap:10px}
 .check-row{display:flex;align-items:flex-start;gap:10px;margin-bottom:12px;font-size:13px}
 .check-row input[type=checkbox]{margin-top:3px;accent-color:var(--p);width:16px;height:16px;cursor:pointer}

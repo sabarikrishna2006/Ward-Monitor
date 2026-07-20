@@ -213,7 +213,14 @@ window.ackPatient = function(event, patientId) {
   event.stopPropagation();
   if (APP.data.n1 && APP.data.n1.patients) {
     const p = APP.data.n1.patients.find(x => x.id == patientId);
-    if (p) { p._acked = true; renderAll(); }
+    if (p) {
+      p._acked = true;
+      renderAll();
+      showToast('success', 'Acknowledged', {
+        patient: p.name || p.patient_code || '',
+        detail: 'Marked as acknowledged for this shift.',
+      });
+    }
   }
 }
 
@@ -426,19 +433,6 @@ function closeModal() {
 }
 
 const MODALS = {
-  reescalate: () => `
-    <div class="modal-t">Re-escalate Patient</div>
-    <div class="modal-b">Priya Sharma (PT-24-0092) has not been attended within SLA. Re-escalate to a higher level?</div>
-    <div class="fg"><label class="fl">Escalate to</label>
-      <select class="fi"><option>On-call Consultant — Dr. Vikas Malhotra</option><option>Code Blue Team</option></select>
-    </div>
-    <div class="fg"><label class="fl">Reason for re-escalation</label>
-      <textarea class="fi" rows="2">Attending response time exceeded 15 min SLA. NEWS2 remains critical at 9.</textarea>
-    </div>
-    <div class="modal-f">
-      <button class="btn btn-sec" onclick="closeModal()">Cancel</button>
-      <button class="btn btn-danger" onclick="closeModal()">Re-escalate Now</button>
-    </div>`,
   cosign_confirm: () => `
     <div class="modal-t">Co-Sign Override Complete</div>
     <div class="modal-b" style="color:var(--t3)">✅ Override successfully co-signed and recorded in the NABH audit trail.</div>
@@ -606,7 +600,13 @@ SCREENS.n1 = () => {
     <th>HR (bpm)</th><th>Temp (°C)</th><th>AVPU</th><th>NEWS2</th><th>EWS Reason</th><th>Status</th><th>Actions</th>
   </tr></thead>
   <tbody>
-    ${filteredPatients.map(p => {
+    ${filteredPatients.length === 0 ? `
+      <tr><td colspan="13" style="text-align:center;padding:40px 20px;color:var(--muted)">
+        ${APP.n1_filter === 'all'
+          ? 'No patients currently in this ward.'
+          : `No patients match this filter right now. <span class="bc-link" onclick="APP.n1_filter='all';renderAll()">Clear filter</span>`}
+      </td></tr>
+    ` : filteredPatients.map(p => {
       // Patient just provisioned from billing — BQ prefetch still in progress
       if (p.status === 'loading') {
         return `
@@ -615,10 +615,11 @@ SCREENS.n1 = () => {
           <td data-label="Diagnosis" class="dx-cell">${p.primary_diagnosis || '—'}</td>
           <td data-label="Ward">${(p.ward||'').split(' ')[1]||p.ward||'--'}${p.ward_location==='GENERAL_WARD'?'<br><span class="loc-tag loc-gw">GW</span>':'<br><span class="loc-tag loc-ccu">CCU</span>'}</td>
           <td colspan="8" style="color:var(--muted);font-style:italic;font-size:12px">
-            <span style="display:inline-block;width:14px;height:14px;border:2px solid #94a3b8;border-top-color:#2563eb;border-radius:50%;animation:spin 1s linear infinite;vertical-align:middle;margin-right:6px"></span>
-            Syncing clinical data from MIMIC…  Ward board will update when complete.
+            <span style="display:inline-block;width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--p);border-radius:50%;animation:spin 1s linear infinite;vertical-align:middle;margin-right:6px"></span>
+            Syncing clinical data… Ward board will update when complete.
           </td>
-          <td></td>
+          <td data-label="Status"><span class="bd bd-muted">SYNCING</span></td>
+          <td data-label="Actions"></td>
         </tr>`;
       }
       const isStale = p.status === 'stale';
@@ -632,7 +633,7 @@ SCREENS.n1 = () => {
           <td data-label="Ward">${(p.ward||'').split(' ')[1]||p.ward||'--'}${p.ward_location === 'GENERAL_WARD' ? '<br><span class="loc-tag loc-gw">GW</span>' : '<br><span class="loc-tag loc-ccu">CCU</span>'}</td>
           <td colspan="8" style="color:var(--muted);font-style:italic;font-size:12px">Awaiting first vitals — none recorded yet.</td>
           <td data-label="Status"><span class="bd bd-muted" style="color:var(--muted)">AWAITING</span></td>
-          <td data-label="Actions"><button class="btn btn-warn btn-xs" style="color:#000" onclick="event.stopPropagation();nav('n_vitals', ${p.id})">Enter Vitals</button></td>
+          <td data-label="Actions"><button class="btn btn-warn btn-xs" onclick="event.stopPropagation();nav('n_vitals', ${p.id})">Enter Vitals</button></td>
         </tr>`;
       }
       const score = p.news2 || 0;
@@ -669,7 +670,9 @@ SCREENS.n1 = () => {
       const avpu = isStale ? '-' : (p.avpu || 'A');
       const s = isStale ? '-' : score;
       
-      const ackBtn = p._acked ? '' : `<button class="btn btn-sec btn-xs" onclick="event.stopPropagation();ackPatient(event, ${p.id})">Ack</button>`;
+      const ackBtn = p._acked
+        ? `<span class="bd bd-t3" title="Acknowledged for this shift">&#10003; Acked</span>`
+        : `<button class="btn btn-sec btn-xs" onclick="event.stopPropagation();ackPatient(event, ${p.id})">Ack</button>`;
       
       return `
         <tr class="${rowClass}${isDischargePending ? ' row-discharge' : ''}" onclick="nav('n1b', ${p.id})">
@@ -687,9 +690,9 @@ SCREENS.n1 = () => {
           <td data-label="Status"><span class="${statusBd}" style="${isStale?'color:var(--muted)':''}">${statusLbl.toUpperCase()}</span>${p.dueLabel ? `<div class="due-label ${p.isOverdue ? 'due-over' : ''}">${p.dueLabel}</div>` : ''}</td>
           <td data-label="Actions">
             ${isDischargePending
-              ? `<button class="btn btn-sec btn-xs" style="border-color:#0d9488;color:#0d9488" onclick="event.stopPropagation();nav('n_discharge', ${p.id})">View Status</button>`
+              ? `<button class="btn btn-sec btn-xs" style="border-color:var(--disch);color:var(--disch)" onclick="event.stopPropagation();nav('n_discharge', ${p.id})">View Status</button>`
               : isStale
-                ? `<button class="btn btn-warn btn-xs" style="color:#000" onclick="event.stopPropagation();nav('n_vitals', ${p.id})">Enter Vitals</button>`
+                ? `<button class="btn btn-warn btn-xs" onclick="event.stopPropagation();nav('n_vitals', ${p.id})">Enter Vitals</button>`
                 : `${score >= 5 ? `<button class="btn ${score >= 7 ? 'btn-danger' : 'btn-warn'} btn-xs" onclick="event.stopPropagation();nav('n2', ${p.id})">Escalate</button>` : ''}
               ${ackBtn}`
             }
@@ -790,7 +793,11 @@ SCREENS.n1b = () => {
   const mlContribs = (p.mlContributors || []).map(c =>
     `<div class="ml-bar-row"><div class="ml-bar-lbl">${c.label}</div><div class="ml-bar"><div class="ml-bar-fill" style="width:${c.pct}%"></div></div><div class="ml-bar-pct">${c.pct}%</div></div>`
   ).join('') || '<div class="muted small">No abnormal signals contributing.</div>';
-  const mlRiskCol = score >= 7 ? 'var(--t1)' : score >= 5 ? 'var(--t2)' : 'var(--t3)';
+  // Colored by the predicted risk value itself, not the current NEWS2 score —
+  // a stable patient can still carry a high predicted risk, and the number
+  // needs to reflect that on its own. This card has a plain white background
+  // (no severity tint), so the color never clashes with its surroundings.
+  const mlRiskCol = p.mlRisk == null ? 'var(--muted)' : p.mlRisk >= 50 ? 'var(--t1)' : p.mlRisk >= 20 ? 'var(--t2)' : 'var(--t3)';
   const mlInsights = `
     <div class="grid2">
       <div class="card">
@@ -910,13 +917,13 @@ ${(() => {
 ${APP.n1b_tab === 'ml' ? mlInsights : APP.n1b_tab === 'drug-lab' ? druglab : APP.n1b_tab === 'labs' ? labsHtml : APP.n1b_tab === 'meds' ? medsHtml : vitals}
 
 ${p.db_status === 'discharge_initiated' ? `
-<div class="alert al-ok" style="border-left:4px solid #0d9488;margin-top:16px;display:flex;align-items:center;gap:10px">
+<div class="alert al-ok" style="border-left:4px solid var(--disch);margin-top:16px;display:flex;align-items:center;gap:10px">
   <span style="font-size:18px">🏥</span>
   <div>
     <b>Discharge in Progress</b> — Resident Doctor has been notified.
     <div class="muted small" style="margin-top:2px">Discharge summary generation pending. Patient remains in ward until summary is signed off.</div>
   </div>
-  <button class="btn btn-sec btn-sm" style="margin-left:auto;border-color:#0d9488;color:#0d9488;white-space:nowrap" onclick="nav('n_discharge', ${p.id})">View Status →</button>
+  <button class="btn btn-sec btn-sm" style="margin-left:auto;border-color:var(--disch);color:var(--disch);white-space:nowrap" onclick="nav('n_discharge', ${p.id})">View Status →</button>
 </div>` : ''}
 <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
   ${APP.role === 'charge' ? `
@@ -928,10 +935,10 @@ ${p.db_status === 'discharge_initiated' ? `
     ${score >= 5 ? `<button class="btn btn-danger btn-sm" onclick="nav('n2', ${p.id})">Escalate Patient</button>` : ''}
   `}
   ${(!p.ward_location || p.ward_location === 'CCU') ? `<button class="btn btn-pri btn-sm" style="background:var(--p)" onclick="nav('n_transfer', ${p.id})">CCU→GW Transfer →</button>` : ''}
-  ${p.ward_location === 'GENERAL_WARD' && p.db_status !== 'discharge_initiated' ? `<button class="btn btn-pri btn-sm" style="background:#16a34a" onclick="initiateDischarge(${p.id}, '${p.name}')">→ Initiate Discharge</button>` : ''}
-  <button class="btn btn-warn btn-sm" style="color:#000" onclick="nav('n_vitals', ${p.id})">✎ Enter/Override Vitals</button>
+  ${p.ward_location === 'GENERAL_WARD' && p.db_status !== 'discharge_initiated' ? `<button class="btn btn-go btn-sm" onclick="initiateDischarge(${p.id}, '${p.name}')">→ Initiate Discharge</button>` : ''}
+  <button class="btn btn-warn btn-sm" onclick="nav('n_vitals', ${p.id})">✎ Enter/Override Vitals</button>
 </div>
-<div id="false-alarm-menu" style="display:none;margin-top:8px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;max-width:400px">
+<div id="false-alarm-menu" style="display:none;margin-top:8px;background:#fff;border:1px solid var(--border);border-radius:8px;padding:12px;max-width:400px">
   <div class="card-title" style="margin-bottom:8px">Reason for False Alarm</div>
   ${['Expected clinical variation','Data entry error','Post-procedure transient change','Medication effect','Other'].map(r =>
     `<button class="btn btn-sec btn-sm" style="margin:4px;display:inline-block" onclick="submitFalseAlarm(${p.id}, '${r}')">${r}</button>`
@@ -1028,7 +1035,7 @@ SCREENS.n_transfer = () => {
       </tbody></table>
       <div style="display:flex;gap:8px;margin-top:14px">
         ${isCharge ? `
-          <button class="btn btn-pri" style="background:#16a34a" onclick="approveTransferHere(${pending.id})">Approve Transfer →</button>
+          <button class="btn btn-go" onclick="approveTransferHere(${pending.id})">Approve Transfer →</button>
           <button class="btn btn-danger" onclick="rejectTransferHere(${pending.id})">Reject</button>
         ` : `<button class="btn btn-sec" onclick="withdrawTransfer(${pending.id})">Withdraw Recommendation</button>`}
         <button class="btn btn-sec" onclick="nav('n1', ${pid})">← Back to Dashboard</button>
@@ -1382,7 +1389,7 @@ SCREENS.n5 = () => {
   <h1 class="sh-title">Escalation Queue</h1>
   <div class="sh-actions">
     <span class="muted small">${new Date().toLocaleString('en-IN', {day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'})}</span>
-    <button class="btn btn-warn btn-sm" style="color:#000" onclick="nav('dl1')">Drug-Lab Overview</button>
+    <button class="btn btn-warn btn-sm" onclick="nav('dl1')">Drug-Lab Overview</button>
     <button class="btn btn-sec btn-sm" onclick="nav('n5b')">Threshold Config</button>
   </div>
 </div>
@@ -1449,7 +1456,25 @@ ${escalations.length === 0 ? emptyState : `
 };
 
 /* ── N5b — THRESHOLD CONFIG ─────────────────────────────────── */
-SCREENS.n5b = () => `
+SCREENS.n5b = () => {
+  window.submitThresholds = function() {
+    const passEl = document.getElementById('th-pass');
+    const btn = document.getElementById('th-save-btn');
+    if (!passEl || !passEl.value.trim()) return;
+    if (btn) { btn.disabled = true; btn.textContent = 'Saved ✓'; }
+    if (passEl) passEl.value = '';
+    showToast('success', 'Thresholds Updated', {
+      notified: APP.user ? APP.user.name : 'Charge Nurse',
+      detail: 'Ward overrides saved and logged in the NABH audit trail.',
+    });
+  };
+  window.checkThresholdPass = function() {
+    const passEl = document.getElementById('th-pass');
+    const btn = document.getElementById('th-save-btn');
+    if (btn) btn.disabled = !(passEl && passEl.value.trim());
+  };
+
+  return `
 <div class="bc"><span class="bc-link" onclick="nav('n5')">Escalation Queue</span><span class="bc-sep">/</span><span>Threshold Config</span></div>
 <div class="sh"><h1 class="sh-title">NEWS2 Threshold Configuration — Ward 4B/4C</h1></div>
 <div class="alert al-warn">⚠️ Changes require Charge Nurse sign-off and are logged in the NABH audit trail. They propagate to all bedside dashboards in this ward.</div>
@@ -1475,13 +1500,14 @@ SCREENS.n5b = () => `
     </tbody>
   </table></div>
   <div class="fg"><label class="fl">Charge Nurse Password (required to save)</label>
-    <input class="fi" type="password" placeholder="Enter credentials to sign off">
+    <input class="fi" type="password" id="th-pass" placeholder="Enter credentials to sign off" oninput="checkThresholdPass()">
   </div>
   <div style="display:flex;gap:8px;justify-content:flex-end">
     <button class="btn btn-sec" onclick="nav('n5')">Cancel</button>
-    <button class="btn btn-pri" disabled>(Read-only)</button>
+    <button class="btn btn-pri" id="th-save-btn" disabled onclick="submitThresholds()">Save Changes</button>
   </div>
 </div>`;
+};
 
 /* ── N6 — SHIFT HANDOFF (live ward data + real nurse list) ────────── */
 SCREENS.n6 = () => {
@@ -2000,7 +2026,7 @@ SCREENS.dlcosign = () => {
   <div class="card">
     <div class="card-title">Head Nurse Co-Sign</div>
     <div class="muted small" style="margin-bottom:12px">A second senior nurse must verify the justification and provide credentials to complete the override.</div>
-    <div class="fg"><label class="fl">Co-signing Head Nurse</label><input class="fi" id="co-name" value="Sister Leena Kurup"></div>
+    <div class="fg"><label class="fl">Co-signing Head Nurse</label><input class="fi" id="co-name" placeholder="Enter co-signing Head Nurse's name"></div>
     <div class="fg"><label class="fl">Employee ID</label><input class="fi" placeholder="EMP-XXXX"></div>
     <div class="fg"><label class="fl">Password</label><input class="fi" type="password" placeholder="Enter credentials"></div>
     <div class="alert al-warn" style="margin-top:10px">⚠️ By co-signing, you accept oversight responsibility for this override.</div>
@@ -2015,14 +2041,13 @@ SCREENS.dlcosign = () => {
 /* ── DISCHARGE CONFIRMATION SCREEN ─────────────────────────────────────── */
 SCREENS.n_discharge = () => {
   const dp = APP._dischargePatient || {};
-  const residentBase = DOCTOR_PORTAL_URL;
   return `
 <div class="bc">${dashboardCrumbHtml()}<span class="bc-sep">/</span><span>Discharge Initiated</span></div>
 <div class="sh"><h1 class="sh-title">Discharge Process Started</h1><div class="sh-actions"><span class="bd bd-t3">✓ Submitted</span></div></div>
 
 <div class="alert al-ok" style="font-size:14px">
   ✅ Discharge initiated for <b>${dp.name || 'Patient'}</b>.<br>
-  The Resident Doctor has been notified to generate the Discharge Summary.
+  The Resident Doctor has been notified to generate the discharge summary.
 </div>
 
 <div class="card" style="max-width:560px">
@@ -2034,7 +2059,7 @@ SCREENS.n_discharge = () => {
     </tr>
     <tr style="border-bottom:1px solid var(--border)">
       <td style="padding:10px 0;color:var(--muted)">Step 2</td>
-      <td style="padding:10px 0"><b>Resident Doctor</b> — Reviews patient, generates AI discharge summary on the Doctor Portal</td>
+      <td style="padding:10px 0"><b>Resident Doctor</b> — Reviews patient, generates the discharge summary</td>
     </tr>
     <tr style="border-bottom:1px solid var(--border)">
       <td style="padding:10px 0;color:var(--muted)">Step 3</td>
@@ -2049,10 +2074,6 @@ SCREENS.n_discharge = () => {
 
 <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
   <button class="btn btn-sec btn-sm" onclick="nav('n1')">← Back to Ward Dashboard</button>
-  <button class="btn btn-pri btn-sm" style="background:#16a34a"
-    onclick="window.open('${residentBase}/upload.html?hadm_id=${dp.id}&patient_name=' + encodeURIComponent('${dp.name || ''}'),'_blank')">
-    Open Doctor Portal →
-  </button>
 </div>`;
 };
 
