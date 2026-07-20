@@ -2142,11 +2142,11 @@ async def seed_cardiology_encounters():
     """Create Pending Ingestion encounters for top 10 DCM ICU patients if not already present."""
     results = []
     for hadm_id in _DCM_SEED_HADM_IDS:
-        existing = gdb.get_encounter_by_hadm(hadm_id)
+        existing = await run_in_threadpool(gdb.get_encounter_by_hadm, hadm_id)
         if existing:
             results.append({"hadm_id": hadm_id, "status": "exists", "enc_id": existing["id"]})
         else:
-            enc = gdb.create_encounter(hadm_id, status="Pending Ingestion")
+            enc = await run_in_threadpool(gdb.create_encounter, hadm_id, status="Pending Ingestion")
             results.append({"hadm_id": hadm_id, "status": "created", "enc_id": enc["id"]})
     # Also trigger data_server to seed active_patients display data (fire-and-forget)
     try:
@@ -2319,11 +2319,11 @@ async def ingest_file(
     }
 
     # Resolve or create encounter (shared by both the CSV and reference paths)
-    enc = gdb.get_encounter_by_hadm(hadm_id)
+    enc = await run_in_threadpool(gdb.get_encounter_by_hadm, hadm_id)
     if enc:
         enc_id = enc["id"]
     else:
-        enc = gdb.create_encounter(hadm_id, status="Pending Ingestion")
+        enc = await run_in_threadpool(gdb.create_encounter, hadm_id, status="Pending Ingestion")
         enc_id = enc["id"]
 
     # Non-CSV uploads (PDF/DOCX/images/scanned reports) have no real per-row
@@ -2331,7 +2331,8 @@ async def ingest_file(
     # + metadata) instead of trying to CSV-parse binary content, which would
     # either crash or silently insert garbage rows.
     if not (file.filename or "").lower().endswith(".csv"):
-        file_rec = gdb.create_file_record(
+        file_rec = await run_in_threadpool(
+            gdb.create_file_record,
             encounter_id=enc_id,
             file_type=_type_label,
             file_name=file.filename,
@@ -2585,7 +2586,8 @@ async def ingest_file(
             f"({', '.join(_signal_fields)}) were found. Check you're uploading the correct file type.",
         )
 
-    file_rec = gdb.create_file_record(
+    file_rec = await run_in_threadpool(
+        gdb.create_file_record,
         encounter_id=enc_id,
         file_type=_type_label,
         file_name=file.filename,
@@ -2597,9 +2599,9 @@ async def ingest_file(
 
     if batch:
         # Critical path: write raw rows immediately so uploaded_clinical_data responds fast
-        gdb.store_clinical_rows(hadm_id, file_type, file_id, batch)
+        await run_in_threadpool(gdb.store_clinical_rows, hadm_id, file_type, file_id, batch)
         inserted = len(batch)
-        gdb.update_file_record(file_id, {"indexed_status": True})
+        await run_in_threadpool(gdb.update_file_record, file_id, {"indexed_status": True})
         # Defer: enrichment (ICD/lab titles) + ap_* table write + cache invalidation
         background_tasks.add_task(_bg_enrich_and_index, hadm_id, file_type, file_id, batch)
 
@@ -2778,7 +2780,7 @@ async def mark_files_ready(hadm_id: int, request: Request):
     Revision Requested  → Files Ready   (ward admin must still trigger regen)
     Amendment Requested → Awaiting Review (no regen needed; doctor re-signs)
     """
-    enc = gdb.get_encounter_by_hadm(hadm_id)
+    enc = await run_in_threadpool(gdb.get_encounter_by_hadm, hadm_id)
     if not enc:
         raise HTTPException(status_code=404, detail="Encounter not found")
     prev_status = enc.get("status", "")
@@ -2790,18 +2792,18 @@ async def mark_files_ready(hadm_id: int, request: Request):
     # Stamp rejection log files_ready_at for Revision flow
     if not is_amendment:
         try:
-            rl = gdb.get_latest_rejection_log_with_user(enc["id"])
+            rl = await run_in_threadpool(gdb.get_latest_rejection_log_with_user, enc["id"])
             if rl and not rl.get("files_ready_at"):
-                gdb.update_rejection_log(rl["id"], {"files_ready_at": datetime.utcnow().isoformat()})
+                await run_in_threadpool(gdb.update_rejection_log, rl["id"], {"files_ready_at": datetime.utcnow().isoformat()})
         except Exception:
             pass
 
     # Both revision and amendment → Files Ready so ward admin triggers regen/re-review
     new_status = "Files Ready"
-    gdb.update_encounter(enc["id"], {"status": new_status})
+    await run_in_threadpool(gdb.update_encounter, enc["id"], {"status": new_status})
 
     action = "AMENDMENT_FILES_SUBMITTED" if is_amendment else "REVISION_FILES_RESUBMITTED"
-    gdb.log_action(action, hadm_id=hadm_id, details={
+    await run_in_threadpool(gdb.log_action, action, hadm_id=hadm_id, details={
         "prev_status": prev_status,
         "new_status":  new_status,
         "enc_id":      enc["id"],
@@ -3652,12 +3654,12 @@ async def get_mimic_admissions(page: int = 1, per_page: int = 20, search: str = 
 @app.get("/api/encounters/{hadm_id}/patient_data")
 async def get_patient_data(hadm_id: int, source: str = "bq"):
     if source == "db":
-        data = fetch_all_patient_data(hadm_id)
+        data = await run_in_threadpool(fetch_all_patient_data, hadm_id)
         if "error" in data:
             raise HTTPException(status_code=404, detail=data["error"])
-        encounter = gdb.get_encounter_by_hadm(hadm_id)
+        encounter = await run_in_threadpool(gdb.get_encounter_by_hadm, hadm_id)
         if not encounter:
-            encounter = gdb.create_encounter(hadm_id, status="Pending Ingestion")
+            encounter = await run_in_threadpool(gdb.create_encounter, hadm_id, status="Pending Ingestion")
         return {"hadm_id": hadm_id, "source": source, "encounter": encounter, **data}
 
     try:
@@ -3667,9 +3669,9 @@ async def get_patient_data(hadm_id: int, source: str = "bq"):
     if r.status_code == 404:
         raise HTTPException(status_code=404, detail=r.json().get("detail", "Not found"))
     data = r.json()
-    encounter = gdb.get_encounter_by_hadm(hadm_id)
+    encounter = await run_in_threadpool(gdb.get_encounter_by_hadm, hadm_id)
     if not encounter:
-        encounter = gdb.create_encounter(hadm_id, status="Pending Ingestion")
+        encounter = await run_in_threadpool(gdb.create_encounter, hadm_id, status="Pending Ingestion")
 
     # NOTE: uploaded clinical rows are NOT merged here.
     # The frontend fetches them separately via /uploaded_clinical_data and merges
@@ -3716,9 +3718,9 @@ async def get_patient_tab(hadm_id: int, tab_name: str):
 @app.get("/api/encounters/{hadm_id}/clinical_context")
 async def get_clinical_context(hadm_id: int, source: str = "bq"):
     # Only return stored clinical_context — never re-fetch from BigQuery
-    enc = gdb.get_encounter_by_hadm(hadm_id)
+    enc = await run_in_threadpool(gdb.get_encounter_by_hadm, hadm_id)
     if enc:
-        summary = gdb.get_summary_by_encounter(enc["id"])
+        summary = await run_in_threadpool(gdb.get_summary_by_encounter, enc["id"])
         if summary and summary.get("clinical_context"):
             ctx = summary["clinical_context"]
             return {
@@ -4262,17 +4264,17 @@ async def generate_summary(hadm_id: int, source: str = "bq",
     log.info(f"{'='*60}")
 
     # Mark as Processing immediately so Kanban shows the card in Generating column
-    _enc_early = gdb.get_encounter_by_hadm(hadm_id)
+    _enc_early = await run_in_threadpool(gdb.get_encounter_by_hadm, hadm_id)
     _enc_id_for_reset = _enc_early["id"] if _enc_early else None
     if _enc_early:
-        gdb.update_encounter(_enc_early["id"], {"status": "Processing"})
+        await run_in_threadpool(gdb.update_encounter, _enc_early["id"], {"status": "Processing"})
 
     async def _reset_if_stuck():
         """Reset status to Pending if a crash left it stuck in Processing."""
         try:
-            _chk = gdb.get_encounter_by_hadm(hadm_id)
+            _chk = await run_in_threadpool(gdb.get_encounter_by_hadm, hadm_id)
             if _chk and _chk.get("status") == "Processing" and _enc_id_for_reset:
-                gdb.update_encounter(_enc_id_for_reset, {"status": "Pending Ingestion"})
+                await run_in_threadpool(gdb.update_encounter, _enc_id_for_reset, {"status": "Pending Ingestion"})
                 log.warning(f"generate_summary: reset HADM {hadm_id} from stuck Processing → Pending Ingestion")
         except Exception:
             pass
@@ -4292,7 +4294,9 @@ async def generate_summary(hadm_id: int, source: str = "bq",
         clinical_context += f"Primary Diagnosis: {demo_case['discharge_diagnosis_clinical']}\n"
         clinical_json_demo = _json_demo.dumps(demo_case, indent=2)
         # Jump straight to Pass 2 using demo JSON (skip Pass 1 — facts already structured)
-        enc = gdb.get_encounter_by_hadm(hadm_id) or gdb.create_encounter(hadm_id, status="Ready for Review")
+        enc = await run_in_threadpool(gdb.get_encounter_by_hadm, hadm_id)
+        if not enc:
+            enc = await run_in_threadpool(gdb.create_encounter, hadm_id, status="Ready for Review")
         enc_id    = enc["id"]
         new_version = (enc.get("version") or 1) + 1
         # Re-use the Pass 2 system prompt builder below by setting clinical_json directly
@@ -4315,10 +4319,10 @@ async def generate_summary(hadm_id: int, source: str = "bq",
     # Guard: never generate a discharge summary for a patient with no real clinical
     # data — it would otherwise fabricate from synthetic fallbacks. Demo patients
     # (9900001–9900005) are exempt (handled above via _skip_to_pass2).
-    if not _skip_to_pass2 and not _has_real_clinical_data(hadm_id):
+    if not _skip_to_pass2 and not (await run_in_threadpool(_has_real_clinical_data, hadm_id)):
         if _enc_id_for_reset:
             try:
-                gdb.update_encounter(_enc_id_for_reset, {"status": "Pending Ingestion"})
+                await run_in_threadpool(gdb.update_encounter, _enc_id_for_reset, {"status": "Pending Ingestion"})
             except Exception:
                 pass
         raise HTTPException(
@@ -4329,7 +4333,7 @@ async def generate_summary(hadm_id: int, source: str = "bq",
 
     # 1. Fetch all data — display + lazy tabs in parallel (uses disk cache, fast if warm)
     if not _skip_to_pass2 and source == "db":
-        data = fetch_all_patient_data(hadm_id)
+        data = await run_in_threadpool(fetch_all_patient_data, hadm_id)
     elif not _skip_to_pass2:
         _long  = httpx.Timeout(connect=5.0, read=600.0, write=10.0, pool=5.0)
         _short = httpx.Timeout(connect=5.0, read=20.0,  write=10.0, pool=5.0)
@@ -4420,7 +4424,7 @@ async def generate_summary(hadm_id: int, source: str = "bq",
         except Exception as exc:
             log.warning(f"generate_summary: failed to merge uploaded clinical data: {exc}")
 
-        data["encounter"] = gdb.get_encounter_by_hadm(hadm_id)
+        data["encounter"] = await run_in_threadpool(gdb.get_encounter_by_hadm, hadm_id)
         data["uploaded_files"] = []
         # Build table_log from fetched data (data_server doesn't return it)
         _TABLE_COUNTS = [
@@ -4716,7 +4720,7 @@ s15 — Patient Acknowledgement: Write: "Standard patient/attendant acknowledgem
     # with every correction and the LLM gradually learns to avoid each failure pattern.
     _prior_errors_block = ""
     try:
-        _prior_errors = gdb.get_recent_errors(examples_per_pattern=3)
+        _prior_errors = await run_in_threadpool(gdb.get_recent_errors, examples_per_pattern=3)
         if _prior_errors:
             _tier_label = {1: "T1-Minor", 2: "T2-Medication", 3: "T3-Critical"}
             _lines = []
@@ -4826,9 +4830,11 @@ Example: {{"s1": {{"text": "...", "confidence": 0.94, "tier": "OK", "issues": []
 
     # Resolve enc_id / new_version before streaming branch (demo path already set these)
     if not _skip_to_pass2:
-        _enc_pre = (data.get("encounter") or
-                    gdb.get_encounter_by_hadm(hadm_id) or
-                    gdb.create_encounter(hadm_id, status="Ready for Review"))
+        _enc_pre = data.get("encounter")
+        if not _enc_pre:
+            _enc_pre = await run_in_threadpool(gdb.get_encounter_by_hadm, hadm_id)
+        if not _enc_pre:
+            _enc_pre = await run_in_threadpool(gdb.create_encounter, hadm_id, status="Ready for Review")
         enc_id      = _enc_pre["id"]
         new_version = (_enc_pre.get("version") or 1) + 1
 
@@ -5001,7 +5007,8 @@ Example: {{"s1": {{"text": "...", "confidence": 0.94, "tier": "OK", "issues": []
                 # Save to DB (summary first, then Pass 3, then mark Ready for Review)
                 if _enc_id_ref[0]:
                     try:
-                        gdb.upsert_summary(
+                        await run_in_threadpool(
+                            gdb.upsert_summary,
                             _enc_id_ref[0], generated_text,
                             clinical_context=_cc,
                             pass1_latency_s=_p1_lat, pass2_latency_s=_p2_lat, total_latency_s=_tot_lat,
@@ -5016,7 +5023,7 @@ Example: {{"s1": {{"text": "...", "confidence": 0.94, "tier": "OK", "issues": []
                             _gt2 = sum(1 for _s in sections_json.values() if isinstance(_s, dict) and _s.get("tier") == "T2")
                             _gt3 = sum(1 for _s in sections_json.values() if isinstance(_s, dict) and _s.get("tier") == "T3")
                             _gdl = sum(1 for _s in sections_json.values() if isinstance(_s, dict) and _s.get("tier") not in ("OK", None))
-                            gdb.update_summary(_enc_id_ref[0], {"gap_t1": _gt1, "gap_t2": _gt2, "gap_t3": _gt3, "dl_flags": _gdl})
+                            await run_in_threadpool(gdb.update_summary, _enc_id_ref[0], {"gap_t1": _gt1, "gap_t2": _gt2, "gap_t3": _gt3, "dl_flags": _gdl})
 
                         # Pass 3: cross-verify generated summary against source BEFORE marking Ready for Review
                         _p3_counts = None
@@ -5031,11 +5038,11 @@ Example: {{"s1": {{"text": "...", "confidence": 0.94, "tier": "OK", "issues": []
                         _enc_upd: dict = {"status":"Ready for Review","version":_new_ver_ref[0]}
                         if _req2 and _req2.discharge_type:
                             _enc_upd["discharge_type"] = _req2.discharge_type
-                        gdb.update_encounter(_enc_id_ref[0], _enc_upd)
+                        await run_in_threadpool(gdb.update_encounter, _enc_id_ref[0], _enc_upd)
                     except Exception as _dbe:
                         log.error(f"Stream: DB save error (resetting to Pending Ingestion): {_dbe}")
                         try:
-                            gdb.update_encounter(_enc_id_ref[0], {"status": "Pending Ingestion"})
+                            await run_in_threadpool(gdb.update_encounter, _enc_id_ref[0], {"status": "Pending Ingestion"})
                         except Exception:
                             pass
 
@@ -5250,7 +5257,8 @@ Example: {{"s1": {{"text": "...", "confidence": 0.94, "tier": "OK", "issues": []
     # 6. Save to app DB
     # Order: upsert summary → Pass 3 verification → mark Ready for Review
     # This ensures tier counts are accurate BEFORE the doctor sees the entry in the queue.
-    gdb.upsert_summary(
+    await run_in_threadpool(
+        gdb.upsert_summary,
         enc_id, generated_text,
         clinical_context=clinical_context,
         pass1_latency_s=pass1_latency,
@@ -5270,7 +5278,7 @@ Example: {{"s1": {{"text": "...", "confidence": 0.94, "tier": "OK", "issues": []
             _gt2 = sum(1 for _s in sections_json.values() if isinstance(_s, dict) and _s.get("tier") == "T2")
             _gt3 = sum(1 for _s in sections_json.values() if isinstance(_s, dict) and _s.get("tier") == "T3")
             _gdl = sum(1 for _s in sections_json.values() if isinstance(_s, dict) and _s.get("tier") not in ("OK", None))
-            gdb.update_summary(enc_id, {"gap_t1": _gt1, "gap_t2": _gt2, "gap_t3": _gt3, "dl_flags": _gdl})
+            await run_in_threadpool(gdb.update_summary, enc_id, {"gap_t1": _gt1, "gap_t2": _gt2, "gap_t3": _gt3, "dl_flags": _gdl})
         except Exception as _gce:
             log.warning(f"Gap count update error: {_gce}")
 
@@ -5287,18 +5295,18 @@ Example: {{"s1": {{"text": "...", "confidence": 0.94, "tier": "OK", "issues": []
         _enc_update: dict = {"status": "Ready for Review", "version": new_version}
         if req and req.discharge_type:
             _enc_update["discharge_type"] = req.discharge_type
-        gdb.update_encounter(enc_id, _enc_update)
+        await run_in_threadpool(gdb.update_encounter, enc_id, _enc_update)
     except Exception as _dbu:
         log.error(f"DB status update failed for HADM {hadm_id} (resetting): {_dbu}")
         try:
-            gdb.update_encounter(enc_id, {"status": "Pending Ingestion"})
+            await run_in_threadpool(gdb.update_encounter, enc_id, {"status": "Pending Ingestion"})
         except Exception:
             pass
         raise HTTPException(500, f"Failed to save summary status: {_dbu}")
 
     # 7. Audit log
     try:
-        gdb.log_action("SUMMARY_GENERATED", hadm_id=hadm_id, details={
+        await run_in_threadpool(gdb.log_action, "SUMMARY_GENERATED", hadm_id=hadm_id, details={
             "tables_queried":  total_tables,
             "records_fetched": total_records,
             "llm":  GEMINI_MODEL if (generated_text and not generation_error) else "none",
@@ -5314,8 +5322,8 @@ Example: {{"s1": {{"text": "...", "confidence": 0.94, "tier": "OK", "issues": []
     log.info(f"Summary generation complete for HADM {hadm_id}")
 
     # Persist encounter data so the GCS DB knows about this HADM even for GCS-sourced records
-    if source == "gcs" and not gdb.get_encounter_by_hadm(hadm_id):
-        gdb.create_encounter(hadm_id, status="Ready for Review")
+    if source == "gcs" and not (await run_in_threadpool(gdb.get_encounter_by_hadm, hadm_id)):
+        await run_in_threadpool(gdb.create_encounter, hadm_id, status="Ready for Review")
 
     return {
         "status": "success",
@@ -5370,12 +5378,12 @@ Example: {{"s1": {{"text": "...", "confidence": 0.94, "tier": "OK", "issues": []
 @app.post("/api/encounters/{hadm_id}/reset_generation")
 async def reset_generation(hadm_id: int):
     """Reset a stuck 'Processing' encounter back to 'Pending Ingestion' so the user can start fresh."""
-    enc = gdb.get_encounter_by_hadm(hadm_id)
+    enc = await run_in_threadpool(gdb.get_encounter_by_hadm, hadm_id)
     if not enc:
         raise HTTPException(404, "Encounter not found")
     if enc.get("status") != "Processing":
         return {"status": "ok", "message": f"Already '{enc.get('status')}' — no change needed"}
-    gdb.update_encounter(enc["id"], {"status": "Pending Ingestion"})
+    await run_in_threadpool(gdb.update_encounter, enc["id"], {"status": "Pending Ingestion"})
     log.info(f"reset_generation: HADM {hadm_id} manually reset from Processing → Pending Ingestion")
     return {"status": "ok", "message": "Reset to 'Pending Ingestion'"}
 
@@ -5383,10 +5391,10 @@ async def reset_generation(hadm_id: int):
 @app.post("/api/encounters/reset_all_stuck")
 async def reset_all_stuck():
     """Reset ALL encounters currently stuck in 'Processing' back to 'Pending Ingestion'."""
-    stuck = gdb.list_encounters(status="Processing")
+    stuck = await run_in_threadpool(gdb.list_encounters, status="Processing")
     reset_ids = []
     for enc in (stuck or []):
-        gdb.update_encounter(enc["id"], {"status": "Pending Ingestion"})
+        await run_in_threadpool(gdb.update_encounter, enc["id"], {"status": "Pending Ingestion"})
         reset_ids.append(enc.get("hadm_id") or enc.get("id"))
         log.info(f"reset_all_stuck: {enc.get('hadm_id')} reset Processing → Pending Ingestion")
     return {"status": "ok", "reset_count": len(reset_ids), "reset_ids": reset_ids}
@@ -5395,11 +5403,11 @@ async def reset_all_stuck():
 @app.post("/api/encounters/{hadm_id}/force_pending")
 async def force_pending(hadm_id: int):
     """Force any encounter to 'Pending Ingestion' status regardless of current state."""
-    enc = gdb.get_encounter_by_hadm(hadm_id)
+    enc = await run_in_threadpool(gdb.get_encounter_by_hadm, hadm_id)
     if not enc:
         raise HTTPException(404, "Encounter not found")
     prev = enc.get("status", "unknown")
-    gdb.update_encounter(enc["id"], {"status": "Pending Ingestion"})
+    await run_in_threadpool(gdb.update_encounter, enc["id"], {"status": "Pending Ingestion"})
     log.info(f"force_pending: HADM {hadm_id} forced {prev} → Pending Ingestion")
     return {"status": "ok", "previous": prev, "current": "Pending Ingestion"}
 
@@ -5407,11 +5415,11 @@ async def force_pending(hadm_id: int):
 @app.post("/api/encounters/{hadm_id}/force_review")
 async def force_review(hadm_id: int):
     """Force any encounter to 'Awaiting Review' (shows as 'In Review' on dashboard)."""
-    enc = gdb.get_encounter_by_hadm(hadm_id)
+    enc = await run_in_threadpool(gdb.get_encounter_by_hadm, hadm_id)
     if not enc:
         raise HTTPException(404, "Encounter not found")
     prev = enc.get("status", "unknown")
-    gdb.update_encounter(enc["id"], {"status": "Awaiting Review"})
+    await run_in_threadpool(gdb.update_encounter, enc["id"], {"status": "Awaiting Review"})
     log.info(f"force_review: HADM {hadm_id} forced {prev} → Awaiting Review")
     return {"status": "ok", "previous": prev, "current": "Awaiting Review"}
 
@@ -5419,10 +5427,10 @@ async def force_review(hadm_id: int):
 @app.post("/api/encounters/promote_files_ready_to_review")
 async def promote_files_ready_to_review():
     """Change all 'Files Ready' encounters to 'Awaiting Review' in one shot."""
-    ready = gdb.list_encounters(status="Files Ready")
+    ready = await run_in_threadpool(gdb.list_encounters, status="Files Ready")
     updated = []
     for enc in (ready or []):
-        gdb.update_encounter(enc["id"], {"status": "Awaiting Review"})
+        await run_in_threadpool(gdb.update_encounter, enc["id"], {"status": "Awaiting Review"})
         updated.append(enc.get("hadm_id") or enc.get("id"))
         log.info(f"promote_to_review: {enc.get('hadm_id')} Files Ready → Awaiting Review")
     return {"status": "ok", "updated_count": len(updated), "updated_ids": updated}
@@ -5455,10 +5463,10 @@ class RegenerateSectionRequest(BaseModel):
 
 @app.post("/api/encounters/{hadm_id}/regenerate_section")
 async def regenerate_section(hadm_id: int, req: RegenerateSectionRequest):
-    enc = gdb.get_encounter_by_hadm(hadm_id)
+    enc = await run_in_threadpool(gdb.get_encounter_by_hadm, hadm_id)
     if not enc:
         raise HTTPException(status_code=404, detail="Encounter not found")
-    summary_rec = gdb.get_summary_by_encounter(enc["id"])
+    summary_rec = await run_in_threadpool(gdb.get_summary_by_encounter, enc["id"])
     clinical_context = (summary_rec or {}).get("clinical_context", "")
     if not clinical_context:
         raise HTTPException(status_code=400, detail="No clinical context stored — generate the full summary first so the AI has source data to work from.")
@@ -5496,7 +5504,7 @@ Corrected full section text (output ONLY this, nothing else):"""
     if not text:
         raise HTTPException(status_code=500, detail=error or "AI generation failed")
     try:
-        gdb.log_action("SECTION_REGENERATED", hadm_id=hadm_id, details={
+        await run_in_threadpool(gdb.log_action, "SECTION_REGENERATED", hadm_id=hadm_id, details={
             "section_id":      req.section_id,
             "doctor_feedback": req.doctor_feedback[:300],
         })
@@ -5578,17 +5586,17 @@ class RegenerateRequest(BaseModel):
 @app.post("/api/encounters/{hadm_id}/trigger_regeneration")
 async def trigger_regeneration(hadm_id: int, req: RegenerateRequest):
     """Step 4: Admin triggers LLM re-run with rejection context injected into prompt."""
-    enc = gdb.get_encounter_by_hadm(hadm_id)
+    enc = await run_in_threadpool(gdb.get_encounter_by_hadm, hadm_id)
     if not enc:
         raise HTTPException(404, f"No encounter for HADM {hadm_id}")
 
     # Mark encounter as Processing so doctor sees regen in progress
-    gdb.update_encounter(enc["id"], {"status": "Processing"})
+    await run_in_threadpool(gdb.update_encounter, enc["id"], {"status": "Processing"})
 
     # Record that regeneration was triggered
     if req.rejection_log_id:
         try:
-            gdb.update_rejection_log(req.rejection_log_id, {
+            await run_in_threadpool(gdb.update_rejection_log, req.rejection_log_id, {
                 "regeneration_triggered_at": datetime.utcnow().isoformat()
             })
         except Exception:
@@ -5597,7 +5605,7 @@ async def trigger_regeneration(hadm_id: int, req: RegenerateRequest):
     # Fetch rejection reason so it can be injected into the prompt
     rejection_ctx = ""
     try:
-        rl_list = gdb.get_rejection_log(enc["id"])
+        rl_list = await run_in_threadpool(gdb.get_rejection_log, enc["id"])
         if rl_list:
             rejection_ctx = rl_list[0].get("rejection_reason", "")
     except Exception:
@@ -5612,16 +5620,16 @@ async def trigger_regeneration(hadm_id: int, req: RegenerateRequest):
     try:
         result = await generate_summary(hadm_id, source="bq", req=regen_req)
     except HTTPException:
-        gdb.update_encounter(enc["id"], {"status": "Revision Requested"})
+        await run_in_threadpool(gdb.update_encounter, enc["id"], {"status": "Revision Requested"})
         raise
     except Exception as e:
         log.warning(f"Regeneration failed for HADM {hadm_id}: {e}")
-        gdb.update_encounter(enc["id"], {"status": "Revision Requested"})
+        await run_in_threadpool(gdb.update_encounter, enc["id"], {"status": "Revision Requested"})
         raise HTTPException(500, f"Regeneration failed: {e}")
 
     if req.rejection_log_id:
         try:
-            gdb.update_rejection_log(req.rejection_log_id, {
+            await run_in_threadpool(gdb.update_rejection_log, req.rejection_log_id, {
                 "regenerated_at": datetime.utcnow().isoformat(),
                 "new_t1_count":   0,
             })
@@ -5629,7 +5637,7 @@ async def trigger_regeneration(hadm_id: int, req: RegenerateRequest):
             pass
 
     try:
-        gdb.log_action("REGENERATED", hadm_id=hadm_id, details={
+        await run_in_threadpool(gdb.log_action, "REGENERATED", hadm_id=hadm_id, details={
             "encounter_id": enc["id"], "rejection_log_id": req.rejection_log_id,
         })
     except Exception:
@@ -6533,7 +6541,7 @@ async def dl_check(hadm_id: int):
     dl_count = len(alerts)
 
     # 5. Persist dl_flags on the summary for this encounter
-    try:
+    def _persist_dl_flags():
         from sqlalchemy import text as _sqlt
         from .cloud_sql_app_db import get_engine as _geng
         with _geng().begin() as _conn:
@@ -6546,6 +6554,8 @@ async def dl_check(hadm_id: int):
                     _sqlt("UPDATE app_summaries SET dl_flags = :dl, updated_at = NOW() WHERE encounter_id = :enc"),
                     {"dl": dl_count, "enc": str(_enc_row[0])}
                 )
+    try:
+        await run_in_threadpool(_persist_dl_flags)
     except Exception as _e:
         log.warning(f"dl_check: could not persist dl_flags: {_e}")
 
