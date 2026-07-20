@@ -676,9 +676,20 @@ SCREENS.n1 = () => {
       
       return `
         <tr class="${rowClass}${isDischargePending ? ' row-discharge' : ''}" onclick="nav('n1b', ${p.id})">
-          <td data-label="Patient"><b>${p.name}</b>${isDischargePending ? '<span class="badge-discharge">Discharge Pending</span>' : ''}<br><span class="pid">${p.patient_code || 'PT-' + p.id}</span></td>
+          <td data-label="Patient">
+            <div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:4px">
+              <b>${p.name}</b>
+              ${isDischargePending ? '<span class="badge-discharge" style="margin:0">Discharge Pending</span>' : ''}
+            </div>
+            <div class="pid">${p.patient_code || 'PT-' + p.id}</div>
+          </td>
           <td data-label="Diagnosis" class="dx-cell">${p.diagnosis_short || '—'}</td>
-          <td data-label="Ward">${p.ward ? (p.ward.split(' ')[1] || p.ward) : '—'}${p.ward_location === 'GENERAL_WARD' ? '<br><span class="loc-tag loc-gw">GW</span>' : '<br><span class="loc-tag loc-ccu">CCU</span>'}</td>
+          <td data-label="Ward">
+            <div style="display:flex;flex-direction:column;align-items:flex-start;gap:4px">
+              <span>${p.ward ? (p.ward.split(' ')[1] || p.ward) : '—'}</span>
+              ${p.ward_location === 'GENERAL_WARD' ? '<span class="loc-tag loc-gw" style="margin:0">GW</span>' : '<span class="loc-tag loc-ccu" style="margin:0">CCU</span>'}
+            </div>
+          </td>
           <td data-label="SpO₂" class="${valCrit(p.spo2, 92, '<')}">${spo2} ${timeHtml(p.spo2_time)}</td>
           <td data-label="RR" class="${valCrit(p.rr, 21, '>')}">${rr} ${timeHtml(p.rr_time)}</td>
           <td data-label="BP" class="${valCrit(bpVal, 90, '<')}">${bp} ${timeHtml(p.bp_time)}</td>
@@ -686,8 +697,13 @@ SCREENS.n1 = () => {
           <td data-label="Temp" class="${valCrit(p.temp, 38.0, '>')}">${temp} ${timeHtml(p.temp_time)}</td>
           <td data-label="AVPU">${avpu} ${timeHtml(p.avpu_time)}</td>
           <td data-label="NEWS2"><span class="${scoreClass}">${s}</span></td>
-          <td data-label="EWS Reason" class="ews-reason-td">${renderEwsReason(p)}</td>
-          <td data-label="Status"><span class="${statusBd}" style="${isStale?'color:var(--muted)':''}">${statusLbl.toUpperCase()}</span>${p.dueLabel ? `<div class="due-label ${p.isOverdue ? 'due-over' : ''}">${p.dueLabel}</div>` : ''}</td>
+          <td data-label="EWS Reason" class="ews-reason-td" style="line-height:1.4">${renderEwsReason(p)}</td>
+          <td data-label="Status">
+            <div style="display:flex;flex-direction:column;align-items:flex-start;gap:4px">
+              <span class="${statusBd}" style="${isStale?'color:var(--muted)':''}">${statusLbl.toUpperCase()}</span>
+              ${p.dueLabel ? `<div class="due-label ${p.isOverdue ? 'due-over' : ''}" style="margin:0">${p.dueLabel}</div>` : ''}
+            </div>
+          </td>
           <td data-label="Actions">
             ${isDischargePending
               ? `<button class="btn btn-sec btn-xs" style="border-color:var(--disch);color:var(--disch)" onclick="event.stopPropagation();nav('n_discharge', ${p.id})">View Status</button>`
