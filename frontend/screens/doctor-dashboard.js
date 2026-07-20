@@ -115,6 +115,20 @@ function _ddLivePoll() {
             changed = true;
           }
         });
+        // Pick up brand-new encounters (e.g. a resident just submitted one for
+        // review) -- the loop above only updates status on encounters already
+        // known locally, so without this a new patient only ever showed up
+        // after a manual page reload.
+        const known = new Set((_dd.encounters || []).map(e => e.hadm_id));
+        const newOnes = freshList.filter(f => !known.has(f.hadm_id));
+        if (newOnes.length) {
+          const withSummaries = await Promise.all(newOnes.map(async e => {
+            const sum = await fetchSummary(e.id).catch(() => null);
+            return { ...e, summary: sum || null };
+          }));
+          _dd.encounters = [...(_dd.encounters || []), ...withSummaries];
+          changed = true;
+        }
         if (changed) {
           _ddMaybeStartPoll();
           renderApp();

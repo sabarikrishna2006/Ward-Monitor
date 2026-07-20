@@ -2290,7 +2290,33 @@ async def ingest_file(
         "microbiology":  "Microbiology",
         "transfers":     "Transfers",
         "icustays":      "ICU Stays",
+        "pharmacy":      "Pharmacy",
+        "poe":           "Physician Orders",
+        "fluids":        "Fluids I/O",
+        "vitals":        "Vitals",
     }.get(file_type, "Other")
+
+    # Columns that only ever get filled in by a CSV that's actually the
+    # right kind of file (no fallback/default value can populate them).
+    # If every row in the parsed batch comes up empty on all of these, the
+    # CSV almost certainly belongs in a different upload slot (e.g. a
+    # Medications export dropped into the Procedures slot) -- reject instead
+    # of silently inserting a row of nulls per line.
+    _SIGNAL_FIELDS = {
+        "labs":         ["value", "valuenum", "charttime", "itemid"],
+        "meds":         ["drug", "dose_val_rx", "starttime", "route"],
+        "notes":        ["text"],
+        "diagnoses":    ["icd_code", "long_title"],
+        "procedures":   ["icd_code", "long_title", "chartdate"],
+        "icu":          ["value", "valuenum", "charttime", "itemid"],
+        "microbiology": ["spec_type_desc", "test_name", "org_name", "charttime"],
+        "transfers":    ["careunit", "intime", "outtime"],
+        "icustays":     ["first_careunit", "intime", "outtime"],
+        "pharmacy":     ["medication", "starttime", "route"],
+        "poe":          ["ordertime", "order_type"],
+        "fluids":       ["label", "amount", "starttime"],
+        "vitals":       ["label", "value", "valuenum", "charttime"],
+    }
 
     # Resolve or create encounter (shared by both the CSV and reference paths)
     enc = gdb.get_encounter_by_hadm(hadm_id)
@@ -2343,13 +2369,10 @@ async def ingest_file(
     # Base for auto-generated PKs: microseconds since epoch
     _pk_base = int(time.time() * 1_000_000)
 
-    file_rec = gdb.create_file_record(
-        encounter_id=enc_id,
-        file_type=_type_label,
-        file_name=file.filename,
-        file_size=len(content),
-    )
-    file_id: str = file_rec["id"]
+    # file_id isn't known until we've confirmed the CSV actually matches
+    # file_type (see the column-signal check below) -- placeholder for now,
+    # patched onto every row once the real file record is created.
+    file_id = None
 
     # ── Build batch rows for Cloud SQL ───────────────────────────────────────
     batch: list = []
@@ -2548,6 +2571,29 @@ async def ingest_file(
 
     else:
         raise HTTPException(400, f"Unknown file_type: {file_type}")
+
+    # Wrong-file-type guard — if the CSV parsed but not a single row produced
+    # any of this type's signal columns, it's the wrong kind of file for this
+    # upload slot (columns didn't match), not just a file with sparse data.
+    _signal_fields = _SIGNAL_FIELDS.get(file_type)
+    if _signal_fields and batch and all(
+        row.get(f) in (None, "", 0) for row in batch for f in _signal_fields
+    ):
+        raise HTTPException(
+            400,
+            f"This doesn't look like a {_type_label} file — none of the expected columns "
+            f"({', '.join(_signal_fields)}) were found. Check you're uploading the correct file type.",
+        )
+
+    file_rec = gdb.create_file_record(
+        encounter_id=enc_id,
+        file_type=_type_label,
+        file_name=file.filename,
+        file_size=len(content),
+    )
+    file_id = file_rec["id"]
+    for _row in batch:
+        _row["source_file_id"] = file_id
 
     if batch:
         # Critical path: write raw rows immediately so uploaded_clinical_data responds fast
