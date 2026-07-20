@@ -41,13 +41,28 @@ function _ddStartRegenPoll() {
       if (!fresh) return;
       const freshList = Array.isArray(fresh) ? fresh : (fresh.encounters || []);
       let changed = false;
+      const staleOnes = [];
       (_dd.encounters || []).forEach(enc => {
         const updated = freshList.find(f => f.hadm_id === enc.hadm_id || f.id === enc.id);
         if (updated && updated.status !== enc.status) {
-          enc.status = updated.status;
+          // Merge every server field, not just status -- otherwise a stale
+          // rejection_count/revision_reason left over from before this
+          // Processing run keeps mislabelling the row as "Regenerating".
+          Object.assign(enc, updated);
+          staleOnes.push(enc);
           changed = true;
         }
       });
+      if (staleOnes.length) {
+        // The encounter just finished Processing -- its summary (T1/T2/T3/DL
+        // counts, content) was only just written, so refetch it too. Without
+        // this the row showed zeroed badges and blocked signing until a
+        // manual page reload.
+        await Promise.all(staleOnes.map(async enc => {
+          const sum = await fetchSummary(enc.id).catch(() => null);
+          if (sum) enc.summary = sum;
+        }));
+      }
       if (changed) renderApp();
       // Stop if none left Processing
       if (!(_dd.encounters || []).some(e => e.status === 'Processing')) {
@@ -108,17 +123,35 @@ function _ddLivePoll() {
       if (fresh) {
         const freshList = Array.isArray(fresh) ? fresh : (fresh.encounters || []);
         let changed = false;
+        const staleOnes = [];
         (_dd.encounters || []).forEach(enc => {
           const updated = freshList.find(f => f.hadm_id === enc.hadm_id || f.id === enc.id);
           if (updated && updated.status !== enc.status) {
-            enc.status = updated.status;
+            // Merge every field the server has (status, rejection_count,
+            // revision_reason, ...) -- patching .status alone left stale
+            // rejection_count/revision_reason on the cached object, which is
+            // why a patient could keep showing "Regenerating" long after
+            // that was no longer true.
+            Object.assign(enc, updated);
+            staleOnes.push(enc);
             changed = true;
           }
         });
+        // The encounter's summary (T1/T2/T3/DL counts, content) is fetched
+        // separately from /api/encounters -- a status change means the
+        // summary just got written/updated server-side too, so refetch it.
+        // Without this the row kept showing zeroed badges and blocked
+        // signing until a manual page reload.
+        if (staleOnes.length) {
+          await Promise.all(staleOnes.map(async enc => {
+            const sum = await fetchSummary(enc.id).catch(() => null);
+            if (sum) enc.summary = sum;
+          }));
+        }
         // Pick up brand-new encounters (e.g. a resident just submitted one for
-        // review) -- the loop above only updates status on encounters already
-        // known locally, so without this a new patient only ever showed up
-        // after a manual page reload.
+        // review) -- the loop above only updates encounters already known
+        // locally, so without this a new patient only ever showed up after a
+        // manual page reload.
         const known = new Set((_dd.encounters || []).map(e => e.hadm_id));
         const newOnes = freshList.filter(f => !known.has(f.hadm_id));
         if (newOnes.length) {
@@ -320,14 +353,14 @@ SCREEN_RENDERERS["doctor-dashboard"] = function renderDoctorDashboard() {
     const t2Tip = gapInfo.gaps.filter(g=>g.tier==='T2').map(g=>g.section+': '+g.reason).join('&#10;');
     const t3Tip = gapInfo.gaps.filter(g=>g.tier==='T3').map(g=>g.section+': '+g.reason).join('&#10;');
     const t1Badge = gapInfo.t1 > 0
-      ? `<span class="dd-tier-badge" data-tip="${t1Tip}" style="${_BD};${_BD_STYLES.t1};cursor:help">${gapInfo.t1} T1</span>`
-      : `<span style="${_BD};${_BD_STYLES.gray}">0 T1</span>`;
+      ? `<span class="dd-tier-badge" data-tip="${t1Tip}" style="${_BD};${_BD_STYLES.t1};cursor:help">T1</span>`
+      : `<span style="${_BD};${_BD_STYLES.gray}">T1</span>`;
     const t2Badge = gapInfo.t2 > 0
-      ? `<span class="dd-tier-badge" data-tip="${t2Tip}" style="${_BD};${_BD_STYLES.t2};cursor:help">${gapInfo.t2} T2</span>`
-      : `<span style="${_BD};${_BD_STYLES.gray}">0 T2</span>`;
+      ? `<span class="dd-tier-badge" data-tip="${t2Tip}" style="${_BD};${_BD_STYLES.t2};cursor:help">T2</span>`
+      : `<span style="${_BD};${_BD_STYLES.gray}">T2</span>`;
     const t3Badge = gapInfo.t3 > 0
-      ? `<span class="dd-tier-badge" data-tip="${t3Tip}" style="${_BD};${_BD_STYLES.t3};cursor:help">${gapInfo.t3} T3</span>`
-      : `<span style="${_BD};${_BD_STYLES.gray}">0 T3</span>`;
+      ? `<span class="dd-tier-badge" data-tip="${t3Tip}" style="${_BD};${_BD_STYLES.t3};cursor:help">T3</span>`
+      : `<span style="${_BD};${_BD_STYLES.gray}">T3</span>`;
     // dl_flags = total flagged sections count; tooltip and inline panel from gap_rows
     const dlCount = enc.summary?.dl_flags || 0;
     const _dlRows = Array.isArray(enc.summary?.gap_rows) ? enc.summary.gap_rows : [];
@@ -340,11 +373,12 @@ SCREEN_RENDERERS["doctor-dashboard"] = function renderDoctorDashboard() {
       ? `<button class="dd-dl-btn dd-tier-badge" data-hadm-id="${enc.hadm_id}" data-tip="${dlTip}" style="${_BTNBASE};background:${_dlOpen?'#1e40af':'#eff6ff'};color:${_dlOpen?'#fff':'#1e40af'};border-color:#bfdbfe;font-size:10.5px;font-weight:700">${dlCount} DL</button>`
       : `<span style="${_BD};${_BD_STYLES.gray}">0 DL</span>`;
 
-    const isRegen = ((enc.rejection_count || 0) > 0 || !!enc.revision_reason) && enc.status === "Awaiting Review";
+    const isRegen = (enc.rejection_count || 0) > 0 || !!enc.revision_reason;
     let statusBadge, actionBtn;
 
     if (enc.status === "Processing") {
-      statusBadge = `<span style="display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;color:#1d4ed8;background:#eff6ff;border:1px solid #bfdbfe;border-radius:4px;padding:2px 8px"><span style="width:8px;height:8px;border:2px solid #93c5fd;border-top-color:#1d4ed8;border-radius:50%;display:inline-block;animation:ddSpin .8s linear infinite"></span>Regenerating…</span>`;
+      const _procLabel = isRegen ? "Regenerating…" : "Generating…";
+      statusBadge = `<span style="display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;color:#1d4ed8;background:#eff6ff;border:1px solid #bfdbfe;border-radius:4px;padding:2px 8px"><span style="width:8px;height:8px;border:2px solid #93c5fd;border-top-color:#1d4ed8;border-radius:50%;display:inline-block;animation:ddSpin .8s linear infinite"></span>${_procLabel}</span>`;
       actionBtn   = `<button class="dd-review-btn" data-hadm-id="${enc.hadm_id}" style="${_BTNBASE};background:#fff;color:#6b7280;border-color:#e5e7eb;opacity:.6;cursor:default" disabled>In progress…</button>`;
     } else if (enc.status === "revision_requested" || enc.status === "Revision Requested") {
       statusBadge = _ddbadge("red", "Sent for Revision");

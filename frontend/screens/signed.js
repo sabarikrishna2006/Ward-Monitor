@@ -9,12 +9,25 @@ function _sgSignatureData(rd) {
   catch { return {}; }
 }
 
+// Stable per-document Doctor ID — seeded from the doctor name + hadm_id so it
+// stays the same across re-renders/reloads of the same signed document
+// instead of jumping around on every render.
+function _sgDoctorId(name, hadmId) {
+  const s = String(name || "") + "|" + String(hadmId || "");
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return "DOC-" + String(10000 + (Math.abs(h) % 90000));
+}
+
 // Convert stored markdown ("**Section**\nbody...") into readable section HTML —
 // shared by the on-page summary view and the print/download window.
 function _sgSectionsHTML(content) {
   return (content || "").split(/\n\n(?=\*\*)/).filter(Boolean).map(chunk => {
-    const lines  = chunk.split('\n');
-    const header = lines[0].replace(/\*\*/g, '').trim();
+    const lines    = chunk.split('\n');
+    const rawHeader = lines[0].replace(/\*\*/g, '').trim();
+    // Strip the leading "S1 — " / "S12 - " NABH section-number prefix — the
+    // doctor-facing signed view just needs the heading text, not the code.
+    const header    = rawHeader.replace(/^S\d+\s*[—–-]\s*/i, '').trim();
     const body   = lines.slice(1).join('\n').trim()
       .replace(/\s*\[Doctor Edited\]/g, '')
       .replace(/\n/g, '<br>');
@@ -39,7 +52,7 @@ SCREEN_RENDERERS["signed"] = function renderSigned() {
   // Doctor name: prefer what was persisted on sign-off, fall back to current user
   const _rawName   = rd.encounter?.summary?.saved_by_name || sig.full_name || user?.full_name || user?.name || "Doctor";
   const doctorName = /^Dr\.?\s/i.test(_rawName) ? _rawName : `Dr. ${_rawName}`;
-  const mci        = rd.signedMci || sig.mci || "—";
+  const doctorId   = _sgDoctorId(doctorName, rd.hadmId);
 
   // Timestamps
   const signedAt   = rd.signedAt || new Date().toISOString();
@@ -61,8 +74,6 @@ SCREEN_RENDERERS["signed"] = function renderSigned() {
   const content   = rd.finalContent || rd.content || "";
   const pageCount = Math.max(8, Math.ceil(content.length / 280));
 
-  // Hash — computed async in SCREEN_SETUP, shown as placeholder until ready
-  const hashDisplay = rd._contentHash || "computing…";
   const sectionsHTML = _sgSectionsHTML(content);
 
   return `
@@ -120,10 +131,9 @@ SCREEN_RENDERERS["signed"] = function renderSigned() {
           <div style="padding:18px 28px;border-top:1.5px solid #f3f4f6;background:#FAFAFB;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px">
             ${[
               ["Signed by",    doctorName,             ""],
-              ["Registration", mci,                    "font-family:monospace"],
+              ["Doctor ID",    doctorId,               "font-family:monospace"],
               ["Timestamp",    _fmtIso(signedAt),      "font-family:monospace;font-size:11px"],
               ["Version",      `${versionStr} — ${versionLabel}`, ""],
-              ["Hash",         hashDisplay,            "font-family:monospace;font-size:11px;color:#374151"],
             ].map(([label, value, valStyle]) => `
               <div>
                 <div style="font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px">${label}</div>
@@ -149,18 +159,6 @@ SCREEN_RENDERERS["signed"] = function renderSigned() {
 
 // ── Setup ─────────────────────────────────────────────────────────────────────
 SCREEN_SETUP["signed"] = async function setupSigned() {
-  // Compute SHA-256 of content async on first load, then re-render with hash
-  if (!APP.reviewData?._contentHash) {
-    try {
-      const _txt = APP.reviewData?.finalContent || APP.reviewData?.content || "";
-      const _buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(_txt));
-      const _hex = Array.from(new Uint8Array(_buf)).map(b => b.toString(16).padStart(2, "0")).join("");
-      if (APP.reviewData) APP.reviewData._contentHash = `sha256:${_hex.slice(0, 8)}…`;
-    } catch { if (APP.reviewData) APP.reviewData._contentHash = "sha256:—"; }
-    renderApp();
-    return; // renderApp re-runs SCREEN_SETUP; second pass wires listeners
-  }
-
   document.getElementById("signed-download-pdf")?.addEventListener("click", () => {
     const rd       = APP.reviewData || {};
     const sig      = _sgSignatureData(rd);
@@ -168,7 +166,7 @@ SCREEN_SETUP["signed"] = async function setupSigned() {
     const patName  = rd.patient?.full_name || 'Patient';
     const _raw     = rd.signedName || rd.encounter?.summary?.saved_by_name || sig.full_name || getUser()?.full_name || 'Doctor';
     const docName  = /^Dr\.?\s/i.test(_raw) ? _raw : `Dr. ${_raw}`;
-    const mci      = rd.signedMci      || sig.mci         || '—';
+    const docId    = _sgDoctorId(docName, rd.hadmId);
     const desig    = rd.signedDesig    || sig.designation || 'Attending Physician';
     const hospital = rd.signedHospital || sig.hospital    || '—';
     const signedAt = rd.signedAt
@@ -177,7 +175,6 @@ SCREEN_SETUP["signed"] = async function setupSigned() {
     const version   = `v${rd.docVersion || 1}.0`;
     const displayId = rd.hadmId ? fmtPid(rd.hadmId) : '—';
     const sigImg    = rd._sigDataUrl || sig.sig_png || null;
-    const hashVal   = rd._contentHash || '—';
 
     // Convert stored markdown to readable HTML sections
     const _secHTML = _sgSectionsHTML(content);
@@ -202,12 +199,12 @@ ${_secHTML || '<p style="color:#9ca3af;font-style:italic">No content available.<
 <div style="margin-top:40px;padding-top:20px;border-top:2px solid #e5e7eb;display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start">
   <div>
     <div style="font-size:10px;font-weight:800;background:#800080;color:#fff;display:inline-block;padding:2px 8px;border-radius:3px;margin-bottom:12px;letter-spacing:.05em">DIGITALLY SIGNED</div>
-    ${[['Signed by', docName, ''], ['Designation', desig, ''], ['MCI / Reg. No.', mci, 'font-family:monospace;font-size:12px'], ['Hospital', hospital, ''], ['Timestamp', signedAt, 'font-family:monospace;font-size:11px'], ['Document Hash', hashVal, 'font-family:monospace;font-size:11px;color:#374151']].map(([l,v,s])=>`
+    ${[['Signed by', docName, ''], ['Designation', desig, ''], ['Doctor ID', docId, 'font-family:monospace;font-size:12px'], ['Hospital', hospital, ''], ['Timestamp', signedAt, 'font-family:monospace;font-size:11px']].map(([l,v,s])=>`
     <div style="margin-bottom:9px"><div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">${l}</div><div style="font-size:13px;font-weight:600;color:#111;${s}">${v}</div></div>`).join('')}
   </div>
   ${sigImg ? `<div><div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Doctor Signature</div><img src="${sigImg}" style="max-width:220px;border:1.5px solid #e5e7eb;border-radius:6px;padding:8px"></div>` : '<div></div>'}
 </div>
-<div style="margin-top:20px;font-size:10px;color:#9ca3af;border-top:1px solid #f3f4f6;padding-top:12px">This document was generated by Foqal CareOS and is legally binding under NABH accreditation standards. Digital signature hash and MCI number are sealed at the time of signing.</div>
+<div style="margin-top:20px;font-size:10px;color:#9ca3af;border-top:1px solid #f3f4f6;padding-top:12px">This document was generated by Foqal CareOS and is legally binding under NABH accreditation standards.</div>
 </body></html>`);
     win.document.close();
     setTimeout(() => { win.focus(); win.print(); }, 400);
