@@ -309,7 +309,18 @@ SCREEN_RENDERERS["doctor-dashboard"] = function renderDoctorDashboard() {
 
   const _KEY_PRIO = { regenerated: 0, ready_to_sign: 1, draft: 2, processing: 3, in_review: 3, revision_requested: 4, amendment_requested: 4 };
   const activeEncs = encs
-    .filter(e => ["Awaiting Review","revision_requested","Revision Requested","Amendment Requested","Processing"].includes(e.status))
+    .filter(e => {
+      if (e.status === "Processing") {
+        // Only show a Processing card if the Attending already knows about
+        // this patient (it was previously sent back for revision/rejection
+        // and is now regenerating) -- a resident's very first "Generate
+        // Summary" click on a brand-new patient has never been submitted
+        // for review, so it must not appear in the Signing Queue at all
+        // until it actually reaches Awaiting Review.
+        return (e.rejection_count || 0) > 0 || !!e.revision_reason;
+      }
+      return ["Awaiting Review","revision_requested","Revision Requested","Amendment Requested"].includes(e.status);
+    })
     .sort((a, b) => {
       const d = (_KEY_PRIO[_ddEncStatusKey(a)] ?? 9) - (_KEY_PRIO[_ddEncStatusKey(b)] ?? 9);
       return d !== 0 ? d : new Date(a.created_at || 0) - new Date(b.created_at || 0);
