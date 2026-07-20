@@ -6022,14 +6022,20 @@ def get_cmo_metrics():
     total_summaries = int(core[1] or 0)
     denom = max(total_summaries, 1)
 
+    # Always list every NABH section, not just ones with a logged error --
+    # a section with zero errors is 100% accuracy, not "no data". Without
+    # this, error_log being empty (freshly cleared, or a brand-new pilot)
+    # made the whole table vanish instead of showing all-green real data.
+    _section_counts = {sec: (t1, t2, t3) for sec, t1, t2, t3 in section_rows}
     sections = []
-    for sec, t1, t2, t3 in section_rows:
+    for sec, label in _PASS3_SECTION_LABELS.items():
+        t1, t2, t3 = _section_counts.get(sec, (0, 0, 0))
         t1_rate = round(t1 / denom * 100, 1)
         t2_rate = round(t2 / denom * 100, 1)
         t3_rate = round(t3 / denom * 100, 1)
         sections.append({
             "section": sec,
-            "section_label": _PASS3_SECTION_LABELS.get(sec, sec),
+            "section_label": label,
             "accuracy_pct": round(max(0.0, 100 - t1_rate - t2_rate - t3_rate), 1),
             "t1_rate_pct": t1_rate,
             "t2_rate_pct": t2_rate,
