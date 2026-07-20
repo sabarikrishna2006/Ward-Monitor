@@ -6,7 +6,7 @@ import time
 import smtplib
 import secrets
 import urllib.parse
-from datetime import datetime
+from datetime import datetime, timedelta
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import csv
@@ -1571,7 +1571,28 @@ def get_billing_patient(hadm_id: int):
         # prediction off this patient's real synced data.
         saved_expected = result.get("expected_discharge_date")
         if saved_expected:
-            expected_discharge = str(saved_expected)[:10]
+            # CE1 saves _CE.dischargeDate, which the frontend already shifted
+            # out of MIMIC's de-identified far-future date space into real
+            # display space (see _mimicShiftDate in billing.html) before
+            # saving. The frontend unconditionally re-applies that same shift
+            # to whatever "expected_discharge" this endpoint returns, so
+            # returning the saved value as-is here double-shifts it -- e.g.
+            # a real 2026 date lands ~150 years in the past. Reverse the
+            # shift here so this branch returns the same raw-MIMIC-space
+            # value as the fresh-prediction branch below, which the frontend
+            # then shifts exactly once.
+            admit_raw = result.get("admit_time")
+            anchor_raw = result.get("estimate_generated_at")
+            saved_date = saved_expected if hasattr(saved_expected, "isoformat") else \
+                datetime.strptime(str(saved_expected)[:10], "%Y-%m-%d").date()
+            saved_date = saved_date.date() if hasattr(saved_date, "date") else saved_date
+            if admit_raw and anchor_raw:
+                admit_date  = admit_raw.date()  if hasattr(admit_raw, "date")  else admit_raw
+                anchor_date = anchor_raw.date() if hasattr(anchor_raw, "date") else anchor_raw
+                delta_days = (anchor_date - admit_date).days
+                expected_discharge = (saved_date - timedelta(days=delta_days)).isoformat()
+            else:
+                expected_discharge = saved_date.isoformat()
             expected_los = result.get("expected_los_days")
         else:
             expected_discharge = None
