@@ -65,13 +65,17 @@ const NAV = {
   ]
 };
 
-/* ─── MOBILE SIDEBAR DRAWER ─── */
+/* ─── SIDEBAR TOGGLE ─── */
 window.toggleSidebar = function() {
   const sw = document.getElementById('sidebar-wrap');
   const ov = document.getElementById('sidebar-overlay');
   if (!sw) return;
-  const isOpen = sw.classList.toggle('open');
-  if (ov) ov.classList.toggle('open', isOpen);
+  if (window.innerWidth <= 768) {
+    const isOpen = sw.classList.toggle('open');
+    if (ov) ov.classList.toggle('open', isOpen);
+  } else {
+    sw.classList.toggle('collapsed');
+  }
 };
 
 function closeSidebar() {

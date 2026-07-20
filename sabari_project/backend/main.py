@@ -1310,6 +1310,7 @@ def approve_ccu_transfer(tid: int, body: TransferDecision, db: Session = Depends
         if patient:
             patient.ward_location = "GENERAL_WARD"
             db.commit()
+            _invalidate_ward_cache(patient.ward)
     except Exception:
         db.rollback()
     return {"status": "ok", "id": tid, "wardLocation": "GENERAL_WARD"}
@@ -1325,6 +1326,11 @@ def reject_ccu_transfer(tid: int, body: TransferDecision, db: Session = Depends(
     t.decided_at = datetime.now()
     t.decided_by = body.decidedBy
     db.commit()
+    
+    patient = db.query(Patient).filter(Patient.hadm_id == t.hadm_id).first()
+    if patient:
+        _invalidate_ward_cache(patient.ward)
+        
     return {"status": "ok", "id": tid}
 
 @app.post("/api/ccu-transfers/{tid}/withdraw")
