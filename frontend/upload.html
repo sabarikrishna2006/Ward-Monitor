@@ -230,7 +230,7 @@ if (!_hadmId) window.location.href = '/dashboard.html';
 const _displayId = sessionStorage.getItem('foqal_display_id_' + _hadmId) || null;
 const _pidLabel  = window.fmtPid ? fmtPid(_hadmId, _displayId) : ('HADM-' + _hadmId);
 
-document.getElementById('top-user').textContent     = _user.full_name || _user.email || '';
+document.getElementById('top-user').textContent     = 'Dr. Anand Sharma';
 document.getElementById('loading-hadm').textContent = _pidLabel;
 
 /* ── Seeded synthetic name (same algo as dashboard) ── */

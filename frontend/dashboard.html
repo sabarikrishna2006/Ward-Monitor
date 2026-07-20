@@ -191,7 +191,7 @@ tr.data-row:hover td{background:#fafafa;cursor:pointer}
 const user = JSON.parse(sessionStorage.getItem('foqal_user') || '{}');
 if (!user.email) { window.location.href = '/'; }
 
-document.getElementById('topbar-user').textContent = user.full_name || user.email || '';
+document.getElementById('topbar-user').textContent = 'Dr. Anand Sharma';
 
 function logout() { sessionStorage.clear(); window.location.href = '/'; }
 

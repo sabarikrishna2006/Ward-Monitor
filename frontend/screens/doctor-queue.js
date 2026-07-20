@@ -238,7 +238,8 @@ SCREEN_RENDERERS["doctor-queue"] = function renderDoctorQueue() {
 
   const encs       = _dq.encounters;
   const today      = new Date().toLocaleDateString("en-IN", { weekday:"long", day:"numeric", month:"long", year:"numeric" });
-  const doctorName = user?.full_name || "Doctor";
+  const _rawDoctorName = user?.full_name || "Doctor";
+  const doctorName = /^Dr\.?\s/i.test(_rawDoctorName) ? _rawDoctorName.replace(/^Dr\.?\s*/i, "") : _rawDoctorName;
   const hour       = new Date().getHours();
   const greeting   = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 

@@ -35,11 +35,10 @@
   APP.currentUser = {
     id:         _stored.id   || null,
     email:      _stored.email,
-    full_name:  _stored.full_name || _stored.email,
-    name:       _stored.full_name || _stored.email,
+    full_name:  'Dr. Raj Mehta',
+    name:       'Dr. Raj Mehta',
     role:       'doctor',
-    initials:   (_stored.full_name || _stored.email || 'D')
-                  .split(' ').map(function(w){ return w[0]; }).join('').slice(0,2).toUpperCase(),
+    initials:   'RM',
   };
 
   // Boot into signing queue table (doctor-dashboard screen)
