@@ -5978,16 +5978,24 @@ def get_cmo_metrics():
             FROM rejection_log
         """)).fetchone()
 
+        # gap_rows (auto-computed by Pass 3 QC on every summary generation) is the
+        # live, always-populated signal of current AI-accuracy gaps -- unlike
+        # error_log, which only gets a row when an attending manually clicks
+        # "Flag Error"/"Reject" and is therefore sparse and easily stale/noisy
+        # from testing. This reflects the actual current state of every summary
+        # on file right now, one entry per flagged section per summary.
         section_rows = conn.execute(_text("""
             SELECT
-                nabh_section,
-                COUNT(*) FILTER (WHERE error_tier = 1) AS t1,
-                COUNT(*) FILTER (WHERE error_tier = 2) AS t2,
-                COUNT(*) FILTER (WHERE error_tier = 3) AS t3
-            FROM error_log
-            WHERE nabh_section IS NOT NULL
-            GROUP BY nabh_section
-            ORDER BY nabh_section
+                gr->>'sec' AS nabh_section,
+                COUNT(*) FILTER (WHERE gr->>'tier' = 'T1') AS t1,
+                COUNT(*) FILTER (WHERE gr->>'tier' = 'T2') AS t2,
+                COUNT(*) FILTER (WHERE gr->>'tier' = 'T3') AS t3
+            FROM app_summaries s
+            JOIN app_encounters e ON e.id = s.encounter_id
+            CROSS JOIN LATERAL jsonb_array_elements(COALESCE(s.gap_rows, '[]'::jsonb)) AS gr
+            WHERE gr->>'sec' IS NOT NULL
+            GROUP BY gr->>'sec'
+            ORDER BY gr->>'sec'
         """)).fetchall()
 
         # What's happening right now, system-wide.

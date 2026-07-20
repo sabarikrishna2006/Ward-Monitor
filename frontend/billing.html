@@ -578,7 +578,10 @@ async function _loadBillingDashboard() {
     const sharedPts  = pending_actions.filter(p => p.phase === 'discharge' || p.phase === 'final_bill');
 
     // ── Pending Actions table (Phase 1/2 + Phase 4) — filterable by HADM ID + status ──
-    _ce0PendingRaw = pendingPts;
+    // Never-admitted OPD patients don't belong to the Admission/Discharge/Final
+    // Bill flow at all -- surface them first so they don't get buried among
+    // in-progress admissions further down the list.
+    _ce0PendingRaw = pendingPts.slice().sort((a, b) => (a.is_admitted === false ? 0 : 1) - (b.is_admitted === false ? 0 : 1));
     _ce0FilterPending();
 
     // ── Completed Estimates tab — patients whose estimate is saved in DB ──
