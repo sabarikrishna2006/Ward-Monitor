@@ -526,7 +526,10 @@ async def startup_event():
             _conn.execute(_text(
                 "ALTER TABLE billing_records ADD COLUMN IF NOT EXISTS claim_number  VARCHAR(60)"
             ))
-        log.info("Migration 027: tpa_name/sum_insured/claim_number columns ensured")
+            _conn.execute(_text(
+                "ALTER TABLE billing_records ADD COLUMN IF NOT EXISTS coverage_pct  FLOAT"
+            ))
+        log.info("Migration 027: tpa_name/sum_insured/claim_number/coverage_pct columns ensured")
     except Exception as _e:
         log.warning(f"Migration 027 skipped: {_e}")
 
@@ -894,7 +897,11 @@ def billing_dashboard():
                 -- generated/saved — billing dashboard should still surface these as
                 -- "Admission" phase even though app_encounters is intentionally not
                 -- created until "Initiate Discharge" (see generate_billing_estimate()).
-                (ae.id IS NULL AND br.id IS NOT NULL)
+                -- Excludes already-settled bills (mainly OPD/never-admitted patients,
+                -- who have no encounter/discharge flow to move them out of this list
+                -- any other way once paid — e.g. via the "Not Admitted" quick-pay modal).
+                (ae.id IS NULL AND br.id IS NOT NULL
+                 AND COALESCE(br.billing_phase, '') NOT IN ('paid', 'claim_submitted', 'tpa_settled'))
                 OR ae.status IN (
                     'Pending Ingestion','Processing','Files Ready',
                     'Ready for Review','Awaiting Review',
@@ -1223,7 +1230,8 @@ class BillingRecordUpsert(BaseModel):
     copay_pct:          Optional[float]= None
     room_rent_limit:    Optional[int]  = None
     tpa_name:           Optional[str]  = None  # Cashless only — claims processor, migration 027
-    sum_insured:        Optional[int]  = None  # Reimbursement only — policy coverage ceiling
+    sum_insured:        Optional[int]  = None  # Reimbursement only — policy coverage ceiling (informational, not used for payout math)
+    coverage_pct:       Optional[float]= None  # Reimbursement only — % of the actual bill the insurer will pay out
     claim_number:       Optional[str]  = None  # Reimbursement only — pre-filed claim reference
     selected_band:      Optional[str]  = None
     floor_est:          Optional[int]  = None
@@ -1534,10 +1542,11 @@ def get_billing_patient(hadm_id: int):
                    br.payment_mode, br.insurance_co, br.policy_number,
                    br.preauth_number, br.preauth_amount, br.copay_pct,
                    br.room_rent_limit, br.selected_band,
-                   br.tpa_name, br.sum_insured, br.claim_number,
+                   br.tpa_name, br.sum_insured, br.coverage_pct, br.claim_number,
                    br.floor_est, br.expected_est, br.ceiling_est,
                    br.actual_charges, br.insurance_paid, br.advance_paid, br.balance_due,
-                   br.expected_discharge_date, br.expected_los_days
+                   br.expected_discharge_date, br.expected_los_days,
+                   br.is_ab_beneficiary, br.ab_scheme
             FROM active_patients ap
             LEFT JOIN app_encounters   ae ON ae.hadm_id = ap.hadm_id
             LEFT JOIN billing_records  br ON br.hadm_id = ap.hadm_id
@@ -1621,6 +1630,7 @@ def get_billing_reconciliation(hadm_id: int):
                 br.expected_discharge_date,
                 br.expected_los_days,
                 br.insurance_co, br.payment_mode, br.copay_pct, br.room_rent_limit, br.preauth_amount,
+                br.sum_insured, br.coverage_pct,
                 asumm.sections_json,
                 asumm.signed_at,
                 au.full_name AS signed_by_name
@@ -1865,11 +1875,12 @@ def get_billing_reconciliation(hadm_id: int):
         ins_label      = ins_co_recon.split()[0] if ins_co_recon else "Insurance"
         scheme_summary = f"{ins_label} (Cashless) covers ₹{ins_covers:,}. Patient copay {copay_pct_eff}%: ₹{patient_final:,}"
     elif pay_mode_recon == "reimbursement":
-        ins_covers_reim = round(actual_gross * 0.80)
-        ins_label       = ins_co_recon.split()[0] if ins_co_recon else "Insurer"
-        patient_final   = actual_gross   # patient pays full now, claims later
-        govt_final      = None
-        scheme_summary  = f"Reimbursement — Patient pays ₹{actual_gross:,} now. Claim up to ₹{ins_covers_reim:,} from {ins_label}."
+        coverage_pct_eff = r.get("coverage_pct") or 80   # default 80% if not set at CE1
+        ins_covers_reim  = round(actual_gross * coverage_pct_eff / 100)
+        ins_label        = ins_co_recon.split()[0] if ins_co_recon else "Insurer"
+        patient_final    = actual_gross   # patient pays full now, claims later
+        govt_final       = None
+        scheme_summary   = f"Reimbursement — Patient pays ₹{actual_gross:,} now. Claim up to ₹{ins_covers_reim:,} ({coverage_pct_eff}%) from {ins_label}."
     else:
         patient_final  = actual_gross
         govt_final     = None
@@ -5896,7 +5907,8 @@ def get_cmo_metrics():
             SELECT
                 nabh_section,
                 COUNT(*) FILTER (WHERE error_tier = 1) AS t1,
-                COUNT(*) FILTER (WHERE error_tier = 2) AS t2
+                COUNT(*) FILTER (WHERE error_tier = 2) AS t2,
+                COUNT(*) FILTER (WHERE error_tier = 3) AS t3
             FROM error_log
             WHERE nabh_section IS NOT NULL
             GROUP BY nabh_section
@@ -5936,15 +5948,17 @@ def get_cmo_metrics():
     denom = max(total_summaries, 1)
 
     sections = []
-    for sec, t1, t2 in section_rows:
+    for sec, t1, t2, t3 in section_rows:
         t1_rate = round(t1 / denom * 100, 1)
         t2_rate = round(t2 / denom * 100, 1)
+        t3_rate = round(t3 / denom * 100, 1)
         sections.append({
             "section": sec,
             "section_label": _PASS3_SECTION_LABELS.get(sec, sec),
-            "accuracy_pct": round(max(0.0, 100 - t1_rate - t2_rate), 1),
+            "accuracy_pct": round(max(0.0, 100 - t1_rate - t2_rate - t3_rate), 1),
             "t1_rate_pct": t1_rate,
             "t2_rate_pct": t2_rate,
+            "t3_rate_pct": t3_rate,
         })
     nabh_compliance_pct = round(
         sum(s["accuracy_pct"] for s in sections) / len(sections), 1
