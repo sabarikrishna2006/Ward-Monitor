@@ -375,6 +375,7 @@ const _CE = {
   policyNo:      '',
   tpaName:       '',
   sumInsured:    '',
+  coveragePct:   '',
   claimNo:       '',
   preauthNo:     '',
   preauthAmt:    '',
@@ -460,8 +461,11 @@ function _applyPatientDetails(d) {
   _CE.preauthAmt    = d.preauth_amount  ? String(d.preauth_amount) : '';
   _CE.tpaName       = d.tpa_name    || '';
   _CE.sumInsured    = d.sum_insured ? String(d.sum_insured) : '';
+  _CE.coveragePct   = d.coverage_pct != null ? String(d.coverage_pct) : '';
   _CE.claimNo       = d.claim_number || '';
   _CE.copayPct      = d.copay_pct != null ? String(d.copay_pct) : '';
+  _CE.isAbBeneficiary = !!d.is_ab_beneficiary;
+  _CE.abScheme      = d.ab_scheme || '';
   // Actuals/settlements only meaningful once billing has progressed
   if (d.billing_phase) {
     _CE.actualCharges = d.actual_charges;
@@ -842,17 +846,23 @@ function _ce1SchemeChange() {
   banner.innerHTML = `ℹ️ <b>${scheme}</b> — ${info.msg}`;
 }
 
-// Fires as soon as a hadm_id is typed into CE1's Patient ID field (New Entry
-// mode, before "Generate Cost Estimate" is clicked) -- provisions + kicks off
-// the BigQuery sync early so Admission Date / Primary Diagnosis / Expected
-// Discharge can populate live while the rest of the form is still being
-// filled in, instead of only starting once Save is clicked.
-async function _ce1PatientIdBlur() {
-  if (_CE.hadm_id) return;  // already a real patient -- field is readonly, this can't fire
+// Click handler for CE1's "Fetch Patient" button (New Entry mode, before
+// "Generate Cost Estimate" is clicked). Just validates the typed HADM ID and
+// opens a confirm modal -- the actual sync only starts once the user
+// confirms, so a mistyped ID never silently kicks off a fetch.
+function _ce1SyncClick() {
   const val = document.getElementById('ce1-mrn')?.value?.trim();
   const hid = parseInt(val);
-  if (!hid || hid <= 0) return;
+  if (!hid || hid <= 0) { alert('Enter a valid HADM ID.'); return; }
+  openModal('ce1-hadm-confirm', { hid, val });
+}
 
+// Provisions + kicks off the BigQuery sync early so Admission Date / Primary
+// Diagnosis / Expected Discharge can populate live while the rest of the
+// form is still being filled in, instead of only starting once Save is
+// clicked. Runs after the user confirms the HADM ID in the modal.
+async function _ce1ConfirmSync(hid, val) {
+  closeModal();
   _CE.hadm_id     = hid;
   _CE.mrn         = val;
   _CE.patientName = _bilName(hid);
@@ -883,6 +893,27 @@ async function _ce1PatientIdBlur() {
   }
 }
 
+// "✕ Change" button next to a synced Patient ID -- lets the biller correct a
+// mistyped HADM ID instead of being stuck with a readonly field.
+function _ce1ClearPatientId() {
+  _CE.hadm_id             = null;
+  _CE.mrn                 = '';
+  _CE.subjectId           = null;
+  _CE.patientName         = null;
+  _CE.age                 = null;
+  _CE.gender              = null;
+  _CE.diagnosis           = null;
+  _CE.diagnosisCode       = null;
+  _CE.admitDate           = null;
+  _CE.dischargeDate       = null;
+  _CE.actualDischargeDate = null;
+  _CE.losDays             = null;
+  _CE.encounterId         = null;
+  _CE.syncing             = false;
+  _CE.estimateData        = null;
+  showScreen('ce1');
+}
+
 // _ce2Recalc() removed -- was dead code (unreferenced anywhere in the UI),
 // and ward_type/los_days don't feed the ML model anyway, so "recalculating"
 // off those inputs no longer means anything. To refresh the ML estimate
@@ -896,6 +927,7 @@ async function _ce1Save() {
   _CE.policyNo         = document.getElementById('ce1-polno')?.value || '';
   _CE.tpaName          = document.getElementById('ce1-tpa')?.value   || '';
   _CE.sumInsured       = document.getElementById('ce1-sumins')?.value || '';
+  _CE.coveragePct      = document.getElementById('ce1-covpct')?.value || '';
   _CE.claimNo          = document.getElementById('ce1-claimno')?.value || '';
   _CE.preauthNo        = document.getElementById('ce1-pano')?.value  || '';
   _CE.preauthAmt       = document.getElementById('ce1-paamt')?.value || '';
@@ -996,6 +1028,7 @@ async function _ce1Save() {
     copay_pct:       copayPctFloat,
     tpa_name:        _CE.tpaName    || null,
     sum_insured:     _CE.sumInsured ? parseInt(String(_CE.sumInsured).replace(/[^\d]/g,'')) : null,
+    coverage_pct:    _CE.coveragePct ? parseFloat(_CE.coveragePct) : null,
     claim_number:    _CE.claimNo    || null,
     ward_type:       _CE.wardType,
     is_ab_beneficiary: _CE.isAbBeneficiary,
@@ -1613,6 +1646,7 @@ POLICY DETAILS
 Policyholder   : ${_CE.patientName || '—'}
 Policy Number  : ${_CE.policyNo || '—'}
 ${_CE.claimNo ? `Claim Number   : ${_CE.claimNo}\n` : ''}Sum Insured    : ${_CE.sumInsured ? fmt(parseInt(_CE.sumInsured)) : '—'}
+Bill % Covered : ${_CE.coveragePct ? _CE.coveragePct + '%' : '—'}
 
 ━━━━━━━━━━━━━━━━━━━━━━
 HOSPITALISATION DETAILS
@@ -1695,7 +1729,7 @@ ce0: () => `
   <button id="ce0-btn-reconciled" onclick="_switchCe0Tab('reconciled')" style="padding:9px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--muted)">Final Bill Completed</button>
 </div>
 <div id="ce0-tab-pending">
-  <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+  <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
     <input id="ce0-search" class="fi" style="max-width:240px" placeholder="Search by HADM ID…" oninput="_ce0FilterPending()">
     <select id="ce0-status-filter" class="fi" style="max-width:200px" onchange="_ce0FilterPending()">
       <option value="">All Statuses</option>
@@ -1704,6 +1738,7 @@ ce0: () => `
       <option value="Final Bill Overdue">Final Bill Overdue</option>
       <option value="Amendment Requested">Amendment Requested</option>
     </select>
+    <button class="btn btn-pri" style="margin-left:auto" onclick="_ceReset();showScreen('ce1')">+ Manual New Estimate</button>
   </div>
   <div id="ce0-table" style="color:var(--muted);padding:16px;font-size:12px">Loading patients…</div>
 </div>
@@ -1712,9 +1747,6 @@ ce0: () => `
 </div>
 <div id="ce0-tab-reconciled" style="display:none">
   <div id="ce0-reconciled-table" style="color:var(--muted);padding:16px;font-size:12px">Loading…</div>
-</div>
-<div style="display:flex;gap:8px;margin-top:12px">
-  <button class="btn btn-pri" onclick="_ceReset();showScreen('ce1')">+ Manual New Estimate</button>
 </div>`,
 
 /* ════════════════════════════════════
@@ -1742,8 +1774,15 @@ ${stepFlow('ce1')}
       <div class="card-title">Patient &amp; Clinical Details</div>
       <div class="fg">
         <label class="fl">Patient ID</label>
-        <input class="fi ${hasPatient ? 'valid' : ''}" id="ce1-mrn" value="${_CE.mrn || ''}" ${hasPatient ? 'readonly style="background:var(--surf)"' : 'onblur="_ce1PatientIdBlur()" placeholder="Enter HADM ID and click away to start syncing"'}>
-        ${hasPatient ? `<div class="fi-hint">✓ ${_CE.patientName}${ageSex ? ' · ' + ageSex : ''}${_CE.subjectId ? ' · Subject: ' + _CE.subjectId : ''}</div>` : ''}
+        <div style="display:flex;gap:8px">
+          <input class="fi ${hasPatient ? 'valid' : ''}" id="ce1-mrn" style="flex:1" value="${_CE.mrn || ''}" ${hasPatient ? 'readonly style="background:var(--surf);flex:1"' : 'placeholder="Enter HADM ID"'}>
+          ${hasPatient
+            ? `<button type="button" class="btn btn-sec" style="white-space:nowrap" onclick="_ce1ClearPatientId()">✕ Change</button>`
+            : `<button type="button" class="btn btn-pri" style="white-space:nowrap" onclick="_ce1SyncClick()">Fetch Patient</button>`}
+        </div>
+        ${hasPatient
+          ? `<div class="fi-hint">✓ ${_CE.patientName}${ageSex ? ' · ' + ageSex : ''}${_CE.subjectId ? ' · Subject: ' + _CE.subjectId : ''}</div>`
+          : `<div class="fi-hint">Enter the HADM ID, then click "Fetch Patient" — Admission Date, Diagnosis, and Expected Discharge below will auto-populate once confirmed.</div>`}
       </div>
       <div class="frow">
         <div class="fg">
@@ -1830,9 +1869,12 @@ ${stepFlow('ce1')}
     <div id="ce1-reimb-group" style="${_CE.paymentMode!=='Reimbursement'?'display:none':''}">
       <div class="frow">
         <div class="fg"><label class="fl">Sum Insured (₹)</label><input class="fi" id="ce1-sumins" value="${_CE.sumInsured || ''}" placeholder="Total policy coverage limit"></div>
+        <div class="fg"><label class="fl">Bill % Insurer Will Cover</label><input class="fi" id="ce1-covpct" value="${_CE.coveragePct || ''}" placeholder="e.g. 80"></div>
+      </div>
+      <div class="frow">
         <div class="fg"><label class="fl">Claim Number (if pre-filed)</label><input class="fi" id="ce1-claimno" value="${_CE.claimNo || ''}" placeholder="Insurance claim reference"></div>
       </div>
-      <div class="fi-hint">Patient will pay full hospital bill and claim reimbursement directly from insurer (4–6 weeks).</div>
+      <div class="fi-hint">Patient will pay full hospital bill and claim reimbursement directly from insurer (4–6 weeks). Sum Insured is the policy's overall ceiling — use % of this bill for the claim estimate, since sum insured can exceed the actual bill.</div>
     </div>
     <div class="divider"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px">
@@ -1932,9 +1974,10 @@ ${stepFlow('ce2')}
     // back from the insurer afterward -- not the hospital's concern once
     // paid, so this is a "claim later" note, not money subtracted here.
     const insLabel = (_CE.insuranceCo || 'your insurer').split(' ')[0];
-    const claimEst = Math.round(exp * 0.80);
+    const coveragePct = parseFloat(_CE.coveragePct) || 80;
+    const claimEst = Math.round(exp * coveragePct / 100);
     ptLiable = exp; insEst = 0;
-    schemeNote = `Reimbursement — you pay ${fmt(exp)} now, then claim up to ${fmt(claimEst)} back from ${insLabel} separately.`;
+    schemeNote = `Reimbursement — you pay ${fmt(exp)} now, then claim up to ${fmt(claimEst)} (${coveragePct}%) back from ${insLabel} separately.`;
     schemeNoteClass = 'al-info'; schemeNoteIcon = 'ℹ️';
   } else {
     ptLiable = exp; insEst = 0; schemeNote = null;
@@ -2451,6 +2494,13 @@ ${headerAlert}
 
 /* ─── MODALS ─── */
 const MODALS = {
+  'ce1-hadm-confirm': ({ hid, val }) => `
+<div class="modal-t">Confirm HADM ID?</div>
+<div class="modal-b">You entered <b style="color:var(--t1)">${hid}</b>. Recheck it's correct — clinical data auto-fetch will start for this patient once confirmed.</div>
+<div class="modal-f">
+  <button class="btn btn-sec" onclick="closeModal()">Cancel</button>
+  <button class="btn btn-pri" onclick="_ce1ConfirmSync(${hid}, '${val.replace(/'/g, "\\'")}')">Confirm &amp; Start Sync</button>
+</div>`,
   'payment-confirm': () => {
     // Use the same source CE5 uses — _ce4Data.reconciliation.patient_pay_final
     const recon   = _ce4Data?.reconciliation || {};
@@ -2477,20 +2527,51 @@ const MODALS = {
     const fmt = n => '₹' + Math.round(n||0).toLocaleString('en-IN');
     const name = p.patient_name || _bilName(p.hadm_id);
     const insurance = _bilInsurance(p.hadm_id, p.insurance_co, p.payment_mode, p.is_ab_beneficiary, p.ab_scheme);
+    const isSettled = ['paid', 'claim_submitted', 'tpa_settled'].includes(p.billing_phase || '');
+    const amount = p.expected_est || 0;
     return `
 <div class="modal-t">${name} — Not Admitted (OPD)</div>
-<div class="modal-b">Out-patient record — never went through an inpatient admission, so there's no Live Bill or reconciliation workflow for this one. Read-only summary below.</div>
+<div class="modal-b">Out-patient record — never went through an inpatient admission, so there's no Live Bill or reconciliation workflow for this one. ${isSettled ? '' : 'Collect payment on the spot and close it out below.'}</div>
 <table style="width:100%;font-size:13px;border-collapse:collapse;margin-bottom:16px"><tbody>
   <tr style="border-bottom:1px solid var(--border)"><td style="padding:8px 0;color:var(--muted);width:110px">MRN</td><td style="padding:8px 0;font-weight:700">${p.mrn || '—'}</td></tr>
   <tr style="border-bottom:1px solid var(--border)"><td style="padding:8px 0;color:var(--muted)">Visit Date</td><td style="padding:8px 0">${p.admit_date || '—'}</td></tr>
   <tr style="border-bottom:1px solid var(--border)"><td style="padding:8px 0;color:var(--muted)">Insurance</td><td style="padding:8px 0">${insurance}</td></tr>
-  ${p.expected_est ? `<tr><td style="padding:8px 0;color:var(--muted)">Billed Amount</td><td style="padding:8px 0;font-weight:700">${fmt(p.expected_est)}</td></tr>` : ''}
+  ${amount ? `<tr><td style="padding:8px 0;color:var(--muted)">Billed Amount</td><td style="padding:8px 0;font-weight:700">${fmt(amount)}</td></tr>` : ''}
 </tbody></table>
+${isSettled ? `<div class="alert al-ok" style="margin-bottom:16px">✅ Already settled — this patient is in Final Bill Completed.</div>` : ''}
 <div class="modal-f">
-  <button class="btn btn-pri" onclick="closeModal()">Close</button>
+  <button class="btn btn-sec" onclick="closeModal()">Close</button>
+  ${isSettled ? '' : `<button class="btn btn-pri" onclick="_opdMarkPaid(${p.hadm_id}, ${amount}, this)">💵 Take Cash Payment</button>`}
 </div>`;
   },
 };
+
+// Records a cash payment for a never-admitted OPD patient and moves them
+// straight to "Final Bill Completed" — there's no encounter/discharge flow
+// for these, so a full CE1→CE4→CE5 walk doesn't apply, this is the whole
+// billing lifecycle for a walk-in visit.
+async function _opdMarkPaid(hadmId, amount, btn) {
+  if (btn) { btn.disabled = true; btn.textContent = 'Recording…'; }
+  const base = window.FOQAL_API_BASE || `http://${location.hostname}:6010`;
+  try {
+    const resp = await fetch(`${base}/api/billing/records/${hadmId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        billing_phase: 'paid',
+        actual_charges: amount || null,
+        payment_mode_final: 'Cash',
+      }),
+    });
+    if (!resp.ok) throw new Error('save failed');
+    closeModal();
+    _showBillingToast('✅ Cash payment recorded — moved to Final Bill Completed.', '#16a34a');
+    _loadBillingDashboard();
+  } catch (e) {
+    if (btn) { btn.disabled = false; btn.textContent = '💵 Take Cash Payment'; }
+    _showBillingToast('⚠️ Failed to record payment — please try again.', '#dc2626');
+  }
+}
 
 /* ─── INIT ─── */
 (function init() {
@@ -2815,6 +2896,7 @@ function _liveInsuranceBlock() {
         if (_CE.copayPct) rows.push(['Co-pay Clause', _CE.copayPct + '%']);
       } else if (_CE.paymentMode === 'Reimbursement') {
         if (_CE.sumInsured) rows.push(['Sum Insured', '₹' + parseInt(_CE.sumInsured).toLocaleString('en-IN')]);
+        rows.push(['Bill % Covered', _CE.coveragePct ? _CE.coveragePct + '%' : '80% (default)']);
         rows.push(['Claim Number', _CE.claimNo || 'Not yet filed']);
       }
     }
@@ -2950,6 +3032,7 @@ function _ce3PrintHtml() {
     ` : ''}
     ${_CE.paymentMode==='Reimbursement' ? `
     <tr><td class="label">Sum Insured</td><td>${_CE.sumInsured ? fmt(parseInt(_CE.sumInsured)) : '—'}</td></tr>
+    <tr><td class="label">Bill % Covered</td><td>${_CE.coveragePct ? _CE.coveragePct+'%' : '80% (default)'}</td></tr>
     <tr><td class="label">Claim No.</td><td>${_CE.claimNo||'Not yet filed'}</td></tr>
     ` : ''}
   </tbody></table>
@@ -3036,6 +3119,7 @@ TPA          : ${_CE.tpaName||'—'}
 Pre-auth No. : ${_CE.preauthNo||'—'}
 Co-pay       : ${_CE.copayPct ? _CE.copayPct+'%' : '—'}` : ''}${_CE.paymentMode==='Reimbursement' ? `
 Sum Insured  : ${_CE.sumInsured ? fmt(parseInt(_CE.sumInsured)) : '—'}
+Bill % Covered: ${_CE.coveragePct ? _CE.coveragePct+'%' : '80% (default)'}
 Claim No.    : ${_CE.claimNo||'Not yet filed'}` : ''}
 
 ━━━━━━━━━━━━━━━━━━━━━━

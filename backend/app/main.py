@@ -526,7 +526,10 @@ async def startup_event():
             _conn.execute(_text(
                 "ALTER TABLE billing_records ADD COLUMN IF NOT EXISTS claim_number  VARCHAR(60)"
             ))
-        log.info("Migration 027: tpa_name/sum_insured/claim_number columns ensured")
+            _conn.execute(_text(
+                "ALTER TABLE billing_records ADD COLUMN IF NOT EXISTS coverage_pct  FLOAT"
+            ))
+        log.info("Migration 027: tpa_name/sum_insured/claim_number/coverage_pct columns ensured")
     except Exception as _e:
         log.warning(f"Migration 027 skipped: {_e}")
 
@@ -894,7 +897,11 @@ def billing_dashboard():
                 -- generated/saved — billing dashboard should still surface these as
                 -- "Admission" phase even though app_encounters is intentionally not
                 -- created until "Initiate Discharge" (see generate_billing_estimate()).
-                (ae.id IS NULL AND br.id IS NOT NULL)
+                -- Excludes already-settled bills (mainly OPD/never-admitted patients,
+                -- who have no encounter/discharge flow to move them out of this list
+                -- any other way once paid — e.g. via the "Not Admitted" quick-pay modal).
+                (ae.id IS NULL AND br.id IS NOT NULL
+                 AND COALESCE(br.billing_phase, '') NOT IN ('paid', 'claim_submitted', 'tpa_settled'))
                 OR ae.status IN (
                     'Pending Ingestion','Processing','Files Ready',
                     'Ready for Review','Awaiting Review',
@@ -1223,7 +1230,8 @@ class BillingRecordUpsert(BaseModel):
     copay_pct:          Optional[float]= None
     room_rent_limit:    Optional[int]  = None
     tpa_name:           Optional[str]  = None  # Cashless only — claims processor, migration 027
-    sum_insured:        Optional[int]  = None  # Reimbursement only — policy coverage ceiling
+    sum_insured:        Optional[int]  = None  # Reimbursement only — policy coverage ceiling (informational, not used for payout math)
+    coverage_pct:       Optional[float]= None  # Reimbursement only — % of the actual bill the insurer will pay out
     claim_number:       Optional[str]  = None  # Reimbursement only — pre-filed claim reference
     selected_band:      Optional[str]  = None
     floor_est:          Optional[int]  = None
@@ -1534,10 +1542,11 @@ def get_billing_patient(hadm_id: int):
                    br.payment_mode, br.insurance_co, br.policy_number,
                    br.preauth_number, br.preauth_amount, br.copay_pct,
                    br.room_rent_limit, br.selected_band,
-                   br.tpa_name, br.sum_insured, br.claim_number,
+                   br.tpa_name, br.sum_insured, br.coverage_pct, br.claim_number,
                    br.floor_est, br.expected_est, br.ceiling_est,
                    br.actual_charges, br.insurance_paid, br.advance_paid, br.balance_due,
-                   br.expected_discharge_date, br.expected_los_days
+                   br.expected_discharge_date, br.expected_los_days,
+                   br.is_ab_beneficiary, br.ab_scheme
             FROM active_patients ap
             LEFT JOIN app_encounters   ae ON ae.hadm_id = ap.hadm_id
             LEFT JOIN billing_records  br ON br.hadm_id = ap.hadm_id
@@ -1621,6 +1630,7 @@ def get_billing_reconciliation(hadm_id: int):
                 br.expected_discharge_date,
                 br.expected_los_days,
                 br.insurance_co, br.payment_mode, br.copay_pct, br.room_rent_limit, br.preauth_amount,
+                br.sum_insured, br.coverage_pct,
                 asumm.sections_json,
                 asumm.signed_at,
                 au.full_name AS signed_by_name
@@ -1865,11 +1875,12 @@ def get_billing_reconciliation(hadm_id: int):
         ins_label      = ins_co_recon.split()[0] if ins_co_recon else "Insurance"
         scheme_summary = f"{ins_label} (Cashless) covers ₹{ins_covers:,}. Patient copay {copay_pct_eff}%: ₹{patient_final:,}"
     elif pay_mode_recon == "reimbursement":
-        ins_covers_reim = round(actual_gross * 0.80)
-        ins_label       = ins_co_recon.split()[0] if ins_co_recon else "Insurer"
-        patient_final   = actual_gross   # patient pays full now, claims later
-        govt_final      = None
-        scheme_summary  = f"Reimbursement — Patient pays ₹{actual_gross:,} now. Claim up to ₹{ins_covers_reim:,} from {ins_label}."
+        coverage_pct_eff = r.get("coverage_pct") or 80   # default 80% if not set at CE1
+        ins_covers_reim  = round(actual_gross * coverage_pct_eff / 100)
+        ins_label        = ins_co_recon.split()[0] if ins_co_recon else "Insurer"
+        patient_final    = actual_gross   # patient pays full now, claims later
+        govt_final       = None
+        scheme_summary   = f"Reimbursement — Patient pays ₹{actual_gross:,} now. Claim up to ₹{ins_covers_reim:,} ({coverage_pct_eff}%) from {ins_label}."
     else:
         patient_final  = actual_gross
         govt_final     = None
@@ -2279,7 +2290,33 @@ async def ingest_file(
         "microbiology":  "Microbiology",
         "transfers":     "Transfers",
         "icustays":      "ICU Stays",
+        "pharmacy":      "Pharmacy",
+        "poe":           "Physician Orders",
+        "fluids":        "Fluids I/O",
+        "vitals":        "Vitals",
     }.get(file_type, "Other")
+
+    # Columns that only ever get filled in by a CSV that's actually the
+    # right kind of file (no fallback/default value can populate them).
+    # If every row in the parsed batch comes up empty on all of these, the
+    # CSV almost certainly belongs in a different upload slot (e.g. a
+    # Medications export dropped into the Procedures slot) -- reject instead
+    # of silently inserting a row of nulls per line.
+    _SIGNAL_FIELDS = {
+        "labs":         ["value", "valuenum", "charttime", "itemid"],
+        "meds":         ["drug", "dose_val_rx", "starttime", "route"],
+        "notes":        ["text"],
+        "diagnoses":    ["icd_code", "long_title"],
+        "procedures":   ["icd_code", "long_title", "chartdate"],
+        "icu":          ["value", "valuenum", "charttime", "itemid"],
+        "microbiology": ["spec_type_desc", "test_name", "org_name", "charttime"],
+        "transfers":    ["careunit", "intime", "outtime"],
+        "icustays":     ["first_careunit", "intime", "outtime"],
+        "pharmacy":     ["medication", "starttime", "route"],
+        "poe":          ["ordertime", "order_type"],
+        "fluids":       ["label", "amount", "starttime"],
+        "vitals":       ["label", "value", "valuenum", "charttime"],
+    }
 
     # Resolve or create encounter (shared by both the CSV and reference paths)
     enc = gdb.get_encounter_by_hadm(hadm_id)
@@ -2332,13 +2369,10 @@ async def ingest_file(
     # Base for auto-generated PKs: microseconds since epoch
     _pk_base = int(time.time() * 1_000_000)
 
-    file_rec = gdb.create_file_record(
-        encounter_id=enc_id,
-        file_type=_type_label,
-        file_name=file.filename,
-        file_size=len(content),
-    )
-    file_id: str = file_rec["id"]
+    # file_id isn't known until we've confirmed the CSV actually matches
+    # file_type (see the column-signal check below) -- placeholder for now,
+    # patched onto every row once the real file record is created.
+    file_id = None
 
     # ── Build batch rows for Cloud SQL ───────────────────────────────────────
     batch: list = []
@@ -2537,6 +2571,29 @@ async def ingest_file(
 
     else:
         raise HTTPException(400, f"Unknown file_type: {file_type}")
+
+    # Wrong-file-type guard — if the CSV parsed but not a single row produced
+    # any of this type's signal columns, it's the wrong kind of file for this
+    # upload slot (columns didn't match), not just a file with sparse data.
+    _signal_fields = _SIGNAL_FIELDS.get(file_type)
+    if _signal_fields and batch and all(
+        row.get(f) in (None, "", 0) for row in batch for f in _signal_fields
+    ):
+        raise HTTPException(
+            400,
+            f"This doesn't look like a {_type_label} file — none of the expected columns "
+            f"({', '.join(_signal_fields)}) were found. Check you're uploading the correct file type.",
+        )
+
+    file_rec = gdb.create_file_record(
+        encounter_id=enc_id,
+        file_type=_type_label,
+        file_name=file.filename,
+        file_size=len(content),
+    )
+    file_id = file_rec["id"]
+    for _row in batch:
+        _row["source_file_id"] = file_id
 
     if batch:
         # Critical path: write raw rows immediately so uploaded_clinical_data responds fast
@@ -5896,7 +5953,8 @@ def get_cmo_metrics():
             SELECT
                 nabh_section,
                 COUNT(*) FILTER (WHERE error_tier = 1) AS t1,
-                COUNT(*) FILTER (WHERE error_tier = 2) AS t2
+                COUNT(*) FILTER (WHERE error_tier = 2) AS t2,
+                COUNT(*) FILTER (WHERE error_tier = 3) AS t3
             FROM error_log
             WHERE nabh_section IS NOT NULL
             GROUP BY nabh_section
@@ -5936,15 +5994,17 @@ def get_cmo_metrics():
     denom = max(total_summaries, 1)
 
     sections = []
-    for sec, t1, t2 in section_rows:
+    for sec, t1, t2, t3 in section_rows:
         t1_rate = round(t1 / denom * 100, 1)
         t2_rate = round(t2 / denom * 100, 1)
+        t3_rate = round(t3 / denom * 100, 1)
         sections.append({
             "section": sec,
             "section_label": _PASS3_SECTION_LABELS.get(sec, sec),
-            "accuracy_pct": round(max(0.0, 100 - t1_rate - t2_rate), 1),
+            "accuracy_pct": round(max(0.0, 100 - t1_rate - t2_rate - t3_rate), 1),
             "t1_rate_pct": t1_rate,
             "t2_rate_pct": t2_rate,
+            "t3_rate_pct": t3_rate,
         })
     nabh_compliance_pct = round(
         sum(s["accuracy_pct"] for s in sections) / len(sections), 1

@@ -11,6 +11,7 @@
   --t1:#dc2626;--t1b:#fef2f2;
   --t2:#d97706;--t2b:#fffbeb;
   --t3:#059669;--t3b:#ecfdf5;
+  --terr3:#991b1b;--terr3b:#fee2e2;
   --ink:#111827;--ink2:#374151;--muted:#6b7280;
   --border:#e5e7eb;--surf:#f9fafb;
   --font:system-ui,-apple-system,'Segoe UI',sans-serif;
@@ -76,6 +77,15 @@ button{cursor:pointer;font-family:inherit;font-size:inherit}
 .attn-badge.t1{background:var(--t1b);color:var(--t1)}
 .attn-badge.t2{background:var(--t2b);color:var(--t2)}
 .attn-empty{text-align:center;padding:28px 20px;color:var(--muted);font-size:12.5px}
+
+/* ── TIER LEGEND ── */
+.tier-legend{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.tier-chip{display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:7px;font-size:10.5px;line-height:1.3;border:1px solid}
+.tier-chip b{font-weight:800;letter-spacing:.2px}
+.tier-chip span{color:var(--ink2);font-weight:500}
+.tier-chip.t1{background:var(--t1b);border-color:#fecaca;color:var(--t1)}
+.tier-chip.t2{background:var(--t2b);border-color:#fde68a;color:var(--t2)}
+.tier-chip.t3{background:var(--terr3b);border-color:#fca5a5;color:var(--terr3)}
 
 /* ── TWO-COL ── */
 .two-col{display:grid;grid-template-columns:1.1fr 1fr;gap:16px}
@@ -190,6 +200,11 @@ tr:hover td{background:#fcfcfc}
       <!-- LEFT: Section-wise Accuracy -->
       <div class="card">
         <div class="card-title">Section-wise Accuracy (NABH sections)</div>
+        <div class="tier-legend">
+          <div class="tier-chip t1"><b>T1</b><span>Formatting / phrasing</span></div>
+          <div class="tier-chip t2"><b>T2</b><span>Wrong drug / dose / duration</span></div>
+          <div class="tier-chip t3"><b>T3</b><span>Wrong diagnosis, hallucination, or missed finding — patient safety</span></div>
+        </div>
         <div class="tw" style="border:none">
           <table>
             <thead>
@@ -198,10 +213,11 @@ tr:hover td{background:#fcfcfc}
                 <th>Accuracy</th>
                 <th>T1 Rate</th>
                 <th>T2 Rate</th>
+                <th>T3 Rate</th>
               </tr>
             </thead>
             <tbody id="cmo-section-body">
-              <tr><td colspan="4" class="muted" style="text-align:center;padding:20px">Loading…</td></tr>
+              <tr><td colspan="5" class="muted" style="text-align:center;padding:20px">Loading…</td></tr>
             </tbody>
           </table>
         </div>
@@ -333,8 +349,9 @@ function renderCmoMetrics(data) {
         <td style="color:${accColor(s.accuracy_pct)};font-weight:600">${s.accuracy_pct}%</td>
         <td style="color:${s.t1_rate_pct > 0 ? 'var(--t1)' : 'var(--muted)'};font-weight:${s.t1_rate_pct > 0 ? 600 : 400}">${s.t1_rate_pct}%</td>
         <td style="color:${s.t2_rate_pct > 0 ? 'var(--t2)' : 'var(--muted)'};font-weight:${s.t2_rate_pct > 0 ? 600 : 400}">${s.t2_rate_pct}%</td>
+        <td style="color:${s.t3_rate_pct > 0 ? 'var(--terr3)' : 'var(--muted)'};font-weight:${s.t3_rate_pct > 0 ? 700 : 400}">${s.t3_rate_pct}%</td>
       </tr>`).join('')
-    : `<tr><td colspan="4" class="muted" style="text-align:center;padding:20px">No section-level errors logged yet.</td></tr>`;
+    : `<tr><td colspan="5" class="muted" style="text-align:center;padding:20px">No section-level errors logged yet.</td></tr>`;
 
   document.getElementById('cmo-rejection-stats').innerHTML = `
     <tr><td class="key">Total summaries signed</td><td class="val">${p.signed_count}</td></tr>

@@ -444,7 +444,7 @@ function rv2MockRevision(id, text, sectionId) {
   const revised   = text + " " + addition;
   const conf      = 88 + Math.floor(Math.random() * 10);
   const now       = new Date().toLocaleTimeString("en-IN", { hour:"2-digit", minute:"2-digit", second:"2-digit" });
-  const drName    = (typeof getUser === "function" && getUser()?.full_name) ? `Dr. ${getUser().full_name}` : "Dr. Anand Sharma";
+  const drName    = (typeof getUser === "function" && getUser()?.full_name) ? getUser().full_name : "Dr. Anand Sharma";
   return {
     status:      "ready",
     original:    text,

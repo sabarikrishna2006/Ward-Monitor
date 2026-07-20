@@ -115,6 +115,20 @@ function _ddLivePoll() {
             changed = true;
           }
         });
+        // Pick up brand-new encounters (e.g. a resident just submitted one for
+        // review) -- the loop above only updates status on encounters already
+        // known locally, so without this a new patient only ever showed up
+        // after a manual page reload.
+        const known = new Set((_dd.encounters || []).map(e => e.hadm_id));
+        const newOnes = freshList.filter(f => !known.has(f.hadm_id));
+        if (newOnes.length) {
+          const withSummaries = await Promise.all(newOnes.map(async e => {
+            const sum = await fetchSummary(e.id).catch(() => null);
+            return { ...e, summary: sum || null };
+          }));
+          _dd.encounters = [...(_dd.encounters || []), ...withSummaries];
+          changed = true;
+        }
         if (changed) {
           _ddMaybeStartPoll();
           renderApp();
@@ -206,7 +220,8 @@ const _BTNBASE = "display:inline-flex;align-items:center;gap:6px;padding:5px 10p
 
 SCREEN_RENDERERS["doctor-dashboard"] = function renderDoctorDashboard() {
   const user       = getUser();
-  const doctorName = user?.full_name || user?.name || "Doctor";
+  const _rawDoctorName = user?.full_name || user?.name || "Doctor";
+  const doctorName = /^Dr\.?\s/i.test(_rawDoctorName) ? _rawDoctorName.replace(/^Dr\.?\s*/i, "") : _rawDoctorName;
 
   // Loading skeleton
   if (_dd.encounters === null || _dd.loading) {
@@ -266,7 +281,12 @@ SCREEN_RENDERERS["doctor-dashboard"] = function renderDoctorDashboard() {
       const d = (_KEY_PRIO[_ddEncStatusKey(a)] ?? 9) - (_KEY_PRIO[_ddEncStatusKey(b)] ?? 9);
       return d !== 0 ? d : new Date(a.created_at || 0) - new Date(b.created_at || 0);
     });
-  const completedEncs = encs.filter(e => e.status === "Signed Off");
+  // Once billing has fully closed the case out (paid / claim submitted /
+  // TPA settled), it no longer needs to sit in the doctor's Completed queue
+  // -- that's meant for recently-signed cases, not a permanent archive of
+  // every discharge ever, regardless of what billing does with it afterward.
+  const _BILLING_CLOSED = ['paid', 'claim_submitted', 'tpa_settled'];
+  const completedEncs = encs.filter(e => e.status === "Signed Off" && !_BILLING_CLOSED.includes(e.billing_phase));
   const isCompleted   = _dd.tab === 'completed';
 
   const readyToSign       = activeEncs.filter(e => _ddEncStatusKey(e) === 'ready_to_sign').length;
