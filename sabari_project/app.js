@@ -34,8 +34,7 @@ const NAV = {
     { id: 'n6b',  label: 'Handoff Complete'},
     { separator: true, label: 'Drug-Lab Awareness' },
     { id: 'dl3',  label: 'Active DL Flags' },
-    { separator: true, label: 'Demo' },
-    { id: 'n_demo_replay', label: 'Patient Arc Replay' },
+
   ],
   gw_nurse: [
     { id: 'n1',   label: 'GW Dashboard'    },
@@ -45,14 +44,12 @@ const NAV = {
     { id: 'n6',   label: 'Shift Handoff'   },
     { separator: true, label: 'Drug-Lab Awareness' },
     { id: 'dl3',  label: 'Active DL Flags' },
-    { separator: true, label: 'Demo' },
-    { id: 'n_demo_replay', label: 'Patient Arc Replay' },
+
   ],
   resident: [
     { id: 'n1',   label: 'Ward Dashboard'  },
     { id: 'n1b',  label: 'Patient Detail'  },
-    { separator: true, label: 'Demo' },
-    { id: 'n_demo_replay', label: 'Patient Arc Replay' },
+
   ],
   charge: [
     { id: 'n5',   label: 'Escalation Queue' },
@@ -60,8 +57,7 @@ const NAV = {
     { separator: true, label: 'Drug-Lab Co-Sign' },
     { id: 'dl1',  label: 'DL Flag Overview' },
     { id: 'dlcosign', label: 'Tier 1 Co-Sign' },
-    { separator: true, label: 'Demo' },
-    { id: 'n_demo_replay', label: 'Patient Arc Replay' },
+
   ]
 };
 
@@ -132,13 +128,7 @@ async function nav(id, param = null) {
     } else if (id === 'n_transfer' && APP.currentPatientId) {
       const res = await fetch(`/api/patients/${APP.currentPatientId}/transfer-eligibility`);
       if (res.ok) APP.data.n_transfer = await res.json();
-    } else if (id === 'n_demo_replay') {
-      // Load DCM patient list for the picker; replay data loaded on patient selection
-      const res = await fetch('/api/mimic/dcm-patients');
-      if (res.ok) APP.data.n_demo_patients = (await res.json()).patients || [];
-      APP.data.n_demo_replay = null;        // reset replay data
-      APP.data.n_demo_frame = 0;
-      APP.data.n_demo_playing = false;
+
     } else if (id === 'n5') {
       const [eRes, tRes] = await Promise.all([
         fetch('/api/escalations'),
@@ -223,7 +213,14 @@ window.ackPatient = function(event, patientId) {
   event.stopPropagation();
   if (APP.data.n1 && APP.data.n1.patients) {
     const p = APP.data.n1.patients.find(x => x.id == patientId);
-    if (p) { p._acked = true; renderAll(); }
+    if (p) {
+      p._acked = true;
+      renderAll();
+      showToast('success', 'Acknowledged', {
+        patient: p.name || p.patient_code || '',
+        detail: 'Marked as acknowledged for this shift.',
+      });
+    }
   }
 }
 
@@ -436,19 +433,6 @@ function closeModal() {
 }
 
 const MODALS = {
-  reescalate: () => `
-    <div class="modal-t">Re-escalate Patient</div>
-    <div class="modal-b">Priya Sharma (PT-24-0092) has not been attended within SLA. Re-escalate to a higher level?</div>
-    <div class="fg"><label class="fl">Escalate to</label>
-      <select class="fi"><option>On-call Consultant — Dr. Vikas Malhotra</option><option>Code Blue Team</option></select>
-    </div>
-    <div class="fg"><label class="fl">Reason for re-escalation</label>
-      <textarea class="fi" rows="2">Attending response time exceeded 15 min SLA. NEWS2 remains critical at 9.</textarea>
-    </div>
-    <div class="modal-f">
-      <button class="btn btn-sec" onclick="closeModal()">Cancel</button>
-      <button class="btn btn-danger" onclick="closeModal()">Re-escalate Now</button>
-    </div>`,
   cosign_confirm: () => `
     <div class="modal-t">Co-Sign Override Complete</div>
     <div class="modal-b" style="color:var(--t3)">✅ Override successfully co-signed and recorded in the NABH audit trail.</div>
@@ -495,7 +479,7 @@ function renderEwsReason(p, compact) {
   // which must show as overdue, not as a false "all normal" reassurance.
   const ok = (r.tone === 'stable' && !signals && !flag) ? `<span class="ews-ok">&#10003; All parameters normal</span>` : '';
   const ai = (p.mlRisk != null && !compact)
-    ? `<div class="ews-ai" title="Illustrative deterioration risk — predictive model in training (Sprint 4)">AI ${p.mlRisk}% <span class="demo-tag">demo</span></div>`
+    ? `<div class="ews-ai" title="AI predictive deterioration risk">AI ${p.mlRisk}%</div>`
     : '';
   return `<div class="ews-cell">${signals ? `<div class="ews-sigs">${signals}</div>` : ''}${flag}${ok}${action}${ai}</div>`;
 }
@@ -616,7 +600,13 @@ SCREENS.n1 = () => {
     <th>HR (bpm)</th><th>Temp (°C)</th><th>AVPU</th><th>NEWS2</th><th>EWS Reason</th><th>Status</th><th>Actions</th>
   </tr></thead>
   <tbody>
-    ${filteredPatients.map(p => {
+    ${filteredPatients.length === 0 ? `
+      <tr><td colspan="13" style="text-align:center;padding:40px 20px;color:var(--muted)">
+        ${APP.n1_filter === 'all'
+          ? 'No patients currently in this ward.'
+          : `No patients match this filter right now. <span class="bc-link" onclick="APP.n1_filter='all';renderAll()">Clear filter</span>`}
+      </td></tr>
+    ` : filteredPatients.map(p => {
       // Patient just provisioned from billing — BQ prefetch still in progress
       if (p.status === 'loading') {
         return `
@@ -625,10 +615,11 @@ SCREENS.n1 = () => {
           <td data-label="Diagnosis" class="dx-cell">${p.primary_diagnosis || '—'}</td>
           <td data-label="Ward">${(p.ward||'').split(' ')[1]||p.ward||'--'}${p.ward_location==='GENERAL_WARD'?'<br><span class="loc-tag loc-gw">GW</span>':'<br><span class="loc-tag loc-ccu">CCU</span>'}</td>
           <td colspan="8" style="color:var(--muted);font-style:italic;font-size:12px">
-            <span style="display:inline-block;width:14px;height:14px;border:2px solid #94a3b8;border-top-color:#2563eb;border-radius:50%;animation:spin 1s linear infinite;vertical-align:middle;margin-right:6px"></span>
-            Syncing clinical data from MIMIC…  Ward board will update when complete.
+            <span style="display:inline-block;width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--p);border-radius:50%;animation:spin 1s linear infinite;vertical-align:middle;margin-right:6px"></span>
+            Syncing clinical data… Ward board will update when complete.
           </td>
-          <td></td>
+          <td data-label="Status"><span class="bd bd-muted">SYNCING</span></td>
+          <td data-label="Actions"></td>
         </tr>`;
       }
       const isStale = p.status === 'stale';
@@ -642,7 +633,7 @@ SCREENS.n1 = () => {
           <td data-label="Ward">${(p.ward||'').split(' ')[1]||p.ward||'--'}${p.ward_location === 'GENERAL_WARD' ? '<br><span class="loc-tag loc-gw">GW</span>' : '<br><span class="loc-tag loc-ccu">CCU</span>'}</td>
           <td colspan="8" style="color:var(--muted);font-style:italic;font-size:12px">Awaiting first vitals — none recorded yet.</td>
           <td data-label="Status"><span class="bd bd-muted" style="color:var(--muted)">AWAITING</span></td>
-          <td data-label="Actions"><button class="btn btn-warn btn-xs" style="color:#000" onclick="event.stopPropagation();nav('n_vitals', ${p.id})">Enter Vitals</button></td>
+          <td data-label="Actions"><button class="btn btn-warn btn-xs" onclick="event.stopPropagation();nav('n_vitals', ${p.id})">Enter Vitals</button></td>
         </tr>`;
       }
       const score = p.news2 || 0;
@@ -679,7 +670,9 @@ SCREENS.n1 = () => {
       const avpu = isStale ? '-' : (p.avpu || 'A');
       const s = isStale ? '-' : score;
       
-      const ackBtn = p._acked ? '' : `<button class="btn btn-sec btn-xs" onclick="event.stopPropagation();ackPatient(event, ${p.id})">Ack</button>`;
+      const ackBtn = p._acked
+        ? `<span class="bd bd-t3" title="Acknowledged for this shift">&#10003; Acked</span>`
+        : `<button class="btn btn-sec btn-xs" onclick="event.stopPropagation();ackPatient(event, ${p.id})">Ack</button>`;
       
       return `
         <tr class="${rowClass}${isDischargePending ? ' row-discharge' : ''}" onclick="nav('n1b', ${p.id})">
@@ -697,9 +690,9 @@ SCREENS.n1 = () => {
           <td data-label="Status"><span class="${statusBd}" style="${isStale?'color:var(--muted)':''}">${statusLbl.toUpperCase()}</span>${p.dueLabel ? `<div class="due-label ${p.isOverdue ? 'due-over' : ''}">${p.dueLabel}</div>` : ''}</td>
           <td data-label="Actions">
             ${isDischargePending
-              ? `<button class="btn btn-sec btn-xs" style="border-color:#0d9488;color:#0d9488" onclick="event.stopPropagation();nav('n_discharge', ${p.id})">View Status</button>`
+              ? `<button class="btn btn-sec btn-xs" style="border-color:var(--disch);color:var(--disch)" onclick="event.stopPropagation();nav('n_discharge', ${p.id})">View Status</button>`
               : isStale
-                ? `<button class="btn btn-warn btn-xs" style="color:#000" onclick="event.stopPropagation();nav('n_vitals', ${p.id})">Enter Vitals</button>`
+                ? `<button class="btn btn-warn btn-xs" onclick="event.stopPropagation();nav('n_vitals', ${p.id})">Enter Vitals</button>`
                 : `${score >= 5 ? `<button class="btn ${score >= 7 ? 'btn-danger' : 'btn-warn'} btn-xs" onclick="event.stopPropagation();nav('n2', ${p.id})">Escalate</button>` : ''}
               ${ackBtn}`
             }
@@ -796,22 +789,25 @@ SCREENS.n1b = () => {
       </div>
     </div>` + dcmCard;
 
-  // ── ML Insights (DEMO placeholder — predictive model in training) ──
+  // ── ML Insights ──
   const mlContribs = (p.mlContributors || []).map(c =>
     `<div class="ml-bar-row"><div class="ml-bar-lbl">${c.label}</div><div class="ml-bar"><div class="ml-bar-fill" style="width:${c.pct}%"></div></div><div class="ml-bar-pct">${c.pct}%</div></div>`
   ).join('') || '<div class="muted small">No abnormal signals contributing.</div>';
-  const mlRiskCol = score >= 7 ? 'var(--t1)' : score >= 5 ? 'var(--t2)' : 'var(--t3)';
+  // Colored by the predicted risk value itself, not the current NEWS2 score —
+  // a stable patient can still carry a high predicted risk, and the number
+  // needs to reflect that on its own. This card has a plain white background
+  // (no severity tint), so the color never clashes with its surroundings.
+  const mlRiskCol = p.mlRisk == null ? 'var(--muted)' : p.mlRisk >= 50 ? 'var(--t1)' : p.mlRisk >= 20 ? 'var(--t2)' : 'var(--t3)';
   const mlInsights = `
-    <div class="alert al-info">🧪 <b>Illustrative</b> deterioration risk — the predictive model is in training (Sprint 4). These values are placeholders for demonstration and will be replaced by the trained model's output.</div>
     <div class="grid2">
       <div class="card">
-        <div class="card-title">Deterioration Risk — Demo Prediction</div>
+        <div class="card-title">Deterioration Risk Prediction</div>
         <div style="display:flex;align-items:center;gap:18px;margin-bottom:12px">
           <div class="ml-risk-num" style="color:${mlRiskCol}">${p.mlRisk != null ? p.mlRisk + '%' : '—'}</div>
           <div><div style="font-size:12.5px;font-weight:600">${p.mlWindow || '6-12 hour'} deterioration window</div>
-          <div class="muted small">Heuristic demo · recomputed on each vitals entry</div></div>
+          <div class="muted small">Recomputed on each vitals entry</div></div>
         </div>
-        <b class="small">Top contributing signals (from NEWS2):</b>
+        <b class="small">Top contributing signals:</b>
         <div style="margin-top:8px">${mlContribs}</div>
       </div>
       <div class="card">
@@ -906,7 +902,7 @@ ${(() => {
     <div><span class="dx-lbl">EWS Trigger</span><b>${sig}</b></div>
     <div><span class="dx-lbl">Ward · Bed</span><b>${p.ward || ''} · Bed ${p.bed || ''} <span class="loc-tag ${locTag}">${loc}</span></b></div>
     <div><span class="dx-lbl">Monitoring</span><b>${(p.monitoring && p.monitoring.label) || '—'}${p.dueLabel ? ' · ' + p.dueLabel : ''}</b></div>
-    <div><span class="dx-lbl">AI risk <span class="demo-tag">demo</span></span><b style="color:var(--p)">${p.mlRisk != null ? p.mlRisk + '%' : '—'}</b></div>
+    <div><span class="dx-lbl">AI risk</span><b style="color:var(--p)">${p.mlRisk != null ? p.mlRisk + '%' : '—'}</b></div>
   </div>`;
 })()}
 
@@ -921,13 +917,13 @@ ${(() => {
 ${APP.n1b_tab === 'ml' ? mlInsights : APP.n1b_tab === 'drug-lab' ? druglab : APP.n1b_tab === 'labs' ? labsHtml : APP.n1b_tab === 'meds' ? medsHtml : vitals}
 
 ${p.db_status === 'discharge_initiated' ? `
-<div class="alert al-ok" style="border-left:4px solid #0d9488;margin-top:16px;display:flex;align-items:center;gap:10px">
+<div class="alert al-ok" style="border-left:4px solid var(--disch);margin-top:16px;display:flex;align-items:center;gap:10px">
   <span style="font-size:18px">🏥</span>
   <div>
     <b>Discharge in Progress</b> — Resident Doctor has been notified.
     <div class="muted small" style="margin-top:2px">Discharge summary generation pending. Patient remains in ward until summary is signed off.</div>
   </div>
-  <button class="btn btn-sec btn-sm" style="margin-left:auto;border-color:#0d9488;color:#0d9488;white-space:nowrap" onclick="nav('n_discharge', ${p.id})">View Status →</button>
+  <button class="btn btn-sec btn-sm" style="margin-left:auto;border-color:var(--disch);color:var(--disch);white-space:nowrap" onclick="nav('n_discharge', ${p.id})">View Status →</button>
 </div>` : ''}
 <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
   ${APP.role === 'charge' ? `
@@ -939,10 +935,10 @@ ${p.db_status === 'discharge_initiated' ? `
     ${score >= 5 ? `<button class="btn btn-danger btn-sm" onclick="nav('n2', ${p.id})">Escalate Patient</button>` : ''}
   `}
   ${(!p.ward_location || p.ward_location === 'CCU') ? `<button class="btn btn-pri btn-sm" style="background:var(--p)" onclick="nav('n_transfer', ${p.id})">CCU→GW Transfer →</button>` : ''}
-  ${p.ward_location === 'GENERAL_WARD' && p.db_status !== 'discharge_initiated' ? `<button class="btn btn-pri btn-sm" style="background:#16a34a" onclick="initiateDischarge(${p.id}, '${p.name}')">→ Initiate Discharge</button>` : ''}
-  <button class="btn btn-warn btn-sm" style="color:#000" onclick="nav('n_vitals', ${p.id})">✎ Enter/Override Vitals</button>
+  ${p.ward_location === 'GENERAL_WARD' && p.db_status !== 'discharge_initiated' ? `<button class="btn btn-go btn-sm" onclick="initiateDischarge(${p.id}, '${p.name}')">→ Initiate Discharge</button>` : ''}
+  <button class="btn btn-warn btn-sm" onclick="nav('n_vitals', ${p.id})">✎ Enter/Override Vitals</button>
 </div>
-<div id="false-alarm-menu" style="display:none;margin-top:8px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;max-width:400px">
+<div id="false-alarm-menu" style="display:none;margin-top:8px;background:#fff;border:1px solid var(--border);border-radius:8px;padding:12px;max-width:400px">
   <div class="card-title" style="margin-bottom:8px">Reason for False Alarm</div>
   ${['Expected clinical variation','Data entry error','Post-procedure transient change','Medication effect','Other'].map(r =>
     `<button class="btn btn-sec btn-sm" style="margin:4px;display:inline-block" onclick="submitFalseAlarm(${p.id}, '${r}')">${r}</button>`
@@ -1039,7 +1035,7 @@ SCREENS.n_transfer = () => {
       </tbody></table>
       <div style="display:flex;gap:8px;margin-top:14px">
         ${isCharge ? `
-          <button class="btn btn-pri" style="background:#16a34a" onclick="approveTransferHere(${pending.id})">Approve Transfer →</button>
+          <button class="btn btn-go" onclick="approveTransferHere(${pending.id})">Approve Transfer →</button>
           <button class="btn btn-danger" onclick="rejectTransferHere(${pending.id})">Reject</button>
         ` : `<button class="btn btn-sec" onclick="withdrawTransfer(${pending.id})">Withdraw Recommendation</button>`}
         <button class="btn btn-sec" onclick="nav('n1', ${pid})">← Back to Dashboard</button>
@@ -1393,7 +1389,7 @@ SCREENS.n5 = () => {
   <h1 class="sh-title">Escalation Queue</h1>
   <div class="sh-actions">
     <span class="muted small">${new Date().toLocaleString('en-IN', {day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'})}</span>
-    <button class="btn btn-warn btn-sm" style="color:#000" onclick="nav('dl1')">Drug-Lab Overview</button>
+    <button class="btn btn-warn btn-sm" onclick="nav('dl1')">Drug-Lab Overview</button>
     <button class="btn btn-sec btn-sm" onclick="nav('n5b')">Threshold Config</button>
   </div>
 </div>
@@ -1460,7 +1456,25 @@ ${escalations.length === 0 ? emptyState : `
 };
 
 /* ── N5b — THRESHOLD CONFIG ─────────────────────────────────── */
-SCREENS.n5b = () => `
+SCREENS.n5b = () => {
+  window.submitThresholds = function() {
+    const passEl = document.getElementById('th-pass');
+    const btn = document.getElementById('th-save-btn');
+    if (!passEl || !passEl.value.trim()) return;
+    if (btn) { btn.disabled = true; btn.textContent = 'Saved ✓'; }
+    if (passEl) passEl.value = '';
+    showToast('success', 'Thresholds Updated', {
+      notified: APP.user ? APP.user.name : 'Charge Nurse',
+      detail: 'Ward overrides saved and logged in the NABH audit trail.',
+    });
+  };
+  window.checkThresholdPass = function() {
+    const passEl = document.getElementById('th-pass');
+    const btn = document.getElementById('th-save-btn');
+    if (btn) btn.disabled = !(passEl && passEl.value.trim());
+  };
+
+  return `
 <div class="bc"><span class="bc-link" onclick="nav('n5')">Escalation Queue</span><span class="bc-sep">/</span><span>Threshold Config</span></div>
 <div class="sh"><h1 class="sh-title">NEWS2 Threshold Configuration — Ward 4B/4C</h1></div>
 <div class="alert al-warn">⚠️ Changes require Charge Nurse sign-off and are logged in the NABH audit trail. They propagate to all bedside dashboards in this ward.</div>
@@ -1486,13 +1500,14 @@ SCREENS.n5b = () => `
     </tbody>
   </table></div>
   <div class="fg"><label class="fl">Charge Nurse Password (required to save)</label>
-    <input class="fi" type="password" placeholder="Enter credentials to sign off">
+    <input class="fi" type="password" id="th-pass" placeholder="Enter credentials to sign off" oninput="checkThresholdPass()">
   </div>
   <div style="display:flex;gap:8px;justify-content:flex-end">
     <button class="btn btn-sec" onclick="nav('n5')">Cancel</button>
-    <button class="btn btn-pri" disabled>(Demo Mode — read-only)</button>
+    <button class="btn btn-pri" id="th-save-btn" disabled onclick="submitThresholds()">Save Changes</button>
   </div>
 </div>`;
+};
 
 /* ── N6 — SHIFT HANDOFF (live ward data + real nurse list) ────────── */
 SCREENS.n6 = () => {
@@ -2011,7 +2026,7 @@ SCREENS.dlcosign = () => {
   <div class="card">
     <div class="card-title">Head Nurse Co-Sign</div>
     <div class="muted small" style="margin-bottom:12px">A second senior nurse must verify the justification and provide credentials to complete the override.</div>
-    <div class="fg"><label class="fl">Co-signing Head Nurse</label><input class="fi" id="co-name" value="Sister Leena Kurup"></div>
+    <div class="fg"><label class="fl">Co-signing Head Nurse</label><input class="fi" id="co-name" placeholder="Enter co-signing Head Nurse's name"></div>
     <div class="fg"><label class="fl">Employee ID</label><input class="fi" placeholder="EMP-XXXX"></div>
     <div class="fg"><label class="fl">Password</label><input class="fi" type="password" placeholder="Enter credentials"></div>
     <div class="alert al-warn" style="margin-top:10px">⚠️ By co-signing, you accept oversight responsibility for this override.</div>
@@ -2026,14 +2041,13 @@ SCREENS.dlcosign = () => {
 /* ── DISCHARGE CONFIRMATION SCREEN ─────────────────────────────────────── */
 SCREENS.n_discharge = () => {
   const dp = APP._dischargePatient || {};
-  const residentBase = DOCTOR_PORTAL_URL;
   return `
 <div class="bc">${dashboardCrumbHtml()}<span class="bc-sep">/</span><span>Discharge Initiated</span></div>
 <div class="sh"><h1 class="sh-title">Discharge Process Started</h1><div class="sh-actions"><span class="bd bd-t3">✓ Submitted</span></div></div>
 
 <div class="alert al-ok" style="font-size:14px">
   ✅ Discharge initiated for <b>${dp.name || 'Patient'}</b>.<br>
-  The Resident Doctor has been notified to generate the Discharge Summary.
+  The Resident Doctor has been notified to generate the discharge summary.
 </div>
 
 <div class="card" style="max-width:560px">
@@ -2045,7 +2059,7 @@ SCREENS.n_discharge = () => {
     </tr>
     <tr style="border-bottom:1px solid var(--border)">
       <td style="padding:10px 0;color:var(--muted)">Step 2</td>
-      <td style="padding:10px 0"><b>Resident Doctor</b> — Reviews patient, generates AI discharge summary on the Doctor Portal</td>
+      <td style="padding:10px 0"><b>Resident Doctor</b> — Reviews patient, generates the discharge summary</td>
     </tr>
     <tr style="border-bottom:1px solid var(--border)">
       <td style="padding:10px 0;color:var(--muted)">Step 3</td>
@@ -2060,208 +2074,6 @@ SCREENS.n_discharge = () => {
 
 <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
   <button class="btn btn-sec btn-sm" onclick="nav('n1')">← Back to Ward Dashboard</button>
-  <button class="btn btn-pri btn-sm" style="background:#16a34a"
-    onclick="window.open('${residentBase}/upload.html?hadm_id=${dp.id}&patient_name=' + encodeURIComponent('${dp.name || ''}'),'_blank')">
-    Open Doctor Portal →
-  </button>
 </div>`;
 };
 
-/* ══════════════════════════════════════════════════════════════════════════
-   PATIENT ARC REPLAY DEMO  (n_demo_replay)
-   Stakeholder-facing: plays the real MIMIC clinical arc frame by frame.
-   Fetches from GET /api/demo/replay/{hadm_id}
-   ══════════════════════════════════════════════════════════════════════════ */
-
-let _replayTimer = null;
-
-window._replayLoadPatient = async function(hadmId) {
-  if (!hadmId) return;
-  const loadBtn = document.getElementById('replay-load-btn');
-  if (loadBtn) loadBtn.textContent = 'Loading…';
-  try {
-    const res = await fetch(`/api/demo/replay/${hadmId}`);
-    if (!res.ok) throw new Error(await res.text());
-    APP.data.n_demo_replay = await res.json();
-    APP.data.n_demo_frame = 0;
-    APP.data.n_demo_playing = false;
-    if (_replayTimer) { clearInterval(_replayTimer); _replayTimer = null; }
-  } catch (e) {
-    showToast('critical', 'Arc Load Failed', { detail: e.message });
-  }
-  renderAll();
-};
-
-window._replayStep = function(delta) {
-  const d = APP.data.n_demo_replay;
-  if (!d) return;
-  const max = d.frames.length - 1;
-  APP.data.n_demo_frame = Math.max(0, Math.min(max, (APP.data.n_demo_frame || 0) + delta));
-  renderAll();
-};
-
-window._replayTogglePlay = function(speedMs) {
-  const d = APP.data.n_demo_replay;
-  if (!d) return;
-  if (_replayTimer) {
-    clearInterval(_replayTimer);
-    _replayTimer = null;
-    APP.data.n_demo_playing = false;
-    renderAll();
-    return;
-  }
-  APP.data.n_demo_playing = true;
-  renderAll();
-  _replayTimer = setInterval(() => {
-    const max = d.frames.length - 1;
-    const next = (APP.data.n_demo_frame || 0) + 1;
-    if (next > max) {
-      clearInterval(_replayTimer);
-      _replayTimer = null;
-      APP.data.n_demo_playing = false;
-    } else {
-      APP.data.n_demo_frame = next;
-    }
-    renderAll();
-  }, speedMs);
-};
-
-SCREENS['n_demo_replay'] = function() {
-  const patients = APP.data.n_demo_patients || [];
-  const replay   = APP.data.n_demo_replay;
-  const frame_i  = APP.data.n_demo_frame || 0;
-  const playing  = APP.data.n_demo_playing;
-
-  const NEWS2_COLOR = (n) => n >= 7 ? 'var(--t1)' : n >= 5 ? 'var(--t2)' : 'var(--t3)';
-  const NYHA_LABEL = (n) => ['', 'NYHA I', 'NYHA II', 'NYHA III', 'NYHA IV'][n] || '—';
-  const EVENT_ICON = (t) => ({escalation:'🚨', drug_flag:'⚠️', admission:'🏥', treatment:'💊', stable:'✅', discharge:'🚪'})[t] || '•';
-
-  const pickerHtml = `
-    <div class="card" style="margin-bottom:16px">
-      <div class="card-title" style="margin-bottom:10px">Select DCM Patient for Replay</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <select id="replay-picker" class="fi" style="max-width:320px;flex:1">
-          <option value="">— select hadm_id —</option>
-          ${patients.map(p => {
-            const inDb = p.in_active_patients ? '✓' : '○';
-            return '<option value="' + p.hadm_id + '">' + inDb + ' ' + p.hadm_id + ' · ' + (p.diagnosis||'DCM') + ' · Age ' + p.age + (p.gender||'') + '</option>';
-          }).join('')}
-        </select>
-        <button class="btn btn-pri" id="replay-load-btn"
-          onclick="_replayLoadPatient(document.getElementById('replay-picker').value)">Load Arc</button>
-      </div>
-      ${patients.length === 0 ? '<div class="muted small" style="margin-top:8px">No DCM patients found in Cloud SQL.</div>' : ''}
-    </div>`;
-
-  if (!replay) {
-    return '<div class="bc"><span>Demo</span><span class="bc-sep">/</span><span>Patient Arc Replay</span></div>' +
-      '<div class="sh"><h1 class="sh-title">Patient Arc Replay</h1>' +
-      '<p class="muted small" style="margin-top:4px">Real MIMIC-IV DCM patient trajectory: Admission → Deterioration → Intervention → Discharge</p></div>' +
-      '<div class="content">' + pickerHtml +
-      '<div class="card" style="text-align:center;padding:40px;color:var(--muted)">Select a patient above to view their clinical arc.</div></div>';
-  }
-
-  const pt    = replay.patient;
-  const frames = replay.frames;
-  const frame  = frames[frame_i] || frames[0];
-  const v = frame.vitals || {};
-  const labs = frame.labs || {};
-  const events = frame.events || [];
-  const bpStr = (v.sbp && v.dbp) ? v.sbp + '/' + v.dbp : '--/--';
-  const news2  = frame.news2 || 0;
-  const nyha   = frame.nyha  || 1;
-  const bnp    = frame.bnp;
-
-  const timelineHtml = '<div style="display:flex;align-items:flex-start;gap:0;margin:16px 0 8px;overflow-x:auto;padding-bottom:4px">' +
-    frames.map((f, i) => {
-      const active = i === frame_i;
-      const nc = NEWS2_COLOR(f.news2 || 0);
-      return '<div style="flex:1;min-width:80px;text-align:center;cursor:pointer;position:relative" onclick="APP.data.n_demo_frame=' + i + ';renderAll()">' +
-        '<div style="width:28px;height:28px;border-radius:50%;background:' + nc + ';color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;margin:0 auto 4px;border:3px solid ' + (active ? '#fff' : 'transparent') + ';box-shadow:' + (active ? '0 0 0 3px ' + nc : 'none') + ';transition:all .2s">' +
-        (f.news2 ?? '?') + '</div>' +
-        '<div style="font-size:10px;color:' + (active ? '#fff' : 'var(--muted)') + ';background:' + (active ? nc : 'transparent') + ';border-radius:4px;padding:2px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:84px;margin:0 auto">' +
-        f.label.replace(' · ', ' ') + '</div>' +
-        (i < frames.length - 1 ? '<div style="position:absolute;top:13px;right:-1px;width:100%;height:2px;background:var(--border);z-index:-1"></div>' : '') +
-        '</div>';
-    }).join('') + '</div>';
-
-  const eventsHtml = events.length > 0 ? events.map(e => {
-    const border = e.severity === 'CRITICAL' ? 'var(--t1)' : e.type === 'escalation' ? 'var(--t2)' : 'var(--t3)';
-    return '<div class="alert" style="border-left:4px solid ' + border + ';margin-bottom:8px;padding:10px 12px">' +
-      '<div style="font-weight:600">' + EVENT_ICON(e.type) + ' ' + e.type.replace('_',' ').toUpperCase() + '</div>' +
-      '<div style="margin-top:4px">' + e.text + '</div>' +
-      (e.news2 !== undefined ? '<div class="muted small" style="margin-top:2px">NEWS2 at event: ' + e.news2 + '</div>' : '') +
-      '</div>';
-  }).join('') : '<div class="muted small" style="padding:16px 0">No clinical events in this frame.</div>';
-
-  const controlsHtml =
-    '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:16px">' +
-    '<button class="btn ' + (playing ? 'btn-danger' : 'btn-pri') + '" onclick="_replayTogglePlay(2000)">' + (playing ? '⏸ Pause' : '▶ Play (2s/frame)') + '</button>' +
-    '<button class="btn btn-sec" onclick="_replayTogglePlay(800)">⚡ Fast</button>' +
-    '<button class="btn btn-danger" style="margin-left:12px" onclick="_injectCritical(' + pt.hadm_id + ')">⚡ Inject Critical Vitals</button>' +
-    '<span class="muted small" style="margin-left:auto">Frame ' + (frame_i + 1) + ' of ' + frames.length + ' · ' + (frame.vital_count || 0) + ' vitals</span>' +
-    '</div>';
-
-  window._injectCritical = async function(hadmId) {
-    if(!confirm("Inject synthetic critical vitals to trigger a NEWS2 9 alert for this patient?")) return;
-    try {
-      const res = await fetch('/api/patients/' + hadmId + '/vitals', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ spo2:84, resp_rate:32, heart_rate:138, sbp:82, dbp:50, temperature:39.1, consciousness:'V', air_or_oxygen:'Oxygen' })
-      });
-      if(res.ok) {
-        showToast('critical', 'Critical Vitals Injected', {detail: 'NEWS2 9 triggered. Refreshing data...'});
-        setTimeout(() => nav('n1'), 1500);
-      }
-    } catch(e) { showToast('critical', 'Error', {detail: e.message}); }
-  };
-
-  return '<div class="bc"><span>Demo</span><span class="bc-sep">/</span><span>Patient Arc Replay</span></div>' +
-    '<div class="sh"><h1 class="sh-title">Patient Arc Replay</h1>' +
-    '<span class="muted small">Real MIMIC-IV DCM · ' + pt.diagnosis + ' · Age ' + pt.age + (pt.gender||'') + '</span></div>' +
-    '<div class="content">' + pickerHtml +
-    '<div class="card" style="margin-bottom:16px">' +
-      '<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin-bottom:8px">' +
-        '<div><div class="muted small">Patient</div><div style="font-weight:600">' + (pt.name || 'MIMIC Patient') + ' · HADM ' + pt.hadm_id + '</div></div>' +
-        '<div><div class="muted small">Admission NYHA</div><div style="font-weight:600">' + NYHA_LABEL(pt.nyha_at_admission) + '</div></div>' +
-        (pt.bnp_at_admission ? '<div><div class="muted small">Admission BNP</div><div style="font-weight:600">' + pt.bnp_at_admission + ' pg/mL</div></div>' : '') +
-        (pt.lvef ? '<div><div class="muted small">LVEF</div><div style="font-weight:600">' + pt.lvef + '%</div></div>' : '') +
-        '<div style="margin-left:auto;text-align:center"><div style="font-size:38px;font-weight:800;color:' + NEWS2_COLOR(news2) + ';line-height:1">' + news2 + '</div><div class="muted small">NEWS2</div></div>' +
-        '<div style="text-align:center"><div style="font-size:22px;font-weight:700;color:var(--accent)">' + NYHA_LABEL(nyha) + '</div>' + (bnp ? '<div class="muted small">BNP ' + bnp + ' pg/mL</div>' : '<div class="muted small">No BNP</div>') + '</div>' +
-      '</div>' +
-      '<div style="background:var(--surf);border-radius:6px;padding:8px 0">' +
-        '<div style="font-weight:600;padding:0 12px 8px">' + frame.label + '</div>' +
-        timelineHtml +
-      '</div>' +
-      controlsHtml +
-    '</div>' +
-    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">' +
-      '<div class="card"><div class="card-title" style="margin-bottom:12px">Vitals at Frame</div>' +
-        '<table style="width:100%;border-collapse:collapse;font-size:13px"><tbody>' +
-        '<tr><td class="muted">Heart Rate</td><td style="text-align:right;font-weight:600">' + (v.hr ?? '--') + ' bpm</td></tr>' +
-        '<tr><td class="muted">Resp Rate</td><td style="text-align:right;font-weight:600">' + (v.rr ?? '--') + ' /min</td></tr>' +
-        '<tr><td class="muted">SpO2</td><td style="text-align:right;font-weight:600">' + (v.spo2 ?? '--') + '%</td></tr>' +
-        '<tr><td class="muted">Blood Pressure</td><td style="text-align:right;font-weight:600">' + bpStr + ' mmHg</td></tr>' +
-        '<tr><td class="muted">Temperature</td><td style="text-align:right;font-weight:600">' + (v.temp ?? '--') + ' °C</td></tr>' +
-        '<tr><td class="muted">Consciousness</td><td style="text-align:right;font-weight:600">' + (v.avpu || 'A') + '</td></tr>' +
-        (v.urine_output != null ? '<tr><td class="muted">Urine Output</td><td style="text-align:right;font-weight:600">' + v.urine_output + ' mL</td></tr>' : '') +
-        (v.weight_kg ? '<tr><td class="muted">Weight</td><td style="text-align:right;font-weight:600">' + v.weight_kg + ' kg</td></tr>' : '') +
-        '</tbody></table></div>' +
-      '<div class="card"><div class="card-title" style="margin-bottom:12px">Labs at Frame</div>' +
-        '<table style="width:100%;border-collapse:collapse;font-size:13px"><tbody>' +
-        (labs.potassium ? '<tr><td class="muted">Potassium</td><td style="text-align:right;font-weight:600">' + labs.potassium + ' mmol/L</td></tr>' : '') +
-        (labs.creatinine ? '<tr><td class="muted">Creatinine</td><td style="text-align:right;font-weight:600">' + labs.creatinine + ' mg/dL</td></tr>' : '') +
-        (labs.sodium ? '<tr><td class="muted">Sodium</td><td style="text-align:right;font-weight:600">' + labs.sodium + ' mmol/L</td></tr>' : '') +
-        (labs.hemoglobin ? '<tr><td class="muted">Hemoglobin</td><td style="text-align:right;font-weight:600">' + labs.hemoglobin + ' g/dL</td></tr>' : '') +
-        (labs.lactate ? '<tr><td class="muted">Lactate</td><td style="text-align:right;font-weight:600">' + labs.lactate + ' mmol/L</td></tr>' : '') +
-        (labs.bnp ? '<tr><td class="muted">BNP</td><td style="text-align:right;font-weight:600">' + labs.bnp + ' pg/mL</td></tr>' : '') +
-        (labs.troponin ? '<tr><td class="muted">Troponin T</td><td style="text-align:right;font-weight:600">' + labs.troponin + ' ng/mL</td></tr>' : '') +
-        (labs.inr ? '<tr><td class="muted">INR</td><td style="text-align:right;font-weight:600">' + labs.inr + '</td></tr>' : '') +
-        (Object.keys(labs).length === 0 ? '<tr><td colspan="2" class="muted">No labs in this frame</td></tr>' : '') +
-        '</tbody></table></div>' +
-    '</div>' +
-    '<div class="card" style="margin-top:12px"><div class="card-title" style="margin-bottom:12px">Clinical Events — ' + frame.label + '</div>' +
-      eventsHtml +
-    '</div>' +
-    '</div>';
-};
