@@ -24,7 +24,40 @@ function _ddSynthName(hadmId) {
   return `${first} ${last}`;
 }
 
-let _dd = { encounters: null, loading: false, error: null, attempt: 0, errorStats: null, tab: 'queue', dlPanelHadmId: null, statusFilter: 'all' };
+let _dd = { encounters: null, loading: false, error: null, attempt: 0, errorStats: null, tab: 'queue', dlPanelHadmId: null, statusFilter: 'all', slaToasts: [] };
+
+// Poll the audit log for SLA-breach alerts a ward admin sent for cases on this
+// screen, and surface them as a toast (dedup'd via localStorage). Mirrors
+// _dqCheckSlaAlerts in doctor-queue.js -- this is the screen actually shown
+// at doctor-queue.html ("Signing Queue"), so the toast needs to live here too.
+async function _ddCheckSlaAlerts() {
+  try {
+    const base = window.FOQAL_API_BASE || 'http://localhost:6010';
+    const rows = await fetch(`${base}/api/audit_log?limit=30`).then(r => r.ok ? r.json() : []);
+    if (!Array.isArray(rows)) return;
+    let seen = {};
+    try { seen = JSON.parse(localStorage.getItem("dd_sla_seen") || "{}"); } catch(_) {}
+    const myHadmIds = new Set((_dd.encounters || []).map(e => e.hadm_id));
+    for (const r of rows) {
+      if (r.action !== "SLA_ALERT_SENT") continue;
+      if (!myHadmIds.has(r.hadm_id)) continue;
+      if (seen[r.id]) continue;
+      if (_dd.slaToasts.find(t => t.id === r.id)) continue;
+      _dd.slaToasts.push({ id: r.id, hadm_id: r.hadm_id });
+    }
+  } catch(_) {}
+}
+
+function _ddDismissSlaToast(idx) {
+  const t = _dd.slaToasts[idx];
+  if (!t) return;
+  let seen = {};
+  try { seen = JSON.parse(localStorage.getItem("dd_sla_seen") || "{}"); } catch(_) {}
+  seen[t.id] = true;
+  try { localStorage.setItem("dd_sla_seen", JSON.stringify(seen)); } catch(_) {}
+  _dd.slaToasts.splice(idx, 1);
+  renderApp();
+}
 
 window.ddInvalidate = () => { _dd.encounters = null; _dd.attempt = 0; _dd.errorStats = null; _dd.statusFilter = 'all'; };
 
@@ -96,6 +129,7 @@ async function ddLoad() {
     }));
     _dd.encounters = withSummaries;
     _ddMaybeStartPoll();
+    await _ddCheckSlaAlerts();
     // Fetch error stats for gate widget (non-blocking)
     apiGetErrorStats().then(s => { _dd.errorStats = s; renderApp(); }).catch(() => {});
   } catch (err) {
@@ -120,9 +154,9 @@ function _ddLivePoll() {
     try {
       const base = window.FOQAL_API_BASE || 'http://localhost:6010';
       const fresh = await fetch(`${base}/api/encounters`).then(r => r.ok ? r.json() : null);
+      let changed = false;
       if (fresh) {
         const freshList = Array.isArray(fresh) ? fresh : (fresh.encounters || []);
-        let changed = false;
         const staleOnes = [];
         (_dd.encounters || []).forEach(enc => {
           const updated = freshList.find(f => f.hadm_id === enc.hadm_id || f.id === enc.id);
@@ -164,9 +198,11 @@ function _ddLivePoll() {
         }
         if (changed) {
           _ddMaybeStartPoll();
-          renderApp();
         }
       }
+      const prevSlaCount = _dd.slaToasts.length;
+      await _ddCheckSlaAlerts();
+      if (changed || _dd.slaToasts.length !== prevSlaCount) renderApp();
     } catch (_) {}
     _ddLivePoll();
   }, 8000);
@@ -564,11 +600,46 @@ SCREEN_RENDERERS["doctor-dashboard"] = function renderDoctorDashboard() {
 
         </div>
       </div>
+
+      ${_dd.slaToasts.length > 0 ? `
+        <div style="position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column;gap:8px;width:min(92vw,480px)">
+          ${_dd.slaToasts.map((t, i) => `
+            <div class="dd-sla-toast" data-toast-idx="${i}"
+                 style="background:#FEF2F2;border:1.5px solid #FCA5A5;border-left:4px solid #DC2626;border-radius:10px;padding:12px 16px;box-shadow:0 8px 28px rgba(220,38,38,.28);cursor:pointer;display:flex;align-items:center;gap:10px;animation:fadeUp .25s ease">
+              <span style="font-size:18px;flex-shrink:0;line-height:1">⚠</span>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:13px;font-weight:700;color:#991B1B">SLA Breach Notice</div>
+                <div style="font-size:12px;color:#7F1D1D;margin-top:2px">${fmtPid(t.hadm_id)} &middot; Ward Admin flagged this case &mdash; tap to review</div>
+              </div>
+              <button class="dd-sla-toast-dismiss" data-toast-idx="${i}"
+                      style="background:none;border:none;cursor:pointer;padding:0 2px;color:#DC2626;font-size:15px;line-height:1;flex-shrink:0">✕</button>
+            </div>
+          `).join("")}
+        </div>` : ""}
+
     </div>`;
 };
 
 SCREEN_SETUP["doctor-dashboard"] = function setupDoctorDashboard() {
   if (_dd.encounters === null) ddLoad();
+
+  // SLA-breach alert toasts (sent by ward admin from the Kanban pipeline)
+  document.querySelectorAll(".dd-sla-toast-dismiss").forEach(btn => {
+    btn.addEventListener("click", e => {
+      e.stopPropagation();
+      _ddDismissSlaToast(parseInt(btn.dataset.toastIdx, 10));
+    });
+  });
+  document.querySelectorAll(".dd-sla-toast").forEach(toast => {
+    toast.addEventListener("click", e => {
+      if (e.target.classList.contains("dd-sla-toast-dismiss")) return;
+      const idx = parseInt(toast.dataset.toastIdx, 10);
+      const t = _dd.slaToasts[idx];
+      const enc = (_dd.encounters || []).find(x => x.hadm_id === t?.hadm_id);
+      _ddDismissSlaToast(idx);
+      if (enc && typeof _dqOpenReviewForEnc === "function") _dqOpenReviewForEnc(enc);
+    });
+  });
 
   // Custom tooltip for tier badges (replaces ugly native browser title tooltip)
   const _ddTipEl = (() => {
