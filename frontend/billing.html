@@ -2441,7 +2441,7 @@ const MODALS = {
     const isSettled = ['paid', 'claim_submitted', 'tpa_settled'].includes(p.billing_phase || '');
     const amount = p.expected_est || 0;
     return `
-<div class="modal-t">${name} — Not Admitted (OPD)</div>
+<div class="modal-t">${name} — Not Admitted</div>
 <div class="modal-b">Out-patient record — never went through an inpatient admission, so there's no Live Bill or reconciliation workflow for this one. ${isSettled ? '' : 'Collect payment on the spot and close it out below.'}</div>
 <table style="width:100%;font-size:13px;border-collapse:collapse;margin-bottom:16px"><tbody>
   <tr style="border-bottom:1px solid var(--border)"><td style="padding:8px 0;color:var(--muted);width:110px">MRN</td><td style="padding:8px 0;font-weight:700">${p.mrn || '—'}</td></tr>
