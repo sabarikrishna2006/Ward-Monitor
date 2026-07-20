@@ -349,13 +349,27 @@ async function waRegenPreflight(hadmId, rejectionLogId, encId) {
     files = Array.isArray(resp) ? resp : (Array.isArray(resp?.files) ? resp.files : []);
   } catch(_) {}
 
-  // Filter to only files uploaded AFTER the rejection
-  const rejLogs = Array.isArray(_WA.rejLogs) ? _WA.rejLogs : [];
-  const rl = rejLogs.find(r => String(r.id) === String(rejectionLogId))
-           || rejLogs.find(r => String(r.hadm_id || r.hadm_id_enc) === String(hadmId));
-  const rejectedAt = rl?.rejected_at ? new Date(rl.rejected_at) : null;
-  if (rejectedAt) {
-    files = files.filter(f => new Date(f.uploaded_at || f.upload_date || 0) >= rejectedAt);
+  // Filter to only files uploaded AFTER the rejection/amendment was requested --
+  // otherwise the original pre-review upload set (used for the very first
+  // summary) shows up here as if the resident had just resubmitted it.
+  let cutoffAt = null;
+  if (rejectionLogId) {
+    // Revision/rejection flow: match the exact rejection_log row by ID --
+    // no hadm_id fallback, since a patient can have older, unrelated
+    // rejections whose timestamp has nothing to do with this one.
+    const rejLogs = Array.isArray(_WA.rejLogs) ? _WA.rejLogs : [];
+    const rl = rejLogs.find(r => String(r.id) === String(rejectionLogId));
+    cutoffAt = rl?.rejected_at ? new Date(rl.rejected_at) : null;
+  } else {
+    // Amendment flow — there's no rejection_log row at all; the cutoff is
+    // the amendment request's own timestamp.
+    try {
+      const amdResp = await _waFetch(`/api/amendments/${encId}`);
+      if (amdResp?.amendment?.created_at) cutoffAt = new Date(amdResp.amendment.created_at);
+    } catch(_) {}
+  }
+  if (cutoffAt) {
+    files = files.filter(f => new Date(f.uploaded_at || f.upload_date || 0) >= cutoffAt);
   }
 
   if (!files.length) {
@@ -636,6 +650,22 @@ function openModal(id, extra, extra2) {
   document.getElementById('modal-overlay').classList.add('open');
 }
 
+let _waToastEls = [];
+function _showWaToast(html, color) {
+  color = color || '#dc2626';
+  const t = document.createElement('div');
+  t.style.cssText = `position:fixed;right:24px;bottom:${24 + _waToastEls.length * 66}px;z-index:9999;background:${color};color:#fff;` +
+    `padding:14px 20px;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.25);` +
+    `max-width:340px;font-size:13px;line-height:1.5;transition:opacity .4s`;
+  t.innerHTML = html;
+  document.body.appendChild(t);
+  _waToastEls.push(t);
+  setTimeout(() => {
+    t.style.opacity = '0';
+    setTimeout(() => { t.remove(); _waToastEls = _waToastEls.filter(el => el !== t); }, 450);
+  }, 4500);
+}
+
 async function waSendSlaAlert(hadmId, btn) {
   if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
   try {
@@ -647,6 +677,7 @@ async function waSendSlaAlert(hadmId, btn) {
         <div style="font-weight:700;color:var(--ink)">Alert sent to Dr. Sharma</div>
       </div>`;
     }
+    _showWaToast(`⚠️ SLA breach alert sent to <b>Dr. Anand Sharma</b> for <b>PT-${hadmId}</b>.`);
     setTimeout(closeModal, 1200);
   } catch (e) {
     if (btn) { btn.disabled = false; btn.textContent = 'Send Alert to Dr. Sharma'; }
@@ -778,10 +809,14 @@ ${breaches.length ? `<div class="alert al-err" style="margin-bottom:16px">⚠ <s
   <div class="kc" style="border:1px solid #fca5a5;background:#fff5f5">
     <div class="kc-hd"><span class="kc-lbl" style="color:#dc2626">Rejected</span><span class="kc-cnt" style="background:#fca5a5;color:#fff">${col.rej.length}</span></div>
     ${col.rej.length ? col.rej.map(e => {
-      const rejLogs = Array.isArray(_WA.rejLogs) ? _WA.rejLogs : [];
-      const rl = rejLogs.find(r => String(r.hadm_id||r.hadm_id_enc) === String(e.hadm_id));
-      const rejLogId = rl ? rl.id : null;
       const isAmd   = e.status === 'Amendment Requested' || (e.amendment_count > 0 && e.status === 'Files Ready');
+      // Only resolve a rejection_log row for true rejections -- an amendment
+      // card landing in this column has no rejection_log row of its own, and
+      // matching by hadm_id alone can grab an unrelated older rejection from
+      // the same patient's history, feeding waRegenPreflight the wrong cutoff.
+      const rejLogs = Array.isArray(_WA.rejLogs) ? _WA.rejLogs : [];
+      const rl = isAmd ? null : rejLogs.find(r => String(r.hadm_id||r.hadm_id_enc) === String(e.hadm_id));
+      const rejLogId = rl ? rl.id : null;
       const rejAt   = e.revision_at || e.updated_at;
       const slaMs   = rejAt ? now - new Date(rejAt) : 0;
       const slaH    = Math.floor(slaMs / 3600000);
@@ -1264,7 +1299,10 @@ const MODALS = {
       if (_WA.notified.has(key)) continue;
       _WA.notified.add(key);
       const isAmd = amdHadmIds.has(String(enc.hadm_id));
-      const rl = rls.find(r => String(r.hadm_id || r.hadm_id_enc) === String(enc.hadm_id)) || null;
+      // Same rule as the kanban cards: only resolve a rejection_log row for
+      // true rejections. An amendment's cutoff comes from its own record
+      // (fetched inside waRegenPreflight), not an unrelated old rejection.
+      const rl = isAmd ? null : (rls.find(r => String(r.hadm_id || r.hadm_id_enc) === String(enc.hadm_id)) || null);
       if (CURRENT === 'a1') showScreen('a1');
       _waShowFilesNotif(enc.hadm_id, rl ? rl.id : null, enc.id, rl?.rejection_reason || '', enc.display_id, isAmd);
     }

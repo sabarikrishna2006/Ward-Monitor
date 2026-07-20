@@ -825,16 +825,16 @@ def get_dashboard_stats():
     # Avg generation time from app_summaries.total_latency_s (only non-null, successful runs)
     avg_gen_s = None
     try:
-        from app.cloud_sql_db import get_engine
+        from .cloud_sql_db import get_engine as _get_engine
         from sqlalchemy import text as _text
-        with get_engine().connect() as conn:
+        with _get_engine().connect() as conn:
             row = conn.execute(_text(
                 "SELECT AVG(total_latency_s) FROM app_summaries WHERE total_latency_s IS NOT NULL AND total_latency_s > 0"
             )).fetchone()
             if row and row[0] is not None:
                 avg_gen_s = round(float(row[0]), 1)
-    except Exception:
-        pass
+    except Exception as _e:
+        log.warning(f"avg_gen_s query failed: {_e}")
 
     return {
         "cards": {

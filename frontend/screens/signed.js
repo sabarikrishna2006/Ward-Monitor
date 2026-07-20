@@ -54,8 +54,10 @@ SCREEN_RENDERERS["signed"] = function renderSigned() {
   const doctorName = /^Dr\.?\s/i.test(_rawName) ? _rawName : `Dr. ${_rawName}`;
   const doctorId   = _sgDoctorId(doctorName, rd.hadmId);
 
-  // Timestamps
-  const signedAt   = rd.signedAt || new Date().toISOString();
+  // Timestamps — rd.signedAt only exists in the signing session's memory;
+  // reopening from the Completed tab needs the persisted column instead, or
+  // this silently shows "right now" for a document signed days ago.
+  const signedAt   = rd.signedAt || rd.encounter?.summary?.signed_at || new Date().toISOString();
   const _fmtDate = iso => {
     const d = new Date(iso);
     return d.toLocaleDateString("en-IN", { day:"2-digit", month:"short", year:"numeric" }) + ", " +
@@ -167,9 +169,10 @@ SCREEN_SETUP["signed"] = async function setupSigned() {
     const _raw     = rd.signedName || rd.encounter?.summary?.saved_by_name || sig.full_name || getUser()?.full_name || 'Doctor';
     const docName  = /^Dr\.?\s/i.test(_raw) ? _raw : `Dr. ${_raw}`;
     const docId    = _sgDoctorId(docName, rd.hadmId);
-    const desig    = rd.signedDesig    || sig.designation || 'Attending Physician';
-    const signedAt = rd.signedAt
-      ? new Date(rd.signedAt).toLocaleString('en-IN', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:false }) + ' IST'
+    const desig      = rd.signedDesig || sig.designation || 'Attending Physician';
+    const _signedRaw = rd.signedAt || rd.encounter?.summary?.signed_at;
+    const signedAt   = _signedRaw
+      ? new Date(_signedRaw).toLocaleString('en-IN', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:false }) + ' IST'
       : '—';
     const version   = `v${rd.docVersion || 1}.0`;
     const displayId = rd.hadmId ? fmtPid(rd.hadmId) : '—';

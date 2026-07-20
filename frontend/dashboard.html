@@ -643,6 +643,53 @@ function openSummary(hadmId) {
   openPatient(hadmId);
 }
 
+/* Ward Admin's "Follow Up" SLA-breach alert (POST /api/encounters/{id}/sla_alert)
+   only writes an audit-log row — this polls it and surfaces a toast/banner here,
+   same pattern the Attending queue already uses (_dqCheckSlaAlerts). */
+function _showSlaAlertBanner(hadmId, name) {
+  const container = document.getElementById('summary-ready-container');
+  if (!container || document.getElementById('sla-' + hadmId)) return; // already shown
+  const div = document.createElement('div');
+  div.id = 'sla-' + hadmId;
+  div.style.cssText = [
+    'display:flex;align-items:center;gap:12px;padding:12px 18px',
+    'background:#fef2f2;border:1.5px solid #fca5a5;border-radius:8px',
+    'margin-bottom:12px;font-size:13px;color:#991b1b',
+  ].join(';');
+  div.innerHTML =
+    '<span style="font-size:17px">⚠️</span>' +
+    '<span style="flex:1;font-weight:600">SLA breach follow-up — <strong>' + name + '</strong> has been in review over 4 hours. Please complete your review.</span>' +
+    '<button onclick="_dismissSlaAlertBanner(' + hadmId + ')" style="' +
+      'padding:4px 8px;background:none;border:1px solid #fca5a5;border-radius:6px;' +
+      'font-size:11px;color:#991b1b;cursor:pointer">✕</button>';
+  container.prepend(div);
+}
+
+function _dismissSlaAlertBanner(hadmId) {
+  let seen = {};
+  try { seen = JSON.parse(localStorage.getItem('dash_sla_seen') || '{}'); } catch(_) {}
+  seen[hadmId] = true;
+  try { localStorage.setItem('dash_sla_seen', JSON.stringify(seen)); } catch(_) {}
+  const el = document.getElementById('sla-' + hadmId);
+  if (el) el.remove();
+}
+
+async function _checkSlaAlerts() {
+  try {
+    const rows = await fetch(API + '/api/audit_log?limit=30').then(r => r.ok ? r.json() : []);
+    if (!Array.isArray(rows)) return;
+    let seen = {};
+    try { seen = JSON.parse(localStorage.getItem('dash_sla_seen') || '{}'); } catch(_) {}
+    const myHadmIds = new Set(_myRows.map(function(r){ return r.hadm_id; }));
+    for (const r of rows) {
+      if (r.action !== 'SLA_ALERT_SENT') continue;
+      if (!myHadmIds.has(r.hadm_id)) continue;
+      if (seen[r.hadm_id]) continue;
+      _showSlaAlertBanner(r.hadm_id, synth(r.hadm_id).name);
+    }
+  } catch(_e) {}
+}
+
 (function _startStatusPoll() {
   setInterval(async function() {
     try {
@@ -665,8 +712,10 @@ function openSummary(hadmId) {
       _myRows = _visibleRows(rows);
       renderRows(_myRows);
       updateStats(_myRows);
+      _checkSlaAlerts();
     } catch(_e) {}
   }, 5000);
+  _checkSlaAlerts();
 })();
 </script>
 </body>
