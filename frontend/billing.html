@@ -578,7 +578,10 @@ async function _loadBillingDashboard() {
     const sharedPts  = pending_actions.filter(p => p.phase === 'discharge' || p.phase === 'final_bill');
 
     // ── Pending Actions table (Phase 1/2 + Phase 4) — filterable by HADM ID + status ──
-    _ce0PendingRaw = pendingPts;
+    // Never-admitted OPD patients don't belong to the Admission/Discharge/Final
+    // Bill flow at all -- surface them first so they don't get buried among
+    // in-progress admissions further down the list.
+    _ce0PendingRaw = pendingPts.slice().sort((a, b) => (a.is_admitted === false ? 0 : 1) - (b.is_admitted === false ? 0 : 1));
     _ce0FilterPending();
 
     // ── Completed Estimates tab — patients whose estimate is saved in DB ──
@@ -1173,7 +1176,12 @@ function _openCe2bModal() {
 
   document.getElementById('ce2b-patient').textContent    = _CE.patientName ? `${_CE.mrn || '—'} — ${_CE.patientName}` : (_CE.mrn || '—');
   document.getElementById('ce2b-band').textContent       = `${bandLabel} — ${fmt(bandAmt)}`;
-  document.getElementById('ce2b-insurance').textContent  = `${_CE.insuranceCo || '—'} · ${_CE.paymentMode || '—'}`;
+  // Government scheme patients don't have a private insurer -- insuranceCo
+  // is left over from the (irrelevant) per-patient autofill default and must
+  // not be shown once a scheme is selected on CE1.
+  document.getElementById('ce2b-insurance').textContent  = (_CE.isAbBeneficiary && _CE.abScheme)
+    ? _CE.abScheme
+    : `${_CE.insuranceCo || '—'} · ${_CE.paymentMode || '—'}`;
   // Pre-auth only exists for Cashless -- it was showing "—" for every other
   // mode instead of just not being there at all, which read as "why do I
   // need this for Reimbursement" rather than "this doesn't apply here."
@@ -1482,6 +1490,16 @@ function _ce5PrintHtml(forDownload) {
       <tr><td>PM-JAY Covers (ML-quoted estimate)</td><td style="text-align:right;color:green">− ${fmt(hbpRate)}</td></tr>
       <tr><td style="color:#888;font-size:11px">Hospital Adjustment</td><td style="text-align:right;color:#888;font-size:11px">− ${fmt(Math.max(0,gross-hbpRate))}</td></tr>
       <tr style="border-top:2px solid #000;font-weight:800"><td>Patient Balance</td><td style="text-align:right">₹0</td></tr>`;
+  } else if (isGovt) {
+    // Non-PM-JAY government scheme (Haryana State Scheme, CGHS, ESI) -- covered
+    // by the scheme itself, not a private insurer, so label it by scheme name
+    // rather than insurance_co (which is a leftover autofill default and
+    // unrelated once a govt scheme is selected).
+    const govtCovered = Math.max(0, gross - patientPay);
+    billRows = `
+      <tr><td>Gross Charges</td><td style="text-align:right">${fmt(gross)}</td></tr>
+      ${govtCovered > 0 ? `<tr><td>${ab_info.ab_scheme || 'Government Scheme'} Covers</td><td style="text-align:right;color:green">− ${fmt(govtCovered)}</td></tr>` : ''}
+      <tr style="border-top:2px solid #000;font-weight:800"><td>Patient Balance</td><td style="text-align:right">${fmt(patientPay)}</td></tr>`;
   } else {
     const insCovered = Math.max(0, gross - patientPay);
     billRows = `
@@ -1533,7 +1551,7 @@ function _ce5PrintHtml(forDownload) {
     <div class="section">
       <div class="section-title">Insurance / Payment</div>
       <table><tr><td style="color:#666;width:40%">Mode</td><td>${_CE.paymentMode||'—'}</td></tr>
-      <tr><td style="color:#666">Insurer</td><td>${_CE.insuranceCo||ab_info.ab_scheme||'—'}</td></tr>
+      <tr><td style="color:#666">Insurer</td><td>${ab_info.is_ab_beneficiary ? (ab_info.ab_scheme||'Government Scheme') : (_CE.insuranceCo||'—')}</td></tr>
       <tr><td style="color:#666">Pre-auth</td><td style="font-family:monospace">${_CE.preauthNo||'—'}</td></tr></table>
     </div>
   </div>
@@ -1984,7 +2002,6 @@ ${stepFlow('ce2')}
       </tbody></table>
     </div>
     <div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end">
-      <button class="btn btn-sec" id="ce2-refresh-btn" onclick="_ce2Refresh()">↻ Refresh Estimate</button>
       <button class="btn btn-sec" onclick="showScreen('ce1')">← Back</button>
       <button class="btn btn-pri" onclick="_openCe2bModal()">Confirm →</button>
     </div>
@@ -2256,7 +2273,8 @@ ce5: () => {
   const isPmjay  = ab_info.is_ab_beneficiary && (abScheme.includes('PM-JAY') || abScheme.includes('PMJAY') || abScheme === '');
   const isCghs   = ab_info.is_ab_beneficiary && abScheme.includes('CGHS');
   const isEsi    = ab_info.is_ab_beneficiary && abScheme.includes('ESI');
-  const isGovt   = isPmjay || isCghs || isEsi;
+  const isHaryana= ab_info.is_ab_beneficiary && abScheme.includes('HARYANA');
+  const isGovt   = isPmjay || isCghs || isEsi || isHaryana;
 
   // Prefer CE4-computed actual_gross; fall back to saved _CE.actualCharges
   const gross = recon.actual_gross || _CE.actualCharges || 0;
@@ -2291,8 +2309,8 @@ ce5: () => {
         <td style="padding:10px 0;text-align:right;font-weight:900;font-size:24px;color:var(--ok)">₹0</td>
       </tr>
     </tbody></table>`;
-  } else if (isCghs || isEsi) {
-    const schemeName  = isCghs ? 'CGHS' : 'ESI';
+  } else if (isCghs || isEsi || isHaryana) {
+    const schemeName  = isCghs ? 'CGHS' : isEsi ? 'ESI' : 'Haryana State Scheme';
     const govtPays    = recon.govt_pay_final || 0;
     const patientPays = patientPayFinal ?? Math.max(0, gross - govtPays);
     headerAlert = patientPays === 0
@@ -2934,6 +2952,9 @@ function _ce3PrintHtml() {
 <div class="section">
   <b style="font-size:12px">Insurance / Payment</b>
   <table style="width:auto"><tbody>
+    ${_CE.isAbBeneficiary && _CE.abScheme ? `
+    <tr><td class="label" style="padding-right:24px">Scheme</td><td>${_CE.abScheme}</td></tr>
+    ` : `
     <tr><td class="label" style="padding-right:24px">Mode</td><td>${_CE.paymentMode||'—'}</td></tr>
     <tr><td class="label">Insurer</td><td>${_CE.insuranceCo||'—'}</td></tr>
     ${_CE.paymentMode==='Cashless' ? `
@@ -2946,6 +2967,7 @@ function _ce3PrintHtml() {
     <tr><td class="label">Bill % Covered</td><td>${_CE.coveragePct ? _CE.coveragePct+'%' : '80% (default)'}</td></tr>
     <tr><td class="label">Claim No.</td><td>${_CE.claimNo||'Not yet filed'}</td></tr>
     ` : ''}
+    `}
   </tbody></table>
 </div>
 <div class="footer">⚠ This is an ML-predicted estimate (XGBoost quantile model, trained on real DCM admissions), not a fixed quote. Actual charges may vary at discharge (reconciliation).</div>
@@ -3024,14 +3046,14 @@ ${lineText}
 ━━━━━━━━━━━━━━━━━━━━━━
 INSURANCE / PAYMENT
 ━━━━━━━━━━━━━━━━━━━━━━
-Payment Mode : ${_CE.paymentMode||'—'}
+${_CE.isAbBeneficiary && _CE.abScheme ? `Scheme       : ${_CE.abScheme}` : `Payment Mode : ${_CE.paymentMode||'—'}
 Insurer      : ${_CE.insuranceCo||'—'}${_CE.paymentMode==='Cashless' ? `
 TPA          : ${_CE.tpaName||'—'}
 Pre-auth No. : ${_CE.preauthNo||'—'}
 Co-pay       : ${_CE.copayPct ? _CE.copayPct+'%' : '—'}` : ''}${_CE.paymentMode==='Reimbursement' ? `
 Sum Insured  : ${_CE.sumInsured ? fmt(parseInt(_CE.sumInsured)) : '—'}
 Bill % Covered: ${_CE.coveragePct ? _CE.coveragePct+'%' : '80% (default)'}
-Claim No.    : ${_CE.claimNo||'Not yet filed'}` : ''}
+Claim No.    : ${_CE.claimNo||'Not yet filed'}` : ''}`}
 
 ━━━━━━━━━━━━━━━━━━━━━━
 Note: This is an ML-predicted estimate (XGBoost quantile model, trained on real DCM admissions), not a fixed quote. Actual charges may vary at discharge during reconciliation.

@@ -423,8 +423,8 @@ SCREEN_RENDERERS["doctor-dashboard"] = function renderDoctorDashboard() {
     }).join('&#10;') || 'No detail available';
     const _dlOpen = _dd.dlPanelHadmId === enc.hadm_id;
     const dlBadge = dlCount > 0
-      ? `<button class="dd-dl-btn dd-tier-badge" data-hadm-id="${enc.hadm_id}" data-tip="${dlTip}" style="${_BTNBASE};background:${_dlOpen?'#1e40af':'#eff6ff'};color:${_dlOpen?'#fff':'#1e40af'};border-color:#bfdbfe;font-size:10.5px;font-weight:700">${dlCount} DL</button>`
-      : `<span style="${_BD};${_BD_STYLES.gray}">0 DL</span>`;
+      ? `<button class="dd-dl-btn dd-tier-badge" data-hadm-id="${enc.hadm_id}" data-tip="${dlTip}" style="${_BTNBASE};background:${_dlOpen?'#1e40af':'#eff6ff'};color:${_dlOpen?'#fff':'#1e40af'};border-color:#bfdbfe;font-size:10.5px;font-weight:700">DL Flags</button>`
+      : `<span style="${_BD};${_BD_STYLES.gray}">DL Flags</span>`;
 
     const isRegen = (enc.rejection_count || 0) > 0 || !!enc.revision_reason;
     let statusBadge, actionBtn;
@@ -781,6 +781,12 @@ SCREEN_SETUP["doctor-dashboard"] = function setupDoctorDashboard() {
                 details:  data.amendment.details  || '',
                 requestedBy: data.amendment.submitted_by_name || 'Billing team',
               };
+              // This fetch resolves after the review screen has already
+              // rendered once (navigate() below doesn't wait for it), so
+              // without a re-render the banner data arrives but never
+              // actually gets painted -- only re-render if the doctor is
+              // still looking at this same case's review screen.
+              if (APP.screen === "review" && APP.reviewData?.hadmId === enc.hadm_id) renderApp();
             }
           }).catch(() => {});
       } else {
@@ -799,6 +805,7 @@ SCREEN_SETUP["doctor-dashboard"] = function setupDoctorDashboard() {
                   rejectionLogId: entry.id,
                 };
                 try { localStorage.setItem('rejFlow_active', JSON.stringify(APP.rejFlow)); } catch(_) {}
+                if (APP.screen === "review" && APP.reviewData?.hadmId === enc.hadm_id) renderApp();
               }
             }).catch(() => {});
         }

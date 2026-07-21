@@ -252,6 +252,11 @@ img, svg { display: block; }
   display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-4);
 }
 .topbar .crumbs strong { color: var(--ink); font-weight: 600; }
+.topbar .role-chip {
+  padding: 3px 10px; border-radius: 12px; font-size: 10px; font-weight: 700;
+  letter-spacing: .5px; text-transform: uppercase; white-space: nowrap;
+  background: var(--brand-soft); color: var(--brand-dark);
+}
 .topbar .spacer { flex: 1; }
 .topbar .search {
   display: flex; align-items: center; gap: 8px;

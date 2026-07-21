@@ -48,6 +48,9 @@ function renderTopbar(opts) {
   const displayEmail    = user.email || user.hospital_email || "";
   const displayInitials = user.initials
     || (displayName ? displayName.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase() : "?");
+  const _ROLE_LABELS = { doctor: "Attending" };
+  const roleLabel = _ROLE_LABELS[user.role];
+  const roleChip  = roleLabel ? `<span class="role-chip">${roleLabel}</span>` : "";
   return `
     <header class="topbar">
       <button class="hamburger" id="topbar-hamburger" aria-label="Open menu">
@@ -58,6 +61,7 @@ function renderTopbar(opts) {
         </svg>
       </button>
       ${crumbHTML}
+      ${roleChip}
       <div class="spacer"></div>
       ${extra}
       <div class="user">
