@@ -566,7 +566,11 @@ SCREENS.n1 = () => {
     return skeletonDashboard(APP.role==='gw_nurse'?'General Ward — NEWS2 Dashboard':APP.role==='nurse'?'CCU — NEWS2 Dashboard':'NEWS2 Priority Dashboard');
   if (APP.fetchError && !APP.data.n1) return errorState('Could not load ward data. Check the connection and retry.');
   const patients = (APP.data.n1?.patients || []);
-  patients.sort((a, b) => b.news2 - a.news2); // Sort by highest acuity first
+  patients.sort((a, b) => {
+    if (a.status === 'stale' && b.status !== 'stale') return 1;
+    if (b.status === 'stale' && a.status !== 'stale') return -1;
+    return b.news2 - a.news2;
+  }); // Sort by highest acuity first, push stale to bottom
   let critCount = 0, medCount = 0, lowCount = 0, staleCount = 0;
   
   APP.n1_filter = APP.n1_filter || 'all';

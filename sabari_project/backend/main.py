@@ -446,7 +446,7 @@ def _invalidate_ward_cache(ward: str):
 
 @app.get("/api/ward-data")
 def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False,
-                  hadm_id: Optional[int] = None, limit: int = 25, db: Session = Depends(get_db)):
+                  hadm_id: Optional[int] = None, limit: int = 200, db: Session = Depends(get_db)):
     global REPLAY_OFFSET
     if replay:
         REPLAY_OFFSET = (REPLAY_OFFSET + 1) % 20
@@ -1056,9 +1056,12 @@ def add_vitals(subject_id: int, v: VitalsInput, db: Session = Depends(get_db)):
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
 
+    from sqlalchemy import func
+    demo_now = db.query(func.max(VitalTimeSeries.chart_time)).scalar() or datetime.now()
+
     vt = VitalTimeSeries(
         hadm_id=subject_id,
-        chart_time=datetime.now(),
+        chart_time=demo_now,
         heart_rate=v.heart_rate,
         resp_rate=v.resp_rate,
         spo2=v.spo2,
