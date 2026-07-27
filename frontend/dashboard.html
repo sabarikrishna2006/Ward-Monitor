@@ -26,7 +26,8 @@ button,select{cursor:pointer;font-family:inherit;font-size:inherit}
   display:flex;align-items:center;padding:0 32px;gap:12px;
   position:sticky;top:0;z-index:100;
 }
-.tlogo{font-size:15px;font-weight:900;color:var(--p);letter-spacing:-.3px}
+.tlogo{font-size:15px;font-weight:900;color:var(--p);letter-spacing:-.3px;cursor:pointer;transition:opacity .15s}
+.tlogo:hover{opacity:.7}
 .tdiv{width:1px;height:18px;background:var(--border)}
 .tspace{flex:1}
 .tuser{font-size:12px;color:var(--muted)}
@@ -121,7 +122,7 @@ tr.data-row:hover td{background:#fafafa;cursor:pointer}
 <body>
 
 <div class="topbar">
-  <div class="tlogo">Foqal CareOS</div>
+  <div class="tlogo" onclick="location.href='/dashboard.html'" title="Go to Dashboard">Foqal CareOS</div>
   <div class="tdiv"></div>
   <span class="role-chip">Resident</span>
   <div class="tdiv"></div>

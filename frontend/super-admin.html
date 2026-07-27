@@ -31,7 +31,8 @@ a{color:inherit;text-decoration:none}
   height:var(--ab);background:#fff;border-bottom:1px solid var(--border);
   flex-shrink:0;display:flex;align-items:center;padding:0 18px;gap:10px;
 }
-.alogo{font-size:15px;font-weight:800;color:var(--p);letter-spacing:-.4px;white-space:nowrap}
+.alogo{font-size:15px;font-weight:800;color:var(--p);letter-spacing:-.4px;white-space:nowrap;cursor:pointer;transition:opacity .15s}
+.alogo:hover{opacity:.7}
 .alogo em{color:var(--ink);font-style:normal;font-weight:400}
 .adiv{width:1px;height:20px;background:var(--border)}
 .aspace{flex:1}
@@ -209,7 +210,7 @@ tr:hover td{background:#fcfcfc}
         <rect x="1.5" y="3" width="13" height="10" rx="1.5"/><path d="M6 3v10"/>
       </svg>
     </button>
-    <div class="alogo">Foqal <em>CareOS</em></div>
+    <div class="alogo" onclick="showScreen('sa1')" title="Go to Dashboard">Foqal <em>CareOS</em></div>
     <div class="adiv"></div>
     <span class="role-chip">Super Admin</span>
     <div class="aspace"></div>

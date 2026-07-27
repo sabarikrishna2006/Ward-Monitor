@@ -29,7 +29,8 @@ button{cursor:pointer;font-family:inherit;font-size:inherit}
   height:var(--ab);background:#fff;border-bottom:1px solid var(--border);
   flex-shrink:0;display:flex;align-items:center;padding:0 18px;gap:10px;
 }
-.alogo{font-size:15px;font-weight:800;color:var(--p);letter-spacing:-.4px;white-space:nowrap}
+.alogo{font-size:15px;font-weight:800;color:var(--p);letter-spacing:-.4px;white-space:nowrap;cursor:pointer;transition:opacity .15s}
+.alogo:hover{opacity:.7}
 .alogo em{color:var(--ink);font-style:normal;font-weight:400}
 .adiv{width:1px;height:20px;background:var(--border)}
 .aspace{flex:1}
@@ -134,7 +135,7 @@ tr:hover td{background:#fcfcfc}
   <div id="topbar"></div>
 
   <header id="appbar">
-    <div class="alogo">Foqal <em>CareOS</em></div>
+    <div class="alogo" onclick="location.href='/cmo.html'" title="Go to CMO Dashboard">Foqal <em>CareOS</em></div>
     <div class="adiv"></div>
     <span class="role-chip">CMO</span>
     <div class="aspace"></div>

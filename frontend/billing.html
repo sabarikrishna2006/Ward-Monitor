@@ -29,7 +29,8 @@ a{color:inherit;text-decoration:none}
   height:var(--ab);background:#fff;border-bottom:1px solid var(--border);
   flex-shrink:0;display:flex;align-items:center;padding:0 18px;gap:10px;
 }
-.alogo{font-size:15px;font-weight:800;color:var(--p);letter-spacing:-.4px;white-space:nowrap}
+.alogo{font-size:15px;font-weight:800;color:var(--p);letter-spacing:-.4px;white-space:nowrap;cursor:pointer;transition:opacity .15s}
+.alogo:hover{opacity:.7}
 .alogo em{color:var(--ink);font-style:normal;font-weight:400}
 .adiv{width:1px;height:20px;background:var(--border)}
 .aspace{flex:1}
@@ -183,11 +184,9 @@ tr.highlight td{background:#fdf4ff}
   <div id="topbar"></div>
 
   <header id="appbar">
-    <div class="alogo">Foqal <em>CareOS</em></div>
+    <div class="alogo" onclick="showScreen('ce0')" title="Go to Billing Dashboard">Foqal <em>CareOS</em></div>
     <div class="adiv"></div>
     <span class="role-chip">Billing Staff</span>
-    <div class="adiv"></div>
-    <button class="abtn" onclick="showScreen('ce0')" title="Go to Billing Dashboard">⌂ Dashboard</button>
     <div class="aspace"></div>
     <div style="display:flex;align-items:center;gap:8px">
       <span style="font-size:11.5px;color:var(--muted)" id="billing-name">Ravi Kumar</span>
