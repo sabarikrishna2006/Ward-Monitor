@@ -170,7 +170,10 @@ img, svg { display: block; }
   display: flex; align-items: center; gap: 12px;
   padding: 22px 18px 18px;
   border-bottom: 1px solid rgba(255,255,255,.06);
+  cursor: pointer;                 /* the brand block IS the dashboard link */
+  transition: background .15s;
 }
+.sidebar .brand:hover { background: rgba(255,255,255,.04); }
 .sidebar .brand .logo {
   width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
   background: linear-gradient(145deg, #900090, #C040C0);
@@ -243,6 +246,14 @@ img, svg { display: block; }
   position: sticky; top: 0; z-index: 20;
   box-shadow: 0 1px 0 var(--border), 0 4px 20px rgba(10,0,10,.05);
 }
+/* Topbar wordmark — the dashboard link on screens with no sidebar */
+.topbar .tb-brand {
+  font-size: 15px; font-weight: 800; color: var(--brand);
+  letter-spacing: -.4px; white-space: nowrap;
+  cursor: pointer; transition: opacity .15s;
+}
+.topbar .tb-brand:hover { opacity: .7; }
+.topbar .tb-brand em { color: var(--ink); font-style: normal; font-weight: 400; }
 .topbar::after {
   content: ""; position: absolute; bottom: 0; left: 0; right: 0; height: 1px;
   background: linear-gradient(90deg, transparent, rgba(128,0,128,.18) 35%, rgba(160,32,160,.18) 65%, transparent);

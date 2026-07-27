@@ -207,7 +207,7 @@ SCREEN_RENDERERS["doctor-queue"] = function renderDoctorQueue() {
       <div class="app-shell">
         ${renderSidebar("doctor","my-queue")}
         <div class="main">
-          ${renderTopbar({ user, crumbs:["Clinician","My Queue"] })}
+          ${renderTopbar({ user, hideBrand:true, crumbs:["Clinician","My Queue"] })}
           <div class="content">
             <div style="height:24px;width:200px" class="skeleton" style="border-radius:4px;margin-bottom:22px"></div>
             <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px">
@@ -223,7 +223,7 @@ SCREEN_RENDERERS["doctor-queue"] = function renderDoctorQueue() {
       <div class="app-shell">
         ${renderSidebar("doctor","my-queue")}
         <div class="main">
-          ${renderTopbar({ user, crumbs:["Clinician","My Queue"] })}
+          ${renderTopbar({ user, hideBrand:true, crumbs:["Clinician","My Queue"] })}
           <div class="content" style="display:flex;align-items:center;justify-content:center;min-height:50vh">
             <div style="text-align:center;padding:48px 32px;background:white;border-radius:16px;border:1px solid var(--red-border);max-width:380px;box-shadow:var(--shadow-sm)">
               <div style="width:48px;height:48px;border-radius:12px;background:var(--red-soft);display:grid;place-items:center;margin:0 auto 16px">${iconSVG("alert",22)}</div>
@@ -318,7 +318,7 @@ SCREEN_RENDERERS["doctor-queue"] = function renderDoctorQueue() {
     <div class="app-shell">
       ${renderSidebar("doctor","my-queue")}
       <div class="main">
-        ${renderTopbar({ user, crumbs:["Clinician","Good Morning"] })}
+        ${renderTopbar({ user, hideBrand:true, crumbs:["Clinician","Good Morning"] })}
         <div class="content">
 
           <!-- Morning header banner -->

@@ -1,8 +1,9 @@
 // Sidebar + Topbar HTML generators
 
 function renderSidebar(role, current) {
+  // No "Dashboard" nav item -- the brand block below is the dashboard link,
+  // same as the logo on every other screen.
   const adminItems = [
-    { id: "dashboard",     label: "Dashboard",         icon: "dashboard" },
     { id: "patients-list", label: "Patients",           icon: "user"      },
     { id: "queue",         label: "Patient Queue",      icon: "queue"     },
     { id: "reports",       label: "Reports",            icon: "report"    },
@@ -12,10 +13,11 @@ function renderSidebar(role, current) {
   ];
   const items = role === "doctor" ? doctorItems : adminItems;
   const sectionLabel = role === "doctor" ? "Clinician" : "Workflows";
+  const home = role === "doctor" ? "doctor-dashboard" : "dashboard";
   return `
     <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
     <aside class="sidebar" id="main-sidebar">
-      <div class="brand">
+      <div class="brand" onclick="navigate('${home}')" title="Go to Dashboard">
         <div class="logo">Foqal</div>
         <div class="name">Foqal AI<small>Discharge Summary · Cardiology</small></div>
       </div>
@@ -36,7 +38,13 @@ function renderSidebar(role, current) {
 }
 
 function renderTopbar(opts) {
-  const { crumbs = [], user = {}, extra = "" } = opts;
+  const { crumbs = [], user = {}, extra = "", hideBrand = false } = opts;
+  // Screens that render a sidebar already show the brand there; the rest
+  // (e.g. doctor-dashboard) have no sidebar at all, so the topbar carries
+  // the logo -- it is the dashboard link on every screen.
+  const home = user.role === "doctor" ? "doctor-dashboard" : "dashboard";
+  const brandHTML = hideBrand ? "" :
+    `<div class="tb-brand" onclick="navigate('${home}')" title="Go to Dashboard">Foqal <em>CareOS</em></div>`;
   const crumbHTML = crumbs.length ? `<div class="crumbs">${crumbs.map((c, i) => {
     const label = typeof c === "object" ? c.label : c;
     const onclick = typeof c === "object" && c.onclick ? ` onclick="${c.onclick}" style="cursor:pointer;color:var(--brand)"` : "";
@@ -60,6 +68,7 @@ function renderTopbar(opts) {
           <rect y="13" width="18" height="2" rx="1" fill="currentColor"/>
         </svg>
       </button>
+      ${brandHTML}
       ${crumbHTML}
       ${roleChip}
       <div class="spacer"></div>
