@@ -511,21 +511,9 @@ async function _loadBillingDashboard() {
         })()}</div>
         <div style="font-size:11px;color:var(--muted);margin-top:4px">Pending Estimates</div>
       </div>
-      <div style="border:1px solid var(--border);border-radius:8px;padding:16px;text-align:center;background:#fff;cursor:pointer" onclick="_scrollTo('ce0-table')">
-        <div style="font-size:28px;font-weight:700;color:var(--t1)">${stats.awaiting_reconciliation}</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:4px">Awaiting Reconciliation</div>
-      </div>
-      <div style="border:1px solid var(--border);border-radius:8px;padding:16px;text-align:center;background:#fff">
-        <div style="font-size:28px;font-weight:700;color:var(--t3)">${stats.bills_settled}</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:4px">Bills Settled</div>
-      </div>`;
-
-    const fmt = n => 'Rs.' + (n||0).toLocaleString('en-IN');
-    const phaseCache = JSON.parse(sessionStorage.getItem('billing_phase_cache') || '{}');
+      ${_ce0PatientEntryCard()}`;
 
     const pendingPts = pending_actions;
-    // Patients with a saved estimate (phase = discharge or final_bill) — sourced from DB, not sessionStorage
-    const sharedPts  = pending_actions.filter(p => p.phase === 'discharge' || p.phase === 'final_bill');
 
     // ── Pending Actions table (Phase 1/2 + Phase 4) — filterable by HADM ID + status ──
     // Never-admitted OPD patients don't belong to the Admission/Discharge/Final
@@ -533,37 +521,6 @@ async function _loadBillingDashboard() {
     // in-progress admissions further down the list.
     _ce0PendingRaw = pendingPts.slice().sort((a, b) => (a.is_admitted === false ? 0 : 1) - (b.is_admitted === false ? 0 : 1));
     _ce0FilterPending();
-
-    // ── Completed Estimates tab — patients whose estimate is saved in DB ──
-    const completedEl = document.getElementById('ce0-completed-table');
-    if (completedEl) {
-      const sharedRows = sharedPts.map(p => {
-        const name    = p.patient_name || _bilName(p.hadm_id);
-        const amt     = p.expected_est || 0;
-        const phaseLbl = p.phase === 'final_bill'
-          ? `<span class="bd bd-gray">Final Bill</span>`
-          : `<span class="bd bd-t2">Discharge</span>`;
-        const destPhase = p.phase === 'final_bill' ? 'discharge' : 'discharge';
-        return `<tr style="cursor:pointer" onclick="_ceSelectPatient(${p.hadm_id},'${destPhase}')">
-          <td><b>${name}</b><br><span style="font-size:10px;color:var(--muted)">${fmtPid(p.hadm_id, p.display_id)}</span></td>
-          <td class="mono" style="font-size:11.5px">${p.mrn}</td>
-          <td>${p.admit_time_raw ? _fmtDateDisplay(_mimicShiftDate(p.admit_time_raw, _mimicShiftDelta(p.admit_time_raw, p.estimate_generated_at))) : (p.admit_date || '—')}</td>
-          <td>${phaseLbl}</td>
-          <td><span class="bd bd-ok">Estimate Saved</span></td>
-          <td style="font-weight:700;color:var(--p)">${amt ? '₹' + Math.round(amt).toLocaleString('en-IN') : '—'}</td>
-          <td><button class="btn btn-sec btn-sm" onclick="event.stopPropagation();_ceSelectPatient(${p.hadm_id},'admission')">↺ Recalculate</button></td>
-        </tr>`;
-      }).join('');
-
-      if (!sharedRows) {
-        completedEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);font-size:12px">No completed estimates yet. Estimates appear here after CE1 Save &amp; Proceed.</div>';
-      } else {
-        completedEl.innerHTML = `<div class="tw"><table>
-          <thead><tr><th>Patient</th><th>MRN</th><th>Admitted</th><th>Phase</th><th>Status</th><th>Estimated Bill</th><th>Action</th></tr></thead>
-          <tbody>${sharedRows}</tbody>
-        </table></div>`;
-      }
-    }
 
     // ── Completed Reconciliations tab — all post_discharge patients ──
     _ce0ReconciledRaw = post_discharge;
@@ -601,8 +558,7 @@ async function _loadBillingDashboard() {
     }
 
     // Restore active tab
-    if (_ce0Tab === 'completed') _switchCe0Tab('completed');
-    else if (_ce0Tab === 'reconciled') _switchCe0Tab('reconciled');
+    if (_ce0Tab === 'reconciled') _switchCe0Tab('reconciled');
 
     // Seed known patients on first load so they don't fire toasts immediately
     (pending_actions || []).forEach(function(p) {
@@ -634,6 +590,19 @@ function _scrollTo(id) { document.getElementById(id)?.scrollIntoView({behavior:'
 let _ce0Tab = 'pending';
 let _ce0PendingRaw = [];
 let _ce0ReconciledRaw = [];
+
+// Entry point into CE1. Sized to match the stat cards next to it so the row
+// reads as one strip -- this replaced the small "+ Manual New Estimate"
+// button that used to sit above the pending table.
+function _ce0PatientEntryCard() {
+  return `
+  <div onclick="_ceReset();showScreen('ce1')"
+       style="border:1px solid var(--p);border-radius:8px;padding:16px;text-align:center;background:#fff;cursor:pointer;transition:background .15s"
+       onmouseover="this.style.background='#faf5ff'" onmouseout="this.style.background='#fff'">
+    <div style="font-size:28px;font-weight:700;color:var(--p);line-height:1.15">+</div>
+    <div style="font-size:11px;color:var(--p);font-weight:700;margin-top:4px">Patient Entry</div>
+  </div>`;
+}
 
 function _ce0StatusText(p) {
   const isFinalBill = p.phase === 'final_bill';
@@ -724,7 +693,7 @@ function _ce0FilterPending() {
 
 function _switchCe0Tab(tab) {
   _ce0Tab = tab;
-  ['pending','completed','reconciled'].forEach(t => {
+  ['pending','reconciled'].forEach(t => {
     const el  = document.getElementById('ce0-tab-' + t);
     const btn = document.getElementById('ce0-btn-' + t);
     if (el)  el.style.display  = t === tab ? '' : 'none';
@@ -1064,28 +1033,6 @@ function _ce2bSave() {
   const _cacheKey = _CE.hadm_id || ('manual_' + Date.now());
   _phcache[_cacheKey] = 'estimate_shared';
   sessionStorage.setItem('billing_phase_cache', JSON.stringify(_phcache));
-
-  // Store completed entry — update existing if same patient, else prepend
-  const _completed = JSON.parse(sessionStorage.getItem('completed_estimates') || '[]');
-  const _cacheKey2 = _CE.hadm_id || _CE.mrn || null;
-  const _existIdx  = _cacheKey2 ? _completed.findIndex(e => (e.hadm_id && e.hadm_id == _CE.hadm_id) || (!_CE.hadm_id && e.mrn === _CE.mrn)) : -1;
-  const _newEntry  = {
-    hadm_id:     _CE.hadm_id,
-    mrn:         _CE.mrn || '—',
-    name:        _CE.patientName || 'Manual Entry',
-    diagnosis:   _CE.diagnosis || '—',
-    ward:        _CE.wardType || '—',
-    band:        band,
-    amt:         band==='floor'?floor:band==='ceiling'?ceiling:expected,
-    ts:        new Date().toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}),
-    isManual:    !_CE.hadm_id,
-  };
-  if (_existIdx >= 0) {
-    _completed[_existIdx] = _newEntry;
-  } else {
-    _completed.unshift(_newEntry);
-  }
-  sessionStorage.setItem('completed_estimates', JSON.stringify(_completed.slice(0, 100)));
 
   _closeCe2bModal();
   showScreen('ce3');
@@ -1440,23 +1387,15 @@ ce0: () => `
   <h1 class="sh-title">Billing Dashboard</h1>
   <span class="sh-id">CE0</span>
 </div>
-<div id="ce0-stats" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">
+<div id="ce0-stats" style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:16px">
   <div style="border:1px solid var(--border);border-radius:8px;padding:16px;text-align:center;background:#fff">
     <div style="font-size:28px;font-weight:700;color:var(--t2)">—</div>
     <div style="font-size:11px;color:var(--muted);margin-top:4px">Pending Estimates</div>
   </div>
-  <div style="border:1px solid var(--border);border-radius:8px;padding:16px;text-align:center;background:#fff">
-    <div style="font-size:28px;font-weight:700;color:var(--t1)">—</div>
-    <div style="font-size:11px;color:var(--muted);margin-top:4px">Awaiting Reconciliation</div>
-  </div>
-  <div style="border:1px solid var(--border);border-radius:8px;padding:16px;text-align:center;background:#fff">
-    <div style="font-size:28px;font-weight:700;color:var(--t3)">—</div>
-    <div style="font-size:11px;color:var(--muted);margin-top:4px">Bills Settled This Month</div>
-  </div>
+  ${_ce0PatientEntryCard()}
 </div>
 <div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:14px">
   <button id="ce0-btn-pending" onclick="_switchCe0Tab('pending')" style="padding:9px 20px;font-size:13px;font-weight:700;border:none;background:none;cursor:pointer;border-bottom:2px solid var(--p);margin-bottom:-2px;color:var(--p)">Pending Estimates</button>
-  <button id="ce0-btn-completed" onclick="_switchCe0Tab('completed')" style="padding:9px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--muted)">Completed Estimates</button>
   <button id="ce0-btn-reconciled" onclick="_switchCe0Tab('reconciled')" style="padding:9px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--muted)">Final Bill Completed</button>
 </div>
 <div id="ce0-tab-pending">
@@ -1469,12 +1408,8 @@ ce0: () => `
       <option value="Final Bill Overdue">Final Bill Overdue</option>
       <option value="Amendment Requested">Amendment Requested</option>
     </select>
-    <button class="btn btn-pri" style="margin-left:auto" onclick="_ceReset();showScreen('ce1')">+ Manual New Estimate</button>
   </div>
   <div id="ce0-table" style="color:var(--muted);padding:16px;font-size:12px">Loading patients…</div>
-</div>
-<div id="ce0-tab-completed" style="display:none">
-  <div id="ce0-completed-table" style="color:var(--muted);padding:16px;font-size:12px">Loading…</div>
 </div>
 <div id="ce0-tab-reconciled" style="display:none">
   <div id="ce0-reconciled-table" style="color:var(--muted);padding:16px;font-size:12px">Loading…</div>
