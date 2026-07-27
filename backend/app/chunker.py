@@ -307,8 +307,6 @@ def _chunk_admission(enc) -> list[Chunk]:
         lines.append("[Outcome] Patient expired during this admission.")
     if pat.dod:
         lines.append(f"[Death] Date of death recorded: {pat.dod}.")
-    if adm.insurance:
-        lines.append(f"[Insurance] {adm.insurance}.")
     if adm.race:
         lines.append(f"[Demographics] Race: {adm.race}.")
     if enc.primary_service:

@@ -128,21 +128,12 @@ async def startup_event():
             hadm_id         BIGINT NOT NULL UNIQUE,
             encounter_id    UUID,
 
-            payment_mode    VARCHAR(20),
-            insurance_co    VARCHAR(120),
-            policy_number   VARCHAR(60),
-            preauth_number  VARCHAR(60),
-            preauth_amount  BIGINT,
-            copay_pct       FLOAT,
-            room_rent_limit BIGINT,
-
             selected_band   VARCHAR(10),
             floor_est       BIGINT,
             expected_est    BIGINT,
             ceiling_est     BIGINT,
 
             actual_charges  BIGINT,
-            insurance_paid  BIGINT,
             advance_paid    BIGINT,
             balance_due     BIGINT,
 
@@ -165,13 +156,12 @@ async def startup_event():
     except Exception as _e:
         log.warning(f"Migration 014 skipped: {_e}")
 
+    # Migration 015 — the PM-JAY / Ayushman Bharat package columns this
+    # originally added (hbp_*, is_ab_beneficiary, ab_scheme) are gone: no
+    # government scheme is part of the billing flow. Existing databases keep
+    # the now-unused columns; nothing reads or writes them.
     _migration_015 = """
-        ALTER TABLE billing_records ADD COLUMN IF NOT EXISTS hbp_code         VARCHAR(20);
-        ALTER TABLE billing_records ADD COLUMN IF NOT EXISTS hbp_package_name VARCHAR(200);
-        ALTER TABLE billing_records ADD COLUMN IF NOT EXISTS hbp_rate         BIGINT;
         ALTER TABLE billing_records ADD COLUMN IF NOT EXISTS ward_type        VARCHAR(20);
-        ALTER TABLE billing_records ADD COLUMN IF NOT EXISTS is_ab_beneficiary BOOLEAN DEFAULT FALSE;
-        ALTER TABLE billing_records ADD COLUMN IF NOT EXISTS ab_scheme        VARCHAR(50);
         ALTER TABLE billing_records ADD COLUMN IF NOT EXISTS line_items       JSONB
     """
     try:
@@ -196,15 +186,14 @@ async def startup_event():
     except Exception as _e:
         log.warning(f"Migration 016 skipped: {_e}")
 
-    # Migration 017 — expected discharge, scheme/insurance breakdown columns
+    # Migration 017 — expected discharge + patient liability columns. The
+    # scheme/insurance breakdown columns it used to add (govt_pays,
+    # room_rent_excess, scheme_note) are gone along with the scheme flow.
     _migration_017 = """
         ALTER TABLE billing_records ADD COLUMN IF NOT EXISTS expected_discharge_date DATE;
         ALTER TABLE billing_records ADD COLUMN IF NOT EXISTS expected_los_days        INTEGER;
         ALTER TABLE billing_records ADD COLUMN IF NOT EXISTS actual_los_days          INTEGER;
-        ALTER TABLE billing_records ADD COLUMN IF NOT EXISTS patient_pays_estimate    BIGINT;
-        ALTER TABLE billing_records ADD COLUMN IF NOT EXISTS govt_pays                BIGINT;
-        ALTER TABLE billing_records ADD COLUMN IF NOT EXISTS room_rent_excess         BIGINT;
-        ALTER TABLE billing_records ADD COLUMN IF NOT EXISTS scheme_note              TEXT
+        ALTER TABLE billing_records ADD COLUMN IF NOT EXISTS patient_pays_estimate    BIGINT
     """
     try:
         with _get_engine().begin() as _conn:
@@ -286,51 +275,10 @@ async def startup_event():
     except Exception as _e:
         log.warning(f"Migration 022 skipped: {_e}")
 
-    # ── Seed insurance data for all patients ──────────────────────────────────
-    # Ensures every patient in active_patients has insurance_co + payment_mode
-    # in billing_records so the billing dashboard always shows real DB values.
-    try:
-        import random as _ins_rng
-        _INSURERS = ['Star Health', 'HDFC Ergo', 'ICICI Lombard',
-                     'New India Assurance', 'Bajaj Allianz', 'Niva Bupa', 'United India']
-        _MODES    = ['Cashless', 'Cashless', 'Cashless', 'Reimbursement', 'Self-pay']
-
-        def _seeded_insurance(hadm_id):
-            r = _ins_rng.Random(hadm_id * 13 + 7)
-            mode = _MODES[r.randint(0, len(_MODES) - 1)]
-            if mode == 'Self-pay':
-                return None, 'Self-pay'
-            return _INSURERS[r.randint(0, len(_INSURERS) - 1)], mode
-
-        with _get_engine().connect() as _conn:
-            # Get patients needing insurance seeding — skip AB beneficiaries (PM-JAY/CGHS/ESI)
-            _pts = _conn.execute(_text("""
-                SELECT ap.hadm_id
-                FROM active_patients ap
-                LEFT JOIN billing_records br ON br.hadm_id = ap.hadm_id
-                WHERE (br.hadm_id IS NULL OR br.insurance_co IS NULL)
-                  AND (br.is_ab_beneficiary IS NULL OR br.is_ab_beneficiary = FALSE)
-                LIMIT 5000
-            """)).fetchall()
-
-        _to_seed = [row[0] for row in _pts]
-        if _to_seed:
-            with _get_engine().begin() as _conn:
-                for _hid in _to_seed:
-                    _ins_co, _ins_mode = _seeded_insurance(_hid)
-                    _conn.execute(_text("""
-                        INSERT INTO billing_records (hadm_id, billing_phase, insurance_co, payment_mode)
-                        VALUES (:h, 'initial_estimate', :ic, :im)
-                        ON CONFLICT (hadm_id) DO UPDATE
-                          SET insurance_co  = EXCLUDED.insurance_co,
-                              payment_mode  = EXCLUDED.payment_mode
-                        WHERE billing_records.insurance_co IS NULL
-                    """), {"h": _hid, "ic": _ins_co, "im": _ins_mode})
-            log.info(f"Insurance seeded for {len(_to_seed)} patients")
-        else:
-            log.info("Insurance already seeded for all patients")
-    except Exception as _e:
-        log.warning(f"Insurance seeding skipped: {_e}")
+    # NOTE: the old "seed insurance data for all patients" startup step is gone.
+    # Insurance / TPA / government-scheme coverage is not part of this product's
+    # billing flow -- the patient is billed the reconciled hospital charges
+    # directly -- so there is nothing to fabricate into billing_records here.
 
     _migration_021 = """
         CREATE TABLE IF NOT EXISTS amendment_log (
@@ -512,26 +460,9 @@ async def startup_event():
     except Exception as _e:
         log.warning(f"Migration 026 skipped: {_e}")
 
-    # Migration 027 — tpa_name/sum_insured/claim_number: CE1 captured these
-    # into _CE client-side but never sent them to the backend, so they were
-    # silently discarded on every save/reload. Real fields now.
-    try:
-        with _get_engine().begin() as _conn:
-            _conn.execute(_text(
-                "ALTER TABLE billing_records ADD COLUMN IF NOT EXISTS tpa_name      VARCHAR(120)"
-            ))
-            _conn.execute(_text(
-                "ALTER TABLE billing_records ADD COLUMN IF NOT EXISTS sum_insured   BIGINT"
-            ))
-            _conn.execute(_text(
-                "ALTER TABLE billing_records ADD COLUMN IF NOT EXISTS claim_number  VARCHAR(60)"
-            ))
-            _conn.execute(_text(
-                "ALTER TABLE billing_records ADD COLUMN IF NOT EXISTS coverage_pct  FLOAT"
-            ))
-        log.info("Migration 027: tpa_name/sum_insured/claim_number/coverage_pct columns ensured")
-    except Exception as _e:
-        log.warning(f"Migration 027 skipped: {_e}")
+    # Migration 027 removed — it added tpa_name/sum_insured/claim_number/
+    # coverage_pct for CE1's insurance panel, which no longer exists. Existing
+    # databases keep the unused columns; nothing reads or writes them.
 
     # Migration 028 — file_content/mime_type on app_uploaded_files: non-CSV
     # uploads (PDF/DOCX/images) get stored as reference attachments (raw
@@ -568,17 +499,15 @@ async def startup_event():
                        "admit_time": _p["visit_date"]})
                 _conn.execute(_text("""
                     INSERT INTO billing_records
-                        (hadm_id, billing_phase, insurance_co, payment_mode, policy_number,
-                         expected_est, actual_charges, insurance_paid, advance_paid, balance_due, line_items)
+                        (hadm_id, billing_phase,
+                         expected_est, actual_charges, advance_paid, balance_due, line_items)
                     VALUES
-                        (:h, :phase, :ico, :mode, :pol, :est, :chg, :ipaid, :apaid, :bal, :items)
+                        (:h, :phase, :est, :chg, :apaid, :bal, :items)
                     ON CONFLICT (hadm_id) DO UPDATE
                         SET billing_phase  = EXCLUDED.billing_phase
                     WHERE billing_records.actual_charges IS NULL AND billing_records.expected_est IS NULL
                 """), {"h": _p["hadm_id"], "phase": _p["billing_phase"],
-                       "ico": _p.get("insurance_co"), "mode": _p["payment_mode"],
-                       "pol": _p.get("policy_number"), "est": _p["expected_est"],
-                       "chg": _p.get("actual_charges"), "ipaid": _p.get("insurance_paid"),
+                       "est": _p["expected_est"], "chg": _p.get("actual_charges"),
                        "apaid": _p.get("advance_paid"), "bal": _p.get("balance_due"),
                        "items": _json.dumps(_p["line_items"])})
         log.info(f"OPD synthetic patients seeded ({len(OPD_PATIENTS)})")
@@ -870,7 +799,6 @@ def billing_dashboard():
         ap.patient_name, ap.is_admitted,
         ap.admit_time, ap.discharge_time, ap.los_days, ap.created_at, ap.estimate_generated_at,
         ap.primary_diagnosis_title,
-        br.insurance_co, br.payment_mode,
         ae.id          AS encounter_id,
         ae.status      AS encounter_status,
         ae.discharge_type,
@@ -879,8 +807,6 @@ def billing_dashboard():
         br.billing_phase     AS billing_phase,
         br.expected_est      AS expected_est,
         br.actual_charges    AS actual_charges,
-        br.is_ab_beneficiary AS is_ab_beneficiary,
-        br.ab_scheme         AS ab_scheme,
         -- Real admission recency, most-recently-admitted first. NOT ap.admit_time --
         -- that's MIMIC's de-identified, arbitrarily shifted date (e.g. year 2186),
         -- meaningless for real-world chronological ordering.
@@ -1003,16 +929,12 @@ def billing_dashboard():
             "admit_time_raw":         p.get("admit_time").isoformat() if p.get("admit_time") else None,
             "estimate_generated_at":  p.get("estimate_generated_at").isoformat() if p.get("estimate_generated_at") else None,
             "hospital_day":   _hospital_day(p),
-            "insurance_co":   p.get("insurance_co") or "",
-            "payment_mode":   p.get("payment_mode") or "",
             "encounter_id":   p.get("encounter_id"),
             "phase":          phase,
             "billing_phase":  bp,
             "billing_status": status,
             "expected_est":       p.get("expected_est"),
             "actual_charges":     p.get("actual_charges"),
-            "is_ab_beneficiary":  bool(p.get("is_ab_beneficiary")),
-            "ab_scheme":          p.get("ab_scheme") or "",
             "signed_by_name":     p.get("signed_by_name") or None,
         }
 
@@ -1031,10 +953,8 @@ def billing_dashboard():
     with _get_engine().connect() as conn:
         p5_rows = conn.execute(_text("""
             SELECT br.hadm_id, br.billing_phase, br.balance_due,
-                   br.insurance_co, br.payment_mode,
                    br.expected_est, br.actual_charges,
-                   br.expected_los_days, br.hbp_rate, br.ward_type,
-                   br.is_ab_beneficiary, br.ab_scheme,
+                   br.expected_los_days, br.ward_type,
                    ap.subject_id, ap.gender, ap.anchor_age, ap.is_admitted,
                    ap.primary_diagnosis_title,
                    ap.admit_time, ap.discharge_time, ap.estimate_generated_at, ap.created_at,
@@ -1081,7 +1001,6 @@ def billing_dashboard():
             "balance_due":    r.get("balance_due"),
             "expected_est":   est5,
             "actual_charges": act5,
-            "insurance_co":   r.get("insurance_co", ""),
         })
 
     bills_settled_count = 0
@@ -1108,16 +1027,7 @@ class GenerateEstimateRequest(BaseModel):
     hadm_id:           Optional[int] = None
     ward_type:         str  = "Semi-private Ward"
     los_days:          int  = 7
-    is_ab_beneficiary: bool = False
-    ab_scheme:         Optional[str]  = None
     patient_name:      Optional[str]  = None   # deterministic synthetic name from billing UI
-    # Insurance metadata — saved for later use by CE4 reconciliation, not used
-    # to compute an estimate here (real ML predictions need the BigQuery fetch
-    # this endpoint triggers to complete first — see cost_predictor.py).
-    payment_mode:      Optional[str]  = None
-    copay_pct:         Optional[float]= None
-    room_rent_limit:   Optional[int]  = None
-    preauth_amount:    Optional[int]  = None
 
 @app.post("/api/billing/generate-estimate")
 def generate_billing_estimate(req: GenerateEstimateRequest):
@@ -1222,47 +1132,26 @@ def generate_billing_estimate(req: GenerateEstimateRequest):
 
 class BillingRecordUpsert(BaseModel):
     encounter_id:       Optional[str]  = None
-    payment_mode:       Optional[str]  = None
-    insurance_co:       Optional[str]  = None
-    policy_number:      Optional[str]  = None
-    preauth_number:     Optional[str]  = None
-    preauth_amount:     Optional[int]  = None
-    copay_pct:          Optional[float]= None
-    room_rent_limit:    Optional[int]  = None
-    tpa_name:           Optional[str]  = None  # Cashless only — claims processor, migration 027
-    sum_insured:        Optional[int]  = None  # Reimbursement only — policy coverage ceiling (informational, not used for payout math)
-    coverage_pct:       Optional[float]= None  # Reimbursement only — % of the actual bill the insurer will pay out
-    claim_number:       Optional[str]  = None  # Reimbursement only — pre-filed claim reference
     selected_band:      Optional[str]  = None
     floor_est:          Optional[int]  = None
     expected_est:       Optional[int]  = None
     ceiling_est:        Optional[int]  = None
     actual_charges:     Optional[int]  = None
-    insurance_paid:     Optional[int]  = None
     advance_paid:       Optional[int]  = None
     balance_due:        Optional[int]  = None
     payment_ref:        Optional[str]  = None
-    payment_mode_final: Optional[str]  = None
+    payment_mode_final: Optional[str]  = None  # how the patient settled: Cash / Card / UPI
     billing_phase:      Optional[str]  = None
-    # PM-JAY estimate fields (migration 015)
-    hbp_code:           Optional[str]  = None
-    hbp_package_name:   Optional[str]  = None
-    hbp_rate:           Optional[int]  = None
     ward_type:          Optional[str]  = None
-    is_ab_beneficiary:  Optional[bool] = None
-    ab_scheme:          Optional[str]  = None
     line_items:         Optional[Any]  = None  # list of {name, amount, pct}
     # CE4 reconciliation fields (migration 016)
     actual_line_items:      Optional[Any] = None  # list of {name, amount} — entered by billing staff
     reconciliation_notes:   Optional[str] = None
-    # Migration 017 — expected discharge, scheme/insurance breakdown
+    # Migration 017 — expected discharge
     expected_discharge_date: Optional[str]  = None
     expected_los_days:       Optional[int]  = None
     actual_los_days:         Optional[int]  = None
     patient_pays_estimate:   Optional[int]  = None
-    govt_pays:               Optional[int]  = None
-    room_rent_excess:        Optional[int]  = None
-    scheme_note:             Optional[str]  = None
 
 @app.get("/api/billing/records/{hadm_id}")
 def get_billing_record(hadm_id: int):
@@ -1539,14 +1428,10 @@ def get_billing_patient(hadm_id: int):
                    ae.id AS encounter_id, ae.status AS enc_status,
                    ae.discharge_type,
                    br.id AS billing_id, br.billing_phase,
-                   br.payment_mode, br.insurance_co, br.policy_number,
-                   br.preauth_number, br.preauth_amount, br.copay_pct,
-                   br.room_rent_limit, br.selected_band,
-                   br.tpa_name, br.sum_insured, br.coverage_pct, br.claim_number,
+                   br.selected_band,
                    br.floor_est, br.expected_est, br.ceiling_est,
-                   br.actual_charges, br.insurance_paid, br.advance_paid, br.balance_due,
-                   br.expected_discharge_date, br.expected_los_days,
-                   br.is_ab_beneficiary, br.ab_scheme
+                   br.actual_charges, br.advance_paid, br.balance_due,
+                   br.expected_discharge_date, br.expected_los_days
             FROM active_patients ap
             LEFT JOIN app_encounters   ae ON ae.hadm_id = ap.hadm_id
             LEFT JOIN billing_records  br ON br.hadm_id = ap.hadm_id
@@ -1638,20 +1523,16 @@ def get_billing_reconciliation(hadm_id: int):
                 br.billing_phase,
                 br.selected_band,
                 br.floor_est, br.expected_est, br.ceiling_est,
-                br.hbp_code, br.hbp_package_name, br.hbp_rate,
-                br.ward_type, br.is_ab_beneficiary, br.ab_scheme,
+                br.ward_type,
                 br.line_items,
                 br.actual_line_items,
                 br.actual_charges,
                 br.variance_pct,
                 br.reconciliation_notes,
-                br.insurance_paid,
                 br.advance_paid,
                 br.balance_due,
                 br.expected_discharge_date,
                 br.expected_los_days,
-                br.insurance_co, br.payment_mode, br.copay_pct, br.room_rent_limit, br.preauth_amount,
-                br.sum_insured, br.coverage_pct,
                 asumm.sections_json,
                 asumm.signed_at,
                 au.full_name AS signed_by_name
@@ -1773,22 +1654,13 @@ def get_billing_reconciliation(hadm_id: int):
         expected_los_days = max(1, actual_los + off2)
     los_diff = actual_los - expected_los_days
 
-    # ── ML-predicted cost (replaces the old PM-JAY package-rate lookup
-    # entirely — this is the single source of truth for all scheme
-    # calculations below, not just PM-JAY specifically). ──────────────────────
+    # ── ML-predicted cost — the single source of truth for every amount
+    # below. There is no third-party payer in this flow (no insurer, TPA, or
+    # government scheme), so the patient is billed the reconciled hospital
+    # charges directly. ───────────────────────────────────────────────────────
     from .cost_predictor import cost_predictor
     _no_ce1 = not (r.get("expected_est") or 0)
     ward_type_val = r.get("ward_type") or "Semi-private Ward"
-    is_ab_val     = bool(r.get("is_ab_beneficiary"))
-    ab_scheme_raw = r.get("ab_scheme") or ""
-    ab_scheme_val = ab_scheme_raw.upper()
-    _known_ab = (
-        "PM-JAY" in ab_scheme_val or "PMJAY" in ab_scheme_val or
-        "CGHS"   in ab_scheme_val or
-        "ESI"    in ab_scheme_val or
-        "HARYANA" in ab_scheme_val
-    )
-    is_known_ab = is_ab_val and _known_ab
 
     # "Estimated" side: the ML total as originally quoted at CE1 time (saved),
     # or a fresh Day-0 prediction if CE1 was never run. No item breakdown here
@@ -1858,54 +1730,10 @@ def get_billing_reconciliation(hadm_id: int):
         computed_actual_items = []
     _variance_pct = (actual_gross - est_gross_ce1) / est_gross_ce1 if est_gross_ce1 else 0.0
 
-    # Scheme-aware final patient payment on actual charges
-    pay_mode_recon  = (r.get("payment_mode") or "").lower()
-    ins_co_recon    = r.get("insurance_co") or ""
-    copay_pct_recon = r.get("copay_pct") or 0
-    preauth_recon   = r.get("preauth_amount") or 0
-
-    # Government/scheme coverage now reimburses at the ML-predicted "as
-    # quoted" total (est_gross_ce1) instead of an official PM-JAY package
-    # rate -- we no longer have that table. Hospital absorbs the gap if the
-    # real (actual_gross) total came in higher than what was quoted.
-    if is_known_ab and ("PM-JAY" in ab_scheme_val or "PMJAY" in ab_scheme_val):
-        patient_final     = 0
-        govt_final        = est_gross_ce1
-        hospital_writeoff = max(0, actual_gross - est_gross_ce1)
-        scheme_summary    = f"PM-JAY covers the quoted estimate ₹{est_gross_ce1:,} — Patient pays ₹0. Hospital write-off: ₹{hospital_writeoff:,}"
-    elif is_known_ab and "CGHS" in ab_scheme_val:
-        cghs_covers   = round(actual_gross * 0.85)
-        patient_final = round(actual_gross * 0.15)
-        govt_final    = cghs_covers
-        scheme_summary = f"CGHS covers ₹{cghs_covers:,}. Patient pays ~15% (excess + non-covered) = ₹{patient_final:,}"
-    elif is_known_ab and "ESI" in ab_scheme_val:
-        patient_final  = 0
-        govt_final     = actual_gross
-        scheme_summary = f"ESI reimburses ₹{actual_gross:,}. Patient pays ₹0"
-    elif is_known_ab and "HARYANA" in ab_scheme_val:
-        _state_rate    = est_gross_ce1 or actual_gross
-        patient_final  = 0
-        govt_final     = _state_rate
-        scheme_summary = f"Haryana State Scheme covers ₹{_state_rate:,}. Patient pays ₹0"
-    elif pay_mode_recon == "cashless":
-        copay_pct_eff  = copay_pct_recon or 10   # default 10% copay if not set at CE1
-        copay_amt      = round(actual_gross * copay_pct_eff / 100)
-        ins_covers     = min(actual_gross - copay_amt, preauth_recon) if preauth_recon else (actual_gross - copay_amt)
-        patient_final  = copay_amt
-        govt_final     = None
-        ins_label      = ins_co_recon.split()[0] if ins_co_recon else "Insurance"
-        scheme_summary = f"{ins_label} (Cashless) covers ₹{ins_covers:,}. Patient copay {copay_pct_eff}%: ₹{patient_final:,}"
-    elif pay_mode_recon == "reimbursement":
-        coverage_pct_eff = r.get("coverage_pct") or 80   # default 80% if not set at CE1
-        ins_covers_reim  = round(actual_gross * coverage_pct_eff / 100)
-        ins_label        = ins_co_recon.split()[0] if ins_co_recon else "Insurer"
-        patient_final    = actual_gross   # patient pays full now, claims later
-        govt_final       = None
-        scheme_summary   = f"Reimbursement — Patient pays ₹{actual_gross:,} now. Claim up to ₹{ins_covers_reim:,} ({coverage_pct_eff}%) from {ins_label}."
-    else:
-        patient_final  = actual_gross
-        govt_final     = None
-        scheme_summary = "Self-pay — Patient pays full amount"
+    # Final patient payment on actual charges. No insurer/TPA/government
+    # scheme sits between the hospital and the patient in this flow, so the
+    # reconciled gross IS what the patient owes.
+    patient_final = actual_gross
 
     # Discharge medications: prefer s11 from full summary; fall back to prescriptions DB
     from .cims_drug_map import indianise_drug_name as _id_billing
@@ -1966,16 +1794,11 @@ def get_billing_reconciliation(hadm_id: int):
             "auto_generated":   _no_ce1,
             "source":           "ml_model",
         },
-        "ab_info": {
-            "is_ab_beneficiary": bool(r.get("is_ab_beneficiary")),
-            "ab_scheme":         r.get("ab_scheme") or "",
-        },
         "actuals_saved": {
             "actual_line_items":    actual_items,
             "actual_charges":       r.get("actual_charges"),
             "variance_pct":         r.get("variance_pct"),
             "reconciliation_notes": r.get("reconciliation_notes") or "",
-            "insurance_paid":       r.get("insurance_paid"),
             "advance_paid":         r.get("advance_paid"),
         } if actual_items is not None else None,
         "reconciliation": {
@@ -1989,10 +1812,6 @@ def get_billing_reconciliation(hadm_id: int):
             "computed_actual_items":  computed_actual_items,
             "computed_estimate_items":computed_estimate_items,
             "patient_pay_final":    patient_final,
-            "govt_pay_final":       govt_final,
-            "scheme_summary":       scheme_summary,
-            "insurance_co":         ins_co_recon,
-            "payment_mode":         pay_mode_recon,
             # Primary procedure for display
             "primary_procedure_icd":   proc_row[0] if proc_row else None,
             "primary_procedure_title": proc_row[2] if proc_row else None,
@@ -3874,8 +3693,7 @@ Schema:
     "referral_source": null,
     "attending_physician": null, "attending_mci_reg": null,
     "ward": null, "bed_number": null,
-    "next_of_kin": {"name": null, "relationship": null, "contact": null},
-    "insurance_tpa": null
+    "next_of_kin": {"name": null, "relationship": null, "contact": null}
   },
   "chief_complaint": null,
   "duration_of_symptoms": null,
@@ -4542,8 +4360,7 @@ Schema:
     "referral_source": null,
     "attending_physician": null, "attending_mci_reg": null,
     "ward": null, "bed_number": null,
-    "next_of_kin": {"name": null, "relationship": null, "contact": null},
-    "insurance_tpa": null
+    "next_of_kin": {"name": null, "relationship": null, "contact": null}
   },
   "chief_complaint": null,
   "duration_of_symptoms": null,
@@ -4791,7 +4608,7 @@ CRITICAL RULES:
 7. CRITICAL: Do not generate sections that are not applicable to this discharge type. Return null for removed sections — do not fabricate content.
 
 SOURCE FIELD → NABH SECTION MAPPING (exhaust ALL listed fields in order before writing "not documented"):
-s1  → patient.* (name, age/dob, sex, uhid, ward, bed, dates, physician, insurance, kin)
+s1  → patient.* (name, age/dob, sex, uhid, ward, bed, dates, physician, kin)
 s2  → chief_complaint → clinical_notes_text (CC:/Chief Complaint:/HPI: blocks) → discharge_diagnosis_clinical + icd10_codes → pmh.comorbidities
 s3  → hpi → clinical_notes_text (HPI/History of Present Illness blocks, any clinical narrative) → hospital_course → vital_signs_trend + risk_scores
 s4  → pmh.comorbidities, pmh.prior_cardiac_interventions, pmh.surgical_history, pmh.allergies, pmh.family_history, pmh.smoking, pmh.alcohol → icd10_codes secondary entries (comorbidity fallback when all PMH fields are null)
@@ -4808,7 +4625,7 @@ s14 → condition_at_discharge → discharge_vitals.* → nyha_class → omr_mea
 s15 → patient_acknowledgement.*
 
 STANDARD SECTION-BY-SECTION INSTRUCTIONS (apply to all types unless overridden below):
-s1 — Patient Demographics: Write only the patient fields that have actual documented values from JSON.patient. Include: Full Name, Age (computed from dob if age null), Sex, UHID, Ward, Bed Number, Admission Date, Discharge Date, Admission Mode, Referral Source, Attending Physician with MCI Reg No, Insurance/TPA, Next of Kin (name and relationship). SKIP any field where the value is null — do not write "Not documented" for individual missing fields. Only include a field if it has a real value.
+s1 — Patient Demographics: Write only the patient fields that have actual documented values from JSON.patient. Include: Full Name, Age (computed from dob if age null), Sex, UHID, Ward, Bed Number, Admission Date, Discharge Date, Admission Mode, Referral Source, Attending Physician with MCI Reg No, Next of Kin (name and relationship). SKIP any field where the value is null — do not write "Not documented" for individual missing fields. Only include a field if it has a real value.
 s2 — Chief Complaint: (1) Use JSON.chief_complaint verbatim if present. (2) If chief_complaint is null, search JSON.clinical_notes_text for a "Chief Complaint:", "CC:", or "Reason for admission:" block and use that. (3) If clinical_notes_text is also null or contains no identifiable CC block, derive the presenting complaint from JSON.discharge_diagnosis_clinical — write "Patient presented with clinical features consistent with [primary diagnosis]" using the full clinical name. (4) If icd10_codes are present, use the primary code description as additional context. (5) Write "Chief complaint was not documented." ONLY when chief_complaint, clinical_notes_text, discharge_diagnosis_clinical, AND icd10_codes are all null or empty. Add JSON.duration_of_symptoms and referral_source if present. Never an ICD code.
 s3 — History of Presenting Illness: (1) Use JSON.hpi verbatim if present and detailed (more than one sentence). (2) If hpi is null or a single sentence, MUST construct a full HPI narrative from JSON.clinical_notes_text — locate the "History of Present Illness", "HPI:", or opening clinical narrative in the notes and use it. Include onset, duration, severity, associated symptoms, and relevant negatives from the notes. (3) If both hpi and clinical_notes_text are null or empty, construct a brief narrative from JSON.hospital_course and JSON.vital_signs_trend describing the clinical presentation. (4) Always add GRACE/TIMI scores from JSON.risk_scores if present. Always add serial troponin trend from JSON.labs.troponin_serial if present. (5) Write "History of presenting illness was not documented." ONLY when hpi, clinical_notes_text, AND hospital_course are all null or empty.
 s4 — Significant Past History: Write only documented sub-fields from JSON.pmh (comorbidities, prior_cardiac_interventions, surgical_history, family_history, allergies, smoking, alcohol). Omit any null/empty sub-field. If ALL pmh fields are null or empty, use the secondary entries (all except the first/primary) from JSON.icd10_codes as a comorbidity list — write their full clinical descriptions as documented co-existing conditions. Write "No significant past medical history was documented." ONLY when ALL pmh fields AND all secondary icd10_codes entries are absent.

@@ -329,26 +329,6 @@ function _bilName(hadmId) {
   const last    = _BIL_LAST[_bilSeeded2(hadmId, 17, _BIL_LAST.length)];
   return `${first} ${last}`;
 }
-const _BIL_INSURERS = ['Star Health','HDFC Ergo','ICICI Lombard','New India Assurance','Bajaj Allianz','Niva Bupa','United India'];
-const _BIL_MODES    = ['Cashless','Cashless','Cashless','Reimbursement','Self-pay'];
-function _bilInsurance(hadmId, savedCo, savedMode, isAb, abScheme) {
-  // Government scheme patients — show scheme name, never a fake private insurer
-  if (isAb && abScheme) {
-    const s = abScheme.toUpperCase();
-    if (s.includes('PM-JAY') || s.includes('PMJAY')) return 'PM-JAY (Govt)';
-    if (s.includes('CGHS'))    return 'Haryana CGHS (Govt)';
-    if (s.includes('ESI'))     return 'ESI (Govt)';
-    if (s.includes('HARYANA')) return 'Haryana State Scheme (Govt)';
-    return `${abScheme} (Govt)`;
-  }
-  if (savedCo) return savedMode ? `${savedCo} — ${savedMode}` : savedCo;
-  const s = hadmId * 13 + 7;
-  const mode = _BIL_MODES[Math.abs(s * 3) % _BIL_MODES.length];
-  if (mode === 'Self-pay') return 'Self-pay';
-  const ins = _BIL_INSURERS[Math.abs(s) % _BIL_INSURERS.length];
-  return `${ins} — ${mode}`;
-}
-
 let CURRENT = 'ce0';
 
 /* ── CE state — persists selected patient + form data across screens ── */
@@ -369,36 +349,20 @@ const _CE = {
   dischargeType: 'Standard',
   encounterId:   null,
   syncing:       false,  // true while the early Patient-ID-blur admit+sync is in flight
-  // CE1 insurance
-  paymentMode:   'Cashless',
-  insuranceCo:   '',
-  policyNo:      '',
-  tpaName:       '',
-  sumInsured:    '',
-  coveragePct:   '',
-  claimNo:       '',
-  preauthNo:     '',
-  preauthAmt:    '',
-  copayPct:      '',
   wardType:      'Semi-private Ward',
-  isAbBeneficiary: false,
-  abScheme:      '',
   // CE1 → CE2 estimate data (from generate-estimate API)
   estimateData:  null,
   // CE4/CE5
   actualCharges: null,
-  insurancePaid: null,
   advancePaid:   null,
   balanceDue:    null,
-  paymentRef:    '',
 };
 
 function _ceReset() {
-  const keep = { cost: _CE.cost, wardType: _CE.wardType, paymentMode: _CE.paymentMode };
+  const keep = { cost: _CE.cost, wardType: _CE.wardType };
   Object.keys(_CE).forEach(k => { _CE[k] = null; });
-  Object.assign(_CE, { cost: keep.cost, wardType: keep.wardType, paymentMode: keep.paymentMode,
-    dischargeType: 'Standard', isAbBeneficiary: false, abScheme: '', estimateData: null,
-    syncing: false, paymentRef: '' });
+  Object.assign(_CE, { cost: keep.cost, wardType: keep.wardType,
+    dischargeType: 'Standard', estimateData: null, syncing: false });
   _liveData = null;
   _ce4Data  = null;
 }
@@ -453,23 +417,9 @@ function _applyPatientDetails(d) {
   _CE.losDays       = d.expected_los || d.los_days || null;
   _CE.dischargeType = d.discharge_type || 'Standard';
   _CE.encounterId   = d.encounter_id;
-  // Insurance always pre-fills from DB (seeded at startup for all patients)
-  _CE.paymentMode   = d.payment_mode   || 'Cashless';
-  _CE.insuranceCo   = d.insurance_co   || '';
-  _CE.policyNo      = d.policy_number  || '';
-  _CE.preauthNo     = d.preauth_number || '';
-  _CE.preauthAmt    = d.preauth_amount  ? String(d.preauth_amount) : '';
-  _CE.tpaName       = d.tpa_name    || '';
-  _CE.sumInsured    = d.sum_insured ? String(d.sum_insured) : '';
-  _CE.coveragePct   = d.coverage_pct != null ? String(d.coverage_pct) : '';
-  _CE.claimNo       = d.claim_number || '';
-  _CE.copayPct      = d.copay_pct != null ? String(d.copay_pct) : '';
-  _CE.isAbBeneficiary = !!d.is_ab_beneficiary;
-  _CE.abScheme      = d.ab_scheme || '';
   // Actuals/settlements only meaningful once billing has progressed
   if (d.billing_phase) {
     _CE.actualCharges = d.actual_charges;
-    _CE.insurancePaid = d.insurance_paid;
     _CE.advancePaid   = d.advance_paid;
     _CE.balanceDue    = d.balance_due;
   }
@@ -636,7 +586,6 @@ async function _loadBillingDashboard() {
             <td><b>${name}</b> ${notAdmitted ? '<span class="bd bd-t1">Not Admitted</span>' : ''}</td>
             <td class="mono" style="font-size:11.5px">${p.mrn}</td>
             <td>${p.admit_time_raw ? _fmtDateDisplay(_mimicShiftDate(p.admit_time_raw, _mimicShiftDelta(p.admit_time_raw, p.estimate_generated_at))) : (p.admit_date || '—')}</td>
-            <td style="font-size:12px">${_bilInsurance(p.hadm_id, p.insurance_co, p.payment_mode, p.is_ab_beneficiary, p.ab_scheme)}</td>
             <td style="font-weight:700">${estTotal ? '₹' + Math.round(estTotal).toLocaleString('en-IN') : '—'}</td>
             <td style="font-weight:700">${actTotal ? '₹' + Math.round(actTotal).toLocaleString('en-IN') : '—'}</td>
             <td style="font-weight:700;color:${varColor}">${varStr}</td>
@@ -645,7 +594,7 @@ async function _loadBillingDashboard() {
           </tr>`;
         }).join('');
         reconciledEl.innerHTML = `<div class="tw"><table>
-          <thead><tr><th>Patient</th><th>MRN</th><th>Admitted</th><th>Insurance</th><th>Estimated</th><th>Actual</th><th>Variance</th><th>Status</th><th>Action</th></tr></thead>
+          <thead><tr><th>Patient</th><th>MRN</th><th>Admitted</th><th>Estimated</th><th>Actual</th><th>Variance</th><th>Status</th><th>Action</th></tr></thead>
           <tbody>${reconRows}</tbody>
         </table></div>`;
       }
@@ -719,7 +668,6 @@ function _ce0BuildRow(p) {
                     : statusText === 'Amendment Requested' ? 'bd-purple'
                     : 'bd-t2';
   const statusBadge = `<span class="bd ${statusColor}">${statusText}</span>`;
-  const insurance   = _bilInsurance(p.hadm_id, p.insurance_co, p.payment_mode, p.is_ab_beneficiary, p.ab_scheme);
   const hasEstimate = !!(p.billing_phase || p.expected_est);
   // Never-admitted OPD patients have no real admission/discharge/reconciliation
   // workflow to walk through -- clicking one just shows a quick read-only
@@ -743,7 +691,6 @@ function _ce0BuildRow(p) {
       : (!isFinalBill && !isDischarge)
         ? `<span class="bd bd-blue">Day ${p.hospital_day}</span>`
         : `<span class="bd bd-gray">LOS ${p.hospital_day}d</span>`}</td>
-    <td style="font-size:12px">${insurance}</td>
     <td>${phaseBadge}</td>
     <td>${statusBadge}</td>
     <td>${actionBtn}</td>
@@ -767,7 +714,7 @@ function _ce0FilterPending() {
   } else {
     tableEl.innerHTML = `<div class="tw"><table>
       <thead><tr>
-        <th>Patient</th><th>MRN</th><th>Admitted</th><th>Day</th><th>Insurance</th><th>Phase</th><th>Status</th><th>Action</th>
+        <th>Patient</th><th>MRN</th><th>Admitted</th><th>Day</th><th>Phase</th><th>Status</th><th>Action</th>
       </tr></thead>
       <tbody>${list.map(_ce0BuildRow).join('')}
       </tbody>
@@ -794,59 +741,6 @@ function _ce1UpdateLos() {
     const losEl = document.getElementById('ce1-los');
     if (losEl) losEl.value = days;
   }
-}
-
-function _ce1PayModeChange() {
-  const mode = document.querySelector('input[name="pay"]:checked')?.value || 'Cashless';
-  // Cashless-only fields
-  const cashlessGroup = document.getElementById('ce1-cashless-group');
-  // Reimbursement-only fields
-  const reimbGroup    = document.getElementById('ce1-reimb-group');
-  // Common insurance fields (insco, polno) — hidden for self-pay
-  const commonGroup   = document.getElementById('ce1-insur-common');
-  if (!cashlessGroup || !reimbGroup || !commonGroup) return;
-  if (mode === 'Self-pay') {
-    commonGroup.style.display   = 'none';
-    cashlessGroup.style.display = 'none';
-    reimbGroup.style.display    = 'none';
-  } else {
-    commonGroup.style.display   = '';
-    cashlessGroup.style.display = mode === 'Cashless'       ? '' : 'none';
-    reimbGroup.style.display    = mode === 'Reimbursement'  ? '' : 'none';
-  }
-}
-
-// _ce1UpdateInsurancePanel() removed -- it was dead code (always hid itself
-// immediately, since _CE.estimateData.expected_est hasn't existed since the
-// ML refactor moved cost estimation to a separate async fetch) and used fake
-// hardcoded ward rates unrelated to the real WARD_RATE/ICU_RATE. CE2's
-// "Mediclaim Breakdown" card already shows this same insurance-impact split
-// correctly, off the real ML P50 estimate.
-
-function _ce1SchemeChange() {
-  const isAb  = document.getElementById('ab-chk')?.checked || false;
-  const scheme = document.getElementById('ce1-abscheme')?.value || '';
-  const banner = document.getElementById('ce1-scheme-banner');
-  // A patient is covered by a government scheme OR private insurance, never
-  // both -- the backend reconciliation logic already checks AB status first
-  // and ignores payment_mode entirely when it's set. Hide the private
-  // insurance card to match, instead of letting both be filled in confusingly.
-  const insuranceCard = document.getElementById('ce1-insurance-card');
-  if (insuranceCard) insuranceCard.style.display = isAb ? 'none' : '';
-  if (!banner) return;
-  if (!isAb) { banner.style.display = 'none'; return; }
-  banner.style.display = '';
-  // Matches the real reconciliation logic in main.py's get_billing_reconciliation()
-  // -- no more HBP package rates, everything reimburses off the ML-quoted estimate.
-  const schemeInfo = {
-    'PM-JAY':                   { msg:'PM-JAY (Ayushman Bharat) — Government reimburses the ML-quoted estimate. <b>Patient pays ₹0.</b> If actual charges exceed the quote, the hospital absorbs the difference.' },
-    'Haryana Government Scheme':{ msg:'Haryana Government Scheme — State scheme reimburses the ML-quoted estimate, same as PM-JAY. <b>Patient pays ₹0.</b> Hospital absorbs any excess over the quote.' },
-    'CGHS':                     { msg:'CGHS (Central Govt Health Scheme) — Covers 85% of actual charges at discharge. <b>Patient pays ~15%</b> (room-rent excess + non-covered items such as branded drugs).' },
-    'ESI':                      { msg:'ESI (Employees\' State Insurance) — Covers 100% of actual charges at discharge. <b>Patient pays ₹0.</b> Hospital claims directly from ESIC.' },
-  };
-  const info = schemeInfo[scheme] || { msg:'Government scheme selected — rates and patient liability will be calculated accordingly.' };
-  banner.className = 'alert al-info';
-  banner.innerHTML = `ℹ️ <b>${scheme}</b> — ${info.msg}`;
 }
 
 // Click handler for CE1's "Fetch Patient" button (New Entry mode, before
@@ -924,34 +818,18 @@ function _ce1ClearPatientId() {
 // _fetchMlEstimate() again -- see the "Refresh Estimate" button on CE2.
 
 async function _ce1Save() {
-  const payMode = document.querySelector('input[name="pay"]:checked')?.value || 'Cashless';
-  _CE.paymentMode      = payMode;
-  _CE.insuranceCo      = document.getElementById('ce1-insco')?.value || '';
-  _CE.policyNo         = document.getElementById('ce1-polno')?.value || '';
-  _CE.tpaName          = document.getElementById('ce1-tpa')?.value   || '';
-  _CE.sumInsured       = document.getElementById('ce1-sumins')?.value || '';
-  _CE.coveragePct      = document.getElementById('ce1-covpct')?.value || '';
-  _CE.claimNo          = document.getElementById('ce1-claimno')?.value || '';
-  _CE.preauthNo        = document.getElementById('ce1-pano')?.value  || '';
-  _CE.preauthAmt       = document.getElementById('ce1-paamt')?.value || '';
-  _CE.copayPct         = document.getElementById('ce1-copay')?.value || '';
   _CE.losDays          = parseInt(document.getElementById('ce1-los')?.value)  || _CE.losDays || 7;
   // Ward/bed picker removed from CE1 -- that's a clinical/nursing placement
   // call, not billing's, and every real admission in this cohort ends up in
   // CCU/ICU anyway. _CE.wardType stays fixed at its default (still routes
   // ward provisioning to the CCU board, same as before).
   _CE.dischargeDate    = document.getElementById('ce1-disc')?.value  || _CE.dischargeDate || '';
-  _CE.isAbBeneficiary  = document.getElementById('ab-chk')?.checked || false;
-  _CE.abScheme         = document.getElementById('ce1-abscheme')?.value || '';
   if (!_CE.mrn) _CE.mrn = document.getElementById('ce1-mrn')?.value || '';
   // If no hadm_id yet but MRN field has a pure number, treat it as hadm_id for ward provision
   if (!_CE.hadm_id) {
     const _mrnVal = parseInt(_CE.mrn);
     if (_mrnVal > 0) _CE.hadm_id = _mrnVal;
   }
-
-  const preauthAmtInt  = _CE.preauthAmt ? parseInt(_CE.preauthAmt.replace(/[^\d]/g,'')) : null;
-  const copayPctFloat  = _CE.copayPct   ? parseFloat(_CE.copayPct) : null;
 
   // Admit the patient (ward provisioning + triggers BigQuery clinical-data
   // fetch). Cost estimate is NOT computed here -- the ML model needs the
@@ -970,11 +848,6 @@ async function _ce1Save() {
           hadm_id:           _CE.hadm_id,
           ward_type:         _CE.wardType,
           los_days:          _CE.losDays,
-          is_ab_beneficiary: _CE.isAbBeneficiary,
-          ab_scheme:         _CE.abScheme || null,
-          payment_mode:      _CE.paymentMode,
-          copay_pct:         copayPctFloat,
-          preauth_amount:    preauthAmtInt,
           patient_name:      _CE.patientName || null,
         }),
       });
@@ -1023,21 +896,8 @@ async function _ce1Save() {
 
   await _ceSaveRecord({
     encounter_id:    _CE.encounterId,
-    payment_mode:    _CE.paymentMode,
-    insurance_co:    _CE.insuranceCo,
-    policy_number:   _CE.policyNo,
-    preauth_number:  _CE.preauthNo,
-    preauth_amount:  preauthAmtInt,
-    copay_pct:       copayPctFloat,
-    tpa_name:        _CE.tpaName    || null,
-    sum_insured:     _CE.sumInsured ? parseInt(String(_CE.sumInsured).replace(/[^\d]/g,'')) : null,
-    coverage_pct:    _CE.coveragePct ? parseFloat(_CE.coveragePct) : null,
-    claim_number:    _CE.claimNo    || null,
     ward_type:       _CE.wardType,
-    is_ab_beneficiary: _CE.isAbBeneficiary,
-    ab_scheme:       _CE.abScheme || null,
-    // Migration 017 — expected discharge (scheme/insurance liability now
-    // computed from the ML estimate once it lands, not saved here)
+    // Migration 017 — expected discharge
     expected_discharge_date: _CE.dischargeDate || null,
     expected_los_days:       _CE.losDays || null,
     billing_phase:   'initial_estimate',
@@ -1176,18 +1036,6 @@ function _openCe2bModal() {
 
   document.getElementById('ce2b-patient').textContent    = _CE.patientName ? `${_CE.mrn || '—'} — ${_CE.patientName}` : (_CE.mrn || '—');
   document.getElementById('ce2b-band').textContent       = `${bandLabel} — ${fmt(bandAmt)}`;
-  // Government scheme patients don't have a private insurer -- insuranceCo
-  // is left over from the (irrelevant) per-patient autofill default and must
-  // not be shown once a scheme is selected on CE1.
-  document.getElementById('ce2b-insurance').textContent  = (_CE.isAbBeneficiary && _CE.abScheme)
-    ? _CE.abScheme
-    : `${_CE.insuranceCo || '—'} · ${_CE.paymentMode || '—'}`;
-  // Pre-auth only exists for Cashless -- it was showing "—" for every other
-  // mode instead of just not being there at all, which read as "why do I
-  // need this for Reimbursement" rather than "this doesn't apply here."
-  const preauthRow = document.getElementById('ce2b-preauth-row');
-  if (preauthRow) preauthRow.style.display = _CE.paymentMode === 'Cashless' ? '' : 'none';
-  document.getElementById('ce2b-preauth').textContent    = _CE.preauthNo || '—';
   document.getElementById('ce2b-enteredby').textContent  = user.full_name || 'Billing Staff';
   document.getElementById('ce2b-ts').textContent         = new Date().toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
 
@@ -1229,8 +1077,7 @@ function _ce2bSave() {
     ward:        _CE.wardType || '—',
     band:        band,
     amt:         band==='floor'?floor:band==='ceiling'?ceiling:expected,
-    insurance:   _CE.insuranceCo || '—',
-    ts:          new Date().toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}),
+    ts:        new Date().toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}),
     isManual:    !_CE.hadm_id,
   };
   if (_existIdx >= 0) {
@@ -1295,7 +1142,6 @@ function _ceFinalBillView(hadm_id) {
       if (recon.actuals_saved) {
         const s = recon.actuals_saved;
         if (s.actual_charges != null) _CE.actualCharges = s.actual_charges;
-        if (s.insurance_paid != null) _CE.insurancePaid = s.insurance_paid;
         if (s.advance_paid   != null) _CE.advancePaid   = s.advance_paid;
       }
     }
@@ -1316,7 +1162,6 @@ async function _ce4Load() {
     if (_ce4Data.actuals_saved) {
       const s = _ce4Data.actuals_saved;
       if (s.actual_charges != null) _CE.actualCharges = s.actual_charges;
-      if (s.insurance_paid  != null) _CE.insurancePaid  = s.insurance_paid;
       if (s.advance_paid    != null) _CE.advancePaid    = s.advance_paid;
     }
   } catch(e) {
@@ -1455,8 +1300,8 @@ async function _ce4Save() {
   // No separate payment-gateway/release step anymore -- generating the final
   // bill settles the patient immediately (billing_phase goes straight to
   // 'paid'), so the row disappears from every pending bucket and shows up in
-  // Final Bill Completed right away. Bill Actions/Insurance Claim/etc. are
-  // still reachable read-only from there via the "🧾 Bill" button (CE5).
+  // Final Bill Completed right away. Bill Actions are still reachable
+  // read-only from there via the "🧾 Bill" button (CE5).
   const _recon = _ce4Data?.reconciliation || {};
   await _ceSaveRecord({
     actual_line_items:    actualLineItems,
@@ -1474,39 +1319,15 @@ async function _ce4Save() {
 /* ── CE5 — Print / Download ── */
 function _ce5PrintHtml(forDownload) {
   const recon   = _ce4Data?.reconciliation || {};
-  const ab_info = _ce4Data?.ab_info || {};
   const fmt = n => '₹' + Math.round(n||0).toLocaleString('en-IN');
   const gross = recon.actual_gross || _CE.actualCharges || 0;
-  const isPmjay = ab_info.is_ab_beneficiary && (ab_info.ab_scheme||'').toUpperCase().includes('PM-JAY');
-  const isGovt  = ab_info.is_ab_beneficiary;
-  const patientPay = recon.patient_pay_final ?? (isGovt ? 0 : gross);
-  const insLabel = (recon.insurance_co || _CE.insuranceCo || '').split(' ')[0];
+  const advance    = _CE.advancePaid || 0;
+  const patientPay = Math.max(0, (recon.patient_pay_final ?? gross) - advance);
 
-  let billRows = '';
-  if (isPmjay) {
-    const hbpRate = ab_info.hbp_rate || recon.govt_pay_final || 0;
-    billRows = `
-      <tr><td>Gross Hospital Charges</td><td style="text-align:right">${fmt(gross)}</td></tr>
-      <tr><td>PM-JAY Covers (ML-quoted estimate)</td><td style="text-align:right;color:green">− ${fmt(hbpRate)}</td></tr>
-      <tr><td style="color:#888;font-size:11px">Hospital Adjustment</td><td style="text-align:right;color:#888;font-size:11px">− ${fmt(Math.max(0,gross-hbpRate))}</td></tr>
-      <tr style="border-top:2px solid #000;font-weight:800"><td>Patient Balance</td><td style="text-align:right">₹0</td></tr>`;
-  } else if (isGovt) {
-    // Non-PM-JAY government scheme (Haryana State Scheme, CGHS, ESI) -- covered
-    // by the scheme itself, not a private insurer, so label it by scheme name
-    // rather than insurance_co (which is a leftover autofill default and
-    // unrelated once a govt scheme is selected).
-    const govtCovered = Math.max(0, gross - patientPay);
-    billRows = `
+  const billRows = `
       <tr><td>Gross Charges</td><td style="text-align:right">${fmt(gross)}</td></tr>
-      ${govtCovered > 0 ? `<tr><td>${ab_info.ab_scheme || 'Government Scheme'} Covers</td><td style="text-align:right;color:green">− ${fmt(govtCovered)}</td></tr>` : ''}
-      <tr style="border-top:2px solid #000;font-weight:800"><td>Patient Balance</td><td style="text-align:right">${fmt(patientPay)}</td></tr>`;
-  } else {
-    const insCovered = Math.max(0, gross - patientPay);
-    billRows = `
-      <tr><td>Gross Charges</td><td style="text-align:right">${fmt(gross)}</td></tr>
-      ${insCovered > 0 ? `<tr><td>Insurance${insLabel ? ' — '+insLabel : ''}</td><td style="text-align:right;color:green">− ${fmt(insCovered)}</td></tr>` : ''}
+      ${advance > 0 ? `<tr><td>Advance Paid</td><td style="text-align:right;color:green">− ${fmt(advance)}</td></tr>` : ''}
       <tr style="border-top:2px solid #000;font-weight:800"><td>Balance Due</td><td style="text-align:right">${fmt(patientPay)}</td></tr>`;
-  }
 
   const dischMeds = (_ce4Data?.discharge?.discharge_meds || '').split('\n').filter(l=>l.trim()).map(l=>`<li>${l.trim()}</li>`).join('') || '<li>—</li>';
 
@@ -1539,20 +1360,14 @@ function _ce5PrintHtml(forDownload) {
     </div>
   </div>
   <div class="bill-title">FINAL BILL / DISCHARGE RECEIPT</div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:20px">
+  <div style="margin-bottom:20px">
     <div class="section">
       <div class="section-title">Patient Details</div>
-      <table><tr><td style="color:#666;width:40%">Name</td><td><b>${_CE.patientName||'—'}</b></td></tr>
+      <table style="max-width:420px"><tr><td style="color:#666;width:40%">Name</td><td><b>${_CE.patientName||'—'}</b></td></tr>
       <tr><td style="color:#666">MRN</td><td style="font-family:monospace">${_CE.mrn||'—'}</td></tr>
       <tr><td style="color:#666">Age / Sex</td><td>${_CE.age||'—'} yrs / ${_CE.gender||'—'}</td></tr>
       <tr><td style="color:#666">Admission</td><td>${_CE.admitDate||'—'}</td></tr>
       <tr><td style="color:#666">Discharge</td><td>${_CE.actualDischargeDate||_CE.dischargeDate||'—'}</td></tr></table>
-    </div>
-    <div class="section">
-      <div class="section-title">Insurance / Payment</div>
-      <table><tr><td style="color:#666;width:40%">Mode</td><td>${_CE.paymentMode||'—'}</td></tr>
-      <tr><td style="color:#666">Insurer</td><td>${ab_info.is_ab_beneficiary ? (ab_info.ab_scheme||'Government Scheme') : (_CE.insuranceCo||'—')}</td></tr>
-      <tr><td style="color:#666">Pre-auth</td><td style="font-family:monospace">${_CE.preauthNo||'—'}</td></tr></table>
     </div>
   </div>
   <div class="section">
@@ -1596,58 +1411,6 @@ function _ce5Download() {
 
 function _ce5Email() {
   _showBillingToast(`📧 Bill emailed to patient (${_CE.mrn || 'PT'}) — copy saved to records.`, '#16a34a');
-}
-
-/* ── CE5 — Insurance claim submission ── */
-function _ce5SubmitClaim(insLabel) {
-  const btn      = document.getElementById('ce5-submit-claim-btn');
-  const badge    = document.getElementById('ce5-claim-status-badge');
-  const recon    = _ce4Data?.reconciliation || {};
-  const claimType = (recon.payment_mode || _CE.paymentMode || '').toLowerCase() === 'reimbursement' ? 'Reimbursement' : 'Cashless';
-  if (btn)  { btn.disabled = true; btn.textContent = 'Submitting…'; }
-  _ceSaveRecord({ billing_phase: 'claim_submitted' }).then(() => {
-    if (badge) { badge.className = 'bd bd-ok'; badge.textContent = 'Submitted to ' + insLabel; }
-    if (btn)   { btn.textContent = '✓ Submitted'; btn.style.color = 'var(--ok)'; }
-    _showBillingToast(`✅ Claim submitted to ${insLabel}. Reference saved.`, '#16a34a');
-
-    // Reimbursement specifically needs the PATIENT to file the claim with
-    // their insurer -- Cashless goes through the hospital's TPA portal, not
-    // an email the patient sends themselves, so this only applies there.
-    if (claimType === 'Reimbursement') {
-      const fmt = n => '₹' + Math.round(n || 0).toLocaleString('en-IN');
-      const gross = recon.actual_gross || 0;
-      const subject = encodeURIComponent(`Reimbursement Claim — ${_CE.patientName || 'Patient'} — Policy ${_CE.policyNo || ''}`);
-      const body = encodeURIComponent(
-`To ${insLabel} Claims Department,
-
-I am submitting a reimbursement claim for hospitalisation expenses under my policy.
-
-━━━━━━━━━━━━━━━━━━━━━━
-POLICY DETAILS
-━━━━━━━━━━━━━━━━━━━━━━
-Policyholder   : ${_CE.patientName || '—'}
-Policy Number  : ${_CE.policyNo || '—'}
-${_CE.claimNo ? `Claim Number   : ${_CE.claimNo}\n` : ''}Sum Insured    : ${_CE.sumInsured ? fmt(parseInt(_CE.sumInsured)) : '—'}
-Bill % Covered : ${_CE.coveragePct ? _CE.coveragePct + '%' : '—'}
-
-━━━━━━━━━━━━━━━━━━━━━━
-HOSPITALISATION DETAILS
-━━━━━━━━━━━━━━━━━━━━━━
-Patient MRN    : ${_CE.mrn || '—'}
-Admission      : ${_CE.admitDate || '—'}
-Discharge      : ${_CE.dischargeDate || '—'}
-Total Bill Paid: ${fmt(gross)}
-
-I have paid the full hospital bill and am attaching the discharge summary, itemised final bill, and payment receipt for claim processing. Please process the reimbursement to my registered bank account at your earliest convenience.
-
-Regards,
-${_CE.patientName || 'Patient'}
-`);
-      const gmailUrl = `https://mail.google.com/mail/?view=cm&su=${subject}&body=${body}`;
-      window.open(gmailUrl, '_blank');
-      _showBillingToast('📧 Claim email opened — attach the discharge summary, bill, and receipt before sending.', '#2563eb');
-    }
-  });
 }
 
 function openModal(id, extra) {
@@ -1736,7 +1499,7 @@ ${stepFlow('ce1')}
     ${hasPatient ? `<span class="bd bd-blue">Auto-filled from admission</span>` : `<span class="bd bd-gray">Manual Entry</span>`}
   </div>
 </div>
-<div class="grid2">
+<div>
   <div>
     <div class="card" style="margin-bottom:12px">
       <div class="card-title">Patient &amp; Clinical Details</div>
@@ -1781,68 +1544,6 @@ ${stepFlow('ce1')}
           ? `<div class="fi" style="display:flex;align-items:center;gap:8px;color:var(--muted)"><span style="animation:livePulse 1.4s ease-in-out infinite">⏳</span> Calculating…</div>`
           : `<input class="fi" id="ce1-los" type="number" value="${_CE.losDays || ''}" readonly style="background:var(--surf)">`}
       </div>
-    </div>
-    <div class="card" id="ce1-ab-card">
-      <div class="card-title">Ayushman Bharat / Govt. Scheme</div>
-      <div class="check-row"><input type="checkbox" id="ab-chk" ${_CE.isAbBeneficiary ? 'checked' : ''} onchange="_ce1SchemeChange()"> <label for="ab-chk">Patient is covered under a government health scheme</label></div>
-      <div class="fg"><label class="fl">Scheme</label>
-        <select class="fi" id="ce1-abscheme" onchange="_ce1SchemeChange()">
-          <option ${_CE.abScheme==='PM-JAY'?'selected':''}>PM-JAY</option>
-          <option ${_CE.abScheme==='Haryana Government Scheme'?'selected':''}>Haryana Government Scheme</option>
-          <option ${_CE.abScheme==='CGHS'?'selected':''}>CGHS</option>
-          <option ${_CE.abScheme==='ESI'?'selected':''}>ESI</option>
-        </select>
-      </div>
-      <div id="ce1-scheme-banner" style="display:none;margin-top:8px"></div>
-    </div>
-  </div>
-
-  <div class="card" id="ce1-insurance-card" style="${_CE.isAbBeneficiary?'display:none':''}">
-    <div class="card-title">Insurance &amp; Payment Details</div>
-    <div class="fg"><label class="fl">Payment Mode</label>
-      <div style="display:flex;gap:16px;margin-top:4px">
-        ${['Cashless','Reimbursement','Self-pay'].map(m=>`<label class="radio-row"><input type="radio" name="pay" id="pay-${m.toLowerCase()}" value="${m}" ${_CE.paymentMode===m?'checked':''} onchange="_ce1PayModeChange()"> ${m}</label>`).join('')}
-      </div>
-      <div class="fi-hint" style="margin-top:4px">
-        <b>Cashless</b>: insurer pays hospital directly via TPA — patient pays only copay &amp; excess at checkout.&ensp;
-        <b>Reimbursement</b>: patient pays full bill upfront, then claims back from insurer.&ensp;
-        <b>Self-pay</b>: no insurance.
-      </div>
-    </div>
-    <!-- Common fields: Insurance co + Policy no -- the only two that matter regardless of mode. Hidden for Self-pay. -->
-    <div id="ce1-insur-common" style="${_CE.paymentMode==='Self-pay'?'display:none':''}">
-      <div class="fg"><label class="fl">Insurance Company</label>
-        <select class="fi" id="ce1-insco">
-          ${_BIL_INSURERS.map(c=>`<option ${_CE.insuranceCo===c?'selected':''}>${c}</option>`).join('')}
-        </select>
-      </div>
-      <div class="fg"><label class="fl">Policy Number</label><input class="fi" id="ce1-polno" value="${_CE.policyNo || ''}"></div>
-    </div>
-    <!-- Cashless-only: TPA, co-pay, room rent limit, and pre-auth all only mean
-         something when the insurer is paying the hospital directly and capping
-         costs at checkout -- none of it applies to Reimbursement, where the
-         patient pays in full and deals with the insurer afterward. -->
-    <div id="ce1-cashless-group" style="${_CE.paymentMode!=='Cashless'?'display:none':''}">
-      <div class="frow">
-        <div class="fg"><label class="fl">TPA Name</label><input class="fi" id="ce1-tpa" value="${_CE.tpaName || ''}" placeholder="e.g. Medi Assist, Paramount"></div>
-        <div class="fg"><label class="fl">Co-pay Clause (%)</label><input class="fi" id="ce1-copay" value="${_CE.copayPct || ''}" placeholder="e.g. 10"></div>
-      </div>
-      <div class="frow">
-        <div class="fg"><label class="fl">Pre-auth Number</label><input class="fi" id="ce1-pano" value="${_CE.preauthNo || ''}" placeholder="TPA authorisation code"></div>
-        <div class="fg"><label class="fl">Pre-auth Approved Amount (₹)</label><input class="fi" id="ce1-paamt" value="${_CE.preauthAmt || ''}" placeholder="e.g. 350000"></div>
-      </div>
-      <div class="fi-hint">Pre-auth is mandatory for cashless treatment — obtain from TPA before procedure.</div>
-    </div>
-    <!-- Reimbursement-only: Sum insured + Claim no -->
-    <div id="ce1-reimb-group" style="${_CE.paymentMode!=='Reimbursement'?'display:none':''}">
-      <div class="frow">
-        <div class="fg"><label class="fl">Sum Insured (₹)</label><input class="fi" id="ce1-sumins" value="${_CE.sumInsured || ''}" placeholder="Total policy coverage limit"></div>
-        <div class="fg"><label class="fl">Bill % Insurer Will Cover</label><input class="fi" id="ce1-covpct" value="${_CE.coveragePct || ''}" placeholder="e.g. 80"></div>
-      </div>
-      <div class="frow">
-        <div class="fg"><label class="fl">Claim Number (if pre-filed)</label><input class="fi" id="ce1-claimno" value="${_CE.claimNo || ''}" placeholder="Insurance claim reference"></div>
-      </div>
-      <div class="fi-hint">Patient will pay full hospital bill and claim reimbursement directly from insurer (4–6 weeks). Sum Insured is the policy's overall ceiling — use % of this bill for the claim estimate, since sum insured can exceed the actual bill.</div>
     </div>
   </div>
 </div>
@@ -1920,36 +1621,11 @@ ${stepFlow('ce2')}
     </table>`
     : `<div style="color:var(--muted);font-size:12px;padding:12px 0">No charges recorded yet (Day ${ml.hospital_day}).</div>`;
 
-  // Simple scheme-aware patient liability off the ML P50 -- same logic as
-  // backend CE4 reconciliation, applied client-side for the pre-discharge view.
-  const schemeStr = (_CE.abScheme || '').toUpperCase();
-  let ptLiable, insEst, schemeNote;
-  let schemeNoteClass = 'al-ok', schemeNoteIcon = '✅';
-  if (_CE.isAbBeneficiary && (schemeStr.includes('PM-JAY') || schemeStr.includes('PMJAY') || schemeStr.includes('ESI') || schemeStr.includes('HARYANA'))) {
-    ptLiable = 0; insEst = exp;
-    schemeNote = `${_CE.abScheme} covers the estimated total. Patient liability: ₹0`;
-  } else if (_CE.isAbBeneficiary && schemeStr.includes('CGHS')) {
-    insEst = Math.round(exp * 0.85); ptLiable = Math.round(exp * 0.15);
-    schemeNote = `CGHS covers ${fmt(insEst)}. Patient pays ~15% (excess + non-covered) = ${fmt(ptLiable)}`;
-  } else if ((_CE.paymentMode || '').toLowerCase() === 'cashless') {
-    const copayPct = parseFloat(_CE.copayPct) || 10;
-    const copayAmt = Math.round(exp * copayPct / 100);
-    insEst = exp - copayAmt;
-    ptLiable = copayAmt;
-    schemeNote = null;
-  } else if ((_CE.paymentMode || '').toLowerCase() === 'reimbursement') {
-    // Matches backend CE4 logic: patient pays the full amount now, claims
-    // back from the insurer afterward -- not the hospital's concern once
-    // paid, so this is a "claim later" note, not money subtracted here.
-    const insLabel = (_CE.insuranceCo || 'your insurer').split(' ')[0];
-    const coveragePct = parseFloat(_CE.coveragePct) || 80;
-    const claimEst = Math.round(exp * coveragePct / 100);
-    ptLiable = exp; insEst = 0;
-    schemeNote = `Reimbursement — you pay ${fmt(exp)} now, then claim up to ${fmt(claimEst)} (${coveragePct}%) back from ${insLabel} separately.`;
-    schemeNoteClass = 'al-info'; schemeNoteIcon = 'ℹ️';
-  } else {
-    ptLiable = exp; insEst = 0; schemeNote = null;
-  }
+  // Patient pays the full estimated bill -- there is no third-party payer in
+  // this flow, so the selected band amount IS the patient's liability.
+  const selBand   = _CE.cost || 'expected';
+  const bandLabel = selBand === 'floor' ? 'Low' : selBand === 'ceiling' ? 'High' : 'Typical';
+  const ptLiable  = selBand === 'floor' ? floor : selBand === 'ceiling' ? ceil : exp;
 
   return `
 <div class="bc">
@@ -1993,13 +1669,12 @@ ${stepFlow('ce2')}
   </div>
   <div>
     <div class="card" style="margin-bottom:12px">
-      <div class="card-title">${_CE.isAbBeneficiary && _CE.abScheme ? _CE.abScheme + ' Coverage' : 'Mediclaim Breakdown' + (_CE.insuranceCo ? ' — ' + _CE.insuranceCo.split(' ')[0] : '')}</div>
-      ${schemeNote ? `<div class="alert ${schemeNoteClass}" style="margin-bottom:8px;font-size:12px">${schemeNoteIcon} ${schemeNote}</div>` : ''}
+      <div class="card-title">Estimated Patient Liability</div>
       <table style="width:100%;font-size:12.5px"><tbody>
-        ${_CE.isAbBeneficiary ? `<tr style="border-bottom:1px solid var(--border)"><td style="padding:7px 0;color:var(--muted)">Scheme reimburses</td><td style="padding:7px 0;text-align:right;font-weight:700;color:var(--ok)">${fmt(insEst)}</td></tr>` : `<tr style="border-bottom:1px solid var(--border)"><td style="padding:7px 0;color:var(--muted)">Est. insurance payout</td><td style="padding:7px 0;text-align:right;font-weight:700">${fmt(insEst)}</td></tr>`}
-        <tr style="border-top:2px solid var(--border)"><td style="padding:7px 0;font-weight:800">Estimated Patient Liability</td><td style="padding:7px 0;text-align:right;font-weight:900;font-size:15px;color:${ptLiable === 0 ? 'var(--ok)' : 'var(--p)'}">${fmt(ptLiable)}</td></tr>
-        ${!_CE.isAbBeneficiary ? `<tr><td style="padding:7px 0;color:var(--muted)">Co-pay clause</td><td style="padding:7px 0;text-align:right">${_CE.copayPct ? _CE.copayPct + '% of approved' : '—'}</td></tr>` : ''}
+        <tr style="border-bottom:1px solid var(--border)"><td style="padding:7px 0;color:var(--muted)">Selected band</td><td style="padding:7px 0;text-align:right;font-weight:700">${bandLabel}</td></tr>
+        <tr style="border-top:2px solid var(--border)"><td style="padding:7px 0;font-weight:800">Estimated Patient Liability</td><td style="padding:7px 0;text-align:right;font-weight:900;font-size:15px;color:var(--p)">${fmt(ptLiable)}</td></tr>
       </tbody></table>
+      <div style="font-size:10px;color:var(--muted);margin-top:8px">ML prediction for the full stay. Actual charges are reconciled at discharge.</div>
     </div>
     <div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end">
       <button class="btn btn-sec" onclick="showScreen('ce1')">← Back</button>
@@ -2085,7 +1760,7 @@ ${stepFlow('ce4')}
     return hdr + `<div style="padding:48px;text-align:center;color:var(--muted)">Loading reconciliation data…</div>`;
   }
 
-  const { patient, discharge, estimate, ab_info, actuals_saved, reconciliation } = _ce4Data;
+  const { patient, discharge, estimate, actuals_saved, reconciliation } = _ce4Data;
   const reconItems   = reconciliation?.computed_actual_items || [];
   // computed_estimate_items is always empty by design (the ML model predicts
   // a total range, not a per-category future breakdown -- no real
@@ -2147,41 +1822,10 @@ ${stepFlow('ce4')}
     </tr>`;
   }).join('');
 
-  const _schemeSummary = reconciliation?.scheme_summary || '';
-  const _patientFinal  = reconciliation?.patient_pay_final;
-  const _govtFinal     = reconciliation?.govt_pay_final;
-  const _reconPayMode  = (reconciliation?.payment_mode || '').toLowerCase();
-  const _reconInsCo    = reconciliation?.insurance_co || '';
-  const abBlock = (() => {
-    if (ab_info.is_ab_beneficiary) {
-      const scheme = ab_info.ab_scheme || 'PM-JAY';
-      const schemeClass = scheme.includes('CGHS') ? 'al-info' : 'al-ok';
-      const schemeIcon  = scheme.includes('CGHS') ? 'ℹ️' : '✅';
-      const patientLine = _patientFinal != null
-        ? `<br><b>Patient pays: ${fmt(_patientFinal)}</b>${_govtFinal ? ` · Scheme reimburses: ${fmt(_govtFinal)}` : ''}`
-        : '';
-      return `<div class="alert ${schemeClass}" style="margin-bottom:12px">
-        ${schemeIcon} <b>${scheme}</b><br>
-        ${_schemeSummary || `Government reimburses up to ${fmt(_govtFinal)}.`}${patientLine}
-      </div>`;
-    }
-    if (_reconPayMode === 'cashless' && _schemeSummary) {
-      const insLabel = _reconInsCo || 'Insurance';
-      return `<div class="alert al-ok" style="margin-bottom:12px">
-        🏥 <b>${insLabel} — Cashless</b><br>
-        ${_schemeSummary}<br>
-        <b>Patient liability: ${fmt(_patientFinal)}</b>
-      </div>`;
-    }
-    if (_reconPayMode === 'reimbursement' && _schemeSummary) {
-      const insLabel = _reconInsCo || 'Insurance';
-      return `<div class="alert al-info" style="margin-bottom:12px">
-        📋 <b>${insLabel} — Reimbursement</b><br>
-        ${_schemeSummary}
-      </div>`;
-    }
-    return '';
-  })();
+  const _patientFinal = reconciliation?.patient_pay_final;
+  const payableBlock  = _patientFinal != null
+    ? `<div class="alert al-info" style="margin-bottom:12px">💰 <b>Patient payable: ${fmt(_patientFinal)}</b></div>`
+    : '';
 
   // Primary diagnosis for display — must match CE1
   const primaryDxBlock = reconciliation?.primary_diagnosis_code ? `
@@ -2248,7 +1892,7 @@ ${stepFlow('ce4')}
         </tr></tfoot>
       </table>
     </div>
-    ${abBlock}
+    ${payableBlock}
     <div id="ce4-variance-alert" class="alert al-info" style="margin-bottom:12px">Enter actual charges for each line item above to compute variance.</div>
     <div class="fg" style="margin-bottom:12px">
       <label class="fl">Reconciliation Notes (optional)</label>
@@ -2267,104 +1911,35 @@ ${stepFlow('ce4')}
 ════════════════════════════════════ */
 ce5: () => {
   const fmt = n => '₹' + Math.round(n||0).toLocaleString('en-IN');
-  const ab_info = _ce4Data?.ab_info || {};
   const recon   = _ce4Data?.reconciliation || {};
-  const abScheme = (ab_info.ab_scheme || '').toUpperCase();
-  const isPmjay  = ab_info.is_ab_beneficiary && (abScheme.includes('PM-JAY') || abScheme.includes('PMJAY') || abScheme === '');
-  const isCghs   = ab_info.is_ab_beneficiary && abScheme.includes('CGHS');
-  const isEsi    = ab_info.is_ab_beneficiary && abScheme.includes('ESI');
-  const isHaryana= ab_info.is_ab_beneficiary && abScheme.includes('HARYANA');
-  const isGovt   = isPmjay || isCghs || isEsi || isHaryana;
 
   // Prefer CE4-computed actual_gross; fall back to saved _CE.actualCharges
   const gross = recon.actual_gross || _CE.actualCharges || 0;
 
   // CE4 always computes patient_pay_final — use it as the ground truth for balance
-  const patientPayFinal = recon.patient_pay_final ?? null;
+  const balance    = recon.patient_pay_final ?? (_CE.balanceDue ?? gross);
+  const advance    = _CE.advancePaid || 0;
+  const netBalance = Math.max(0, balance - advance);
 
-  let billSummaryHtml = '';
-  let headerAlert     = '';
-
-  if (isPmjay) {
-    const hbpRate  = ab_info.hbp_rate || recon.govt_pay_final || 0;
-    const writeOff = Math.max(0, gross - hbpRate);
-    headerAlert = `<div class="alert al-ok" style="font-size:13.5px;font-weight:700">
-      ✅ PM-JAY Cashless — No payment required from patient
-    </div>`;
-    billSummaryHtml = `<table style="width:100%;font-size:13.5px"><tbody>
-      <tr style="border-bottom:1px solid var(--border)">
-        <td style="padding:9px 0;color:var(--muted)">Gross Hospital Charges</td>
-        <td style="padding:9px 0;text-align:right;font-weight:600">${fmt(gross)}</td>
-      </tr>
-      <tr style="border-bottom:1px solid var(--border)">
-        <td style="padding:9px 0;color:var(--muted)">PM-JAY Covers (ML-quoted estimate)</td>
-        <td style="padding:9px 0;text-align:right;font-weight:600;color:var(--ok)">− ${fmt(hbpRate)}</td>
-      </tr>
-      <tr style="border-bottom:1px solid var(--border)">
-        <td style="padding:9px 0;color:var(--muted);font-size:11px">Hospital Adjustment (internal write-off)</td>
-        <td style="padding:9px 0;text-align:right;font-weight:600;color:var(--muted);font-size:11px">− ${fmt(writeOff)}</td>
-      </tr>
-      <tr style="border-top:2px solid var(--border)">
-        <td style="padding:10px 0;font-weight:900;font-size:16px">Patient Balance</td>
-        <td style="padding:10px 0;text-align:right;font-weight:900;font-size:24px;color:var(--ok)">₹0</td>
-      </tr>
-    </tbody></table>`;
-  } else if (isCghs || isEsi || isHaryana) {
-    const schemeName  = isCghs ? 'CGHS' : isEsi ? 'ESI' : 'Haryana State Scheme';
-    const govtPays    = recon.govt_pay_final || 0;
-    const patientPays = patientPayFinal ?? Math.max(0, gross - govtPays);
-    headerAlert = patientPays === 0
-      ? `<div class="alert al-ok" style="font-size:13.5px;font-weight:700">✅ ${schemeName} Cashless — No payment required from patient</div>`
-      : `<div class="alert al-warn" style="font-size:13.5px;font-weight:700">⚠️ ${schemeName} — Patient must pay balance before discharge</div>`;
-    billSummaryHtml = `<table style="width:100%;font-size:13.5px"><tbody>
-      <tr style="border-bottom:1px solid var(--border)">
-        <td style="padding:9px 0;color:var(--muted)">Gross Hospital Charges</td>
-        <td style="padding:9px 0;text-align:right;font-weight:600">${fmt(gross)}</td>
-      </tr>
-      <tr style="border-bottom:1px solid var(--border)">
-        <td style="padding:9px 0;color:var(--muted)">${schemeName} Covers</td>
-        <td style="padding:9px 0;text-align:right;font-weight:600;color:var(--ok)">− ${fmt(govtPays)}</td>
-      </tr>
-      <tr style="border-top:2px solid var(--border)">
-        <td style="padding:10px 0;font-weight:900;font-size:16px">Patient Balance</td>
-        <td style="padding:10px 0;text-align:right;font-weight:900;font-size:24px;color:${patientPays===0?'var(--ok)':'var(--t1)'}">${fmt(patientPays)}</td>
-      </tr>
-    </tbody></table>`;
-  } else {
-    // Private cashless / reimbursement / self-pay
-    const payMode     = (recon.payment_mode || _CE.paymentMode || '').toLowerCase();
-    const insCo       = recon.insurance_co  || _CE.insuranceCo || '';
-    const insLabel    = insCo ? ` (${insCo.split(' ')[0]})` : '';
-    // Patient pay = CE4's computed patient_pay_final; insurance absorbs the rest
-    const balance     = patientPayFinal ?? (_CE.balanceDue || 0);
-    const insCovered  = patientPayFinal != null ? Math.max(0, gross - balance) : (_CE.insurancePaid || 0);
-    const advance     = _CE.advancePaid || 0;
-    const netBalance  = Math.max(0, balance - advance);
-    headerAlert = netBalance === 0
-      ? `<div class="alert al-ok" style="font-size:13.5px;font-weight:700">✅ Fully settled — No balance due</div>`
-      : `<div class="alert al-err" style="font-size:13.5px;font-weight:700">⚠️ PATIENT MUST SETTLE BALANCE BEFORE DISCHARGE</div>`;
-    const insRow = payMode !== 'self-pay' && insCovered > 0 ? `
-      <tr style="border-bottom:1px solid var(--border)">
-        <td style="padding:9px 0;color:var(--muted)">${payMode === 'reimbursement' ? 'Insurance (Reimbursement)' + insLabel : 'Insurance Cashless' + insLabel}</td>
-        <td style="padding:9px 0;text-align:right;font-weight:600;color:var(--t3)">− ${fmt(insCovered)}</td>
-      </tr>` : '';
-    const advRow = advance > 0 ? `
-      <tr style="border-bottom:1px solid var(--border)">
-        <td style="padding:9px 0;color:var(--muted)">Advance Paid</td>
-        <td style="padding:9px 0;text-align:right;font-weight:600;color:var(--t3)">− ${fmt(advance)}</td>
-      </tr>` : '';
-    billSummaryHtml = `<table style="width:100%;font-size:13.5px"><tbody>
-      <tr style="border-bottom:1px solid var(--border)">
-        <td style="padding:9px 0;color:var(--muted)">Gross Charges</td>
-        <td style="padding:9px 0;text-align:right;font-weight:600">${fmt(gross)}</td>
-      </tr>
-      ${insRow}${advRow}
-      <tr style="border-top:2px solid var(--border)">
-        <td style="padding:10px 0;font-weight:900;font-size:16px">Balance Due</td>
-        <td style="padding:10px 0;text-align:right;font-weight:900;font-size:24px;color:${netBalance===0?'var(--ok)':'var(--t1)'}">${fmt(netBalance)}</td>
-      </tr>
-    </tbody></table>`;
-  }
+  const headerAlert = netBalance === 0
+    ? `<div class="alert al-ok" style="font-size:13.5px;font-weight:700">✅ Fully settled — No balance due</div>`
+    : `<div class="alert al-err" style="font-size:13.5px;font-weight:700">⚠️ PATIENT MUST SETTLE BALANCE BEFORE DISCHARGE</div>`;
+  const advRow = advance > 0 ? `
+    <tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:9px 0;color:var(--muted)">Advance Paid</td>
+      <td style="padding:9px 0;text-align:right;font-weight:600;color:var(--t3)">− ${fmt(advance)}</td>
+    </tr>` : '';
+  const billSummaryHtml = `<table style="width:100%;font-size:13.5px"><tbody>
+    <tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:9px 0;color:var(--muted)">Gross Charges</td>
+      <td style="padding:9px 0;text-align:right;font-weight:600">${fmt(gross)}</td>
+    </tr>
+    ${advRow}
+    <tr style="border-top:2px solid var(--border)">
+      <td style="padding:10px 0;font-weight:900;font-size:16px">Balance Due</td>
+      <td style="padding:10px 0;text-align:right;font-weight:900;font-size:24px;color:${netBalance===0?'var(--ok)':'var(--t1)'}">${fmt(netBalance)}</td>
+    </tr>
+  </tbody></table>`;
 
   return `
 <div class="bc">
@@ -2405,28 +1980,6 @@ ${headerAlert}
       </div>
     </div>
     ${(() => {
-      const recon = _ce4Data?.reconciliation || {};
-      const insCo = recon.insurance_co || _CE.insuranceCo || '';
-      const payMode = (recon.payment_mode || _CE.paymentMode || '').toLowerCase();
-      const isGovtScheme = _ce4Data?.ab_info?.is_ab_beneficiary;
-      if (isGovtScheme || payMode === 'self-pay' || !insCo) return '';
-      const insLabel = insCo.split(' ')[0];
-      const claimType = payMode === 'reimbursement' ? 'Reimbursement' : 'Cashless';
-      return `<div class="card" style="margin-bottom:12px">
-        <div class="card-title">Insurance Claim Status</div>
-        <table style="width:100%;font-size:12px"><tbody>
-          <tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 0;color:var(--muted)">Insurer</td><td style="padding:6px 0;font-weight:600">${insCo}</td></tr>
-          <tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 0;color:var(--muted)">Type</td><td style="padding:6px 0">${claimType}</td></tr>
-          ${claimType === 'Cashless' ? `<tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 0;color:var(--muted)">Pre-auth no.</td><td style="padding:6px 0;font-family:var(--mono)">${_CE.preauthNo || '—'}</td></tr>` : ''}
-          <tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 0;color:var(--muted)">Claim status</td><td style="padding:6px 0"><span id="ce5-claim-status-badge" class="bd bd-t2">Pending Submission</span></td></tr>
-          <tr><td style="padding:6px 0;color:var(--muted)">Submit claim</td><td style="padding:6px 0">
-            <button id="ce5-submit-claim-btn" class="btn btn-sec btn-xs" onclick="_ce5SubmitClaim('${insLabel}')">Submit to ${insLabel}</button>
-          </td></tr>
-        </tbody></table>
-        <div style="font-size:11px;color:var(--muted);margin-top:8px">After discharge, submit all documents (discharge summary, bills, investigation reports) to ${insLabel}'s TPA portal for claim settlement.</div>
-      </div>`;
-    })()}
-    ${(() => {
       const dischMeds = _ce4Data?.discharge?.discharge_meds || '';
       const medsLines = dischMeds.split('\n').filter(l => l.trim());
       const medsHtml = medsLines.length
@@ -2455,7 +2008,6 @@ const MODALS = {
   'opd-patient': (p) => {
     const fmt = n => '₹' + Math.round(n||0).toLocaleString('en-IN');
     const name = p.patient_name || _bilName(p.hadm_id);
-    const insurance = _bilInsurance(p.hadm_id, p.insurance_co, p.payment_mode, p.is_ab_beneficiary, p.ab_scheme);
     const isSettled = ['paid', 'claim_submitted', 'tpa_settled'].includes(p.billing_phase || '');
     const amount = p.expected_est || 0;
     return `
@@ -2464,7 +2016,6 @@ const MODALS = {
 <table style="width:100%;font-size:13px;border-collapse:collapse;margin-bottom:16px"><tbody>
   <tr style="border-bottom:1px solid var(--border)"><td style="padding:8px 0;color:var(--muted);width:110px">MRN</td><td style="padding:8px 0;font-weight:700">${p.mrn || '—'}</td></tr>
   <tr style="border-bottom:1px solid var(--border)"><td style="padding:8px 0;color:var(--muted)">Visit Date</td><td style="padding:8px 0">${p.admit_date || '—'}</td></tr>
-  <tr style="border-bottom:1px solid var(--border)"><td style="padding:8px 0;color:var(--muted)">Insurance</td><td style="padding:8px 0">${insurance}</td></tr>
   ${amount ? `<tr><td style="padding:8px 0;color:var(--muted)">Billed Amount</td><td style="padding:8px 0;font-weight:700">${fmt(amount)}</td></tr>` : ''}
 </tbody></table>
 ${isSettled ? `<div class="alert al-ok" style="margin-bottom:16px">✅ Already settled — this patient is in Final Bill Completed.</div>` : ''}
@@ -2807,42 +2358,6 @@ function _liveRevealNext() {
   }
 })();
 
-// Shows what was actually entered on CE1 -- payment mode, insurer, and the
-// mode-specific details (TPA/co-pay for Cashless, sum insured/claim# for
-// Reimbursement, or the govt scheme) -- so this doesn't disappear once the
-// estimate is generated and the patient moves off CE1 onto this tracking screen.
-function _liveInsuranceBlock() {
-  const rows = [];
-  if (_CE.isAbBeneficiary && _CE.abScheme) {
-    rows.push(['Scheme', _CE.abScheme]);
-  } else {
-    rows.push(['Payment Mode', _CE.paymentMode || '—']);
-    if (_CE.paymentMode !== 'Self-pay') {
-      rows.push(['Insurance Company', _CE.insuranceCo || '—']);
-      if (_CE.policyNo) rows.push(['Policy Number', _CE.policyNo]);
-      if (_CE.paymentMode === 'Cashless') {
-        if (_CE.tpaName)  rows.push(['TPA', _CE.tpaName]);
-        if (_CE.copayPct) rows.push(['Co-pay Clause', _CE.copayPct + '%']);
-      } else if (_CE.paymentMode === 'Reimbursement') {
-        if (_CE.sumInsured) rows.push(['Sum Insured', '₹' + parseInt(_CE.sumInsured).toLocaleString('en-IN')]);
-        rows.push(['Bill % Covered', _CE.coveragePct ? _CE.coveragePct + '%' : '80% (default)']);
-        rows.push(['Claim Number', _CE.claimNo || 'Not yet filed']);
-      }
-    }
-  }
-  return `
-<div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:18px 22px;margin-bottom:16px">
-  <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Insurance &amp; Payment</div>
-  <div style="display:flex;flex-wrap:wrap;gap:20px">
-    ${rows.map(([label, val]) => `
-      <div>
-        <div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.4px">${label}</div>
-        <div style="font-size:13px;font-weight:600;color:var(--ink)">${val}</div>
-      </div>`).join('')}
-  </div>
-</div>`;
-}
-
 SCREENS['ce_live'] = function() {
   const name  = _liveData?.patient_name || _CE.patientName || '—';
   const diag  = _liveData?.diagnosis    || _CE.diagnosis   || '—';
@@ -2878,8 +2393,6 @@ SCREENS['ce_live'] = function() {
     <div id="live-progress-bar" style="height:100%;width:0%;background:#059669;border-radius:99px;transition:width .6s ease,background .3s"></div>
   </div>
 </div>
-
-${_liveInsuranceBlock()}
 
 <!-- ML predicted final-bill range, as of today's hospital day -->
 <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:18px 22px;margin-bottom:16px">
@@ -2948,27 +2461,6 @@ function _ce3PrintHtml() {
   <b style="font-size:12px">Cost Breakdown (charged through Day ${ml?.hospital_day ?? '—'})</b>
   <table><thead><tr><th>Line Item</th><th style="text-align:right">Amount</th></tr></thead>
   <tbody>${lineRows}</tbody></table>
-</div>
-<div class="section">
-  <b style="font-size:12px">Insurance / Payment</b>
-  <table style="width:auto"><tbody>
-    ${_CE.isAbBeneficiary && _CE.abScheme ? `
-    <tr><td class="label" style="padding-right:24px">Scheme</td><td>${_CE.abScheme}</td></tr>
-    ` : `
-    <tr><td class="label" style="padding-right:24px">Mode</td><td>${_CE.paymentMode||'—'}</td></tr>
-    <tr><td class="label">Insurer</td><td>${_CE.insuranceCo||'—'}</td></tr>
-    ${_CE.paymentMode==='Cashless' ? `
-    <tr><td class="label">TPA</td><td>${_CE.tpaName||'—'}</td></tr>
-    <tr><td class="label">Pre-auth No.</td><td>${_CE.preauthNo||'—'}</td></tr>
-    <tr><td class="label">Co-pay</td><td>${_CE.copayPct ? _CE.copayPct+'%' : '—'}</td></tr>
-    ` : ''}
-    ${_CE.paymentMode==='Reimbursement' ? `
-    <tr><td class="label">Sum Insured</td><td>${_CE.sumInsured ? fmt(parseInt(_CE.sumInsured)) : '—'}</td></tr>
-    <tr><td class="label">Bill % Covered</td><td>${_CE.coveragePct ? _CE.coveragePct+'%' : '80% (default)'}</td></tr>
-    <tr><td class="label">Claim No.</td><td>${_CE.claimNo||'Not yet filed'}</td></tr>
-    ` : ''}
-    `}
-  </tbody></table>
 </div>
 <div class="footer">⚠ This is an ML-predicted estimate (XGBoost quantile model, trained on real DCM admissions), not a fixed quote. Actual charges may vary at discharge (reconciliation).</div>
 </body></html>`;
@@ -3044,18 +2536,6 @@ COST BREAKDOWN
 ${lineText}
 
 ━━━━━━━━━━━━━━━━━━━━━━
-INSURANCE / PAYMENT
-━━━━━━━━━━━━━━━━━━━━━━
-${_CE.isAbBeneficiary && _CE.abScheme ? `Scheme       : ${_CE.abScheme}` : `Payment Mode : ${_CE.paymentMode||'—'}
-Insurer      : ${_CE.insuranceCo||'—'}${_CE.paymentMode==='Cashless' ? `
-TPA          : ${_CE.tpaName||'—'}
-Pre-auth No. : ${_CE.preauthNo||'—'}
-Co-pay       : ${_CE.copayPct ? _CE.copayPct+'%' : '—'}` : ''}${_CE.paymentMode==='Reimbursement' ? `
-Sum Insured  : ${_CE.sumInsured ? fmt(parseInt(_CE.sumInsured)) : '—'}
-Bill % Covered: ${_CE.coveragePct ? _CE.coveragePct+'%' : '80% (default)'}
-Claim No.    : ${_CE.claimNo||'Not yet filed'}` : ''}`}
-
-━━━━━━━━━━━━━━━━━━━━━━
 Note: This is an ML-predicted estimate (XGBoost quantile model, trained on real DCM admissions), not a fixed quote. Actual charges may vary at discharge during reconciliation.
 
 Generated: ${now}
@@ -3082,8 +2562,6 @@ Foqal CareOS — Billing Department
     <table style="width:100%;font-size:13px;border-collapse:collapse;margin-bottom:16px"><tbody>
       <tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 0;color:var(--muted);width:110px">Patient</td><td id="ce2b-patient" style="padding:9px 0;font-weight:700"></td></tr>
       <tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 0;color:var(--muted)">Selected band</td><td id="ce2b-band" style="padding:9px 0;font-weight:700"></td></tr>
-      <tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 0;color:var(--muted)">Insurance</td><td id="ce2b-insurance" style="padding:9px 0"></td></tr>
-      <tr id="ce2b-preauth-row" style="border-bottom:1px solid var(--border)"><td style="padding:9px 0;color:var(--muted)">Pre-auth No.</td><td id="ce2b-preauth" style="padding:9px 0;font-family:var(--mono);font-size:11.5px"></td></tr>
       <tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 0;color:var(--muted)">Entered by</td><td id="ce2b-enteredby" style="padding:9px 0"></td></tr>
       <tr><td style="padding:9px 0;color:var(--muted)">Timestamp</td><td id="ce2b-ts" style="padding:9px 0;font-family:var(--mono);font-size:11.5px"></td></tr>
     </tbody></table>

@@ -23,7 +23,6 @@ CREATE TABLE IF NOT EXISTS hospital_core.hospitals (
     name            VARCHAR(200) NOT NULL,
     type            VARCHAR(20)  NOT NULL DEFAULT 'PRIVATE' CHECK (type IN ('TERTIARY','PRIVATE','GOVT')),
     nabh_accredited BOOLEAN      NOT NULL DEFAULT FALSE,
-    rohini_id       VARCHAR(30),                          -- Indian insurance registration
     address         TEXT,
     phone           VARCHAR(20),
     created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
@@ -83,8 +82,6 @@ CREATE TABLE IF NOT EXISTS hospital_core.patients (
     dob             DATE,
     sex             CHAR(1)      CHECK (sex IN ('M','F','O')),
     contact         VARCHAR(20),
-    insurance_type  VARCHAR(30)  DEFAULT 'None'
-                        CHECK (insurance_type IN ('Ayushman_Bharat','CGHS','ESI','Private','None')),
     created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
@@ -149,31 +146,9 @@ CREATE TABLE IF NOT EXISTS hospital_core.his_patient_sync (
     error_message   TEXT
 );
 
-CREATE TABLE IF NOT EXISTS hospital_core.insurance_policies (
-    policy_id       UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-    uhid            VARCHAR(30) NOT NULL REFERENCES hospital_core.patients(uhid),
-    provider        VARCHAR(100) NOT NULL,
-    policy_number   VARCHAR(60)  NOT NULL,
-    coverage_percent DECIMAL(5,2) NOT NULL DEFAULT 0,
-    deductible      DECIMAL(12,2) NOT NULL DEFAULT 0,
-    co_pay_percent  DECIMAL(5,2)  NOT NULL DEFAULT 0,
-    effective_date  DATE         NOT NULL,
-    expiry_date     DATE         NOT NULL,
-    is_active       BOOLEAN      NOT NULL DEFAULT TRUE
-);
-
-CREATE TABLE IF NOT EXISTS hospital_core.pre_auth_requests (
-    preauth_id      UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-    admission_id    UUID        NOT NULL REFERENCES hospital_core.admissions(admission_id),
-    insurance_policy_id UUID    NOT NULL REFERENCES hospital_core.insurance_policies(policy_id),
-    estimated_cost  DECIMAL(14,2) NOT NULL,
-    status          VARCHAR(20)   NOT NULL DEFAULT 'pending'
-                        CHECK (status IN ('pending','approved','denied','expired')),
-    approval_number VARCHAR(60),
-    valid_until     DATE,
-    requested_at    TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
-    decided_at      TIMESTAMPTZ
-);
+-- Insurance policies / TPA pre-auth tables removed: no insurer, TPA, or
+-- government scheme is part of this product's billing flow. The patient is
+-- billed the reconciled hospital charges directly.
 
 CREATE TABLE IF NOT EXISTS hospital_core.cost_lookups (
     cost_id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),

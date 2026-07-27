@@ -383,8 +383,8 @@ def add_patient(patient: PatientCreate, db: Session = Depends(get_db)):
         sex_char = 'M'
     
     db.execute(sql_text("""
-        INSERT INTO hospital_core.patients (uhid, hospital_id, full_name, sex, insurance_type)
-        VALUES (:uhid, :hid, :name, :sex, 'None')
+        INSERT INTO hospital_core.patients (uhid, hospital_id, full_name, sex)
+        VALUES (:uhid, :hid, :name, :sex)
         ON CONFLICT (uhid) DO NOTHING
     """), {"uhid": uhid, "hid": hospital_id, "name": patient.name, "sex": sex_char})
 

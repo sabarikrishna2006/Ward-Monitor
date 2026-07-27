@@ -885,7 +885,7 @@ function rv2SrcTabBody(tab) {
     const fld = k => `<td style="width:200px;font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.3px;padding:10px 14px">${k}</td>`;
     const val = v => `<td style="font-size:13px;padding:10px 14px">${v}</td>`;
     return `<table class="rv2t" style="border-radius:0"><tbody>
-      ${[['Admission Type',`<span class="rv2p ${(a.admission_type==='EMERGENCY'||a.admission_type==='URGENT')?'rv2p-red':'rv2p-amber'}">${a.admission_type||'URGENT'}</span>`],['Admission Date / Time',fmtDT(a.admittime||a.admit_time)||'Not recorded'],['Insurance / TPA',a.insurance||'—'],['Admit Diagnosis',`<span class="rv2b">${(d.diagnoses&&d.diagnoses[0]&&d.diagnoses[0].long_title)||a.diagnosis||'—'}</span>`]].map(([k,v])=>`<tr>${fld(k)}${val(v)}</tr>`).join('')}
+      ${[['Admission Type',`<span class="rv2p ${(a.admission_type==='EMERGENCY'||a.admission_type==='URGENT')?'rv2p-red':'rv2p-amber'}">${a.admission_type||'URGENT'}</span>`],['Admission Date / Time',fmtDT(a.admittime||a.admit_time)||'Not recorded'],['Admit Diagnosis',`<span class="rv2b">${(d.diagnoses&&d.diagnoses[0]&&d.diagnoses[0].long_title)||a.diagnosis||'—'}</span>`]].map(([k,v])=>`<tr>${fld(k)}${val(v)}</tr>`).join('')}
     </tbody></table>`;
   }
   if (tab==='Diagnoses') {

@@ -127,7 +127,7 @@ def _synth_display(hadm_id: int) -> dict:
             row = conn.execute(_text(
                 "SELECT patient_name, gender, anchor_age, admitting_diagnosis, "
                 "primary_diagnosis_title, diagnosis_short, admit_time, patient_code, "
-                "ward, room, bed, admission_type, race, insurance "
+                "ward, room, bed, admission_type, race "
                 "FROM active_patients WHERE hadm_id=:h"
             ), {"h": hadm_id}).fetchone()
     except Exception:
@@ -142,13 +142,12 @@ def _synth_display(hadm_id: int) -> dict:
     pt_code    = (row[7] if row else None) or f"PT-00-{hadm_id}"
     adm_type   = (row[11] if row else None) or "EMERGENCY"
     race       = (row[12] if row else None) or "UNKNOWN"
-    insurance  = (row[13] if row else None) or "Other"
 
     adm = {
         "hadm_id": hadm_id, "subject_id": hadm_id,
         "patient_name": name, "full_name": name,
         "gender": gender, "anchor_age": age,
-        "admission_type": adm_type, "race": race, "insurance": insurance,
+        "admission_type": adm_type, "race": race,
         "admission_location": "EMERGENCY ROOM ADMIT",
         "discharge_location": "HOME",
         "admittime": admit_time, "admit_time": admit_time,

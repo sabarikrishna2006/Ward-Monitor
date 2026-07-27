@@ -567,7 +567,6 @@ function _tabBody(t) {
     }
     const admitFmt = _fmtDT(a.admittime || a.admit_time) || 'Not recorded';
     const admType  = a.admission_type || 'URGENT';
-    const insurance= a.insurance || 'Star Health — TPA Direct';
     const wardPath = (() => {
       if (S.transfers && S.transfers.length > 1) {
         const units = [...new Set(S.transfers.filter(tr=>tr.careunit).map(tr=>tr.careunit))];
@@ -583,7 +582,6 @@ function _tabBody(t) {
       ['Admission ID',         `<span class="mono" style="font-weight:700;color:var(--blue)">${_pidLabel}-ADM-01</span>`],
       ['Admission Type',       `<span class="pill ${admType==='EMERGENCY'||admType==='URGENT'?'pill-red':'pill-amber'}">${admType}</span>`],
       ['Admission Date / Time', admitFmt],
-      ['Insurance / TPA',      insurance],
       ['Admit Diagnosis',      `<span style="font-weight:600">${(S.diagnoses&&S.diagnoses[0]&&S.diagnoses[0].long_title) || S.admission?.diagnosis || S.patient?.admission_diagnosis || '—'}</span>`],
       ['Ward Path',            `<span style="font-weight:500">${wardPath}</span>`],
     ];
@@ -1623,7 +1621,6 @@ function buildSourceDataText() {
   row('Admitted From',  a.admission_location || 'N/A');
   row('Discharged To',  a.discharge_location || 'N/A');
   row('Discharge Type', S.dischargeType || 'Not selected');
-  row('Insurance',      a.insurance || 'N/A');
   row('Expired in stay',a.hospital_expire_flag == 1 ? 'Yes' : 'No');
 
   // §2 Chief Complaint
