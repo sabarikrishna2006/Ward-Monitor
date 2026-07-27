@@ -480,39 +480,11 @@ async def startup_event():
     except Exception as _e:
         log.warning(f"Migration 028 skipped: {_e}")
 
-    # ── Seed synthetic OPD (never-admitted) patients ──────────────────────────
-    try:
-        import json as _json
-        from .synthetic_opd_patients import OPD_PATIENTS
-        with _get_engine().begin() as _conn:
-            for _p in OPD_PATIENTS:
-                _conn.execute(_text("""
-                    INSERT INTO active_patients
-                        (hadm_id, subject_id, patient_name, gender, anchor_age,
-                         primary_diagnosis_title, status, is_admitted, data_fetch_status, admit_time)
-                    VALUES
-                        (:h, :h, :name, :gender, :age, :diag, 'archived', FALSE, 'fetched', :admit_time)
-                    ON CONFLICT (hadm_id) DO UPDATE
-                        SET is_admitted = FALSE
-                """), {"h": _p["hadm_id"], "name": _p["patient_name"], "gender": _p["gender"],
-                       "age": _p["anchor_age"], "diag": _p["primary_diagnosis_title"],
-                       "admit_time": _p["visit_date"]})
-                _conn.execute(_text("""
-                    INSERT INTO billing_records
-                        (hadm_id, billing_phase,
-                         expected_est, actual_charges, advance_paid, balance_due, line_items)
-                    VALUES
-                        (:h, :phase, :est, :chg, :apaid, :bal, :items)
-                    ON CONFLICT (hadm_id) DO UPDATE
-                        SET billing_phase  = EXCLUDED.billing_phase
-                    WHERE billing_records.actual_charges IS NULL AND billing_records.expected_est IS NULL
-                """), {"h": _p["hadm_id"], "phase": _p["billing_phase"],
-                       "est": _p["expected_est"], "chg": _p.get("actual_charges"),
-                       "apaid": _p.get("advance_paid"), "bal": _p.get("balance_due"),
-                       "items": _json.dumps(_p["line_items"])})
-        log.info(f"OPD synthetic patients seeded ({len(OPD_PATIENTS)})")
-    except Exception as _e:
-        log.warning(f"OPD patient seeding skipped: {_e}")
+    # NOTE: the synthetic OPD (never-admitted) patient seeding that used to run
+    # here is gone. Those rows only ever existed to demo a walk-in quick-pay
+    # path that is not part of the billing flow. The dashboard queries also
+    # filter on ap.is_admitted, so any rows an older build already seeded stay
+    # out of the UI without needing to be deleted.
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -796,7 +768,7 @@ def billing_dashboard():
 
     _COLS = """
         ap.hadm_id, ap.subject_id, ap.gender, ap.anchor_age,
-        ap.patient_name, ap.is_admitted,
+        ap.patient_name,
         ap.admit_time, ap.discharge_time, ap.los_days, ap.created_at, ap.estimate_generated_at,
         ap.primary_diagnosis_title,
         ae.id          AS encounter_id,
@@ -818,14 +790,13 @@ def billing_dashboard():
             FROM active_patients ap
             LEFT JOIN app_encounters ae ON ae.hadm_id = ap.hadm_id
             LEFT JOIN billing_records br ON br.hadm_id = ap.hadm_id
-            WHERE (
+            WHERE ap.is_admitted = TRUE
+              AND (
                 -- No encounter yet (discharge not initiated) but a cost estimate was
                 -- generated/saved — billing dashboard should still surface these as
                 -- "Admission" phase even though app_encounters is intentionally not
                 -- created until "Initiate Discharge" (see generate_billing_estimate()).
-                -- Excludes already-settled bills (mainly OPD/never-admitted patients,
-                -- who have no encounter/discharge flow to move them out of this list
-                -- any other way once paid — e.g. via the "Not Admitted" quick-pay modal).
+                -- Excludes already-settled bills.
                 (ae.id IS NULL AND br.id IS NOT NULL
                  AND COALESCE(br.billing_phase, '') NOT IN ('paid', 'claim_submitted', 'tpa_settled'))
                 OR ae.status IN (
@@ -920,7 +891,6 @@ def billing_dashboard():
             "mrn":            f"PT-{p['hadm_id']}",
             "subject_id":     p["subject_id"],
             "patient_name":   p.get("patient_name") or None,
-            "is_admitted":    bool(p.get("is_admitted", True)),
             "admit_date":     _fmt(p.get("admit_time")),
             "discharge_date": _fmt(p.get("discharge_time")),
             # Raw passthrough so the frontend can compute its own display
@@ -955,14 +925,15 @@ def billing_dashboard():
             SELECT br.hadm_id, br.billing_phase, br.balance_due,
                    br.expected_est, br.actual_charges,
                    br.expected_los_days, br.ward_type,
-                   ap.subject_id, ap.gender, ap.anchor_age, ap.is_admitted,
+                   ap.subject_id, ap.gender, ap.anchor_age,
                    ap.primary_diagnosis_title,
                    ap.admit_time, ap.discharge_time, ap.estimate_generated_at, ap.created_at,
                    COALESCE((SELECT SUM(i.los) FROM ap_icustays i WHERE i.hadm_id = br.hadm_id), 0) AS icu_days,
                    COALESCE((SELECT COUNT(*) FROM ap_procedures p WHERE p.hadm_id = br.hadm_id), 0) AS proc_count
             FROM billing_records br
             JOIN active_patients ap ON ap.hadm_id = br.hadm_id
-            WHERE br.billing_phase IN ('claim_submitted','tpa_settled','paid')
+            WHERE ap.is_admitted = TRUE
+              AND br.billing_phase IN ('claim_submitted','tpa_settled','paid')
             ORDER BY br.updated_at DESC LIMIT 50
         """)).fetchall()
 
@@ -988,7 +959,6 @@ def billing_dashboard():
             "hadm_id":        r["hadm_id"],
             "mrn":            f"PT-{r['hadm_id']}",
             "subject_id":     r["subject_id"],
-            "is_admitted":    bool(r.get("is_admitted", True)),
             "gender":         r.get("gender", ""),
             "age":            r.get("anchor_age", ""),
             "admit_date":     _fmt(r.get("admit_time")),

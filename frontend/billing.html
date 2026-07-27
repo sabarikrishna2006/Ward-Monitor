@@ -515,10 +515,7 @@ async function _loadBillingDashboard() {
     const pendingPts = pending_actions;
 
     // ── Pending Actions table (Phase 1/2 + Phase 4) — filterable by HADM ID + status ──
-    // Never-admitted OPD patients don't belong to the Admission/Discharge/Final
-    // Bill flow at all -- surface them first so they don't get buried among
-    // in-progress admissions further down the list.
-    _ce0PendingRaw = pendingPts.slice().sort((a, b) => (a.is_admitted === false ? 0 : 1) - (b.is_admitted === false ? 0 : 1));
+    _ce0PendingRaw = pendingPts;
     _ce0FilterPending();
 
     // ── Completed Reconciliations tab — all post_discharge patients ──
@@ -529,7 +526,6 @@ async function _loadBillingDashboard() {
         reconciledEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);font-size:12px">No completed reconciliations yet. Reconciliations appear here after the final bill is generated.</div>';
       } else {
         const reconRows = post_discharge.map(p => {
-          const notAdmitted = p.is_admitted === false;
           const name = p.patient_name || _bilName(p.hadm_id);
           const estTotal = p.expected_est || 0;
           const actTotal = p.actual_charges || 0;
@@ -539,7 +535,7 @@ async function _loadBillingDashboard() {
           const actionBtns = `<button class="btn btn-sec btn-sm" onclick="_ceViewSignedSummary(${p.hadm_id})">📄 Discharge Summary</button>
                <button class="btn btn-sec btn-sm" onclick="_ceFinalBillView(${p.hadm_id})">🧾 Bill</button>`;
           return `<tr>
-            <td><b>${name}</b> ${notAdmitted ? '<span class="bd bd-t1">Not Admitted</span>' : ''}</td>
+            <td><b>${name}</b></td>
             <td class="mono" style="font-size:11.5px">${p.mrn}</td>
             <td>${p.admit_time_raw ? _fmtDateDisplay(_mimicShiftDate(p.admit_time_raw, _mimicShiftDelta(p.admit_time_raw, p.estimate_generated_at))) : (p.admit_date || '—')}</td>
             <td style="font-weight:700">${estTotal ? '₹' + Math.round(estTotal).toLocaleString('en-IN') : '—'}</td>
@@ -610,26 +606,15 @@ function _ce0StatusText(p) {
     || (isFinalBill ? 'Final Bill Overdue' : isDischarge ? 'Reconciliation Due' : 'Estimate Pending');
 }
 
-function _ceShowOpdModal(hadmId) {
-  const p = _ce0PendingRaw.find(x => x.hadm_id === hadmId);
-  if (p) openModal('opd-patient', p);
-}
-
 function _ce0BuildRow(p) {
   const name        = p.patient_name || _bilName(p.hadm_id);
-  const notAdmitted = p.is_admitted === false;
   const isFinalBill = p.phase === 'final_bill';
   const isDischarge = p.phase === 'discharge';
-  // Never-admitted OPD patients don't go through Admission/Discharge/Final
-  // Bill at all -- that whole phase concept doesn't apply to them, so it
-  // belongs in the Phase column, not as a side-note next to the name.
-  const phaseBadge  = notAdmitted
-    ? `<span class="bd bd-t1">Not Admitted</span>`
-    : isFinalBill
-      ? `<span class="bd bd-gray">Final Bill</span>`
-      : isDischarge
-        ? `<span class="bd bd-t2">Discharge</span>`
-        : `<span class="bd bd-blue">Admission</span>`;
+  const phaseBadge  = isFinalBill
+    ? `<span class="bd bd-gray">Final Bill</span>`
+    : isDischarge
+      ? `<span class="bd bd-t2">Discharge</span>`
+      : `<span class="bd bd-blue">Admission</span>`;
   const statusText  = _ce0StatusText(p);
   const statusColor = statusText === 'Reconciliation Due'  ? 'bd-t1'
                     : statusText === 'Final Bill Overdue'  ? 'bd-gray'
@@ -637,14 +622,8 @@ function _ce0BuildRow(p) {
                     : 'bd-t2';
   const statusBadge = `<span class="bd ${statusColor}">${statusText}</span>`;
   const hasEstimate = !!(p.billing_phase || p.expected_est);
-  // Never-admitted OPD patients have no real admission/discharge/reconciliation
-  // workflow to walk through -- clicking one just shows a quick read-only
-  // summary box, not the full CE1/Live Bill/CE4 screens.
-  const rowClick    = notAdmitted ? `_ceShowOpdModal(${p.hadm_id})`
-                     : isFinalBill ? `_ceFinalBillView(${p.hadm_id})` : `_ceSelectPatient(${p.hadm_id},'${p.phase}')`;
-  const actionBtn   = notAdmitted
-    ? `<button class="btn btn-sec btn-sm" onclick="event.stopPropagation();_ceShowOpdModal(${p.hadm_id})">View →</button>`
-    : isFinalBill
+  const rowClick    = isFinalBill ? `_ceFinalBillView(${p.hadm_id})` : `_ceSelectPatient(${p.hadm_id},'${p.phase}')`;
+  const actionBtn   = isFinalBill
     ? `<button class="btn btn-sec btn-sm" onclick="event.stopPropagation();_ceFinalBillView(${p.hadm_id})">View Final Bill →</button>`
     : isDischarge
       ? `<button class="btn btn-warn btn-sm" onclick="event.stopPropagation();_ceSelectPatient(${p.hadm_id},'discharge')">Reconcile →</button>`
@@ -1975,53 +1954,7 @@ const MODALS = {
   <button class="btn btn-sec" onclick="closeModal()">Cancel</button>
   <button class="btn btn-pri" onclick="_ce1ConfirmSync(${hid}, '${val.replace(/'/g, "\\'")}')">Confirm &amp; Start Sync</button>
 </div>`,
-  'opd-patient': (p) => {
-    const fmt = n => '₹' + Math.round(n||0).toLocaleString('en-IN');
-    const name = p.patient_name || _bilName(p.hadm_id);
-    const isSettled = ['paid', 'claim_submitted', 'tpa_settled'].includes(p.billing_phase || '');
-    const amount = p.expected_est || 0;
-    return `
-<div class="modal-t">${name} — Not Admitted</div>
-<div class="modal-b">Out-patient record — never went through an inpatient admission, so there's no Live Bill or reconciliation workflow for this one. ${isSettled ? '' : 'Collect payment on the spot and close it out below.'}</div>
-<table style="width:100%;font-size:13px;border-collapse:collapse;margin-bottom:16px"><tbody>
-  <tr style="border-bottom:1px solid var(--border)"><td style="padding:8px 0;color:var(--muted);width:110px">MRN</td><td style="padding:8px 0;font-weight:700">${p.mrn || '—'}</td></tr>
-  <tr style="border-bottom:1px solid var(--border)"><td style="padding:8px 0;color:var(--muted)">Visit Date</td><td style="padding:8px 0">${p.admit_date || '—'}</td></tr>
-  ${amount ? `<tr><td style="padding:8px 0;color:var(--muted)">Billed Amount</td><td style="padding:8px 0;font-weight:700">${fmt(amount)}</td></tr>` : ''}
-</tbody></table>
-${isSettled ? `<div class="alert al-ok" style="margin-bottom:16px">✅ Already settled — this patient is in Final Bill Completed.</div>` : ''}
-<div class="modal-f">
-  <button class="btn btn-sec" onclick="closeModal()">Close</button>
-  ${isSettled ? '' : `<button class="btn btn-pri" onclick="_opdMarkPaid(${p.hadm_id}, ${amount}, this)">💵 Take Cash Payment</button>`}
-</div>`;
-  },
 };
-
-// Records a cash payment for a never-admitted OPD patient and moves them
-// straight to "Final Bill Completed" — there's no encounter/discharge flow
-// for these, so a full CE1→CE4→CE5 walk doesn't apply, this is the whole
-// billing lifecycle for a walk-in visit.
-async function _opdMarkPaid(hadmId, amount, btn) {
-  if (btn) { btn.disabled = true; btn.textContent = 'Recording…'; }
-  const base = window.FOQAL_API_BASE || `http://${location.hostname}:6010`;
-  try {
-    const resp = await fetch(`${base}/api/billing/records/${hadmId}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        billing_phase: 'paid',
-        actual_charges: amount || null,
-        payment_mode_final: 'Cash',
-      }),
-    });
-    if (!resp.ok) throw new Error('save failed');
-    closeModal();
-    _showBillingToast('✅ Cash payment recorded — moved to Final Bill Completed.', '#16a34a');
-    _loadBillingDashboard();
-  } catch (e) {
-    if (btn) { btn.disabled = false; btn.textContent = '💵 Take Cash Payment'; }
-    _showBillingToast('⚠️ Failed to record payment — please try again.', '#dc2626');
-  }
-}
 
 /* ─── INIT ─── */
 (function init() {
