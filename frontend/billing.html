@@ -1752,7 +1752,7 @@ ${stepFlow('ce4')}
   const fmt = n => '₹' + Math.round(n || 0).toLocaleString('en-IN');
 
   const signedBadge = discharge.signed_at
-    ? `✅ <b>Auto-populated from Module A</b> — Signed by <b>${discharge.signed_by || 'Doctor'}</b> on ${discharge.signed_at}`
+    ? `✅ Signed by <b>${discharge.signed_by || 'Doctor'}</b> on ${discharge.signed_at}`
     : `⏳ <b>Pending signature</b> — Discharge summary not yet signed off`;
   const alertClass = discharge.signed_at ? 'al-ok' : 'al-warn';
 
