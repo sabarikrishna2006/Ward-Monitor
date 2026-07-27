@@ -654,7 +654,7 @@ function _ce0BuildRow(p) {
   return `<tr style="cursor:pointer" onclick="${rowClick}">
     <td><b>${name}</b></td>
     <td class="mono" style="font-size:11.5px">${p.mrn}</td>
-    <td>${p.admit_time_raw ? _fmtDateDisplay(_mimicShiftDate(p.admit_time_raw, _mimicShiftDelta(p.admit_time_raw, p.estimate_generated_at))) : (p.admit_date || '—')}</td>
+    <td>${(() => { const d = _ce0AdmitISO(p); return d ? _fmtDateDisplay(d) : (p.admit_date || '—'); })()}</td>
     <td>${p.hospital_day == null ? '—'
       : (!isFinalBill && !isDischarge)
         ? `<span class="bd bd-blue">Day ${p.hospital_day}</span>`
@@ -665,15 +665,63 @@ function _ce0BuildRow(p) {
   </tr>`;
 }
 
+// The admitted date a row actually SHOWS, as YYYY-MM-DD -- MIMIC's raw
+// admit_time is de-identified into the far future (e.g. 2146), so the table
+// displays it shifted onto real time. The date filter has to compare against
+// that same shifted value or it would silently match nothing.
+function _ce0AdmitISO(p) {
+  if (p.admit_time_raw) {
+    return _mimicShiftDate(p.admit_time_raw, _mimicShiftDelta(p.admit_time_raw, p.estimate_generated_at));
+  }
+  if (p.admit_date) {
+    // Local calendar parts, NOT toISOString() -- that converts to UTC and
+    // rolls "18 Jul" back to the 17th for any timezone east of Greenwich.
+    const d = new Date(p.admit_date);
+    if (!isNaN(d)) {
+      const pad = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    }
+  }
+  return null;
+}
+
+function _ce0ClearFilters() {
+  ['ce0-search','ce0-status-filter','ce0-admit-from','ce0-admit-to','ce0-days-filter']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  _ce0FilterPending();
+}
+
 function _ce0FilterPending() {
   const tableEl = document.getElementById('ce0-table');
   if (!tableEl) return;
   const q       = (document.getElementById('ce0-search')?.value || '').trim().toLowerCase();
   const statusF = document.getElementById('ce0-status-filter')?.value || '';
+  const fromF   = document.getElementById('ce0-admit-from')?.value || '';
+  const toF     = document.getElementById('ce0-admit-to')?.value   || '';
+  const daysF   = document.getElementById('ce0-days-filter')?.value || '';
 
   let list = _ce0PendingRaw;
   if (q) list = list.filter(p => String(p.hadm_id).toLowerCase().includes(q));
   if (statusF) list = list.filter(p => _ce0StatusText(p) === statusF);
+
+  // Admitted-date range — ISO strings compare correctly lexicographically.
+  // Rows with no admission date drop out once a bound is set.
+  if (fromF) list = list.filter(p => { const d = _ce0AdmitISO(p); return d && d >= fromF; });
+  if (toF)   list = list.filter(p => { const d = _ce0AdmitISO(p); return d && d <= toF;   });
+
+  // Days since admitted — p.hospital_day, the same number the "Day" column shows.
+  if (daysF) {
+    // "15-" is the open-ended bucket. Note Number('') === 0, not NaN, so the
+    // upper bound has to be tested for an empty string, not for NaN.
+    const [loStr, hiStr] = daysF.split('-');
+    const lo = Number(loStr);
+    const hi = hiStr === '' || hiStr === undefined ? Infinity : Number(hiStr);
+    list = list.filter(p => {
+      const d = p.hospital_day;
+      if (d == null) return false;
+      return d >= lo && d <= hi;
+    });
+  }
 
   if (!_ce0PendingRaw.length) {
     tableEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px">No patients pending billing action.</div>';
@@ -1407,6 +1455,20 @@ ce0: () => `
       <option value="Final Bill Overdue">Final Bill Overdue</option>
       <option value="Amendment Requested">Amendment Requested</option>
     </select>
+    <div style="display:flex;gap:6px;align-items:center">
+      <span style="font-size:11px;color:var(--muted);white-space:nowrap">Admitted</span>
+      <input id="ce0-admit-from" class="fi" type="date" style="max-width:150px" title="Admitted on or after" onchange="_ce0FilterPending()">
+      <span style="font-size:11px;color:var(--muted)">–</span>
+      <input id="ce0-admit-to" class="fi" type="date" style="max-width:150px" title="Admitted on or before" onchange="_ce0FilterPending()">
+    </div>
+    <select id="ce0-days-filter" class="fi" style="max-width:180px" onchange="_ce0FilterPending()">
+      <option value="">Any days admitted</option>
+      <option value="0-2">0–2 days</option>
+      <option value="3-7">3–7 days</option>
+      <option value="8-14">8–14 days</option>
+      <option value="15-">15+ days</option>
+    </select>
+    <button class="btn btn-sec btn-sm" onclick="_ce0ClearFilters()">Clear</button>
   </div>
   <div id="ce0-table" style="color:var(--muted);padding:16px;font-size:12px">Loading patients…</div>
 </div>
