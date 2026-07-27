@@ -824,20 +824,8 @@ def billing_dashboard():
             LEFT JOIN app_users au ON au.id = aps.signed_by
             WHERE ae.status = 'Signed Off'
               AND (br.billing_phase IS NULL
-                   OR br.billing_phase NOT IN ('amendment_pending','final_bill_generated','claim_submitted','tpa_settled','paid'))
+                   OR br.billing_phase NOT IN ('amendment_pending','claim_submitted','tpa_settled','paid'))
             ORDER BY ae.updated_at DESC LIMIT 100
-        """)).fetchall()
-
-        final_bill_rows = conn.execute(_text(f"""
-            SELECT {_COLS}, au.full_name AS signed_by_name
-            FROM active_patients ap
-            JOIN app_encounters ae ON ae.hadm_id = ap.hadm_id
-            LEFT JOIN billing_records br ON br.hadm_id = ap.hadm_id
-            LEFT JOIN app_summaries aps ON aps.encounter_id = ae.id
-            LEFT JOIN app_users au ON au.id = aps.signed_by
-            WHERE ae.status = 'Signed Off'
-              AND br.billing_phase = 'final_bill_generated'
-            ORDER BY br.updated_at DESC LIMIT 50
         """)).fetchall()
 
     def _fmt(dt):
@@ -878,9 +866,7 @@ def billing_dashboard():
 
     def _to_action(p, phase):
         bp = p.get("billing_phase") or ""
-        if phase == "final_bill":
-            status = "Final Bill Overdue"
-        elif phase == "discharge":
+        if phase == "discharge":
             status = "Reconciliation Due"
         elif bp == "amendment_pending":
             status = "Amendment Requested"
@@ -910,11 +896,8 @@ def billing_dashboard():
 
     admission_patients   = [dict(r._mapping) for r in admission_rows]
     discharge_patients   = [dict(r._mapping) for r in discharge_rows]
-    final_bill_patients  = [dict(r._mapping) for r in final_bill_rows]
-
-    # Final bill overdue first, then reconciliation due, then estimate pending
+    # Reconciliation due first, then estimate pending
     actions = (
-        [_to_action(p, "final_bill") for p in final_bill_patients] +
         [_to_action(p, "discharge")  for p in discharge_patients]  +
         [_to_action(p, "admission")  for p in admission_patients]
     )
@@ -967,7 +950,9 @@ def billing_dashboard():
             "diagnosis":      (r.get("primary_diagnosis_title") or "")[:60],
             "phase":          "post_discharge",
             "billing_phase":  r["billing_phase"],
-            "billing_status": "Final Bill Overdue",
+            # These rows are already settled -- they are the Final Bill
+            # Completed tab, not anything still outstanding.
+            "billing_status": "Reconciled",
             "balance_due":    r.get("balance_due"),
             "expected_est":   est5,
             "actual_charges": act5,
@@ -985,7 +970,6 @@ def billing_dashboard():
         "stats": {
             "pending_estimates":       sum(1 for p in admission_patients if p.get("billing_phase") not in ("estimate_shared", "estimate_confirmed", "reconciliation_pending")),
             "awaiting_reconciliation": len(discharge_patients),
-            "final_bills_pending":     len(final_bill_patients),
             "bills_settled":           bills_settled_count,
         },
         "pending_actions":   actions,

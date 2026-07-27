@@ -532,8 +532,7 @@ async function _loadBillingDashboard() {
           const variance = estTotal && actTotal ? ((actTotal - estTotal) / estTotal * 100).toFixed(1) : null;
           const varStr   = variance != null ? (variance >= 0 ? '+' : '') + variance + '%' : '—';
           const varColor = variance == null ? 'var(--muted)' : parseFloat(variance) > 15 ? 'var(--t1)' : parseFloat(variance) > 0 ? 'var(--t2)' : 'var(--t3)';
-          const actionBtns = `<button class="btn btn-sec btn-sm" onclick="_ceViewSignedSummary(${p.hadm_id})">📄 Discharge Summary</button>
-               <button class="btn btn-sec btn-sm" onclick="_ceFinalBillView(${p.hadm_id})">🧾 Bill</button>`;
+          const actionBtns = `<button class="btn btn-sec btn-sm" onclick="_ceViewSignedSummary(${p.hadm_id})">📄 Discharge Summary</button>`;
           return `<tr>
             <td><b>${name}</b></td>
             <td class="mono" style="font-size:11.5px">${p.mrn}</td>
@@ -600,42 +599,35 @@ function _ce0PatientEntryCard() {
 }
 
 function _ce0StatusText(p) {
-  const isFinalBill = p.phase === 'final_bill';
   const isDischarge = p.phase === 'discharge';
   return p.billing_status
-    || (isFinalBill ? 'Final Bill Overdue' : isDischarge ? 'Reconciliation Due' : 'Estimate Pending');
+    || (isDischarge ? 'Reconciliation Due' : 'Estimate Pending');
 }
 
 function _ce0BuildRow(p) {
   const name        = p.patient_name || _bilName(p.hadm_id);
-  const isFinalBill = p.phase === 'final_bill';
   const isDischarge = p.phase === 'discharge';
-  const phaseBadge  = isFinalBill
-    ? `<span class="bd bd-gray">Final Bill</span>`
-    : isDischarge
-      ? `<span class="bd bd-t2">Discharge</span>`
-      : `<span class="bd bd-blue">Admission</span>`;
+  const phaseBadge  = isDischarge
+    ? `<span class="bd bd-t2">Discharge</span>`
+    : `<span class="bd bd-blue">Admission</span>`;
   const statusText  = _ce0StatusText(p);
   const statusColor = statusText === 'Reconciliation Due'  ? 'bd-t1'
-                    : statusText === 'Final Bill Overdue'  ? 'bd-gray'
                     : statusText === 'Amendment Requested' ? 'bd-purple'
                     : 'bd-t2';
   const statusBadge = `<span class="bd ${statusColor}">${statusText}</span>`;
   const hasEstimate = !!(p.billing_phase || p.expected_est);
-  const rowClick    = isFinalBill ? `_ceFinalBillView(${p.hadm_id})` : `_ceSelectPatient(${p.hadm_id},'${p.phase}')`;
-  const actionBtn   = isFinalBill
-    ? `<button class="btn btn-sec btn-sm" onclick="event.stopPropagation();_ceFinalBillView(${p.hadm_id})">View Final Bill →</button>`
-    : isDischarge
-      ? `<button class="btn btn-warn btn-sm" onclick="event.stopPropagation();_ceSelectPatient(${p.hadm_id},'discharge')">Reconcile →</button>`
-      : hasEstimate
-        ? `<button class="btn btn-pri btn-sm" onclick="event.stopPropagation();_ceSelectPatient(${p.hadm_id},'admission')">Live Bill →</button>`
-        : `<button class="btn btn-pri btn-sm" onclick="event.stopPropagation();_ceSelectPatient(${p.hadm_id},'admission')">New Estimate →</button>`;
+  const rowClick    = `_ceSelectPatient(${p.hadm_id},'${p.phase}')`;
+  const actionBtn   = isDischarge
+    ? `<button class="btn btn-warn btn-sm" onclick="event.stopPropagation();_ceSelectPatient(${p.hadm_id},'discharge')">Reconcile →</button>`
+    : hasEstimate
+      ? `<button class="btn btn-pri btn-sm" onclick="event.stopPropagation();_ceSelectPatient(${p.hadm_id},'admission')">Live Bill →</button>`
+      : `<button class="btn btn-pri btn-sm" onclick="event.stopPropagation();_ceSelectPatient(${p.hadm_id},'admission')">New Estimate →</button>`;
   return `<tr style="cursor:pointer" onclick="${rowClick}">
     <td><b>${name}</b></td>
     <td class="mono" style="font-size:11.5px">${p.mrn}</td>
     <td>${(() => { const d = _ce0AdmitISO(p); return d ? _fmtDateDisplay(d) : (p.admit_date || '—'); })()}</td>
     <td>${p.hospital_day == null ? '—'
-      : (!isFinalBill && !isDischarge)
+      : (!isDischarge)
         ? `<span class="bd bd-blue">Day ${p.hospital_day}</span>`
         : `<span class="bd bd-gray">LOS ${p.hospital_day}d</span>`}</td>
     <td>${phaseBadge}</td>
@@ -1080,31 +1072,6 @@ function _showBillingToast(html, color) {
 
 /* ── CE4 — Reconciliation Logic ── */
 
-// Opens CE5 directly for Final Bill Overdue patients — fetches both APIs in parallel,
-// never renders CE4 at all, so no loading screen flash.
-function _ceFinalBillView(hadm_id) {
-  _ce4Data = null;
-  _ce4Fetching = false;
-  document.getElementById('main').innerHTML =
-    '<div style="padding:80px;text-align:center;color:var(--muted)">Loading final bill…</div>';
-  const base = window.FOQAL_API_BASE || `http://${location.hostname}:6010`;
-  Promise.all([
-    fetch(`${base}/api/billing/patient/${hadm_id}`).then(r => r.ok ? r.json() : null).catch(() => null),
-    fetch(`${base}/api/billing/reconciliation/${hadm_id}`).then(r => r.ok ? r.json() : null).catch(() => null),
-  ]).then(([patient, recon]) => {
-    if (patient) _applyPatientDetails(patient);
-    if (recon) {
-      _ce4Data = recon;
-      if (recon.actuals_saved) {
-        const s = recon.actuals_saved;
-        if (s.actual_charges != null) _CE.actualCharges = s.actual_charges;
-        if (s.advance_paid   != null) _CE.advancePaid   = s.advance_paid;
-      }
-    }
-    CURRENT = 'ce5';
-    document.getElementById('main').innerHTML = SCREENS.ce5();
-  });
-}
 
 async function _ce4Load() {
   if (!_CE.hadm_id) return;
@@ -1272,103 +1239,6 @@ async function _ce4Save() {
   showScreen('ce0');
 }
 
-/* ── CE5 — Print / Download ── */
-function _ce5PrintHtml(forDownload) {
-  const recon   = _ce4Data?.reconciliation || {};
-  const fmt = n => '₹' + Math.round(n||0).toLocaleString('en-IN');
-  const gross = recon.actual_gross || _CE.actualCharges || 0;
-  const advance    = _CE.advancePaid || 0;
-  const patientPay = Math.max(0, (recon.patient_pay_final ?? gross) - advance);
-
-  const billRows = `
-      <tr><td>Gross Charges</td><td style="text-align:right">${fmt(gross)}</td></tr>
-      ${advance > 0 ? `<tr><td>Advance Paid</td><td style="text-align:right;color:green">− ${fmt(advance)}</td></tr>` : ''}
-      <tr style="border-top:2px solid #000;font-weight:800"><td>Balance Due</td><td style="text-align:right">${fmt(patientPay)}</td></tr>`;
-
-  const dischMeds = (_ce4Data?.discharge?.discharge_meds || '').split('\n').filter(l=>l.trim()).map(l=>`<li>${l.trim()}</li>`).join('') || '<li>—</li>';
-
-  return `<!DOCTYPE html><html><head><meta charset="utf-8">
-  <title>Final Bill — ${_CE.mrn}</title>
-  <style>
-    * { margin:0; padding:0; box-sizing:border-box; }
-    body { font-family: Arial, sans-serif; font-size: 13px; color: #111; padding: 32px; max-width: 800px; margin: 0 auto; }
-    .header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px; padding-bottom:16px; border-bottom:2px solid #4B0082; }
-    .hospital { font-size:22px; font-weight:900; color:#4B0082; }
-    .bill-title { font-size:18px; font-weight:800; margin-bottom:16px; }
-    .section { margin-bottom:20px; }
-    .section-title { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#666; border-bottom:1px solid #ddd; padding-bottom:4px; margin-bottom:10px; }
-    table { width:100%; border-collapse:collapse; }
-    td { padding: 6px 0; vertical-align:top; }
-    .bill-table td { padding: 7px 8px; }
-    .bill-table tr { border-bottom:1px solid #eee; }
-    .footer { margin-top:32px; border-top:1px solid #ddd; padding-top:16px; font-size:11px; color:#888; text-align:center; }
-    @media print { body { padding: 16px; } }
-  </style></head><body>
-  <div class="header">
-    <div>
-      <div class="hospital">Foqal CareOS</div>
-      <div style="font-size:11px;color:#666;margin-top:2px">Sector 38, Gurugram, Haryana 122001 · GSTIN: 06AABCM1234F1ZX</div>
-    </div>
-    <div style="text-align:right">
-      <div style="font-size:11px;color:#666">Bill No.</div>
-      <div style="font-family:monospace;font-weight:700">BILL-${_CE.hadm_id || '—'}</div>
-      <div style="font-size:11px;color:#666;margin-top:4px">Date: ${new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
-    </div>
-  </div>
-  <div class="bill-title">FINAL BILL / DISCHARGE RECEIPT</div>
-  <div style="margin-bottom:20px">
-    <div class="section">
-      <div class="section-title">Patient Details</div>
-      <table style="max-width:420px"><tr><td style="color:#666;width:40%">Name</td><td><b>${_CE.patientName||'—'}</b></td></tr>
-      <tr><td style="color:#666">MRN</td><td style="font-family:monospace">${_CE.mrn||'—'}</td></tr>
-      <tr><td style="color:#666">Age / Sex</td><td>${_CE.age||'—'} yrs / ${_CE.gender||'—'}</td></tr>
-      <tr><td style="color:#666">Admission</td><td>${_CE.admitDate||'—'}</td></tr>
-      <tr><td style="color:#666">Discharge</td><td>${_CE.actualDischargeDate||_CE.dischargeDate||'—'}</td></tr></table>
-    </div>
-  </div>
-  <div class="section">
-    <div class="section-title">Bill Summary</div>
-    <table class="bill-table">${billRows}</table>
-  </div>
-  <div class="section">
-    <div class="section-title">Discharge Medications</div>
-    <ul style="padding-left:18px;line-height:1.8">${dischMeds}</ul>
-  </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:32px">
-    <div><div style="border-top:1px solid #000;margin-top:40px;padding-top:4px;font-size:11px;text-align:center">Cashier Signature</div></div>
-    <div><div style="border-top:1px solid #000;margin-top:40px;padding-top:4px;font-size:11px;text-align:center">Patient / Attendant Signature</div></div>
-  </div>
-  <div class="footer">This is a computer-generated bill. For queries contact billing@foqalcare.com or call 1800-FOQAL-OS.<br>Foqal CareOS | Hospital Management Platform</div>
-  </body></html>`;
-}
-
-function _ce5Print() {
-  const w = window.open('', '_blank', 'width=900,height=700');
-  w.document.write(_ce5PrintHtml(false));
-  w.document.close();
-  w.focus();
-  setTimeout(() => { w.print(); }, 600);
-}
-
-function _ce5Download() {
-  const w = window.open('', '_blank', 'width=900,height=700');
-  w.document.write(_ce5PrintHtml(true));
-  w.document.close();
-  w.focus();
-  setTimeout(() => {
-    w.print();  // browser print dialog → Save as PDF
-    // Add hint
-    const hint = w.document.createElement('div');
-    hint.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#fef9c3;color:#854d0e;padding:10px;text-align:center;font-size:13px;z-index:9999;font-family:sans-serif';
-    hint.textContent = 'In the print dialog → change destination to "Save as PDF" to download.';
-    w.document.body.prepend(hint);
-  }, 400);
-}
-
-function _ce5Email() {
-  _showBillingToast(`📧 Bill emailed to patient (${_CE.mrn || 'PT'}) — copy saved to records.`, '#16a34a');
-}
-
 function openModal(id, extra) {
   const box = document.getElementById('modal-box');
   box.innerHTML = MODALS[id] ? MODALS[id](extra) : '';
@@ -1414,7 +1284,6 @@ ce0: () => `
       <option value="">All Statuses</option>
       <option value="Estimate Pending">Estimate Pending</option>
       <option value="Reconciliation Due">Reconciliation Due</option>
-      <option value="Final Bill Overdue">Final Bill Overdue</option>
       <option value="Amendment Requested">Amendment Requested</option>
     </select>
     <div style="display:flex;gap:6px;align-items:center">
@@ -1851,94 +1720,6 @@ ${stepFlow('ce4')}
       <button class="btn btn-sec" onclick="showScreen('ce0')">← Dashboard</button>
       <button id="ce4-save-btn" class="btn btn-pri" onclick="_ce4Save()">Generate Final Bill →</button>
     </div>
-  </div>
-</div>`;
-},
-
-/* ════════════════════════════════════
-   CE5 — FINAL BILL
-════════════════════════════════════ */
-ce5: () => {
-  const fmt = n => '₹' + Math.round(n||0).toLocaleString('en-IN');
-  const recon   = _ce4Data?.reconciliation || {};
-
-  // Prefer CE4-computed actual_gross; fall back to saved _CE.actualCharges
-  const gross = recon.actual_gross || _CE.actualCharges || 0;
-
-  // CE4 always computes patient_pay_final — use it as the ground truth for balance
-  const balance    = recon.patient_pay_final ?? (_CE.balanceDue ?? gross);
-  const advance    = _CE.advancePaid || 0;
-  const netBalance = Math.max(0, balance - advance);
-
-  const headerAlert = netBalance === 0
-    ? `<div class="alert al-ok" style="font-size:13.5px;font-weight:700">✅ Fully settled — No balance due</div>`
-    : `<div class="alert al-err" style="font-size:13.5px;font-weight:700">⚠️ PATIENT MUST SETTLE BALANCE BEFORE DISCHARGE</div>`;
-  const advRow = advance > 0 ? `
-    <tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:9px 0;color:var(--muted)">Advance Paid</td>
-      <td style="padding:9px 0;text-align:right;font-weight:600;color:var(--t3)">− ${fmt(advance)}</td>
-    </tr>` : '';
-  const billSummaryHtml = `<table style="width:100%;font-size:13.5px"><tbody>
-    <tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:9px 0;color:var(--muted)">Gross Charges</td>
-      <td style="padding:9px 0;text-align:right;font-weight:600">${fmt(gross)}</td>
-    </tr>
-    ${advRow}
-    <tr style="border-top:2px solid var(--border)">
-      <td style="padding:10px 0;font-weight:900;font-size:16px">Balance Due</td>
-      <td style="padding:10px 0;text-align:right;font-weight:900;font-size:24px;color:${netBalance===0?'var(--ok)':'var(--t1)'}">${fmt(netBalance)}</td>
-    </tr>
-  </tbody></table>`;
-
-  return `
-<div class="bc">
-  <span class="bc-link" onclick="showScreen('ce0')">Module B</span>
-  <span class="bc-sep">/</span>
-  <span class="bc-link" onclick="showScreen('ce4')">Reconciliation</span>
-  <span class="bc-sep">/</span><span>Final Bill</span>
-</div>
-${stepFlow('ce5')}
-<div class="sh">
-  <h1 class="sh-title">Final Bill — ${_CE.mrn || 'Patient'}</h1>
-  <span class="sh-id">CE5</span>
-</div>
-${headerAlert}
-<div class="grid2">
-  <div class="card">
-    <div class="card-title">Bill Summary</div>
-    ${billSummaryHtml}
-  </div>
-  <div>
-    <div class="card" style="margin-bottom:12px">
-      <div class="card-title">Patient Details</div>
-      <table style="width:100%;font-size:12.5px"><tbody>
-        <tr style="border-bottom:1px solid var(--border)"><td style="padding:7px 0;color:var(--muted)">Name</td><td style="padding:7px 0;font-weight:700">${_CE.patientName || '—'}</td></tr>
-        <tr style="border-bottom:1px solid var(--border)"><td style="padding:7px 0;color:var(--muted)">MRN</td><td style="padding:7px 0;font-family:var(--mono)">${_CE.mrn || '—'}</td></tr>
-        <tr style="border-bottom:1px solid var(--border)"><td style="padding:7px 0;color:var(--muted)">Admission</td><td style="padding:7px 0">${_CE.admitDate || '—'}${_CE.losDays ? ' (' + _CE.losDays + ' days)' : ''}</td></tr>
-        <tr style="border-bottom:1px solid var(--border)"><td style="padding:7px 0;color:var(--muted)">Discharge</td><td style="padding:7px 0">${_CE.dischargeDate || '—'}</td></tr>
-        <tr style="border-bottom:1px solid var(--border)"><td style="padding:7px 0;color:var(--muted)">Discharge Type</td><td style="padding:7px 0">${_CE.dischargeType || '—'}</td></tr>
-        <tr><td style="padding:7px 0;color:var(--muted)">Bill generated</td><td style="padding:7px 0;font-family:var(--mono);font-size:11.5px">${new Date().toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</td></tr>
-      </tbody></table>
-    </div>
-    <div class="card" style="margin-bottom:12px">
-      <div class="card-title">Bill Actions</div>
-      <div style="display:flex;flex-direction:column;gap:8px">
-        <button class="btn btn-sec btn-sm" style="justify-content:flex-start" onclick="_ce5Print()">🖨️ Print Bill (A4)</button>
-        <button class="btn btn-sec btn-sm" style="justify-content:flex-start" onclick="_ce5Email()">📧 Email to Patient</button>
-        <button class="btn btn-sec btn-sm" style="justify-content:flex-start" onclick="_ce5Download()">📄 Download PDF</button>
-      </div>
-    </div>
-    ${(() => {
-      const dischMeds = _ce4Data?.discharge?.discharge_meds || '';
-      const medsLines = dischMeds.split('\n').filter(l => l.trim());
-      const medsHtml = medsLines.length
-        ? medsLines.map(l => `<div style="padding:5px 0;border-bottom:1px solid var(--border);font-size:12.5px">${l.trim()}</div>`).join('')
-        : '<div style="color:var(--muted);font-size:12px;padding:8px 0">Not available — generate discharge summary first.</div>';
-      return `<div class="card" style="margin-top:12px">
-        <div class="card-title" style="margin-bottom:8px">Discharge Medications</div>
-        ${medsHtml}
-      </div>`;
-    })()}
   </div>
 </div>`;
 },
