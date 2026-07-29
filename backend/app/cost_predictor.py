@@ -56,13 +56,29 @@ class CostPredictor:
             bundle = joblib.load(_MODEL_PATH)
             self._model = bundle["model"]
             self._features = bundle["features"]
-            self._data = pd.read_csv(_DATA_PATH)
-            logger.info(f"Cost model ready ({len(self._features)} features, "
-                        f"{len(self._data)} rows available)")
+            logger.info(f"Cost model ready ({len(self._features)} features)")
+        # dcm_model_ready_data.csv is row-level MIMIC data (PhysioNet DUA --
+        # not committed to git, see cost_ml_model/.gitignore), only present on
+        # machines with direct dataset access. It's ONLY needed by predict()'s
+        # historical-cohort fallback below, never by predict_live() -- a
+        # missing file here must not break live predictions for real admitted
+        # patients, which is the actual, common serving path.
+        if self._data is None:
+            try:
+                self._data = pd.read_csv(_DATA_PATH)
+                logger.info(f"Historical DCM cohort loaded ({len(self._data)} rows available)")
+            except FileNotFoundError:
+                self._data = False  # sentinel: tried and failed, don't retry every call
+                logger.warning(f"{_DATA_PATH} not found -- historical-cohort fallback "
+                                f"(predict()/available_hadm_ids()) unavailable on this "
+                                f"machine, live predictions unaffected.")
 
     def available_hadm_ids(self) -> list:
         """hadm_ids this predictor can currently serve (our DCM cohort only)."""
         self._load()
+        if self._data is False:
+            raise ValueError(f"Historical DCM cohort data not available on this server "
+                              f"({_DATA_PATH} missing) -- only live-app patients can be served here.")
         return sorted(self._data["hadm_id"].unique().tolist())
 
     def predict(self, hadm_id: int, hospital_day: Optional[int] = None) -> dict:
@@ -75,6 +91,10 @@ class CostPredictor:
         Raises ValueError if hadm_id isn't in the served cohort.
         """
         self._load()
+        if self._data is False:
+            raise ValueError(f"hadm_id {hadm_id} not found live, and the historical DCM "
+                              f"cohort fallback isn't available on this server "
+                              f"({_DATA_PATH} missing).")
         rows = self._data[self._data["hadm_id"] == hadm_id]
         if rows.empty:
             raise ValueError(
