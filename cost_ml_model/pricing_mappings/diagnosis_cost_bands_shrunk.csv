@@ -1,0 +1,1318 @@
+primary_diagnosis,n,avg_cost,shrunk_avg,band
+Abdominal aneurysm without mention of rupture,10,289290.9470820375,261947.78400182552,High
+"Abdominal aortic aneurysm, without rupture",3,250011.56131188563,210407.7341898356,High
+"Abdominal or pelvic swelling, mass, or lump, other specified site",1,479381.96,247948.42030083918,High
+"Abdominal pain, epigastric",5,48423.941082037534,94316.42832669304,Low
+"Abdominal pain, other specified site",3,228054.2151367292,199429.06110225737,High
+"Abdominal pain, periumbilic",2,45793.91,120799.90824067134,Low
+"Abdominal pain, right lower quadrant",1,86410.2,149705.48030083918,Mid-High
+"Abdominal pain, right upper quadrant",2,52545.788852546924,123500.6597816901,Low
+"Abdominal pain, unspecified site",7,81823.6247307545,108517.70943186381,Low
+Abnormal coagulation profile,14,48356.70093680582,69965.03143050813,Low
+Abnormal involuntary movements,1,6403.737705093834,129703.86472711262,Low
+"Abrasion or friction burn of hip, thigh, leg, and ankle, infected",1,4000.0,129102.93030083917,Low
+Abscess of anal and rectal regions,4,132376.4332788204,148845.3506169483,Mid-High
+Accidental puncture and laceration of a circulatory system organ or structure during a circulatory system procedure,2,497279.64999999997,301394.2042406713,High
+"Accidental puncture or laceration during a procedure, not elsewhere classified",3,371621.95999999996,271212.9335338928,High
+Achalasia and cardiospasm,1,50853.98,140816.42530083918,Mid-Low
+Acidosis,1,392155.5,226141.8053008392,High
+Acquired absence of breast and nipple,1,140601.31,163253.25780083917,Mid-High
+Acquired coagulation factor deficiency,1,65342.17,144438.47280083917,Mid-Low
+Acute alcoholic hepatitis,2,53291.92,123799.11224067134,Low
+"Acute alcoholic intoxication in alcoholism, continuous",2,29110.460000000003,114126.52824067134,Low
+Acute and chronic cholecystitis,2,115195.52885254694,148560.5557816901,Mid-High
+Acute and chronic respiratory failure,5,219853.35616407506,201459.8127529665,High
+Acute and chronic respiratory failure with hypoxia,1,1519872.7208203753,508071.110505933,High
+"Acute and chronic respiratory failure, unspecified whether with hypoxia or hypercapnia",1,16345.307705093834,132189.25722711263,Low
+Acute and subacute hepatic failure without coma,1,475040.07,246862.94780083917,High
+Acute and subacute necrosis of liver,1,101652.36,153516.02030083918,Mid-High
+"Acute appendicitis with perforation, localized peritonitis, and gangrene, with abscess",1,162636.85,168762.14280083918,Mid-High
+Acute bronchitis,3,65243.75284182306,118023.82995480431,Low
+Acute bronchitis due to other specified organisms,1,86549.98,149740.42530083918,Mid-High
+Acute cholecystitis,2,253733.34352546916,203975.681650859,High
+Acute combined systolic and diastolic heart failure,9,132351.43564670839,141964.55350197767,Mid-Low
+Acute diastolic heart failure,11,114584.41238459664,126631.4469595657,Low
+"Acute edema of lung, unspecified",3,129577.13333333335,150190.52020055943,Mid-High
+Acute embolism and thrombosis of left femoral vein,1,33015.3,136356.75530083917,Mid-Low
+Acute embolism and thrombosis of left internal jugular vein,1,183094.54,173876.56530083917,Mid-High
+"Acute gastric ulcer with hemorrhage, with obstruction",1,162899.99,168827.92780083918,Mid-High
+"Acute gastritis, with hemorrhage",1,167795.5331152815,170051.81357965956,Mid-High
+Acute gastroenteropathy due to Norwalk agent,1,77927.61,147584.83280083918,Mid-Low
+Acute gouty arthropathy,12,58579.312185880255,81024.2311622613,Low
+Acute idiopathic pericarditis,2,41905.75,119244.64424067135,Low
+Acute infective polyneuritis,1,165892.76,169576.1203008392,Mid-High
+Acute kidney failure with lesion of tubular necrosis,10,483520.51186916896,411355.14153038815,High
+Acute kidney failure with other specified pathological lesion in kidney,1,415162.15770509385,231893.46972711262,High
+Acute kidney failure with tubular necrosis,3,367753.13000000006,269278.5185338928,High
+"Acute kidney failure, unspecified",146,93917.46149120423,95465.51073100118,Low
+"Acute lymphoid leukemia, in remission",1,360637.7077050938,218262.35722711263,High
+"Acute lymphoid leukemia, without mention of having achieved remission",6,818449.4647819482,602567.6122105607,High
+Acute maxillary sinusitis,1,82386.90770509384,148699.65722711262,Mid-High
+"Acute myeloid leukemia, in relapse",1,725068.0054101876,309369.9316533861,High
+"Acute myeloid leukemia, without mention of having achieved remission",11,987923.7326829149,812826.6271939586,High
+"Acute myocardial infarction of anterolateral wall, initial episode of care",1,323051.8577050938,208865.8947271126,High
+"Acute myocardial infarction of inferolateral wall, initial episode of care",2,125669.05500000001,152749.96624067135,Mid-High
+"Acute myocardial infarction of inferoposterior wall, initial episode of care",2,438184.87811528146,277756.29548678396,High
+"Acute myocardial infarction of other anterior wall, initial episode of care",5,319880.91154101875,263977.03486355627,High
+"Acute myocardial infarction of other inferior wall, initial episode of care",9,307410.14453559724,273258.5851686443,High
+"Acute myocardial infarction of unspecified site, initial episode of care",2,86097.755,136921.44624067136,Mid-Low
+"Acute myocardial infarction of unspecified site, subsequent episode of care",1,144914.48,164331.55030083918,Mid-High
+"Acute myocarditis, unspecified",1,107998.12082037532,155102.460505933,Mid-High
+Acute on chronic combined systolic (congestive) and diastolic (congestive) heart failure,6,469091.5677050938,369662.3474926577,High
+Acute on chronic combined systolic and diastolic heart failure,96,169941.03182383825,169967.17955850333,Mid-High
+Acute on chronic diastolic (congestive) heart failure,6,147331.18590169796,155155.42629039384,Mid-High
+Acute on chronic diastolic heart failure,80,113551.71121729224,115621.06769381609,Low
+Acute on chronic systolic (congestive) heart failure,114,298958.0022808899,295671.99983952823,High
+Acute on chronic systolic heart failure,543,134362.19306413084,134562.42226195312,Mid-Low
+"Acute osteomyelitis, ankle and foot",1,60382.67,143198.59780083917,Mid-Low
+"Acute osteomyelitis, other specified sites",1,1685322.9777050938,549433.6747271126,High
+Acute pancreatitis,15,151954.19656836463,155095.81498493475,Mid-High
+"Acute pancreatitis without necrosis or infection, unspecified",3,26683.819999999996,98743.86353389279,Low
+"Acute pancreatitis, unspecified",1,2000.0,128602.93030083917,Low
+"Acute pericarditis, unspecified",3,462352.5733333334,316578.2402005595,High
+Acute pharyngitis,1,440369.48,238195.30030083918,High
+"Acute pharyngitis, unspecified",1,2000.0,128602.93030083917,Low
+Acute posthemorrhagic anemia,7,94778.10824358484,117585.84789084506,Low
+Acute respiratory failure,31,346528.1507352763,331023.0704116742,High
+Acute respiratory failure with hypoxia,3,493481.7344271671,332142.82074747636,High
+"Acute sinusitis, unspecified",1,53266.59,141419.57780083918,Mid-Low
+Acute systolic (congestive) heart failure,27,214344.64075305333,209990.56738452657,High
+Acute systolic heart failure,87,183654.74910314012,183226.38770196162,Mid-High
+"Acute upper respiratory infection, unspecified",4,57074.2375,105815.52445762239,Low
+Acute upper respiratory infections of other multiple sites,1,341192.24,213400.99030083918,High
+Acute upper respiratory infections of unspecified site,11,31253.122101389225,61156.86173704558,Low
+Acute vascular insufficiency of intestine,1,143843.24,164063.74030083918,Mid-High
+Acute venous embolism and thrombosis of deep veins of upper extremity,1,14290.76,131675.62030083916,Low
+Acute venous embolism and thrombosis of deep vessels of distal lower extremity,2,57195.825000000004,125360.67424067133,Low
+Acute venous embolism and thrombosis of deep vessels of proximal lower extremity,3,141881.88770509383,156342.8973864397,Mid-High
+Acute venous embolism and thrombosis of unspecified deep vessels of lower extremity,2,62057.61885254692,127305.39178169011,Low
+Adjustment disorder with anxiety,1,82823.43,148808.78780083917,Mid-High
+Adjustment disorder with depressed mood,1,91523.72,150983.86030083918,Mid-High
+Adult failure to thrive,5,46312.60954101877,92996.84611355633,Low
+Adult hypertrophic pyloric stenosis,1,68802.14,145303.46530083916,Mid-Low
+Aftercare following explantation of joint prosthesis,1,162134.96770509382,168636.67222711263,Mid-High
+"Alcohol abuse with intoxication, unspecified",2,54377.365,124233.29024067134,Low
+"Alcohol abuse with withdrawal, unspecified",1,39908.73,138080.11280083918,Mid-Low
+"Alcohol abuse, unspecified",2,15148.69,108541.82024067132,Low
+Alcohol dependence with withdrawal with perceptual disturbance,1,110397.8531152815,155702.39357965955,Mid-High
+"Alcohol dependence with withdrawal, uncomplicated",1,224331.4331152815,184185.78857965954,Mid-High
+"Alcohol dependence with withdrawal, unspecified",6,64382.44461751564,99856.26543427228,Low
+Alcohol induced acute pancreatitis,1,26055.32770509384,134616.76222711263,Mid-Low
+Alcohol induced acute pancreatitis without necrosis or infection,1,32475.54,136221.81530083917,Mid-Low
+Alcohol withdrawal,14,154250.77533971658,157171.9162329052,Mid-High
+Alcohol withdrawal delirium,4,160777.41118900804,165074.48085134127,Mid-High
+Alcoholic cirrhosis of liver,2,382456.10270509386,255464.78532270886,High
+Alcoholic cirrhosis of liver with ascites,4,669649.9332788204,455858.77918837685,High
+Alcoholic cirrhosis of liver without ascites,1,858438.16,342712.47030083917,High
+Alcoholic gastritis without bleeding,1,24966.92,134344.66030083917,Mid-Low
+"Alcoholic gastritis, with hemorrhage",1,58126.68,142634.60030083917,Mid-Low
+Alcoholic hepatic failure without coma,1,729153.9577050938,310391.41972711263,High
+Alcoholic hepatitis without ascites,2,38643.270000000004,117939.65224067133,Low
+Altered mental status,5,24697.476623056304,79487.38803982978,Low
+Alzheimer's disease,2,62917.700000000004,127649.42424067133,Low
+"Amyloidosis, unspecified",1,230687.77,185774.87280083916,Mid-High
+Anaphylactic reaction due to fruits and vegetables,1,8738.68,130287.60030083917,Low
+Anemia in chronic kidney disease,2,54067.115,124109.19024067135,Low
+"Anemia, unspecified",2,69358.535,130225.75824067133,Low
+Anesthesia of skin,1,11564.59,130994.07780083918,Low
+"Angina pectoris, unspecified",1,57861.37,142568.2728008392,Mid-Low
+Angiodysplasia of colon with hemorrhage,1,157614.77000000002,167506.6228008392,Mid-High
+Angiodysplasia of intestine with hemorrhage,3,159798.45103842716,165301.17905310635,Mid-High
+Angiodysplasia of stomach and duodenum with bleeding,1,576530.87,272235.64780083916,High
+Angiodysplasia of stomach and duodenum with hemorrhage,8,68544.27413941019,96433.26493805801,Low
+"Angioneurotic edema, not elsewhere classified",4,40733.229999999996,96477.8058861938,Low
+Anomalies of pulmonary artery,1,194141.72770509383,176638.36222711264,Mid-High
+Anoxic brain damage,3,295644.6066666667,233224.25686722613,High
+"Anterior displaced Type II dens fracture, initial encounter for closed fracture",1,63402.83770509384,143953.63972711263,Mid-Low
+"Anxiety state, unspecified",3,6849.923333333333,88826.91520055944,Low
+Aortic valve disorders,53,326129.2128333249,317808.214310171,High
+Aphasia,2,38691.815,117959.07024067132,Low
+"Aplastic anemia, unspecified",2,688470.5381152815,377870.5594867839,High
+Arterial embolism and thrombosis of lower extremity,7,120793.43243584833,135796.5748254295,Mid-Low
+Arterial embolism and thrombosis of upper extremity,4,100086.32500000001,130393.86017190812,Low
+Arteriovenous malformation of digestive system vessel,1,148025.23,165109.23780083918,Mid-High
+"Arteritis, unspecified",1,67183.13541018766,144898.7141533861,Mid-Low
+Articular bearing surface wear of prosthetic joint,1,182604.54770509384,173754.06722711262,Mid-High
+Aseptic necrosis of head and neck of femur,2,108830.09426273461,146014.38194576517,Mid-Low
+"Asthma, unspecified type, with (acute) exacerbation",8,26408.377315683647,65788.97633898417,Low
+"Asthma, unspecified type, with status asthmaticus",1,584501.4708203754,274228.298005933,High
+Atherosclerosis of autologous vein bypass graft of the extremities,2,328191.825,233759.07424067133,High
+"Atherosclerosis of native arteries of extremities with gangrene, right leg",1,1114247.16,406664.72030083917,High
+Atherosclerosis of native arteries of right leg with ulceration of other part of foot,1,92706.7,151279.60530083918,Mid-High
+Atherosclerosis of native arteries of the extremities with gangrene,32,216910.93359132038,212958.90274644597,High
+Atherosclerosis of native arteries of the extremities with intermittent claudication,16,147436.9685144102,151126.48512810105,Mid-High
+Atherosclerosis of native arteries of the extremities with rest pain,10,188975.55685254693,184782.09920990968,Mid-High
+Atherosclerosis of native arteries of the extremities with ulceration,16,175111.9620288204,174431.74282444647,Mid-High
+"Atherosclerosis of native arteries of the extremities, unspecified",1,255152.18541018767,191890.97665338608,High
+Atherosclerosis of renal artery,2,206875.42885254693,185232.5157816901,Mid-High
+Atherosclerotic heart disease of native coronary artery with angina pectoris with documented spasm,1,56020.880000000005,142108.15030083916,Mid-Low
+Atherosclerotic heart disease of native coronary artery with other forms of angina pectoris,2,315764.14,228788.00024067136,High
+Atherosclerotic heart disease of native coronary artery with unspecified angina pectoris,2,385128.97500000003,256533.93424067134,High
+Atherosclerotic heart disease of native coronary artery with unstable angina pectoris,3,401165.58,285984.7435338928,High
+Atherosclerotic heart disease of native coronary artery without angina pectoris,12,373061.7219262735,332610.1589545759,High
+Atrial fibrillation,284,97877.4291094098,98639.72678841722,Low
+Atrial flutter,70,124094.40762068174,126013.97609111067,Low
+"Atrioventricular block, complete",25,110089.6404066488,116594.7404060563,Low
+"Atrioventricular block, unspecified",1,99566.99541018766,152994.6791533861,Mid-High
+"Atrophic gastritis, with hemorrhage",1,427357.4877050938,234942.30222711264,High
+Attention to gastrostomy,1,2000.0,128602.93030083917,Low
+Attention to ileostomy,2,398385.8631152815,261836.68948678393,High
+Attention to tracheostomy,1,201660.66770509383,178518.09722711262,Mid-High
+Atypical atrial flutter,1,115619.58,157007.82530083918,Mid-High
+Babesiosis,1,565838.1431152815,269562.4660796595,High
+"Backache, unspecified",2,23195.47270509383,111760.53332270887,Low
+Bacteremia,7,167422.07110072768,168436.62189084507,Mid-High
+"Bacterial pneumonia, unspecified",4,45161.738278820376,99008.38204551974,Low
+Bell's palsy,2,13671.7,107951.02424067134,Low
+Benign hypertensive heart disease with heart failure,2,98305.885,141804.69824067134,Mid-Low
+Benign neoplasm of cerebral meninges,3,252148.46847006257,211476.18776892405,High
+Benign neoplasm of colon,1,147114.52770509385,164881.56222711265,Mid-High
+"Benign neoplasm of duodenum, jejunum, and ileum",1,195817.84,177057.39030083918,Mid-High
+Benign neoplasm of heart,1,206779.71,179797.85780083918,Mid-High
+Benign neoplasm of liver and biliary passages,1,203797.96,179052.42030083918,Mid-High
+Benign neoplasm of ovary,1,116200.72,157153.11030083918,Mid-High
+Benign neoplasm of parathyroid gland,2,333476.655,235873.00624067136,High
+Benign neoplasm of pituitary gland,1,130040.07,160612.94780083917,Mid-High
+Benign neoplasm of pituitary gland and craniopharyngeal duct,2,246799.92655764078,201202.31486372766,High
+Benign neoplasm of rectum and anal canal,1,14856.71,131817.10780083918,Low
+Benign neoplasm of thyroid glands,1,59021.97770509384,142858.42472711264,Mid-Low
+Benign paroxysmal positional vertigo,4,71528.50442627346,114075.10555835009,Low
+"Benign paroxysmal vertigo, unspecified ear",1,27353.43,134941.28780083917,Mid-Low
+Benign prostatic hyperplasia with lower urinary tract symptoms,2,14942.115,108459.19024067135,Low
+Bilateral primary osteoarthritis of hip,1,167537.26623056302,169987.24685847992,Mid-High
+Biliary acute pancreatitis without necrosis or infection,1,17930.739999999998,132585.61530083918,Low
+"Bimalleolar fracture, closed",1,82813.17541018767,148806.22415338608,Mid-High
+"Bipolar I disorder, most recent episode (or current) manic, unspecified",1,33058.94,136367.66530083917,Mid-Low
+"Bipolar disorder, current episode manic severe with psychotic features",2,138888.13,158037.59624067135,Mid-High
+"Blisters, epidermal loss [second degree] of forehead and cheek",1,2000.0,128602.93030083917,Low
+Blood in stool,14,178856.40726005362,177435.37781435926,Mid-High
+Bloodstream infection due to central venous catheter,5,189341.17232815013,182389.69785551343,Mid-High
+"Bloodstream infection due to central venous catheter, initial encounter",3,196172.5413118856,183488.2241898356,Mid-High
+"Bradycardia, unspecified",1,168317.88,170182.40030083916,Mid-High
+"Breakdown (mechanical) of aortic (bifurcation) graft (replacement), initial encounter",2,223661.395,191946.90224067133,High
+"Breakdown (mechanical) of cardiac electrode, initial encounter",6,56015.31628418231,94278.17987871672,Low
+"Broken internal joint prosthesis, other site, initial encounter",1,55026.22770509384,141859.48722711264,Mid-Low
+Broken prosthetic joint implant,1,200677.76541018768,178272.3716533861,Mid-High
+Bronchiectasis with acute exacerbation,6,57422.73499999999,95216.45902259518,Low
+Bronchitis and pneumonitis due to fumes and vapors,5,105639.9306230563,130076.42178982976,Low
+"Bronchitis, not specified as acute or chronic",1,66953.82770509383,144841.38722711263,Mid-Low
+"Bronchopneumonia, organism unspecified",1,25222.54,134408.56530083917,Mid-Low
+Budd-chiari syndrome,1,483401.0385254692,248953.18993220647,High
+Bulimia nervosa,1,16146.66,132139.59530083917,Low
+C5-C7 level with unspecified spinal cord injury,1,335010.3677050938,211855.5222271126,High
+COVID-19,5,308276.518,256724.28890041957,High
+"Calculus of bile duct with acute cholecystitis, with obstruction",1,176643.13770509383,172263.71472711262,Mid-High
+"Calculus of bile duct with other cholecystitis, with obstruction",1,122317.2031152815,158682.23107965954,Mid-High
+"Calculus of bile duct without mention of cholecystitis, with obstruction",5,60951.514,102146.16140041959,Low
+"Calculus of bile duct without mention of cholecystitis, without mention of obstruction",2,111726.94499999999,147173.12224067134,Mid-Low
+"Calculus of gallbladder and bile duct with acute and chronic cholecystitis, with obstruction",1,399068.47,227870.04780083918,High
+"Calculus of gallbladder and bile duct with acute and chronic cholecystitis, without mention of obstruction",1,88776.53541018766,150297.06415338608,Mid-High
+"Calculus of gallbladder and bile duct with acute cholecystitis, without mention of obstruction",1,92019.4231152815,151107.78607965953,Mid-High
+"Calculus of gallbladder and bile duct without cholecystitis, without mention of obstruction",1,50295.92,140676.91030083917,Mid-Low
+"Calculus of gallbladder with acute cholecystitis, without mention of obstruction",8,110928.0883813673,127257.85711402683,Low
+"Calculus of gallbladder with other cholecystitis, without mention of obstruction",5,56404.12462305629,99304.04303982976,Low
+Calculus of gallbladder without cholecystitis without obstruction,1,138924.11000000002,162833.95780083918,Mid-High
+"Calculus of gallbladder without mention of cholecystitis, without mention of obstruction",3,66919.0443717605,118861.47571977302,Low
+Calculus of kidney,5,76082.97354101876,111603.3236135563,Low
+Calculus of ureter,2,120440.285,150658.45824067135,Mid-High
+Candidal esophagitis,1,73442.84770509384,146463.64222711264,Mid-Low
+Candidiasis of other urogenital sites,1,69231.19,145410.72780083917,Mid-Low
+Cardiac arrest,1,167950.06,170090.44530083917,Mid-High
+"Cardiac arrest, cause unspecified",2,649910.4738525469,362446.5337816901,High
+"Cardiac complications, not elsewhere classified",8,373275.1513733244,318055.72110817744,High
+Cardiogenic shock,3,290352.11185880256,230578.00946329406,High
+Cardiomyopathy due to drug and external agent,1,65062.23,144368.48780083918,Mid-Low
+Cellulitis and abscess of buttock,1,134038.28,161612.50030083916,Mid-High
+Cellulitis and abscess of face,1,147221.18852546916,164908.22743220645,Mid-High
+"Cellulitis and abscess of finger, unspecified",2,56083.925,124915.91424067135,Low
+"Cellulitis and abscess of foot, except toes",8,38298.661741957105,74436.4559217285,Low
+"Cellulitis and abscess of hand, except fingers and thumb",4,92653.95442627346,126146.79127263579,Low
+"Cellulitis and abscess of leg, except foot",29,88381.96863215309,96109.02536049363,Low
+Cellulitis and abscess of neck,3,83082.77923503128,126943.34315140842,Low
+Cellulitis and abscess of trunk,1,16556.72,132242.11030083918,Low
+Cellulitis and abscess of upper arm and forearm,2,113843.06885254692,148019.5717816901,Mid-Low
+Cellulitis of right lower limb,1,75621.57,147008.32280083917,Mid-Low
+Cellulitis of right upper limb,1,22581.48,133748.30030083918,Mid-Low
+"Central cord syndrome at unspecified level of cervical spinal cord, initial encounter",1,301936.7,203587.10530083918,High
+"Cerebral aneurysm, nonruptured",4,149157.03635254691,158434.26665907775,Mid-High
+"Cerebral artery occlusion, unspecified with cerebral infarction",20,97230.3207705094,106826.87550493672,Low
+Cerebral atherosclerosis,1,39866.37,138069.5228008392,Mid-Low
+Cerebral edema,1,54366.46,141694.54530083918,Mid-Low
+Cerebral embolism with cerebral infarction,36,213133.66837890973,209877.53289343865,High
+Cerebral infarction due to embolism of left cerebellar artery,1,94312.31,151681.00780083917,Mid-High
+Cerebral infarction due to embolism of left middle cerebral artery,4,75509.17905764075,116349.77677627423,Low
+Cerebral infarction due to embolism of left posterior cerebral artery,1,182238.53770509383,173662.56472711262,Mid-High
+Cerebral infarction due to embolism of other cerebral artery,1,229347.16623056305,185439.72185847993,Mid-High
+Cerebral infarction due to embolism of right cerebellar artery,1,65230.27,144410.49780083916,Mid-Low
+Cerebral infarction due to embolism of right middle cerebral artery,3,399993.00666666665,285398.4568672261,High
+Cerebral infarction due to embolism of unspecified cerebral artery,1,810265.48,330669.3003008392,High
+Cerebral infarction due to thrombosis of right middle cerebral artery,2,347161.7104101877,241347.02840474644,High
+Cerebral infarction due to unspecified occlusion or stenosis of left carotid arteries,1,179634.12,173011.46030083916,Mid-High
+Cerebral infarction due to unspecified occlusion or stenosis of left cerebellar artery,1,39453.23,137966.23780083918,Mid-Low
+Cerebral infarction due to unspecified occlusion or stenosis of left middle cerebral artery,1,415218.7431152816,231907.61607965958,High
+"Cerebral infarction, unspecified",1,71660.94,146018.16530083917,Mid-Low
+Cervical disc disorder at C5-C6 level with myelopathy,1,78526.31,147734.50780083917,Mid-Low
+"Cervical disc disorder with myelopathy, high cervical region",1,312994.77,206351.6228008392,High
+Cervical spondylosis with myelopathy,2,221151.87270509385,190943.09332270888,High
+"Charcot's joint, right shoulder",1,98682.18,152773.47530083917,Mid-High
+"Chest pain, unspecified",40,22953.159885254692,33268.328293338236,Low
+Cholangitis,5,195925.2363613941,186504.73787629092,Mid-High
+Chronic atrial fibrillation,3,52538.095901697954,111671.00148474176,Low
+Chronic cholecystitis,2,141009.35499999998,158886.08624067134,Mid-High
+Chronic combined systolic (congestive) and diastolic (congestive) heart failure,2,22650.54,111542.56024067134,Low
+Chronic combined systolic and diastolic heart failure,11,71759.1275559347,92983.00887990274,Low
+Chronic diastolic heart failure,9,105955.59726779863,122167.67471779535,Low
+Chronic gouty arthropathy with tophus (tophi),1,169013.31770509382,170356.25972711263,Mid-High
+Chronic hepatitis C with hepatic coma,5,75605.97678713137,111305.2006423767,Low
+Chronic lymphocytic leukemia of B-cell type not having achieved remission,1,133476.5,161472.0553008392,Mid-High
+"Chronic lymphoid leukemia, without mention of having achieved remission",1,45580.70770509384,139498.10722711263,Mid-Low
+Chronic obstructive asthma with (acute) exacerbation,11,70270.35490324152,91813.25893850096,Low
+"Chronic obstructive asthma, unspecified",3,31325.343333333334,101064.62520055944,Low
+Chronic obstructive pulmonary disease with (acute) exacerbation,3,45140.848743521005,107972.37790565328,Low
+Chronic or unspecified duodenal ulcer with hemorrhage,1,369498.66770509386,220477.59722711262,High
+"Chronic or unspecified duodenal ulcer with hemorrhage, without mention of obstruction",2,185204.345,176564.08224067133,Mid-High
+Chronic or unspecified gastric ulcer with hemorrhage,2,300139.02,222537.95224067135,High
+"Chronic or unspecified gastric ulcer with hemorrhage, without mention of obstruction",6,366944.24795084895,301564.13432316115,High
+Chronic or unspecified gastrojejunal ulcer with hemorrhage,1,252070.526230563,191120.56185847992,High
+"Chronic osteomyelitis, ankle and foot",1,124477.68770509383,159222.35222711263,Mid-High
+"Chronic osteomyelitis, pelvic region and thigh",1,170527.21,170734.73280083918,Mid-High
+Chronic pain syndrome,1,66470.48,144720.55030083918,Mid-Low
+Chronic pancreatitis,3,123519.63,147161.76853389278,Mid-Low
+Chronic passive congestion of liver,2,227489.30385254693,193478.06578169012,High
+Chronic respiratory failure,1,87662.22,150018.48530083918,Mid-High
+Chronic systolic (congestive) heart failure,19,41822.19534951319,59410.61058382306,Low
+Chronic systolic heart failure,145,59470.02390396598,61726.791805935296,Low
+Chronic ulcer of other specified sites,1,255907.3531152815,192079.76857965955,High
+Chronic vascular insufficiency of intestine,1,68067.1,145119.70530083918,Mid-Low
+Cirrhosis of liver without mention of alcohol,3,301790.1761751564,236297.04162147097,High
+"Closed dislocation of wrist, other",1,17517.9531152815,132482.41857965954,Low
+"Closed dislocation, third cervical vertebra",1,289859.75,200567.8678008392,High
+Closed fracture of acetabulum,2,91844.93770509383,139220.31932270888,Mid-Low
+"Closed fracture of base of skull with subarachnoid, subdural, and extradural hemorrhage, with brief [less than one hour] loss of consciousness",1,142739.85770509383,163787.89472711264,Mid-High
+"Closed fracture of base of skull with subarachnoid, subdural, and extradural hemorrhage, with loss of consciousness of unspecified duration",1,371408.71770509385,220955.10972711263,High
+"Closed fracture of base of skull with subarachnoid, subdural, and extradural hemorrhage, with no loss of consciousness",3,57730.30180339589,114267.10443559072,Low
+"Closed fracture of condyle, femoral",1,153642.72082037534,166513.610505933,Mid-High
+Closed fracture of dorsal [thoracic] vertebra without mention of spinal cord injury,2,45021.055,120490.76624067135,Low
+"Closed fracture of epiphysis, lower (separation) of femur",1,302406.0731152815,203704.44857965957,High
+Closed fracture of four ribs,2,78676.57155764075,133952.97286372766,Mid-Low
+Closed fracture of glenoid cavity and neck of scapula,1,50264.87,140669.1478008392,Mid-Low
+Closed fracture of intertrochanteric section of neck of femur,7,125173.93716660285,138862.92813695766,Mid-Low
+"Closed fracture of lower end of femur, unspecified part",2,92532.75041018767,139495.4444047464,Mid-Low
+Closed fracture of lumbar vertebra without mention of spinal cord injury,3,189750.47082037534,180277.18894408047,Mid-High
+Closed fracture of malar and maxillary bones,1,17387.635410187668,132449.8391533861,Low
+Closed fracture of midcervical section of neck of femur,1,75707.38770509383,147029.77722711262,Mid-Low
+Closed fracture of nasal bones,1,16974.239999999998,132346.49030083918,Low
+Closed fracture of one rib,1,69892.63,145576.08780083916,Mid-Low
+Closed fracture of pubis,3,67915.4961751564,119359.70162147097,Low
+Closed fracture of second cervical vertebra,2,37121.48770509384,117330.93932270887,Low
+Closed fracture of shaft of femur,2,173298.7838525469,171801.8577816901,Mid-High
+Closed fracture of six ribs,1,107600.20541018766,155002.9816533861,Mid-High
+Closed fracture of subtrochanteric section of neck of femur,1,231067.00770509383,185869.68222711264,Mid-High
+Closed fracture of surgical neck of humerus,1,79932.73999999999,148086.11530083918,Mid-Low
+Closed fracture of two ribs,1,75369.23,146945.23780083918,Mid-Low
+Closed fracture of unspecified part of neck of femur,7,104856.16508234394,124640.48767797642,Low
+Closed fracture of upper end of fibula with tibia,1,17488.27,132474.99780083916,Low
+Closed fracture of upper end of tibia alone,2,180516.35770509383,174688.88732270888,Mid-High
+"Closed fracture of vault of skull with cerebral laceration and contusion, with brief [less than one hour] loss of consciousness",1,484039.54770509386,249112.81722711265,High
+"Closed fracture of vault of skull with subarachnoid, subdural, and extradural hemorrhage, with brief [less than one hour] loss of consciousness",1,561426.47,268459.5478008392,High
+Closed supracondylar fracture of femur,1,128565.41,160244.28280083917,Mid-High
+Closed supracondylar fracture of humerus,1,209409.02393565685,180455.18628475338,Mid-High
+"Cocaine use, unspecified with intoxication, unspecified",1,4000.0,129102.93030083917,Low
+"Colitis, enteritis, and gastroenteritis of presumed infectious origin",1,167193.03770509386,169901.18972711265,Mid-High
+"Combined rheumatic disorders of mitral, aortic and tricuspid valves",2,780320.7000000001,414610.6242406714,High
+"Combined systolic and diastolic heart failure, unspecified",3,156123.5743717605,163463.74071977302,Mid-High
+"Complications affecting other specified body systems, not elsewhere classified",2,921480.7204932976,471074.63243799034,High
+Complications of stem cell transplant,1,617575.9262305631,282496.91185847996,High
+Complications of transplanted bone marrow,6,254973.1363395889,226916.72658232113,High
+Complications of transplanted heart,3,192694.9843717605,181749.44571977304,Mid-High
+Complications of transplanted kidney,7,114379.1568150134,131306.58189084503,Low
+"Complications of transplanted organ, stem cell",1,1730899.95,560827.9178008392,High
+Congenital insufficiency of aortic valve,9,367500.3354828716,318326.2283791001,High
+"Congestive heart failure, unspecified",59,69741.84305366475,74631.94292531576,Low
+"Constipation, unspecified",4,54947.152500000004,104600.04731476525,Low
+Constrictive pericarditis,1,211348.6454101877,180940.0916533861,Mid-High
+Contusion of abdominal wall,1,77489.59,147475.32780083918,Mid-Low
+"Contusion of face, scalp, and neck except eye(s)",1,104369.63,154195.33780083916,Mid-High
+Contusion of hip,1,153339.0,166437.6803008392,Mid-High
+"Contusion of left hip, initial encounter",1,38481.62,137723.3353008392,Mid-Low
+Contusion of lower leg,1,29023.3731152815,135358.77357965955,Mid-Low
+Contusion of lung without mention of open wound into thorax,1,805022.2354101876,329358.4891533861,High
+Contusion of orbital tissues,1,15938.05,132087.44280083917,Low
+"Contusion of right upper arm, initial encounter",1,13745.73,131539.36280083918,Low
+Contusion of thigh,2,117543.17655764075,149499.61486372765,Mid-High
+Coronary atherosclerosis of artery bypass graft,1,146587.49770509385,164749.80472711264,Mid-High
+Coronary atherosclerosis of autologous vein bypass graft,10,139762.73431152815,146926.0818706645,Mid-Low
+Coronary atherosclerosis of native coronary artery,173,267250.79636600596,265606.81529842265,High
+"Coronary atherosclerosis of unspecified type of vessel, native or graft",6,42806.353087578194,85472.20441431398,Low
+"Cortex (cerebral) contusion without mention of open intracranial wound, with prolonged [more than 24 hours] loss of consciousness without return to pre-existing conscious level",1,365464.6,219469.08030083915,High
+Cough,3,20311.12590169795,95557.51648474176,Low
+Cutaneous abscess of left upper limb,1,108352.77541018768,155191.1241533861,Mid-High
+Cutaneous abscess of right lower limb,2,108661.625,145946.99424067134,Mid-Low
+Cystic fibrosis with pulmonary manifestations,9,137698.8671951147,145975.12716328242,Mid-Low
+Cystic fibrosis without mention of meconium ileus,3,79686.20333333332,125245.05520055944,Low
+"Cystitis, unspecified without hematuria",1,6470.099999999999,129720.45530083917,Low
+Cytomegaloviral disease,3,89106.56923503127,129955.23815140843,Low
+"Cytomegaloviral disease, unspecified",1,277324.31,197434.00780083917,High
+Defibrination syndrome,1,188240.08,175162.95030083918,Mid-High
+Degeneration of lumbar or lumbosacral intervertebral disc,3,217642.48950848973,194223.19828813765,High
+"Degenerative disease of nervous system, unspecified",1,210776.15,180796.96780083916,Mid-High
+Dehiscence of amputation stump,1,87818.68000000001,150057.60030083917,Mid-High
+Dehydration,26,47358.707427510824,60128.90049374614,Low
+Delirium due to conditions classified elsewhere,2,43380.869999999995,119834.69224067134,Low
+"Dementia, unspecified, with behavioral disturbance",1,6000.0,129602.93030083917,Low
+"Dementia, unspecified, without behavioral disturbance",1,38410.12,137705.4603008392,Mid-Low
+"Depressive disorder, not elsewhere classified",5,2400.0,65551.4651504196,Low
+Dermatitis due to drugs and medicines taken internally,4,335817.2482788203,265097.2449026626,High
+"Diabetes mellitus without mention of complication, type II or unspecified type, not stated as uncontrolled",1,2000.0,128602.93030083917,Low
+"Diabetes mellitus without mention of complication, type II or unspecified type, uncontrolled",4,37038.085,94366.29445762238,Low
+"Diabetes with hyperosmolarity, type II or unspecified type, uncontrolled",2,181513.96655764076,175087.93086372764,Mid-High
+"Diabetes with ketoacidosis, type I [juvenile type], uncontrolled",11,83881.87014915915,102508.02091743624,Low
+"Diabetes with ketoacidosis, type II or unspecified type, uncontrolled",4,124298.47,144229.37160047953,Mid-Low
+"Diabetes with neurological manifestations, type I [juvenile type], not stated as uncontrolled",6,41116.38333333334,84345.5579114841,Low
+"Diabetes with neurological manifestations, type I [juvenile type], uncontrolled",8,66713.77596313672,95101.99353713187,Low
+"Diabetes with neurological manifestations, type II or unspecified type, not stated as uncontrolled",10,82394.94254101877,102797.01127796495,Low
+"Diabetes with neurological manifestations, type II or unspecified type, uncontrolled",3,27388.342568364616,99096.1248180751,Low
+"Diabetes with other specified manifestations, type I [juvenile type], not stated as uncontrolled",6,71753.41923503128,104770.24851261605,Low
+"Diabetes with other specified manifestations, type I [juvenile type], uncontrolled",4,93315.08827882037,126524.58204551974,Low
+"Diabetes with other specified manifestations, type II or unspecified type, not stated as uncontrolled",10,87584.88616407507,106789.27560339287,Low
+"Diabetes with other specified manifestations, type II or unspecified type, uncontrolled",3,124559.58770509384,147681.7473864397,Mid-Low
+"Diabetes with peripheral circulatory disorders, type I [juvenile type], not stated as uncontrolled",2,97079.24270509384,141314.0413227089,Mid-Low
+"Diabetes with peripheral circulatory disorders, type I [juvenile type], uncontrolled",1,1151811.04,416055.6903008392,High
+"Diabetes with peripheral circulatory disorders, type II or unspecified type, not stated as uncontrolled",12,200020.74270509384,194177.3755776322,High
+"Diabetes with peripheral circulatory disorders, type II or unspecified type, uncontrolled",2,294191.34541018767,220158.8824047464,High
+"Diabetes with renal manifestations, type I [juvenile type], not stated as uncontrolled",2,84502.75,136283.44424067135,Mid-Low
+"Diabetes with renal manifestations, type I [juvenile type], uncontrolled",1,27315.28,134931.75030083916,Mid-Low
+"Diabetes with renal manifestations, type II or unspecified type, not stated as uncontrolled",3,72819.12770509384,121811.51738643971,Low
+"Diabetes with renal manifestations, type II or unspecified type, uncontrolled",1,56423.28,142208.75030083916,Mid-Low
+"Diabetes with unspecified complication, type II or unspecified type, not stated as uncontrolled",2,8179.704999999999,105754.22624067133,Low
+"Diabetes with unspecified complication, type II or unspecified type, uncontrolled",1,26819.66,134807.84530083917,Mid-Low
+Diaphragmatic hernia without mention of obstruction or gangrene,1,143571.45,163995.79280083918,Mid-High
+Diaphragmatic hernia without obstruction or gangrene,1,34057.66,136617.34530083917,Mid-Low
+Diarrhea,8,81191.27817627345,105631.08605577676,Low
+"Diastolic heart failure, unspecified",1,80965.61770509384,148344.33472711264,Mid-Low
+Dieulafoy lesion (hemorrhagic) of intestine,1,112246.82,156164.63530083917,Mid-High
+Dieulafoy lesion (hemorrhagic) of stomach and duodenum,1,121304.87,158429.14780083916,Mid-High
+"Digestive system complications, not elsewhere classified",3,75095.72513672923,122949.81610225739,Low
+Dilated cardiomyopathy,101,114052.98385336979,115690.02971532408,Low
+Diplopia,1,17633.1,132511.20530083918,Low
+Dislocation of prosthetic joint,1,47290.94770509383,139925.66722711263,Mid-Low
+"Dislocation of right ankle joint, initial encounter",1,70261.27,145668.24780083916,Mid-Low
+"Disorder of bone and cartilage, unspecified",2,39377.263852546916,118233.2497816901,Low
+"Displaced fracture of lateral end of left clavicle, initial encounter for closed fracture",1,5778.27,129547.49780083918,Low
+"Displaced fracture of medial condyle of left femur, initial encounter for closed fracture",1,30804.25,135803.9928008392,Mid-Low
+"Displaced intertrochanteric fracture of left femur, initial encounter for closed fracture",2,202864.4181152815,183628.11148678395,Mid-High
+"Displaced oblique fracture of shaft of right femur, initial encounter for closed fracture",1,100833.37,153311.27280083916,Mid-High
+"Displaced subtrochanteric fracture of left femur, initial encounter for closed fracture",1,98686.12,152774.46030083916,Mid-High
+"Displaced trimalleolar fracture of right lower leg, initial encounter for closed fracture",1,72076.75770509383,146122.11972711264,Mid-Low
+"Displacement of cardiac electrode, initial encounter",1,50439.97,140712.92280083918,Mid-Low
+"Displacement of infusion catheter, initial encounter",2,25223.42,112571.71224067135,Low
+"Displacement of internal fixation device of vertebrae, initial encounter",1,187397.76,174952.3703008392,Mid-High
+Displacement of lumbar intervertebral disc without myelopathy,8,110802.46157841824,127166.49216642752,Low
+Disruption of external operation (surgical) wound,1,47843.11,140063.70780083918,Mid-Low
+Disruption of internal operation (surgical) wound,3,75899.06437176051,123351.48571977303,Low
+"Disruption of internal operation (surgical) wound, not elsewhere classified, initial encounter",1,143052.21,163865.98280083918,Mid-High
+Dissection of abdominal aorta,2,463357.2688525469,287825.2517816901,High
+"Dissection of aorta, abdominal",4,169376.26327882038,169988.1106169483,Mid-High
+"Dissection of aorta, thoracic",1,912153.64,356141.34030083916,High
+"Dissection of aorta, thoracoabdominal",1,141128.58,163385.07530083918,Mid-High
+Dissection of thoracic aorta,1,485820.266230563,249557.99685847992,High
+Disturbance of skin sensation,3,70478.32333333333,120641.11520055945,Low
+Diverticulitis of colon (without mention of hemorrhage),9,132327.27154840634,141946.43042825113,Mid-Low
+Diverticulitis of colon with hemorrhage,2,367547.58385254693,249501.3777816901,High
+Diverticulitis of large intestine with perforation and abscess without bleeding,1,16166.05,132144.44280083917,Low
+Diverticulitis of large intestine without perforation or abscess without bleeding,1,27872.43,135071.03780083917,Mid-Low
+Diverticulosis of colon (without mention of hemorrhage),1,133000.81,161353.13280083917,Mid-High
+Diverticulosis of colon with hemorrhage,5,98275.99616407507,125473.9627529665,Low
+Diverticulosis of large intestine without perforation or abscess with bleeding,1,260216.65770509385,193157.09472711262,High
+"Diverticulum of esophagus, acquired",1,41018.73,138357.61280083918,Mid-Low
+Dizziness and giddiness,13,33566.88597731491,59298.82743177816,Low
+Drug induced acute pancreatitis with uninfected necrosis,1,157431.59,167460.82780083918,Mid-High
+Drug induced neutropenia,2,221812.135,191207.19824067137,High
+Drug-induced delirium,2,27129.955,113334.32624067133,Low
+Drug-induced mood disorder,1,15975.1,132096.70530083918,Low
+"Duodenal ulcer, unspecified as acute or chronic, without hemorrhage or perforation, without mention of obstruction",1,97368.3,152445.00530083917,Mid-High
+Duodenitis without bleeding,1,32043.2,136113.73030083918,Mid-Low
+Dyshidrosis,1,30030.25770509383,135610.49472711264,Mid-Low
+Dysmetabolic syndrome X,1,72194.55,146151.56780083917,Mid-Low
+Dyspepsia and other specified disorders of function of stomach,1,17057.13,132367.21280083916,Low
+"Dysphagia, oropharyngeal phase",1,105782.11,154548.45780083918,Mid-High
+"Dysphagia, unspecified",2,29305.6,114204.58424067133,Low
+Dysthymic disorder,2,10346.807705093834,106621.06732270887,Low
+"Early onset of delivery, delivered, with or without mention of antepartum condition",1,31349.04,135940.19030083917,Mid-Low
+Edema,4,72573.84999999999,114672.4458861938,Low
+"Effusion of joint, lower leg",1,12258.09,131167.45280083918,Low
+Embolism and thrombosis of abdominal aorta,1,560792.3631152814,268301.0210796595,High
+Embolism and thrombosis of arteries of the lower extremities,1,351523.32,215983.76030083917,High
+Embolism and thrombosis of other arteries,1,86494.79000000001,149726.62780083917,Mid-High
+"Embolism due to cardiac prosthetic devices, implants and grafts, initial encounter",1,222713.65,183781.34280083916,Mid-High
+"Emphysema, unspecified",1,23227.5,133909.8053008392,Mid-Low
+Empyema with fistula,1,633007.5331152815,286354.81357965956,High
+"Encephalopathy, unspecified",3,123498.20513672923,147151.0561022574,Mid-Low
+Encounter for adjustment and management of automatic implantable cardiac defibrillator,5,150632.974,158197.07390041958,Mid-High
+Encounter for adjustment and management of other cardiac device,1,2960.98,128843.17530083917,Low
+Encounter for adjustment and management of other part of cardiac pacemaker,1,14810.56,131805.57030083917,Low
+Encounter for antineoplastic chemotherapy,27,211133.73731049546,207100.7542862245,High
+Encounter for attention to colostomy,2,202778.38999999998,183593.70024067134,Mid-High
+Encounter for attention to ileostomy,1,840090.0599999999,338125.44530083914,High
+Encounter for attention to other artificial openings of digestive tract,1,51920.41,141083.03280083917,Mid-Low
+Encounter for change or removal of drains,1,2000.0,128602.93030083917,Low
+Encounter for extracorporeal dialysis,6,146616.06489097408,154678.67894991126,Mid-High
+Encounter for observation for other suspected diseases and conditions ruled out,1,24347.6,134189.83030083918,Mid-Low
+Encounter for palliative care,2,11235.005000000001,106976.34624067132,Low
+Encounter for planned post-operative wound closure,1,353762.3777050938,216543.5247271126,High
+Encounter for preprocedural cardiovascular examination,3,20065.703333333335,95434.80520055945,Low
+Encounter for radiotherapy,4,118029.13,140646.89160047955,Mid-Low
+Encounter for removal of internal fixation device,1,67021.51541018765,144858.3091533861,Mid-Low
+Encounter for therapeutic drug level monitoring,1,34500.46000000001,136728.04530083918,Mid-Low
+Encounter for therapeutic drug monitoring,1,55647.01,142014.68280083916,Mid-Low
+End stage heart failure,2,724822.1431152815,392411.2014867839,High
+End stage renal disease,5,142370.916,153033.28765041957,Mid-High
+Endometriosis of ovary,1,134871.42,161820.78530083917,Mid-High
+Enlargement of lymph nodes,1,258291.92770509384,192675.91222711263,High
+"Enterocolitis due to Clostridium difficile, recurrent",1,95925.42,152084.28530083917,Mid-High
+Enthesopathy of hip region,1,49730.5,140535.5553008392,Mid-Low
+"Enthesopathy of knee, unspecified",1,439963.3331152815,238093.76357965954,High
+Epigastric pain,4,19785.260000000002,84507.53731476524,Low
+"Epilepsy, unspecified, not intractable, without status epilepticus",1,401725.47,228534.29780083918,High
+"Epilepsy, unspecified, with intractable epilepsy",1,115495.8,156976.88030083917,Mid-High
+"Epilepsy, unspecified, without mention of intractable epilepsy",5,82421.83570509384,115565.11246610322,Low
+Epistaxis,6,114007.3943717605,132939.56527043553,Mid-Low
+Erythema multiforme major,1,114571.71,156745.85780083918,Mid-High
+Esophageal reflux,8,36882.53846313673,73406.5480825864,Low
+"Esophagitis, unspecified",3,94964.31333333334,132884.11020055946,Mid-Low
+Excessive or frequent menstruation,1,41490.1,138475.45530083918,Mid-Low
+Extrinsic asthma with (acute) exacerbation,1,228368.78,185195.12530083916,Mid-High
+Fecal impaction,2,229413.1504101877,194247.6044047464,High
+Felon,1,45399.19770509384,139452.72972711263,Mid-Low
+"Fever, unspecified",16,60685.614907841824,78072.71366993821,Low
+First degree atrioventricular block,1,3556.29,128992.00280083917,Low
+"Fistula of intestine, excluding rectum and anus",1,240308.78,188180.12530083916,High
+Fitting and adjustment of automatic implantable cardiac defibrillator,15,53589.26010938338,73125.03460245041,Low
+Fitting and adjustment of cardiac pacemaker,5,55396.78386916891,98674.45506865016,Low
+Fitting and adjustment of peritoneal dialysis catheter,1,19256.24,132916.99030083918,Mid-Low
+Fitting and adjustment of vascular catheter,1,9356.1,130441.95530083917,Low
+Flail chest,2,782084.418852547,415316.11178169015,High
+Flat foot,1,122231.73,158660.86280083918,Mid-High
+"Flatulence, eructation, and gas pain",1,33727.23,136534.73780083918,Mid-Low
+Fluid overload disorder,5,56761.346,99527.30640041959,Low
+Foreign body in trachea,1,675358.04,296942.4403008392,High
+"Fracture of one rib, left side, initial encounter for closed fracture",1,43766.43,139044.53780083917,Mid-Low
+"Fracture of unspecified part of neck of left femur, initial encounter for closed fracture",3,150914.67666666667,160859.29186722613,Mid-High
+Frostbite of foot,1,8394.98,130201.67530083917,Low
+Functional disturbances following cardiac surgery,1,253775.71,191546.85780083918,High
+"Gangrene, not elsewhere classified",1,45978.64,139597.59030083916,Mid-Low
+"Gastric ulcer, unspecified as acute or chronic, without mention of hemorrhage or perforation, without mention of obstruction",1,19535.19,132986.72780083917,Mid-Low
+Gastro-esophageal laceration-hemorrhage syndrome,1,92906.67,151329.59780083917,Mid-High
+Gastro-esophageal reflux disease without esophagitis,2,29099.643852546917,114122.20178169009,Low
+Gastroenteritis and colitis due to radiation,2,317245.455,229380.52624067134,High
+Gastroesophageal laceration-hemorrhage syndrome,2,114216.935,148169.11824067132,Mid-Low
+"Gastrointestinal hemorrhage, unspecified",2,404246.2246729222,264180.8341098402,High
+Gastrointestinal vessel anomaly,1,49195.06770509384,140401.69722711263,Mid-Low
+Gastroparesis,1,64573.84,144246.39030083918,Mid-Low
+"Generalized convulsive epilepsy, without mention of intractable epilepsy",3,77456.89666666667,124130.40186722612,Low
+Glomerular disease in systemic lupus erythematosus,1,441414.73,238456.61280083918,High
+Glucocorticoid deficiency,3,129479.78590169793,150141.84648474175,Mid-High
+"Gout, unspecified",12,79560.6865437891,97809.3306485884,Low
+Gouty arthropathy,1,86298.47,149677.54780083918,Mid-High
+"Gram-negative sepsis, unspecified",1,98972.9,152846.15530083916,Mid-High
+Grand mal status,1,169783.43,170548.78780083917,Mid-High
+Gross hematuria,2,38594.80655764075,117920.26686372764,Low
+Hb-SS disease with crisis,2,15462.05,108667.16424067135,Low
+Headache,3,38746.11590169794,104775.01148474176,Low
+"Heart disease, unspecified",2,49478.04,122273.56024067134,Low
+"Heart failure, unspecified",1,291008.16000000003,200854.97030083917,High
+Heart transplant rejection,1,222734.63,183786.58780083916,Mid-High
+"Hemarthrosis, right knee",1,372829.22,221310.23530083918,High
+Hematemesis,4,68492.3925,112340.18445762238,Low
+Hematoma complicating a procedure,4,223415.38270509383,200867.60743196172,High
+"Hematuria, unspecified",1,2000.0,128602.93030083917,Low
+Hemopericardium,3,143789.12388025023,157296.5154740179,Mid-High
+Hemoptysis,1,131703.73,161028.86280083918,Mid-High
+"Hemoptysis, unspecified",1,59428.84,142960.14030083918,Mid-Low
+Hemorrhage complicating a procedure,8,111346.50731568364,127562.16179352962,Low
+"Hemorrhage due to cardiac prosthetic devices, implants and grafts, initial encounter",2,13267.43,107789.31624067135,Low
+"Hemorrhage due to vascular prosthetic devices, implants and grafts, initial encounter",1,47777.57,140047.32280083917,Mid-Low
+Hemorrhage of anus and rectum,2,116305.27,149004.45224067132,Mid-High
+"Hemorrhage of gastrointestinal tract, unspecified",16,148899.886547252,152358.41610312572,Mid-High
+Hemorrhage of rectum and anus,6,52513.295000000006,91943.49902259519,Low
+Hemorrhagic disorder due to extrinsic circulating anticoagulants,3,220324.64770509384,195564.2773864397,High
+Hepatic encephalopathy,10,509616.1292461126,431428.69335880637,High
+"Hepatic failure, unspecified without coma",3,180931.85333333336,175867.88020055948,Mid-High
+Hepatorenal syndrome,2,223666.89041018765,191949.10040474642,High
+Herpes simplex without mention of complication,1,67477.36,144972.27030083918,Mid-Low
+Herpes zoster keratoconjunctivitis,1,4838.44,129312.54030083917,Low
+Herpes zoster with meningitis,1,37965.130000000005,137594.21280083916,Mid-Low
+Herpes zoster with other nervous system complications,1,277661.3216407507,197518.26071102684,High
+Herpes zoster without mention of complication,2,98920.77385254692,142050.6537816901,Mid-Low
+Hiccough,1,20686.86,133274.64530083918,Mid-Low
+"Hodgkin's disease, nodular sclerosis, unspecified site, extranodal and solid organ sites",2,764727.9515576407,408373.5248637276,High
+Human immunodeficiency virus [HIV] disease,10,261083.41993458444,240249.68619609237,High
+Hungry bone syndrome,2,68827.26270509383,130013.24932270889,Low
+"Hydronephrosis with ureteral stricture, not elsewhere classified",1,141213.02,163406.18530083916,Mid-High
+Hypercalcemia,6,91584.53256836462,117990.99073483825,Low
+Hyperkalemia,4,32005.415,91490.48302905096,Low
+Hyperosmolality and/or hypernatremia,1,133455.07,161466.69780083917,Mid-High
+Hyperpotassemia,7,53959.11363002681,89012.55166135445,Low
+Hypertensive chronic kidney disease with stage 5 chronic kidney disease or end stage renal disease,2,165507.92,168685.51224067135,Mid-High
+"Hypertensive chronic kidney disease, malignant, with chronic kidney disease stage I through stage IV, or unspecified",2,32460.708852546915,115466.6277816901,Low
+"Hypertensive chronic kidney disease, malignant, with chronic kidney disease stage V or end stage renal disease",19,113661.84700606744,121453.94610539264,Low
+"Hypertensive chronic kidney disease, unspecified, with chronic kidney disease stage I through stage IV, or unspecified",7,63101.90330218308,95412.50443186382,Low
+"Hypertensive chronic kidney disease, unspecified, with chronic kidney disease stage V or end stage renal disease",15,65074.32405469169,82695.92122354067,Low
+Hypertensive emergency,2,426536.635,273096.99824067135,High
+"Hypertensive heart and chronic kidney disease with heart failure and stage 1 through stage 4 chronic kidney disease, or unspecified chronic kidney disease",144,296687.2727825439,294118.22450265085,High
+"Hypertensive heart and chronic kidney disease with heart failure and with stage 5 chronic kidney disease, or end stage renal disease",18,193566.51256836462,190314.7117825676,High
+"Hypertensive heart and chronic kidney disease, benign, with heart failure and with chronic kidney disease stage I through stage IV, or unspecified",1,82807.67770509384,148804.84972711263,Mid-High
+"Hypertensive heart and chronic kidney disease, unspecified, with heart failure and chronic kidney disease stage V or end stage renal disease",5,327164.14016407507,268529.05275296647,High
+"Hypertensive heart and chronic kidney disease, unspecified, with heart failure and with chronic kidney disease stage I through stage IV, or unspecified",31,321139.7568485687,307874.8289267349,High
+Hypertensive heart disease with heart failure,158,194341.36042450878,193902.77433711643,High
+Hypertensive urgency,1,88152.22,150140.98530083918,Mid-High
+Hypertrophy (benign) of prostate with urinary obstruction and other lower urinary tract symptoms (LUTS),5,73259.82308203753,109838.85457669303,Low
+Hypertrophy (benign) of prostate without urinary obstruction and other lower urinary tract symptom (LUTS),1,42755.22,138791.73530083918,Mid-Low
+Hypo-osmolality and hyponatremia,2,46211.425,120966.91424067135,Low
+Hypopotassemia,4,30838.767499999998,90823.82731476524,Low
+Hyposmolality and/or hyponatremia,15,83964.75041537087,98437.94319077332,Low
+Hypotension due to drugs,6,103458.42770509383,125906.92082599108,Low
+Hypotension of hemodialysis,3,78705.68666666666,124754.79686722612,Low
+"Hypotension, unspecified",13,80858.63911734379,97723.37685805162,Low
+Hypothyroidism due to medicaments and other exogenous substances,1,64054.83,144116.63780083918,Mid-Low
+Hypovolemia,9,48394.6950455764,78996.9980511287,Low
+Hypoxemia,3,54666.006666666675,112734.95686722612,Low
+Iatrogenic cerebrovascular infarction or hemorrhage,1,27729.98770509384,135035.42722711264,Mid-Low
+Iatrogenic pneumothorax,1,43589.55,139000.31780083917,Mid-Low
+Iatrogenic pulmonary embolism and infarction,2,301996.76,223281.04824067134,High
+Idiopathic myocarditis,1,123307.89,158929.90280083916,Mid-High
+Idiopathic normal pressure hydrocephalus (INPH),2,88195.27500000001,137760.45424067133,Mid-Low
+Impotence of organic origin,1,42389.93770509384,138700.41472711263,Mid-Low
+Incisional hernia without mention of obstruction or gangrene,3,73479.41027345846,122141.658670622,Low
+Incisional ventral hernia with obstruction,3,195992.72950848972,183398.31828813764,Mid-High
+Infected postoperative seroma,1,210145.17,180639.22280083917,Mid-High
+Infection (chronic) of amputation stump,7,315608.4493443125,272167.0866613544,High
+"Infection and inflammatory reaction due to cardiac device, implant, and graft",28,283063.8135540023,272199.9516359813,High
+"Infection and inflammatory reaction due to indwelling urethral catheter, initial encounter",1,219299.24,182927.74030083918,Mid-High
+Infection and inflammatory reaction due to indwelling urinary catheter,7,178553.52231865184,176228.63774339197,Mid-High
+Infection and inflammatory reaction due to internal joint prosthesis,5,165701.68095120642,167615.0157449236,Mid-High
+"Infection and inflammatory reaction due to internal left hip prosthesis, initial encounter",2,525086.515,312516.95024067134,High
+"Infection and inflammatory reaction due to internal right knee prosthesis, initial encounter",1,389806.61,225554.58280083915,High
+"Infection and inflammatory reaction due to other cardiac and vascular devices, implants and grafts, initial encounter",18,269926.99590169796,255766.55463971046,High
+"Infection and inflammatory reaction due to other internal orthopedic device, implant, and graft",4,158667.51885254693,163868.82808764922,Mid-High
+"Infection and inflammatory reaction due to other internal prosthetic device, implant, and graft",3,178071.81923503126,174437.8631514084,Mid-High
+"Infection and inflammatory reaction due to other vascular device, implant, and graft",10,229792.7267050938,216179.92217340728,High
+"Infection following a procedure, superficial incisional surgical site, initial encounter",1,94979.38,151847.77530083916,Mid-High
+"Infectious colitis, enteritis, and gastroenteritis",3,335172.67333333334,252988.29020055945,High
+"Infectious gastroenteritis and colitis, unspecified",1,91093.5,150876.3053008392,Mid-High
+Infective myositis,1,123118.63541018766,158882.5891533861,Mid-High
+"Infective otitis externa, unspecified",1,45386.10311528151,139449.45607965955,Mid-Low
+Influenza due to identified novel influenza A virus with other respiratory manifestations,1,111310.19311528152,155930.47857965954,Mid-High
+Influenza due to other identified influenza virus with encephalopathy,1,259244.96,192914.17030083918,High
+Influenza due to other identified influenza virus with other respiratory manifestations,2,54771.11,124390.78824067135,Low
+Influenza due to unidentified influenza virus with other respiratory manifestations,1,20914.69,133331.60280083917,Mid-Low
+Influenza with other respiratory manifestations,8,156396.8045288204,160326.01431217452,Mid-High
+Influenza with pneumonia,4,457140.97020509385,334425.08600339026,High
+Infraspinatus (muscle) (tendon) sprain,1,47261.7,139918.35530083918,Mid-Low
+"Inguinal hernia, with gangrene, unilateral or unspecified, recurrent",1,162669.99,168770.42780083918,Mid-High
+"Inguinal hernia, with obstruction, without mention of gangrene, unilateral or unspecified (not specified as recurrent)",2,488204.1065576407,297763.9868637276,High
+"Inguinal hernia, with obstruction, without mention of gangrene, unilateral or unspecified,recurrent",1,127727.05,160034.69280083917,Mid-High
+"Inguinal hernia, without mention of obstruction or gangrene, bilateral (not specified as recurrent)",3,109007.22541018768,139905.56623898662,Mid-Low
+"Inguinal hernia, without mention of obstruction or gangrene, unilateral or unspecified (not specified as recurrent)",4,25946.855205093834,88028.44886053316,Low
+"Inguinal hernia, without mention of obstruction or gangrene, unilateral or unspecified, recurrent",1,5466.219999999999,129469.48530083917,Low
+"Injury to bladder and urethra, without mention of open wound into cavity",1,44134.97541018766,139136.6741533861,Mid-Low
+"Injury to other intra-abdominal organs without mention of open wound into cavity, peritoneum",1,203039.2131152815,178862.73357965954,Mid-High
+"Injury to other intra-abdominal organs without mention of open wound into cavity, retroperitoneum",2,133441.10655764077,155858.78686372764,Mid-High
+"Injury to spleen with open wound into cavity, capsular tears, without major disruption of parenchyma",1,81330.4331152815,148435.53857965954,Mid-Low
+"Insomnia, unspecified",1,2000.0,128602.93030083917,Low
+Intermediate coronary syndrome,1,90688.55,150775.06780083917,Mid-High
+Internal hemorrhoids with other complication,5,81098.95678713138,114738.31314237669,Low
+"Intervertebral disc disorder with myelopathy, cervical region",2,185740.77311528148,176778.65348678394,Mid-High
+Intestinal infection due to Clostridium difficile,17,156095.38476391736,158301.66310949757,Mid-High
+Intestinal infection due to campylobacter,1,25385.22,134449.23530083918,Mid-Low
+"Intestinal infection due to other organism, not elsewhere classified",15,31862.352721358355,55019.278445762895,Low
+Intestinal or peritoneal adhesions with obstruction (postoperative) (postinfection),7,196128.52395787058,188531.13889084506,High
+Intracerebral hemorrhage,20,200479.62816407505,196608.88193412425,High
+Intracranial abscess,1,1023870.01,384070.4328008392,High
+Intraspinal abscess,3,421742.71437176043,296273.310719773,High
+Iron deficiency anemia secondary to blood loss (chronic),5,69713.77416407506,107622.57400296649,Low
+"Iron deficiency anemia, unspecified",5,37297.85,87362.6214004196,Low
+Ischemic cardiomyopathy,5,333129.184,272257.20515041956,High
+"Jaundice, unspecified, not of newborn",1,81755.32,148541.76030083917,Mid-High
+Jaw pain,1,2000.0,128602.93030083917,Low
+Kidney transplant infection,1,49977.04,140597.19030083917,Mid-Low
+Kyphosis (acquired) (postural),1,209286.1,180424.45530083918,Mid-High
+"Left bundle-branch block, unspecified",2,62726.04385254692,127572.7617816901,Low
+Left heart failure,2,47699.100000000006,121561.98424067134,Low
+Left-sided ulcerative (chronic) colitis,1,271747.2231152815,196039.73607965955,High
+"Leiomyoma of uterus, unspecified",1,35265.87770509383,136919.39972711264,Mid-Low
+"Leukocytosis, unspecified",1,48258.96770509383,140167.67222711263,Mid-Low
+"Local infection due to central venous catheter, initial encounter",2,70980.82,130874.67224067132,Low
+"Localization-related (focal) (partial) epilepsy and epileptic syndromes with complex partial seizures, with intractable epilepsy",1,45351.95,139440.91780083918,Mid-Low
+"Localization-related (focal) (partial) epilepsy and epileptic syndromes with complex partial seizures, without mention of intractable epilepsy",2,59546.845,126301.08224067134,Low
+"Localization-related (focal) (partial) symptomatic epilepsy and epileptic syndromes with complex partial seizures, not intractable, without status epilepticus",1,61567.85,143494.89280083918,Mid-Low
+Long-term (current) use of anticoagulants,1,18154.63,132641.58780083916,Low
+Longstanding persistent atrial fibrillation,2,234330.54,196214.56024067133,High
+Loss of weight,1,62797.82,143802.38530083917,Mid-Low
+Low back pain,2,24360.69885254692,112226.6237816901,Low
+"Lower abdominal pain, unspecified",1,20050.63,133115.58780083916,Mid-Low
+Lumbago,3,12737.891803395889,91770.89943559072,Low
+Lumbosacral spondylosis without myelopathy,5,266232.2537050938,230446.62371610323,High
+Lyme Disease,1,76549.15,147240.21780083916,Mid-Low
+"Lyme disease, unspecified",1,54874.26,141821.49530083916,Mid-Low
+"Major depressive affective disorder, recurrent episode, severe, specified as with psychotic behavior",1,139351.08,162940.70030083918,Mid-High
+"Major depressive affective disorder, recurrent episode, severe, without mention of psychotic behavior",1,11091.5,130875.80530083917,Low
+"Major depressive affective disorder, single episode, unspecified",2,15244.668852546916,108580.2117816901,Low
+"Major depressive disorder, recurrent severe without psychotic features",1,23731.03,134035.68780083916,Mid-Low
+"Major depressive disorder, single episode, unspecified",2,6000.0,104882.34424067134,Low
+Malignant carcinoid tumor of other sites,1,275932.66770509386,197086.09722711262,High
+Malignant carcinoid tumor of the bronchus and lung,1,194392.28,176701.00030083916,Mid-High
+Malignant essential hypertension,2,42493.035,119479.55824067134,Low
+Malignant hypertensive heart disease with heart failure,2,82238.375,135377.69424067135,Mid-Low
+Malignant hypertensive heart disease without heart failure,1,222572.65,183746.09280083916,Mid-High
+"Malignant melanoma of skin of trunk, except scrotum",2,65696.695,128761.02224067133,Low
+Malignant neoplasm of anterior wall of bladder,1,182940.816230563,173838.13435847993,Mid-High
+Malignant neoplasm of appendix vermiformis,1,22035.18770509383,133611.72722711263,Mid-Low
+Malignant neoplasm of ascending colon,1,35056.88,136867.15030083916,Mid-Low
+Malignant neoplasm of base of tongue,1,52165.44,141144.29030083917,Mid-Low
+"Malignant neoplasm of bladder, part unspecified",1,414747.82,231789.88530083917,High
+Malignant neoplasm of body of stomach,2,238913.56885254692,198047.7717816901,High
+"Malignant neoplasm of breast (female), unspecified",1,34183.47,136648.79780083918,Mid-Low
+"Malignant neoplasm of bronchus and lung, unspecified",6,139465.65194012513,149911.73698267862,Mid-High
+Malignant neoplasm of cardia,2,226299.56541018767,193002.1704047464,High
+Malignant neoplasm of cecum,1,37784.04,137548.94030083917,Mid-Low
+"Malignant neoplasm of cervix uteri, unspecified",1,65355.66,144441.84530083917,Mid-Low
+Malignant neoplasm of cheek mucosa,1,774010.96,321605.6703008392,High
+"Malignant neoplasm of connective and other soft tissue of lower limb, including hip",1,97657.93770509383,152517.41472711263,Mid-High
+Malignant neoplasm of connective and other soft tissue of pelvis,1,344820.11,214307.95780083915,High
+"Malignant neoplasm of corpus uteri, except isthmus",1,93527.05,151484.69280083917,Mid-High
+Malignant neoplasm of duodenum,1,157249.33082037533,167415.263005933,Mid-High
+"Malignant neoplasm of esophagus, unspecified site",1,38694.7131152815,137776.60857965954,Mid-Low
+Malignant neoplasm of extrahepatic bile ducts,2,160370.76,166630.64824067135,Mid-High
+Malignant neoplasm of fundus of stomach,1,292376.23,201196.98780083918,High
+Malignant neoplasm of head of pancreas,4,449673.45483646117,330157.93436417164,High
+Malignant neoplasm of intrahepatic bile ducts,1,20550.83,133240.63780083918,Mid-Low
+"Malignant neoplasm of kidney, except pelvis",2,171946.55270509384,171260.9653227089,Mid-High
+"Malignant neoplasm of liver, primary",2,133067.18541018767,155709.2184047464,Mid-High
+"Malignant neoplasm of liver, secondary",2,7879.205,105634.02624067133,Low
+"Malignant neoplasm of lower lobe, bronchus or lung",1,136356.0,162191.9303008392,Mid-High
+Malignant neoplasm of main bronchus,1,160669.01770509384,168270.18472711265,Mid-High
+"Malignant neoplasm of nasopharynx, unspecified",1,124730.79,159285.62780083917,Mid-High
+Malignant neoplasm of other parts of bronchus or lung,3,156577.9743717605,163690.94071977303,Mid-High
+"Malignant neoplasm of other sites of rectum, rectosigmoid junction, and anus",2,160751.55385254693,166782.96578169012,Mid-High
+Malignant neoplasm of other sites of tongue,1,201388.59,178450.07780083918,Mid-High
+Malignant neoplasm of other specified part of esophagus,1,1049628.96,390510.1703008392,High
+Malignant neoplasm of other specified sites of bladder,1,33721.34,136533.26530083918,Mid-Low
+Malignant neoplasm of other specified sites of large intestine,1,531339.26,260937.7453008392,High
+Malignant neoplasm of other specified sites of stomach,1,214184.90770509385,181649.15722711262,Mid-High
+Malignant neoplasm of ovary,1,311340.01,205937.9328008392,High
+Malignant neoplasm of overlapping sites of bladder,1,5040.34,129363.01530083918,Low
+"Malignant neoplasm of pancreas, part unspecified",1,236244.01,187163.9328008392,High
+"Malignant neoplasm of peritoneum, unspecified",1,31626.14,136009.46530083916,Mid-Low
+Malignant neoplasm of posterior wall of urinary bladder,1,32886.08,136324.45030083918,Mid-Low
+Malignant neoplasm of prostate,1,52757.12770509383,141292.21222711264,Mid-Low
+Malignant neoplasm of rectosigmoid junction,1,277187.93,197399.91280083917,High
+Malignant neoplasm of rectum,2,167169.3231152815,169350.07348678395,Mid-High
+Malignant neoplasm of renal pelvis,1,46326.76,139684.62030083916,Mid-Low
+Malignant neoplasm of sigmoid colon,5,204068.11341018768,191594.03603178688,High
+Malignant neoplasm of soft palate,1,221259.84,183417.89030083918,Mid-High
+Malignant neoplasm of supraglottis,1,420519.556230563,233232.81935847993,High
+Malignant neoplasm of temporal lobe,1,382440.986230563,223713.1768584799,High
+Malignant neoplasm of thyroid gland,6,104144.75885254693,126364.47492429314,Low
+Malignant neoplasm of unspecified part of unspecified bronchus or lung,1,139992.79,163101.12780083917,Mid-High
+Malignant neoplasm of unspecified site of left female breast,1,33761.79,136543.37780083917,Mid-Low
+"Malignant neoplasm of upper lobe, bronchus or lung",15,167683.08292904377,168203.22028550075,Mid-High
+Malignant neoplasm of upper-outer quadrant of female breast,2,56320.37,125010.49224067134,Low
+Malignant neoplasm of ureter,1,77334.45,147436.54280083918,Mid-Low
+Malignant neoplasm of ureteric orifice,1,75102.16,146878.47030083917,Mid-Low
+Malignant pleural effusion,6,142598.88655764077,152000.56006102238,Mid-High
+Malnutrition of moderate degree,1,125890.64770509384,159575.59222711262,Mid-High
+"Mantle cell lymphoma, lymph nodes of inguinal region and lower limb",1,100127.95770509384,153134.91972711263,Mid-High
+Marfan syndrome,2,348664.35,241948.08424067133,High
+Mechanical complication due to cardiac pacemaker (electrode),15,75133.79595638964,91078.81447495562,Low
+"Mechanical complication due to other implant and internal device, not elsewhere classified",1,72742.53,146288.56280083916,Mid-Low
+Mechanical complication of automatic implantable cardiac defibrillator,53,92632.70611826598,96820.44902627596,Low
+Mechanical complication of colostomy and enterostomy,1,43309.76,138930.37030083916,Mid-Low
+"Mechanical complication of nervous system device, implant, and graft",1,52417.57770509383,141207.32472711263,Mid-Low
+"Mechanical complication of other vascular device, implant, and graft",1,79460.75770509383,147968.11972711264,Mid-Low
+Mechanical complication of tracheostomy,2,614301.137705094,348202.7993227089,High
+"Mechanical loosening of other internal prosthetic joint, initial encounter",1,141132.3931152815,163386.02857965956,Mid-High
+Melena,5,92445.93554101877,121830.17486355631,Low
+Metabolic encephalopathy,4,168628.30000000002,169560.70302905096,Mid-High
+Methemoglobinemia,1,108143.78,155138.87530083916,Mid-High
+Methicillin resistant Staphylococcus aureus septicemia,7,367143.2672600536,308241.45920237317,High
+Methicillin resistant pneumonia due to Staphylococcus aureus,3,202254.2402734585,186529.07367062205,Mid-High
+Methicillin susceptible Staphylococcus aureus septicemia,5,1029917.9912793565,707750.2097000175,High
+Methicillin susceptible pneumonia due to Staphylococcus aureus,1,90370.72,150695.61030083918,Mid-High
+Microscopic hematuria,1,134624.81,161759.13280083917,Mid-High
+"Migraine with aura, not intractable, without status migrainosus",1,59319.37,142932.7728008392,Mid-Low
+"Migraine with aura, without mention of intractable migraine without mention of status migrainosus",1,2000.0,128602.93030083917,Low
+"Migraine, unspecified, not intractable, without status migrainosus",1,60182.17,143148.47280083917,Mid-Low
+"Migraine, unspecified, without mention of intractable migraine without mention of status migrainosus",2,43063.035,119707.55824067134,Low
+"Miliary tuberculosis, unspecified, tubercle bacilli not found by bacteriological or histological examination, but tuberculosis confirmed by other methods [inoculation of animals]",1,134326.26541018768,161684.4966533861,Mid-High
+Mitral stenosis,1,697088.5277050938,302375.06222711265,High
+Mitral stenosis with insufficiency,1,502021.6,253608.33030083915,High
+Mitral valve disorders,30,375855.9876722073,357214.8894354417,High
+Mitral valve insufficiency and aortic valve insufficiency,9,738023.1101823057,596218.3094036757,High
+Mitral valve insufficiency and aortic valve stenosis,12,471242.78944012517,411155.0129656572,High
+Mitral valve stenosis and aortic valve stenosis,1,143545.72,163989.36030083918,Mid-High
+Mobitz (type) II atrioventricular block,2,89503.56,138283.7682406713,Mid-Low
+Morbid (severe) obesity due to excess calories,1,47130.11,139885.45780083918,Mid-Low
+Morbid obesity,15,26686.084513672922,50705.721606025036,Low
+Mucositis (ulcerative) due to antineoplastic therapy,1,79070.61,147870.58280083918,Mid-Low
+"Multiple fractures of ribs, left side, initial encounter for closed fracture",2,57124.475,125332.13424067134,Low
+"Multiple fractures of ribs, right side, initial encounter for closed fracture",1,154251.96,166665.92030083918,Mid-High
+Multiple involvement of mitral and aortic valves,8,371603.6313525469,316840.0701839756,High
+"Multiple myeloma, in relapse",1,148654.6931152815,165266.60357965954,Mid-High
+"Multiple myeloma, without mention of having achieved remission",4,586955.9771313673,408605.08996126085,High
+Multiple subsegmental pulmonary emboli without acute cor pulmonale,1,56897.25,142327.2428008392,Mid-Low
+Myasthenia gravis with (acute) exacerbation,1,879753.77,348041.3728008392,High
+"Mycosis fungoides, unspecified site, extranodal and solid organ sites",1,410645.0177050938,230764.18472711262,High
+"Myelodysplastic syndrome, unspecified",1,150301.98770509384,165678.42722711264,Mid-High
+Myelofibrosis with myeloid metaplasia,1,3173088.003935657,921374.9312847534,High
+"Myocarditis, unspecified",2,457626.4559034853,285532.92660206545,High
+Myoclonus,2,78109.95770509384,133726.32732270885,Mid-Low
+"Ménière's disease, unspecified",1,163962.93,169093.66280083917,Mid-High
+Nausea alone,2,18342.38385254692,109819.29778169011,Low
+Nausea with vomiting,5,43276.04108203753,91098.99082669304,Low
+"Nausea with vomiting, unspecified",2,174262.70967292227,172187.42810984026,Mid-High
+Necrotizing fasciitis,1,269247.28,195414.7503008392,High
+Neoplasm related pain (acute) (chronic),3,138416.52,154610.21353389276,Mid-High
+"Nephritis and nephropathy, not specified as acute or chronic, with unspecified pathological lesion in kidney",1,352445.7,216214.35530083918,High
+"Neurosyphilis, unspecified",1,53831.53,141560.81280083916,Mid-Low
+"Neutropenia, unspecified",5,274417.94432815013,235562.68035551344,High
+"Nodular lymphoma, lymph nodes of multiple sites",1,521397.8977050938,258452.40472711262,High
+"Non-Hodgkin lymphoma, unspecified, lymph nodes of multiple sites",1,80092.05393565683,148125.94378475338,Mid-Low
+Non-ST elevation (NSTEMI) myocardial infarction,27,404527.86555595277,381155.46970713604,High
+Non-healing surgical wound,1,289442.55,200463.56780083917,High
+Non-pressure chronic ulcer of other part of right lower leg with unspecified severity,1,27958.82,135092.63530083917,Mid-Low
+Non-pressure chronic ulcer of right heel and midfoot with unspecified severity,1,37063.89,137368.90280083916,Mid-Low
+"Noninfective gastroenteritis and colitis, unspecified",2,25200.09,112562.38024067134,Low
+Nonrheumatic aortic (valve) insufficiency,6,540415.6805192136,417211.7560354042,High
+Nonrheumatic aortic (valve) stenosis,10,212738.35270509386,203061.17294263808,High
+Nonrheumatic aortic (valve) stenosis with insufficiency,1,952089.1531152816,366125.2185796596,High
+Nonrheumatic mitral (valve) insufficiency,15,337656.67441537086,309847.87985744,High
+Nonrheumatic mitral (valve) prolapse,2,296418.52,221049.75224067137,High
+Nonspecific abnormal results of function study of liver,2,98814.49385254692,142008.14178169012,Mid-Low
+Nontoxic multinodular goiter,2,255627.34041018767,204733.2804047464,High
+Nontraumatic acute subdural hemorrhage,1,260700.61,193278.08280083915,High
+Nontraumatic hematoma of soft tissue,2,332027.34270509385,235293.28132270888,High
+Nontraumatic intracerebral hemorrhage in cerebellum,2,268818.02655764075,210009.55486372765,High
+"Nontraumatic intracerebral hemorrhage in hemisphere, subcortical",1,394403.99,226703.92780083918,High
+"Nontraumatic intracerebral hemorrhage, multiple localized",1,264484.1,194223.95530083915,High
+"Nontraumatic intracerebral hemorrhage, unspecified",1,136769.91,162295.40780083917,Mid-High
+Nonunion of fracture,2,310378.5627050938,226633.76932270886,High
+"Nutritional anemia, unspecified",1,23808.52,134055.06030083916,Mid-Low
+Obstruction of bile duct,3,45066.06770509383,107934.9873864397,Low
+Obstructive chronic bronchitis with (acute) exacerbation,28,67086.74806223669,77123.8924821285,Low
+Obstructive sleep apnea (adult)(pediatric),1,26074.86,134621.64530083918,Mid-Low
+Occlusion and stenosis of bilateral carotid arteries,1,6972.02,129845.93530083918,Low
+Occlusion and stenosis of carotid artery with cerebral infarction,3,132022.08617515638,151412.996621471,Mid-High
+Occlusion and stenosis of carotid artery without mention of cerebral infarction,16,153975.7928894102,156632.86354915367,Mid-High
+Occlusion and stenosis of multiple and bilateral precerebral arteries with cerebral infarction,1,31526.68,135984.60030083917,Mid-Low
+Occlusion and stenosis of multiple and bilateral precerebral arteries without mention of cerebral infarction,2,149161.3,162146.86424067133,Mid-High
+Occlusion and stenosis of other specified precerebral artery without mention of cerebral infarction,1,343410.13770509383,213955.46472711262,High
+Occlusion and stenosis of right carotid artery,1,481150.28,248390.5003008392,High
+Occlusion and stenosis of vertebral artery with cerebral infarction,1,121252.77311528152,158416.12357965956,Mid-High
+Olecranon bursitis,1,53429.51,141460.30780083916,Mid-Low
+"Open wound of auditory canal, without mention of complication",1,18606.95770509383,132754.66972711263,Mid-Low
+"Open wound of knee, leg [except thigh], and ankle, complicated",2,175343.08541018766,172619.5784047464,Mid-High
+"Open wound of knee, leg [except thigh], and ankle, without mention of complication",1,51488.88541018767,140975.1516533861,Mid-Low
+Orthostatic hypotension,24,40058.26814901698,54585.56136221349,Low
+"Osteoarthritis of knee, unspecified",1,105793.63,154551.33780083916,Mid-High
+"Osteoarthrosis, localized, not specified whether primary or secondary, hand",1,40162.27770509383,138143.49972711262,Mid-Low
+"Osteoarthrosis, localized, not specified whether primary or secondary, lower leg",9,158267.05173071194,161401.26556498036,Mid-High
+"Osteoarthrosis, localized, not specified whether primary or secondary, pelvic region and thigh",6,83391.14103842717,112528.72971487997,Low
+"Osteoarthrosis, localized, not specified whether primary or secondary, shoulder region",1,40952.60770509383,138341.08222711264,Mid-Low
+"Osteoarthrosis, unspecified whether generalized or localized, lower leg",1,120114.6331152815,158131.58857965955,Mid-High
+"Osteoarthrosis, unspecified whether generalized or localized, pelvic region and thigh",3,33415.24180339589,102109.57443559072,Low
+"Osteomyelitis, unspecified",1,399251.18,227915.72530083917,High
+Ostium secundum type atrial septal defect,1,390903.47,225828.79780083918,High
+Other acute pain,1,24702.480000000003,134278.55030083918,Mid-Low
+Other acute postoperative pain,1,4738.5,129287.55530083917,Low
+Other acute postprocedural pain,1,20126.2,133134.48030083918,Mid-Low
+Other acute rheumatic heart disease,2,92309.76000000001,139406.24824067135,Mid-Low
+Other adrenal hypofunction,1,82216.31541018767,148657.00915338608,Mid-High
+Other alteration of consciousness,2,52679.827705093834,123554.27532270885,Low
+Other amnesia,1,2000.0,128602.93030083917,Low
+Other amputation stump complication,7,182769.06440291074,179179.5172023732,Mid-High
+Other amyloidosis,3,196127.44666666666,183465.6768672261,Mid-High
+Other anaphylactic reaction,1,34558.63,136742.58780083916,Mid-Low
+"Other and unspecified alcohol dependence, unspecified",1,18350.0,132690.4303008392,Mid-Low
+Other and unspecified angina pectoris,3,59707.93666666667,115255.92186722612,Low
+"Other and unspecified complications of medical care, not elsewhere classified",1,29095.40770509384,135376.78222711262,Mid-Low
+Other and unspecified infection due to central venous catheter,12,512504.92635254696,444164.7224955947,High
+Other and unspecified mycoses,1,191288.56,175925.07030083917,Mid-High
+Other and unspecified noninfectious gastroenteritis and colitis,6,78060.49256836461,108974.9640681716,Low
+Other and unspecified ovarian cyst,1,30410.08,135705.45030083918,Mid-Low
+Other arterial embolism and thrombosis of abdominal aorta,1,164008.35770509383,169105.01972711264,Mid-High
+Other ascites,1,2000.0,128602.93030083917,Low
+Other cardiomyopathies,1,7481.13,129973.21280083917,Low
+"Other cardiovascular diseases of mother, antepartum condition or complication",1,569434.3785254692,270461.5249322065,High
+"Other cardiovascular diseases of mother, postpartum condition or complication",2,6275.77,104992.65224067133,Low
+Other cerebral infarction,1,2000.0,128602.93030083917,Low
+Other chest pain,99,49600.82476572697,53165.62130402282,Low
+Other chronic allergic conjunctivitis,1,2000.0,128602.93030083917,Low
+Other chronic pain,4,43253.145000000004,97917.75731476524,Low
+Other chronic pancreatitis,5,133577.7906230563,147537.58428982977,Mid-Low
+Other chronic postoperative pain,1,72748.47,146290.04780083918,Mid-Low
+Other chronic pulmonary heart diseases,3,196959.67333333334,183881.79020055945,Mid-High
+Other closed fracture of upper end of humerus,1,41437.07,138462.19780083917,Mid-Low
+Other closed transcervical fracture of neck of femur,2,105338.4181152815,144617.71148678396,Mid-Low
+Other colostomy and enterostomy complication,3,122557.01513672923,146680.4611022574,Mid-Low
+Other complication of kidney transplant,6,84025.40333333334,112951.5712448174,Low
+"Other complications due to genitourinary device, implant, and graft",2,70137.655,130537.40624067133,Low
+Other complications due to heart valve prosthesis,1,30978.49,135847.55280083918,Mid-Low
+"Other complications due to other cardiac device, implant, and graft",21,165913.02992978424,166524.3895720344,Mid-High
+"Other complications due to other internal orthopedic device, implant, and graft",1,111630.02770509385,156010.43722711265,Mid-High
+"Other complications due to other internal prosthetic device, implant, and graft",1,117354.12770509384,157441.46222711264,Mid-High
+"Other complications due to other vascular device, implant, and graft",9,203106.01881620492,195030.49087910008,High
+"Other complications due to renal dialysis device, implant, and graft",16,143734.200297252,148008.36452417835,Mid-Low
+Other complications of gastric band procedure,1,9670.9,130520.65530083918,Low
+Other complications of intestinal pouch,1,67760.22,145042.98530083918,Mid-Low
+"Other complications of labor and delivery, delivered, with or without mention of antepartum condition",1,163399.29,168952.75280083917,Mid-High
+Other complications of other bariatric procedure,1,98976.76,152847.12030083916,Mid-High
+"Other complications of procedures, not elsewhere classified, initial encounter",1,150971.62,165845.83530083916,Mid-High
+Other conditions of brain,1,373900.61,221578.08280083915,High
+Other constipation,6,39598.16961751564,83333.41543427229,Low
+Other convulsions,1,49885.23541018767,140574.2391533861,Mid-Low
+"Other current conditions classifiable elsewhere of mother, antepartum condition or complication",2,243186.96,199757.12824067133,High
+Other degenerative diseases of the basal ganglia,1,48089.39770509384,140125.27972711262,Mid-Low
+Other digestive system complications,1,61073.45,143371.29280083918,Mid-Low
+Other disease of nasal cavity and sinuses,1,588354.4400000001,275191.5403008392,High
+"Other diseases of larynx, not elsewhere classified",1,31075.85770509384,135871.89472711264,Mid-Low
+"Other diseases of lung, not elsewhere classified",1,48102.9,140128.65530083916,Mid-Low
+"Other diseases of pharynx, not elsewhere classified",1,168416.7,170207.10530083918,Mid-High
+Other diseases of spleen,2,161858.5938525469,167225.7817816901,Mid-High
+Other diseases of trachea and bronchus,11,240623.257138679,225661.96783777326,High
+Other diseases of vocal cords,2,28607.00385254692,113925.14578169011,Low
+Other disorders of calcium metabolism,2,45617.08,120729.17624067134,Low
+"Other disorders of muscle, ligament, and fascia",2,137998.63770509383,157681.7993227089,Mid-High
+Other disorders of neurohypophysis,6,130055.75013672921,143638.469113748,Mid-Low
+Other encephalopathy,2,57368.88385254692,125429.89778169012,Low
+Other esophagitis,1,71631.31,146010.75780083917,Mid-Low
+Other fluid overload,2,58163.725000000006,125747.83424067133,Low
+"Other foreign object in bronchus causing asphyxiation, initial encounter",1,628609.8470509384,285255.39206357376,High
+Other forms and combinations of labyrinthine dysfunction,1,24832.57,134311.07280083917,Mid-Low
+"Other forms of migraine, without mention of intractable migraine without mention of status migrainosus",1,70295.97,145676.92280083918,Mid-Low
+"Other generalized epilepsy and epileptic syndromes, intractable, with status epilepticus",1,668233.3739356569,295161.2737847534,High
+Other hemoptysis,1,40741.38770509383,138288.27722711262,Mid-Low
+Other hemorrhoids,1,118118.38,157632.52530083916,Mid-High
+Other hyperparathyroidism,1,189421.33,175458.26280083918,Mid-High
+Other hypotension,1,52826.9931152815,141309.67857965955,Mid-Low
+Other iatrogenic hypotension,6,75629.1862841823,107354.09321205005,Low
+Other ill-defined heart diseases,1,62350.01,143690.43280083916,Mid-Low
+Other late effects of cerebrovascular disease,5,61034.228,102197.85765041958,Low
+Other left bundle branch block,3,55929.91590169795,113366.91148474177,Low
+Other malaise and fatigue,7,42058.10428571429,80681.84512033567,Low
+"Other malignant lymphomas, unspecified site, extranodal and solid organ sites",7,179098.10758789736,176609.84743186383,Mid-High
+Other malignant neoplasm without specification of site,1,69393.64,145451.34030083916,Mid-Low
+"Other mechanical complication of cardiac device, implant, and graft",1,64118.56999999999,144132.57280083917,Mid-Low
+"Other mechanical complication of cardiac electrode, initial encounter",5,181771.274,177658.51140041958,Mid-High
+"Other mechanical complication of other cardiac and vascular devices and implants, initial encounter",1,52961.36,141343.27030083918,Mid-Low
+"Other mechanical complication of other cardiac electronic device, initial encounter",2,79758.02385254693,134385.55378169013,Mid-Low
+"Other mechanical complication of other internal orthopedic device, implant, and graft",3,131018.39131188561,150911.1491898356,Mid-High
+"Other named variants of lymphosarcoma and reticulosarcoma, unspecified site, extranodal and solid organ sites",1,368791.27,220300.7478008392,High
+Other nerve root and plexus disorders,1,142492.08000000002,163725.95030083918,Mid-High
+Other nervous system complications,1,4076.52,129122.06030083918,Low
+Other nontraumatic intracerebral hemorrhage,2,340725.795,238772.6622406713,High
+"Other osteomyelitis, other site",1,240192.86,188151.14530083915,High
+Other persistent atrial fibrillation,7,275064.59320873226,243786.38736644824,High
+Other persistent mental disorders due to conditions classified elsewhere,1,67137.23,144887.23780083918,Mid-Low
+Other postoperative infection,22,164152.6857825981,164950.83233682057,Mid-High
+Other postprocedural cardiac functional disturbances following cardiac surgery,1,176887.08,172324.70030083918,Mid-High
+Other postprocedural complications and disorders of digestive system,1,76627.69,147259.85280083917,Mid-Low
+"Other postprocedural complications and disorders of respiratory system, not elsewhere classified",1,54850.53,141815.56280083916,Mid-Low
+"Other postprocedural complications and disorders of the circulatory system, not elsewhere classified",1,119986.31,158099.50780083917,Mid-High
+Other premature beats,4,29170.035000000003,89870.26588619381,Low
+Other primary cardiomyopathies,119,93469.54624335955,95371.21085379625,Low
+Other pulmonary embolism and infarction,23,149860.3500501224,152276.9143213912,Mid-High
+Other pulmonary embolism without acute cor pulmonale,4,48152.70692627346,100717.50698692151,Low
+"Other pulmonary insufficiency, not elsewhere classified",2,463469.4838525469,287870.1377816901,High
+Other respiratory abnormalities,14,41481.94769322099,64303.46993579121,Low
+Other retroperitoneal abscess,1,127553.22,159991.23530083918,Mid-High
+Other rheumatoid arthritis with visceral or systemic involvement,1,274832.02082037536,196810.935505933,High
+Other second degree atrioventricular block,5,103464.0506230563,128716.49678982978,Low
+Other seizures,1,622877.8631152814,283822.3960796595,High
+Other septicemia due to gram-negative organisms,12,272635.78539633605,252269.40973062592,High
+Other severe protein-calorie malnutrition,1,444492.6354101877,239226.0891533861,High
+Other specified abnormal findings of blood chemistry,1,24038.71,134112.60780083918,Mid-Low
+Other specified acquired deformity of head,1,24057.58,134117.32530083918,Mid-Low
+Other specified alveolar and parietoalveolar pneumonopathies,1,199566.68770509385,177994.60222711263,Mid-High
+Other specified aplastic anemias and other bone marrow failure syndromes,1,181718.186230563,173532.47685847993,Mid-High
+"Other specified arthropathy, shoulder region",1,38220.0131152815,137657.93357965956,Mid-Low
+Other specified cardiac dysrhythmias,54,75675.43036133453,80682.19229325301,Low
+Other specified causes of urethral stricture,1,31599.73,136002.86280083918,Mid-Low
+"Other specified complication of cardiac prosthetic devices, implants and grafts, initial encounter",4,66960.34442627346,111464.72841549292,Low
+"Other specified complication of vascular prosthetic devices, implants and grafts, initial encounter",2,148795.09,162000.38024067134,Mid-High
+Other specified conduction disorders,3,89695.90333333332,130249.90520055946,Low
+Other specified congenital anomalies of heart,2,151857.28999999998,163225.2602406713,Mid-High
+Other specified diseases of anus and rectum,1,50357.81,140692.38280083917,Mid-Low
+Other specified diseases of pancreas,1,25345.88770509383,134439.40222711262,Mid-Low
+Other specified diseases of pericardium,1,132995.43770509382,161351.78972711263,Mid-High
+Other specified diseases of pulmonary circulation,2,220812.6146729223,190807.39010984026,High
+Other specified diseases of upper respiratory tract,1,5342.06,129438.44530083917,Low
+Other specified disorders of biliary tract,4,137498.39233646114,151772.1843641716,Mid-High
+Other specified disorders of bladder,1,62648.44,143765.04030083917,Mid-Low
+Other specified disorders of liver,1,15018.74,131857.61530083918,Low
+Other specified disorders of peritoneum,1,16025.75,132109.3678008392,Low
+Other specified disorders of rectum and anus,1,53493.34,141476.26530083918,Mid-Low
+Other specified disorders of skin,1,17379.36,132447.77030083918,Low
+Other specified disorders of urethra,1,249771.34,190545.76530083918,High
+"Other specified forms of effusion, except tuberculous",3,98267.73666666668,134535.82186722613,Mid-Low
+Other specified functional intestinal disorders,1,725556.37,309492.02280083916,High
+"Other specified gastritis, with hemorrhage",2,55968.965000000004,124869.93024067134,Low
+"Other specified gastritis, without mention of hemorrhage",1,38145.7931152815,137639.37857965956,Mid-Low
+Other specified hypersensitivity angiitis,1,45109.08770509383,139380.20222711263,Mid-Low
+Other specified hypotension,2,71047.845,130901.48224067134,Low
+Other specified inflammatory polyarthropathies,1,91158.43,150892.53780083917,Mid-High
+Other specified intestinal obstruction,1,445829.96,239560.42030083918,High
+Other specified non-arthropod-borne viral diseases of central nervous system,1,2079434.455410188,647961.5441533861,High
+Other specified sepsis,10,751748.9199345845,617684.6861960925,High
+Other specified septicemias,8,667278.2573364611,531876.1618086406,High
+Other specified sites of sprains and strains,1,14217.357705093831,131657.26972711264,Low
+"Other specified types of non-Hodgkin lymphoma, extranodal and solid organ sites",1,152012.72,166106.11030083918,Mid-High
+"Other specified types of schizophrenia, chronic with acute exacerbation",1,146736.86,164787.14530083915,Mid-High
+Other specified visual disturbances,2,2708.975,103565.93424067134,Low
+Other staphylococcal septicemia,2,276770.4781152815,213190.53548678392,High
+Other symptoms referable to back,1,42261.27,138668.24780083916,Mid-Low
+Other tenosynovitis of hand and wrist,1,73235.15852546917,146411.71993220647,Mid-Low
+Other tracheostomy complications,1,160714.9,168281.65530083916,Mid-High
+Other transient cerebral ischemic attacks and related syndromes,1,34183.32,136648.76030083917,Mid-Low
+Other venous embolism and thrombosis of inferior vena cava,1,27349.20770509383,134940.23222711263,Mid-Low
+Other vitamin B12 deficiency anemia,1,107375.14,154946.71530083916,Mid-High
+"Pain due to cardiac prosthetic devices, implants and grafts, initial encounter",1,35782.509999999995,137048.55780083916,Mid-Low
+"Pain in joint, pelvic region and thigh",1,48363.670000000006,140193.84780083917,Mid-Low
+"Pain in joint, shoulder region",1,4585.71,129249.35780083918,Low
+Pain in left shoulder,1,70935.17770509384,145836.72472711263,Mid-Low
+Pain in limb,4,49119.81942627346,101270.14270120722,Low
+Pain in right shoulder,1,62999.34,143852.76530083918,Mid-Low
+Pain in thoracic spine,1,33900.0,136577.9303008392,Mid-Low
+Palpitations,6,9607.43142091153,63339.589969869536,Low
+Paralysis agitans,1,40438.99,138212.67780083918,Mid-Low
+Paralytic ileus,4,342460.0702050938,268893.1431462474,High
+Paranoid schizophrenia,2,254480.11,204274.38824067134,High
+"Paranoid type schizophrenia, chronic",1,2000.0,128602.93030083917,Low
+"Paranoid type schizophrenia, chronic with acute exacerbation",2,45292.41500000001,120599.31024067134,Low
+Paroxysmal atrial fibrillation,18,133841.988779863,139122.26282099477,Mid-Low
+Paroxysmal supraventricular tachycardia,8,90115.54875,112121.4646548506,Low
+Paroxysmal ventricular tachycardia,168,145632.0599660092,146073.67131867196,Mid-Low
+Pathologic fracture of neck of femur,1,87140.87770509384,149888.14972711264,Mid-High
+Pathologic fracture of other specified part of femur,1,557664.8,267519.1303008392,High
+Pathologic fracture of other specified site,1,34949.06,136840.19530083917,Mid-Low
+Pathologic fracture of tibia or fibula,1,558233.7277050938,267661.36222711264,High
+Pathologic fracture of vertebrae,4,127467.96270509383,146040.51028910457,Mid-Low
+"Peptic ulcer of unspecified site, unspecified as acute or chronic, without mention of hemorrhage or perforation, without mention of obstruction",1,29228.86,135410.14530083918,Mid-Low
+Perforation of intestine,1,856723.7008203754,342283.855505933,High
+Peri-prosthetic fracture around prosthetic joint,1,76210.94770509383,147155.66722711263,Mid-Low
+Pericardial effusion (noninflammatory),3,204750.03207685435,187776.96957231997,High
+"Peripheral vascular complications, not elsewhere classified",2,64700.18155764075,128362.41686372765,Low
+"Peripheral vascular disease, unspecified",1,88414.62311528149,150206.58607965955,Mid-High
+Peritonsillar abscess,1,2000.0,128602.93030083917,Low
+Periumbilical pain,1,38492.71770509383,137726.10972711263,Mid-Low
+Persistent atrial fibrillation,16,56278.95458009383,74361.84181499253,Low
+Persistent postoperative fistula,2,120479.37155764076,150674.09286372765,Mid-High
+Persistent vomiting,1,50794.8,140801.63030083917,Mid-Low
+Person feigning illness,1,2000.0,128602.93030083917,Low
+Phlebitis and thrombophlebitis of superficial vessels of left lower extremity,1,26297.35,134677.26780083918,Mid-Low
+Pleural effus nec not tb,1,111527.06770509384,155984.69722711263,Mid-High
+"Pleural effusion, not elsewhere classified",1,1129260.21,410417.9828008392,High
+Pleurodynia,1,105102.66770509385,154378.59722711262,Mid-High
+Pneumococcal septicemia [Streptococcus pneumoniae septicemia],6,763630.8386344952,566021.861445592,High
+Pneumonia due to Hemophilus influenzae [H. influenzae],1,52925.93,141334.41280083917,Mid-Low
+Pneumonia due to Klebsiella pneumoniae,2,324372.3127050938,232231.26932270886,High
+Pneumonia due to Pseudomonas,2,142885.8088525469,159636.66778169008,Mid-High
+"Pneumonia due to Streptococcus, group B",1,156894.07770509383,167326.44972711263,Mid-High
+Pneumonia due to parainfluenza virus,1,24632.93,134261.16280083917,Mid-Low
+Pneumonia due to respiratory syncytial virus,3,178391.448743521,174597.67790565328,Mid-High
+"Pneumonia, organism unspecified",68,86888.97804975556,90434.67927586951,Low
+"Pneumonia, unspecified organism",16,140068.64178284182,144921.5784067803,Mid-Low
+Pneumonitis due to inhalation of food and vomit,6,97467.97347006256,121913.28466930357,Low
+Pneumonitis due to inhalation of food or vomitus,18,145775.51385254692,149350.998597581,Mid-High
+Poisoning by amphetamines,1,62440.87,143713.1478008392,Mid-Low
+"Poisoning by amphetamines, accidental (unintentional), initial encounter",1,60196.54,143152.06530083917,Mid-Low
+Poisoning by anticoagulants,1,44380.91,139198.15780083917,Mid-Low
+Poisoning by benzodiazepine-based tranquilizers,1,73374.55,146446.56780083917,Mid-Low
+Poisoning by cocaine,4,167354.63442627346,168832.89412977867,Mid-High
+"Poisoning by cocaine, accidental (unintentional), initial encounter",1,2737983.5732815014,812598.8236212145,High
+Poisoning by heroin,3,571085.1210384271,370944.5140531063,High
+"Poisoning by insulin and oral hypoglycemic [antidiabetic] drugs, accidental (unintentional), initial encounter",1,59530.89,142985.65280083916,Mid-Low
+Poisoning by insulins and antidiabetic agents,1,354376.57,216697.07280083917,High
+"Poisoning by opium (alkaloids), unspecified",1,266346.85,194689.64280083915,High
+"Poisoning by other antiepileptic and sedative-hypnotic drugs, intentional self-harm, initial encounter",1,63278.28,143922.50030083916,Mid-Low
+Poisoning by other diuretics,1,23725.51,134034.30780083916,Mid-Low
+Poisoning by other opiates and related narcotics,2,80432.18385254692,134655.21778169012,Mid-Low
+"Poisoning by other opioids, accidental (unintentional), initial encounter",1,950170.676230563,365645.5993584799,High
+Poisoning by other specified central nervous system stimulants,1,18999.71,132852.85780083918,Mid-Low
+Poisoning by salicylates,1,100051.04,153115.69030083917,Mid-High
+Poisoning by sympatholytics [antiadrenergics],1,34142.06,136638.44530083917,Mid-Low
+Poisoning by unspecified sedative or hypnotic,1,31643.80541018767,136013.88165338608,Mid-Low
+Polymyalgia rheumatica,1,38494.16,137726.47030083917,Mid-Low
+Polymyositis,2,30433.309999999998,114655.66824067132,Low
+Polyp of corpus uteri,1,41461.920000000006,138468.41030083917,Mid-Low
+"Post term pregnancy, delivered, with or without mention of antepartum condition",1,222119.97,183632.92280083918,Mid-High
+Postinflammatory pulmonary fibrosis,3,82937.64847006256,126870.77776892406,Low
+"Postoperative shock, other",1,277445.2739356568,197464.24878475338,High
+"Postprocedural cardiogenic shock, initial encounter",1,514418.642461126,256707.59091612068,High
+Postprocedural cerebrovascular infarction following cardiac surgery,1,2000.0,128602.93030083917,Low
+Postprocedural fever,1,55970.96770509383,142095.67222711263,Mid-Low
+Postprocedural heart failure following cardiac surgery,1,204477.39770509384,179222.27972711262,Mid-High
+Postprocedural hematoma of a musculoskeletal structure following a musculoskeletal system procedure,1,146394.63999999998,164701.59030083916,Mid-High
+Postprocedural hemorrhage of a digestive system organ or structure following a digestive system procedure,2,90083.2381152815,138515.63948678394,Mid-Low
+Postprocedural hemorrhage of a respiratory system organ or structure following other procedure,1,334290.99,211675.67780083918,High
+Postprocedural hemorrhage of skin and subcutaneous tissue following a dermatologic procedure,1,27671.44,135020.79030083917,Mid-Low
+Postprocedural hypotension,1,102373.006230563,153696.18185847992,Mid-High
+Postprocedural pneumothorax,1,66234.76999999999,144661.62280083916,Mid-Low
+Posttraumatic stress disorder,1,19050.0,132865.4303008392,Mid-Low
+"Pre-eclampsia or eclampsia superimposed on pre-existing hypertension, delivered, with or without mention of antepartum condition",1,163663.03,169018.68780083916,Mid-High
+Pre-operative cardiovascular examination,2,32971.97,115671.13224067134,Low
+Precordial pain,5,25792.406,80171.71890041958,Low
+Predominant disturbance of emotions,1,58210.88770509383,142655.65222711262,Mid-Low
+"Pressure ulcer of left hip, stage 4",1,106398.02,154702.43530083916,Mid-High
+"Pressure ulcer, other site",1,102908.45311528152,153830.04357965954,Mid-High
+"Previous cesarean delivery, delivered, with or without mention of antepartum condition",1,125791.62,159550.83530083916,Mid-High
+"Primary central nervous system lymphoma, unspecified site, extranodal and solid organ sites",1,72899.9731152815,146327.92357965955,Mid-Low
+Primary central sleep apnea,2,370833.83770509384,250815.87932270888,High
+Primary cutaneous CD30-positive T-cell proliferations,1,564419.89,269207.90280083916,High
+Primary hyperparathyroidism,2,42869.07385254692,119629.97378169009,Low
+Primary sclerosing cholangitis,1,73061.19,146368.22780083917,Mid-Low
+Prinzmetal angina,1,18828.28,132810.00030083916,Mid-Low
+Pseudocyst of pancreas,1,96567.62,152244.83530083916,Mid-High
+"Pulmonary eosinophilia, not elsewhere classified",3,88195.25437176051,129499.58071977303,Low
+Pulmonary insufficiency following trauma and surgery,1,125183.35,159398.76780083918,Mid-High
+"Pyelonephritis, unspecified",2,51621.54885254692,123130.96378169011,Low
+"Pyogenic arthritis, ankle and foot",1,45141.35770509383,139388.26972711264,Mid-Low
+"Pyogenic arthritis, forearm",1,477783.68,247548.85030083917,High
+"Pyogenic arthritis, pelvic region and thigh",1,281978.19,198597.47780083917,High
+"Pyogenic arthritis, shoulder region",1,49805.22,140554.23530083918,Mid-Low
+Pyothorax with fistula,1,479703.59,248028.82780083918,High
+Rectal prolapse,1,39197.98,137902.42530083918,Mid-Low
+Regional enteritis of large intestine,2,479182.08499999996,294155.17824067135,High
+Regional enteritis of small intestine,2,55110.973852546915,124526.7337816901,Low
+Regional enteritis of unspecified site,1,1773997.62,571602.3353008392,High
+"Respiratory failure, unspecified with hypoxia",1,1049863.7231152814,390568.86107965955,High
+Respiratory syncytial virus (RSV),1,160070.12,168120.46030083916,Mid-High
+Rhabdomyolysis,1,37619.33,137507.76280083918,Mid-Low
+Rheumatic aortic stenosis,1,593969.2831152815,276595.25107965956,High
+Rheumatic disorders of both aortic and tricuspid valves,3,612513.1354101876,391658.5212389866,High
+Rheumatic disorders of both mitral and aortic valves,5,1192019.7166230562,809063.7880398298,High
+Rheumatic disorders of both mitral and tricuspid valves,2,383348.7365576407,255821.83886372764,High
+Rheumatic heart failure,2,1326775.11,633192.3882406714,High
+Rheumatic heart failure (congestive),5,129840.61154101878,145201.84736355633,Mid-Low
+Rheumatic mitral insufficiency,1,283940.51,199088.0578008392,High
+Rheumatic mitral stenosis with insufficiency,1,505743.57000000007,254538.8228008392,High
+Rheumatic tricuspid insufficiency,1,41297.22,138427.23530083918,Mid-Low
+Rheumatoid arthritis,5,53314.35954101876,97372.93986355631,Low
+"Rheumatoid arthritis, unspecified",2,95606.29499999998,140724.86224067133,Mid-Low
+ST elevation (STEMI) myocardial infarction involving left circumflex coronary artery,1,1154856.32,416817.0103008392,High
+ST elevation (STEMI) myocardial infarction involving other sites,1,153298.78541018767,166427.6266533861,Mid-High
+Saddle embolus of pulmonary artery,1,246723.9893458445,189783.92763730028,High
+"Salpingitis and oophoritis not specified as acute, subacute, or chronic",1,33025.33770509383,136359.26472711263,Mid-Low
+Sarcoid myocarditis,1,69839.73000000001,145562.86280083918,Mid-Low
+Sciatica,2,17200.79885254692,109362.6637816901,Low
+"Scoliosis [and kyphoscoliosis], idiopathic",2,315964.8354101877,228868.27840474644,High
+Sebaceous cyst,1,48285.58770509384,140174.32722711263,Mid-Low
+Secondary and unspecified malignant neoplasm of intrathoracic lymph nodes,2,333163.22311528155,235747.63348678398,High
+"Secondary and unspecified malignant neoplasm of lymph nodes of head, face, and neck",1,212921.64,181333.34030083916,Mid-High
+Secondary hyperparathyroidism (of renal origin),3,82894.99103842718,126849.44905310636,Low
+Secondary hyperparathyroidism of renal origin,1,94719.14,151782.71530083916,Mid-High
+Secondary malignant neoplasm of bone,1,86524.4931152815,149734.05357965955,Mid-High
+Secondary malignant neoplasm of bone and bone marrow,2,367197.56852546916,249361.37165085902,High
+Secondary malignant neoplasm of brain and spinal cord,8,225920.36971313672,210888.6071734955,High
+Secondary malignant neoplasm of lung,4,76113.34348391421,116695.01359128766,Low
+Secondary malignant neoplasm of other digestive organs and spleen,2,128505.46426273457,153884.52994576516,Mid-High
+Secondary malignant neoplasm of other specified sites,3,380552.1477050938,275678.0273864397,High
+Secondary malignant neoplasm of other urinary organs,1,54000.61,141603.08280083918,Mid-Low
+Secondary malignant neoplasm of pleura,1,179461.69,172968.35280083917,Mid-High
+"Sedative, hypnotic or anxiolytic dependence with withdrawal, unspecified",1,291104.1231152815,200878.96107965955,High
+Senile dementia with delirium,1,44637.97,139262.42280083918,Mid-Low
+Sepsis,1,7879.44,130072.79030083917,Low
+Sepsis due to Escherichia coli [E. coli],6,433039.93388025026,345627.924942762,High
+Sepsis due to Methicillin susceptible Staphylococcus aureus,5,538981.8227871314,400915.10439237667,High
+Sepsis due to anaerobes,1,561479.75,268472.8678008392,High
+Sepsis due to other specified staphylococcus,1,47779.67,140047.84780083917,Mid-Low
+"Sepsis due to streptococcus, group A",1,354178.836230563,216647.63935847994,High
+"Sepsis, unspecified organism",21,491148.98549623386,451105.85069267784,High
+Septicemia due to anaerobes,3,500249.95694012515,335526.93200395536,High
+Septicemia due to escherichia coli [E. coli],13,251525.34469127655,236390.07513687198,High
+Septicemia due to pseudomonas,5,259807.2114101877,226430.9722817869,High
+Septicemia due to serratia,1,243105.83,188879.38780083918,High
+Seroma complicating a procedure,2,112980.77,147674.65224067133,Mid-Low
+"Severe pre-eclampsia, delivered, with or without mention of antepartum condition",1,210516.08,180731.95030083918,Mid-High
+Severe sepsis,1,242700.81770509385,188778.13472711263,High
+"Shigellosis, unspecified",1,97238.50541018767,152412.5566533861,Mid-High
+Shortness of breath,8,17021.5775,58962.21283666878,Low
+Sialoadenitis,1,88692.64770509383,150276.09222711262,Mid-High
+Sick sinus syndrome,1,123002.5,158853.5553008392,Mid-High
+Sinoatrial node dysfunction,14,127417.16758789736,135073.65102552468,Mid-Low
+Special screening for malignant neoplasms of colon,1,2991.7,128850.85530083918,Low
+"Spinal stenosis, cervical region",1,89891.73,150575.86280083918,Mid-High
+"Spinal stenosis, lumbar region with neurogenic claudication",3,92584.47666666667,131694.19186722612,Low
+"Spinal stenosis, lumbar region without neurogenic claudication",2,141345.58000000002,159020.57624067133,Mid-High
+"Spinal stenosis, lumbar region, with neurogenic claudication",2,101942.87270509382,143259.49332270888,Mid-Low
+"Spinal stenosis, lumbar region, without neurogenic claudication",5,122455.45970509383,140586.12746610324,Mid-Low
+"Spinal stenosis, lumbosacral region",1,206831.17,179810.72280083917,Mid-High
+Spondylolisthesis,1,340877.36541018763,213322.27165338607,High
+"Spondylosis with myelopathy, lumbar region",1,45182.21770509383,139398.48472711263,Mid-Low
+"Spondylosis without myelopathy or radiculopathy, lumbar region",1,119050.38999999998,157865.52780083916,Mid-High
+"Spontaneous abortion, complicated by delayed or excessive hemorrhage, incomplete",1,179228.58000000002,172910.07530083918,Mid-High
+Spontaneous bacterial peritonitis,1,73385.12770509384,146449.21222711264,Mid-Low
+Sprain of lumbar,1,41189.09,138400.20280083918,Mid-Low
+Sprain of unspecified site of back,1,135477.05,161972.19280083917,Mid-High
+Sprains and strains of other specified sites of knee and leg,1,69442.15770509384,145463.46972711262,Mid-Low
+Sprains and strains of unspecified site of knee and leg,1,3700.0,129027.93030083917,Low
+"Stenosis of coronary artery stent, initial encounter",1,36322.52,137183.56030083916,Mid-Low
+"Stenosis of other cardiac prosthetic devices, implants and grafts, initial encounter",2,351818.155,243209.60624067136,High
+"Stenosis of other vascular prosthetic devices, implants and grafts, initial encounter",1,18378.25,132697.4928008392,Mid-Low
+"Stenosis of peripheral vascular stent, initial encounter",3,170661.07590169794,170732.49148474177,Mid-High
+"Strain of muscle, fascia and tendon at neck level, initial encounter",1,2000.0,128602.93030083917,Low
+Streptococcal septicemia,8,417736.62887332443,350391.34110817744,High
+Stricture and stenosis of esophagus,2,209926.5677050938,186452.97132270885,Mid-High
+Subarachnoid hemorrhage,4,477027.6490576408,345788.90249055997,High
+"Subarachnoid hemorrhage following injury without mention of open intracranial wound, unspecified state of consciousness",4,331544.3746313673,262655.6028184037,High
+"Subarachnoid hemorrhage following injury without mention of open intracranial wound, with brief [less than one hour] loss of consciousness",3,24130.166666666668,97467.03686722612,Low
+"Subarachnoid hemorrhage following injury without mention of open intracranial wound, with no loss of consciousness",3,151721.7018033959,161262.80443559075,Mid-High
+Subcorneal pustular dermatosis,1,68203.84541018767,145153.8916533861,Mid-Low
+Subdural hemorrhage,7,165060.2125292991,166783.32089084506,Mid-High
+"Subdural hemorrhage following injury without mention of open intracranial wound, unspecified state of consciousness",4,169779.80405764075,170218.7053477028,Mid-High
+"Subdural hemorrhage following injury without mention of open intracranial wound, with brief [less than one hour] loss of consciousness",2,275778.15770509385,212793.60732270888,High
+"Subdural hemorrhage following injury without mention of open intracranial wound, with moderate [1-24 hours] loss of consciousness",1,10014.04,130606.44030083917,Low
+"Subdural hemorrhage following injury without mention of open intracranial wound, with no loss of consciousness",11,106396.45721325859,120198.05361065723,Low
+"Subdural hemorrhage following injury without mention of open intracranial wound, with prolonged [more than 24 hours] loss of consciousness without return to pre-existing conscious level",1,93624.39,151509.02780083916,Mid-High
+"Subendocardial infarction, initial episode of care",105,286125.812075067,282922.42582486477,High
+Submucous leiomyoma of uterus,1,78742.56770509384,147788.57222711263,Mid-Low
+Subserous leiomyoma of uterus,1,66102.61,144628.58280083918,Mid-Low
+Suicidal ideation,2,2000.0,103282.34424067134,Low
+Supraventricular tachycardia,12,139755.04385254692,145964.81649559463,Mid-Low
+Swelling of limb,1,51400.52,140953.06030083916,Mid-Low
+"Swelling, mass, or lump in head and neck",1,78064.08,147618.95030083918,Mid-Low
+Syncope and collapse,46,32893.25060589812,41336.76018519736,Low
+Syndrome of inappropriate secretion of antidiuretic hormone,1,312961.45311528153,206343.29357965954,High
+Synovial cyst of popliteal space,1,43670.74770509383,139020.61722711264,Mid-Low
+Systemic lupus erythematosus,2,374089.8488525469,252118.28378169012,High
+"Systolic heart failure, unspecified",10,48517.037770509385,76737.08453141927,Low
+"Tachycardia, unspecified",1,4910.85,129330.64280083917,Low
+Takotsubo syndrome,2,229571.8181152815,194311.07148678394,High
+Tension headache,1,48208.66,140155.09530083917,Mid-Low
+"Tension-type headache, unspecified, not intractable",1,62850.59,143815.57780083918,Mid-Low
+Thoracic aneurysm without mention of rupture,7,474972.77615932596,383722.1154318638,High
+"Thoracic aortic aneurysm, without rupture",2,554326.3900000001,324212.9002406714,High
+"Thoracic or lumbosacral neuritis or radiculitis, unspecified",1,29313.34,135431.26530083918,Mid-Low
+"Thoracoabdominal aortic aneurysm, without rupture",1,651811.4299999999,291055.78780083917,High
+"Thrombocytopenia, unspecified",1,63452.25,143965.9928008392,Mid-Low
+"Thrombosis due to cardiac prosthetic devices, implants and grafts, initial encounter",5,247019.904,218438.9051504196,High
+"Thrombosis due to vascular prosthetic devices, implants and grafts, initial encounter",2,245029.7938525469,200494.2617816901,High
+Thyrotoxicosis with diffuse goiter without thyrotoxic crisis or storm,1,6299.307705093834,129677.75722711263,Low
+"Thyrotoxicosis without mention of goiter or other cause, and without mention of thyrotoxic crisis or storm",1,128073.8,160121.38030083917,Mid-High
+"Thyrotoxicosis, unspecified without thyrotoxic crisis or storm",1,49685.82,140524.38530083917,Mid-Low
+Tietze's disease,3,27014.7843717605,98909.34571977303,Low
+Toxic diffuse goiter with mention of thyrotoxic crisis or storm,1,170186.44,170649.54030083917,Mid-High
+Toxic diffuse goiter without mention of thyrotoxic crisis or storm,1,145410.09,164455.45280083918,Mid-High
+Toxic encephalopathy,10,121530.01054101877,132900.90973950343,Mid-Low
+Toxic multinodular goiter without mention of thyrotoxic crisis or storm,1,496416.98,252207.17530083918,High
+Toxic myopathy,2,129234.95385254693,154176.3257816901,Mid-High
+Toxic shock syndrome,1,2193227.142461126,676409.7159161207,High
+Tracheoesophageal fistula,2,79105.78385254693,134124.6577816901,Mid-Low
+"Transient cerebral ischemic attack, unspecified",2,84498.455,136281.72624067133,Mid-Low
+Transient global amnesia,2,23685.41,111956.50824067133,Low
+"Traumatic amputation of thumb (complete)(partial), complicated",1,63774.71,144046.60780083918,Mid-Low
+"Traumatic hemorrhage of cerebrum, unspecified, without loss of consciousness, initial encounter",1,69535.7,145486.85530083918,Mid-Low
+"Traumatic hemorrhage of left cerebrum without loss of consciousness, initial encounter",1,73346.74,146439.61530083918,Mid-Low
+"Traumatic hemorrhage of right cerebrum without loss of consciousness, initial encounter",1,358605.73,217754.36280083918,High
+Traumatic hemothorax without mention of open wound into thorax,2,252596.5438525469,203520.96178169007,High
+"Traumatic hemothorax, initial encounter",1,333818.11,211557.45780083915,High
+"Traumatic ischemia of muscle, initial encounter",1,721339.6,308437.83030083915,High
+Traumatic pneumohemothorax without mention of open wound into thorax,2,108908.76885254691,146045.8517816901,Mid-Low
+Traumatic pneumothorax without mention of open wound into thorax,2,211402.545,187043.36224067135,Mid-High
+"Traumatic subarachnoid hemorrhage without loss of consciousness, initial encounter",3,247406.23874352104,209105.0729056533,High
+"Traumatic subdural hemorrhage with loss of consciousness of unspecified duration, initial encounter",2,200722.92155764074,182771.51286372764,Mid-High
+"Traumatic subdural hemorrhage without loss of consciousness, initial encounter",2,109358.635,146225.79824067134,Mid-Low
+"Tricuspid valve disorders, specified as nonrheumatic",2,548391.4115576408,321838.90886372764,High
+"Trimalleolar fracture, closed",1,92172.95082037534,151146.168005933,Mid-High
+"True posterior wall infarction, initial episode of care",1,744907.4,314329.78030083916,High
+"Tuberculoma of brain, tubercle bacilli not found by bacteriological examination, but tuberculosis confirmed histologically",1,354981.7131152815,216848.35857965954,High
+Tumor lysis syndrome,1,182100.53,173628.06280083916,Mid-High
+Type 1 diabetes mellitus with other specified complication,1,1021092.8531152814,383376.1435796595,High
+Type 2 diabetes mellitus with diabetic chronic kidney disease,1,292418.15,201207.46780083916,High
+Type 2 diabetes mellitus with diabetic peripheral angiopathy with gangrene,4,216046.67500000002,196656.91731476525,High
+Type 2 diabetes mellitus with diabetic peripheral angiopathy without gangrene,2,113105.785,147724.65824067133,Mid-Low
+Type 2 diabetes mellitus with foot ulcer,1,37496.26852546917,137476.99743220647,Mid-Low
+Type 2 diabetes mellitus with hyperglycemia,1,89772.05,150545.94280083917,Mid-High
+Type 2 diabetes mellitus with hyperosmolarity without nonketotic hyperglycemic-hyperosmolar coma (NKHHC),1,251399.96,190952.92030083918,High
+Type 2 diabetes mellitus with hypoglycemia without coma,3,29318.11666666667,100061.01186722612,Low
+Type 2 diabetes mellitus with other skin ulcer,1,103984.56770509384,154099.07222711263,Mid-High
+Type 2 diabetes mellitus with other specified complication,5,251557.99,221275.2089004196,High
+Typical atrial flutter,8,275146.05624999997,246689.10647303239,High
+Ulcer of esophagus with bleeding,1,236231.26541018768,187160.7466533861,High
+Ulcer of heel and midfoot,1,166316.61000000002,169682.08280083918,Mid-High
+Ulcer of other part of foot,3,49659.151803395886,110231.52943559072,Low
+Ulcerative (chronic) rectosigmoiditis without complications,1,286839.72000000003,199812.86030083918,High
+"Ulcerative colitis, unspecified",1,85118.28770509384,149382.50222711262,Mid-High
+Umbilical hernia with obstruction,4,107448.70135254691,134600.93237336347,Mid-Low
+"Umbilical hernia with obstruction, without gangrene",1,98676.24,152771.99030083918,Mid-High
+Umbilical hernia without mention of obstruction or gangrene,1,38231.50770509384,137660.80722711264,Mid-Low
+Umbilical hernia without obstruction or gangrene,1,165469.4331152815,169470.28857965954,Mid-High
+"Unilateral inguinal hernia, with obstruction, without gangrene, not specified as recurrent",1,104159.84,154142.89030083918,Mid-High
+"Unilateral inguinal hernia, without obstruction or gangrene, recurrent",1,26200.97,134653.17280083918,Mid-Low
+"Unilateral primary osteoarthritis, left knee",2,269865.33999999997,210428.48024067134,High
+"Unilateral primary osteoarthritis, right knee",3,186449.99923503128,178626.95315140844,Mid-High
+Universal ulcerative (chronic) colitis,1,35019.45770509383,136857.79472711263,Mid-Low
+"Unspecified adverse effect of other drug, medicinal and biological substance",1,110575.97,155746.92280083918,Mid-High
+Unspecified asthma with (acute) exacerbation,1,83237.8031152815,148912.38107965954,Mid-High
+Unspecified atrial fibrillation,12,182502.2960384272,180162.61824429885,Mid-High
+Unspecified atrial flutter,11,238514.91532049718,224005.41355205895,High
+Unspecified bacterial pneumonia,1,43522.8,138983.63030083917,Mid-Low
+Unspecified cataract,1,31357.47,135942.29780083918,Mid-Low
+"Unspecified causes of encephalitis, myelitis, and encephalomyelitis",3,1597405.0169401253,884104.4620039555,High
+Unspecified chronic gastritis with bleeding,1,31674.93,136021.66280083917,Mid-Low
+"Unspecified complication of cardiac and vascular prosthetic device, implant and graft, initial encounter",1,14033.487705093834,131611.30222711264,Low
+Unspecified convulsions,1,110521.52,155733.31030083916,Mid-High
+Unspecified deficiency anemia,3,65771.79284182306,118287.8499548043,Low
+"Unspecified dementia, unspecified severity, with behavioral disturbance",1,245578.04,189497.44030083917,High
+Unspecified disease of pancreas,1,209337.69770509383,180437.35472711263,Mid-High
+Unspecified disease of pericardium,5,197902.3721640751,187740.44775296652,High
+Unspecified disease of spinal cord,1,41952.03,138590.93780083916,Mid-Low
+Unspecified disorder of autonomic nervous system,3,140032.13770509383,155418.0223864397,Mid-High
+Unspecified disorder of intestine,1,57680.22770509384,142522.98722711264,Mid-Low
+Unspecified disorder of kidney and ureter,1,76588.05,147249.94280083917,Mid-Low
+Unspecified episodic mood disorder,3,19672.455901697947,95238.18148474176,Low
+Unspecified essential hypertension,4,27172.25,88728.67445762239,Low
+"Unspecified fracture of ankle, closed",1,39524.18,137983.97530083917,Mid-Low
+"Unspecified gastritis and gastroduodenitis, with hemorrhage",1,100860.93,153318.16280083917,Mid-High
+"Unspecified gastritis and gastroduodenitis, without mention of hemorrhage",4,115906.2575,139433.82160047954,Mid-Low
+Unspecified hemorrhoids with other complication,1,36301.17,137178.22280083917,Mid-Low
+Unspecified hypertensive heart disease with heart failure,7,110079.2158314822,128296.6232023732,Low
+"Unspecified injury of head, initial encounter",1,2000.0,128602.93030083917,Low
+Unspecified intestinal obstruction,11,98949.46706409944,114346.84706488934,Low
+"Unspecified intestinal obstruction, unspecified as to partial versus complete obstruction",1,307657.25,205017.2428008392,High
+Unspecified mastoiditis,1,147880.58541018766,165073.0766533861,Mid-High
+Unspecified mood [affective] disorder,1,84772.55,149296.06780083917,Mid-High
+"Unspecified osteomyelitis, ankle and foot",2,150165.53155764076,162548.55686372766,Mid-High
+"Unspecified osteomyelitis, other specified sites",2,369740.145,250378.40224067136,High
+Unspecified pleural effusion,10,125942.577,136295.19163102744,Mid-Low
+Unspecified protein-calorie malnutrition,1,3027.76,128859.87030083917,Low
+Unspecified psychosis,4,26616.5675,88411.14160047952,Low
+Unspecified septicemia,97,344853.3206593516,339631.8382516046,High
+Unspecified systolic (congestive) heart failure,2,62857.314999999995,127625.27024067132,Low
+Unspecified transient cerebral ischemia,8,43783.51721313673,78425.44171895004,Low
+Unspecified vascular insufficiency of intestine,2,368290.47,249798.53224067134,High
+Unspecified viral hepatitis C with hepatic coma,3,46179.35770509384,108491.63238643971,Low
+Unspecified viral infection,4,75799.87942627346,116515.8912726358,Low
+Unspecified viral meningitis,1,67742.77,145038.62280083916,Mid-Low
+Unstable angina,1,26867.96,134819.92030083918,Mid-Low
+"Urinary tract infection, site not specified",41,62995.34974014255,70345.93319430003,Low
+"Variants of migraine, not elsewhere classified, without mention of intractable migraine without mention of status migrainosus",1,37225.36,137409.27030083918,Mid-Low
+Varicose veins of lower extremities with other complications,1,82676.29770509384,148772.00472711262,Mid-High
+Vascular disorders of kidney,6,51743.49385254691,91430.29825762646,Low
+"Venous (peripheral) insufficiency, unspecified",3,61368.83131188561,116086.36918983558,Low
+Venous thrombosis nec,2,276764.275,213188.05424067136,High
+Ventral hernia without obstruction or gangrene,2,120964.2892627346,150868.05994576518,Mid-High
+"Ventral, unspecified, hernia without mention of obstruction or gangrene",1,20764.497705093832,133294.05472711264,Mid-Low
+Ventricular fibrillation,38,184434.70863256668,183437.3329083144,Mid-High
+Ventricular premature depolarization,6,35079.26270509384,80320.81082599108,Low
+Ventricular tachycardia,63,293343.54332592874,287773.5598596495,High
+Vesicointestinal fistula,1,100656.77,153267.12280083916,Mid-High
+Vestibular neuronitis,2,31217.285,114969.25824067133,Low
+"Viral hepatitis B without mention of hepatic coma, acute or unspecified, without mention of hepatitis delta",1,104319.23541018766,154182.7391533861,Mid-High
+"Viral infection, unspecified",3,78104.12999999999,124454.01853389277,Low
+"Viral intestinal infection, unspecified",1,37992.52541018767,137601.0616533861,Mid-Low
+"Volume depletion, unspecified",2,37543.225,117499.63424067134,Low
+Volvulus,3,101331.75666666667,136067.83186722614,Mid-Low
+Vomiting alone,1,161758.59,168542.57780083918,Mid-High
+Weakness,2,29107.295,114125.26224067135,Low
+"Wedge compression fracture of first lumbar vertebra, initial encounter for closed fracture",1,265128.84,194385.14030083918,High

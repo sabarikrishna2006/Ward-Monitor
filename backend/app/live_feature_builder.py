@@ -35,7 +35,7 @@ _MED_MAP = None
 _LAB_MAP = None
 _DIAG_BAND_MAP = None
 
-DIAG_BANDS_PATH = os.path.join(PROJECT_DIR, "cost_ml_model", "data", "diagnosis_cost_bands_shrunk.csv")
+DIAG_BANDS_PATH = os.path.join(MAPPINGS_DIR, "diagnosis_cost_bands_shrunk.csv")
 
 
 def _dedup_price_map(df: pd.DataFrame, key_col: str) -> pd.Series:
