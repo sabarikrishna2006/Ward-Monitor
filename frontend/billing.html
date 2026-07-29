@@ -118,26 +118,36 @@ tr.highlight td{background:#fdf4ff}
 .modal-f{display:flex;justify-content:flex-end;gap:8px}
 
 /* COST RANGE */
-.cb-range{border:1px solid var(--border);border-radius:10px;padding:22px 26px 30px;margin-bottom:20px;background:#fff}
-.cb-range-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
-.cb-range-value{font-size:28px;font-weight:900;color:var(--ink);margin-bottom:4px}
-.cb-range-value .dash{color:var(--muted);font-weight:400;margin:0 8px}
-.cb-range-sub{font-size:11px;color:var(--muted);margin-bottom:38px}
-.cb-range-track-wrap{position:relative;height:6px;margin:0 8px}
-.cb-range-track{position:absolute;inset:0;border-radius:4px;background:var(--border)}
-.cb-range-fill{position:absolute;top:0;left:0;height:100%;border-radius:4px;
-  background:linear-gradient(90deg,var(--pl),var(--pm))}
-.cb-stop{position:absolute;top:50%;cursor:pointer}
-.cb-stop-dot{width:13px;height:13px;border-radius:50%;background:#fff;border:2.5px solid #c7ccd4;
-  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);transition:all .15s;z-index:2}
-.cb-stop:hover .cb-stop-dot{border-color:var(--pm)}
-.cb-stop.sel .cb-stop-dot{border-color:var(--p);background:var(--p);width:17px;height:17px;
-  box-shadow:0 0 0 4px var(--pl)}
-.cb-stop-label{position:absolute;top:18px;white-space:nowrap;line-height:1.35}
-.cb-stop-tag{font-size:9.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:700}
-.cb-stop-amt{font-size:13px;color:var(--ink2);font-weight:700}
+.cb-range{border:1px solid var(--border);border-radius:12px;padding:20px 24px 22px;margin-bottom:20px;background:#fff}
+.cb-range-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;font-weight:700;margin-bottom:6px}
+.cb-range-value{font-size:26px;font-weight:900;color:var(--ink);letter-spacing:-.5px}
+.cb-range-value .dash{color:#c9cfd8;font-weight:400;margin:0 10px}
+.cb-range-sub{font-size:11.5px;color:var(--muted);margin-top:6px}
+
+/* The interval scale. Capped + centred so it never stretches into a hairline on
+   wide monitors, and reads as a RANGE (a tinted band densest at the P50) rather
+   than a progress bar filled from the left edge. padding-bottom reserves room
+   for the absolutely-positioned stop labels, which contribute no height and
+   would otherwise spill outside the card. */
+.cb-scale{max-width:660px;margin:46px auto 0;padding:0 10px 48px}
+.cb-range-track-wrap{position:relative;height:8px}
+.cb-range-track{position:absolute;inset:0;border-radius:99px;border:1px solid #ecdcec;
+  background:var(--pl)}
+.cb-stop{position:absolute;top:50%;cursor:pointer;z-index:2}
+.cb-stop-dot{width:14px;height:14px;border-radius:50%;background:#fff;border:2px solid #c4ccd6;
+  position:absolute;top:0;left:0;transform:translate(-50%,-50%);transition:all .16s ease;
+  box-shadow:0 1px 2px rgba(17,24,39,.08)}
+.cb-stop:hover .cb-stop-dot{border-color:var(--pm);transform:translate(-50%,-50%) scale(1.18)}
+.cb-stop.sel .cb-stop-dot{background:var(--p);border-color:#fff;width:18px;height:18px;
+  box-shadow:0 0 0 3px rgba(128,0,128,.16),0 2px 6px rgba(128,0,128,.28)}
+.cb-stop-chip{position:absolute;bottom:15px;left:50%;transform:translateX(-50%);
+  font-size:8.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--p);
+  background:var(--pl);border:1px solid #e8d0e8;padding:3px 8px;border-radius:99px;white-space:nowrap}
+.cb-stop-label{position:absolute;top:16px;white-space:nowrap;line-height:1.4}
+.cb-stop-tag{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:800}
+.cb-stop-amt{font-size:14px;color:var(--ink2);font-weight:800;letter-spacing:-.2px;margin-top:2px}
 .cb-stop.sel .cb-stop-tag{color:var(--p)}
-.cb-stop.sel .cb-stop-amt{color:var(--p);font-size:14.5px}
+.cb-stop.sel .cb-stop-amt{color:var(--p);font-size:16px}
 
 /* STEP FLOW */
 .sf{display:flex;align-items:center;margin-bottom:20px;background:#fff;border:1px solid var(--border);border-radius:8px;overflow:hidden}
@@ -1422,6 +1432,14 @@ ${stepFlow('ce2')}
   const ceil  = ml.predicted_final_bill_p90;
   const bd    = ml.cost_breakdown || {};
 
+  // Predictions are estimates -- showing paise on them is false precision, and
+  // toLocaleString drops trailing zeros so some bands showed decimals and others
+  // didn't. Round the band figures; the charged-so-far table keeps exact `fmt`.
+  const fmtR = n => '₹' + Math.round(n || 0).toLocaleString('en-IN');
+  // True position of the P50 within the P10-P90 band, clamped only enough to keep
+  // the centred label from overflowing the card at extreme skews.
+  const expPct = Math.max(6, Math.min(94, (exp - floor) / ((ceil - floor) || 1) * 100));
+
   const breakdownRows = [
     ['Ward Charges', bd.ward], ['ICU / CCU Charges', bd.icu],
     ['Procedures', bd.procedures], ['Medicines & Consumables', bd.medicines],
@@ -1471,32 +1489,34 @@ ${stepFlow('ce2')}
 </div>
 <div class="cb-range">
   <div class="cb-range-label">Predicted Final Bill Range</div>
-  <div class="cb-range-value">${fmt(floor)}<span class="dash">–</span>${fmt(ceil)}</div>
+  <div class="cb-range-value">${fmtR(floor)}<span class="dash">–</span>${fmtR(ceil)}</div>
   <div class="cb-range-sub">80% of similar admissions land inside this range, per the ML model — click a point below to select it.</div>
+  <div class="cb-scale">
   <div class="cb-range-track-wrap">
-    <div class="cb-range-track"></div>
-    <div class="cb-range-fill" style="width:${Math.max(0,Math.min(100,(exp-floor)/((ceil-floor)||1)*100))}%"></div>
+    <div class="cb-range-track" style="background:linear-gradient(90deg,var(--pl) 0%,#e6c4e6 ${expPct}%,var(--pl) 100%)"></div>
     <div class="cb-stop${_CE.cost==='floor'?' sel':''}" style="left:0%" onclick="_CE.cost='floor';showScreen('ce2')">
       <div class="cb-stop-dot"></div>
       <div class="cb-stop-label" style="left:0;text-align:left">
-        <div class="cb-stop-tag">Low</div>
-        <div class="cb-stop-amt">${fmt(floor)}</div>
+        <div class="cb-stop-tag">Low · P10</div>
+        <div class="cb-stop-amt">${fmtR(floor)}</div>
       </div>
     </div>
-    <div class="cb-stop${_CE.cost==='expected'||!_CE.cost?' sel':''}" style="left:${Math.max(15,Math.min(85,(exp-floor)/((ceil-floor)||1)*100))}%" onclick="_CE.cost='expected';showScreen('ce2')">
+    <div class="cb-stop${_CE.cost==='expected'||!_CE.cost?' sel':''}" style="left:${expPct}%" onclick="_CE.cost='expected';showScreen('ce2')">
+      <div class="cb-stop-chip">Recommended</div>
       <div class="cb-stop-dot"></div>
       <div class="cb-stop-label" style="left:50%;transform:translateX(-50%);text-align:center">
-        <div class="cb-stop-tag">★ Typical · Recommended</div>
-        <div class="cb-stop-amt">${fmt(exp)}</div>
+        <div class="cb-stop-tag">Typical · P50</div>
+        <div class="cb-stop-amt">${fmtR(exp)}</div>
       </div>
     </div>
     <div class="cb-stop${_CE.cost==='ceiling'?' sel':''}" style="left:100%" onclick="_CE.cost='ceiling';showScreen('ce2')">
       <div class="cb-stop-dot"></div>
       <div class="cb-stop-label" style="right:0;left:auto;text-align:right">
-        <div class="cb-stop-tag">High</div>
-        <div class="cb-stop-amt">${fmt(ceil)}</div>
+        <div class="cb-stop-tag">High · P90</div>
+        <div class="cb-stop-amt">${fmtR(ceil)}</div>
       </div>
     </div>
+  </div>
   </div>
 </div>
 
