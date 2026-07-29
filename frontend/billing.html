@@ -117,17 +117,29 @@ tr.highlight td{background:#fdf4ff}
 .modal-b{font-size:12.5px;color:var(--ink2);margin-bottom:20px;line-height:1.6}
 .modal-f{display:flex;justify-content:flex-end;gap:8px}
 
-/* COST BANDS */
-.cb-row{display:flex;gap:12px;margin-bottom:20px}
-.cb-opt{flex:1;border:2px solid var(--border);border-radius:10px;padding:18px 16px;
+/* COST RANGE */
+.cb-range{border:1px solid var(--border);border-radius:10px;padding:20px 22px;margin-bottom:20px;background:#fff}
+.cb-range-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.cb-range-value{font-size:26px;font-weight:900;color:var(--ink);margin-bottom:4px}
+.cb-range-value .dash{color:var(--muted);font-weight:400;margin:0 8px}
+.cb-range-sub{font-size:11px;color:var(--muted);margin-bottom:18px}
+.cb-range-bar{position:relative;height:8px;border-radius:4px;background:var(--border);margin:0 4px 28px}
+.cb-range-bar-fill{position:absolute;top:0;left:0;height:100%;border-radius:4px;
+  background:linear-gradient(90deg,var(--pl),var(--pm))}
+.cb-range-marker{position:absolute;top:50%;transform:translate(-50%,-50%);width:16px;height:16px;
+  border-radius:50%;background:var(--p);border:3px solid #fff;box-shadow:0 0 0 1.5px var(--p)}
+.cb-range-marker-label{position:absolute;top:16px;left:50%;transform:translateX(-50%);
+  white-space:nowrap;font-size:11px;font-weight:700;color:var(--p)}
+.cb-range-endcap{position:absolute;top:50%;transform:translateY(-50%);font-size:10.5px;color:var(--muted)}
+.cb-range-picks{display:flex;gap:8px}
+.cb-pick{flex:1;border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;
   text-align:center;cursor:pointer;transition:all .15s;background:#fff}
-.cb-opt:hover{border-color:var(--p)}
-.cb-opt.sel{border-color:var(--p);background:#fdf4ff}
-.cb-tag{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
-.cb-amt{font-size:26px;font-weight:900;color:var(--ink);margin:8px 0 6px}
-.cb-opt.sel .cb-amt{color:var(--p)}
-.cb-desc{font-size:11px;color:var(--muted);line-height:1.4}
-.cb-rec{font-size:11px;color:var(--p);font-weight:700;margin-top:6px}
+.cb-pick:hover{border-color:var(--p)}
+.cb-pick.sel{border-color:var(--p);background:var(--pl)}
+.cb-pick-tag{font-size:9.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+.cb-pick.sel .cb-pick-tag{color:var(--p)}
+.cb-pick-amt{font-size:14px;font-weight:800;color:var(--ink);margin-top:2px}
+.cb-pick.sel .cb-pick-amt{color:var(--p)}
 
 /* STEP FLOW */
 .sf{display:flex;align-items:center;margin-bottom:20px;background:#fff;border:1px solid var(--border);border-radius:8px;overflow:hidden}
@@ -1354,7 +1366,6 @@ ${stepFlow('ce1')}
         ${_CE.syncing && !_CE.diagnosis
           ? `<div class="fi" style="display:flex;align-items:center;gap:8px;color:var(--muted)"><span style="animation:livePulse 1.4s ease-in-out infinite">⏳</span> Syncing clinical data from MIMIC…</div>`
           : `<input class="fi" value="${_CE.diagnosisCode ? _CE.diagnosisCode + ' — ' + (_CE.diagnosis || '') : (_CE.diagnosis || 'Auto-fetched by ML model from patient data')}" readonly style="background:var(--surf)">`}
-        <div class="fi-hint">Auto-fetched — no manual selection needed, the ML model reads this directly from the patient's real diagnosis data.</div>
       </div>
       <div class="fg">
         <label class="fl">Expected LOS (days)</label>
@@ -1460,22 +1471,31 @@ ${stepFlow('ce2')}
     <span class="muted small">${[_CE.patientName, _CE.age ? _CE.age+'Y' : null, _CE.gender, _CE.diagnosis].filter(Boolean).join(' · ')} · ML prediction, Day ${ml.hospital_day} (${ml.source === 'live' ? 'live data' : 'demo data'})</span>
   </div>
 </div>
-<div class="cb-row">
-  <div class="cb-opt${_CE.cost==='floor'?' sel':''}" onclick="_CE.cost='floor';showScreen('ce2')">
-    <div class="cb-tag">Low</div>
-    <div class="cb-amt">${fmt(floor)}</div>
-    <div class="cb-desc">10% chance the final bill is below this.</div>
+<div class="cb-range">
+  <div class="cb-range-label">Predicted Final Bill Range</div>
+  <div class="cb-range-value">${fmt(floor)}<span class="dash">–</span>${fmt(ceil)}</div>
+  <div class="cb-range-sub">80% of similar admissions land inside this range, per the ML model.</div>
+  <div class="cb-range-bar">
+    <div class="cb-range-bar-fill" style="width:${Math.max(0,Math.min(100,(exp-floor)/((ceil-floor)||1)*100))}%"></div>
+    <span class="cb-range-endcap" style="left:0;transform:translate(-2px,-50%)">Low</span>
+    <span class="cb-range-endcap" style="right:0;transform:translate(2px,-50%)">High</span>
+    <div class="cb-range-marker" style="left:${Math.max(0,Math.min(100,(exp-floor)/((ceil-floor)||1)*100))}%">
+      <div class="cb-range-marker-label">★ Typical ${fmt(exp)}</div>
+    </div>
   </div>
-  <div class="cb-opt${_CE.cost==='expected'?' sel':''}" onclick="_CE.cost='expected';showScreen('ce2')">
-    <div class="cb-tag">Typical</div>
-    <div class="cb-amt">${fmt(exp)}</div>
-    <div class="cb-desc">Most likely final bill, per the ML model.</div>
-    <div class="cb-rec">★ Recommended</div>
-  </div>
-  <div class="cb-opt${_CE.cost==='ceiling'?' sel':''}" onclick="_CE.cost='ceiling';showScreen('ce2')">
-    <div class="cb-tag">High</div>
-    <div class="cb-amt">${fmt(ceil)}</div>
-    <div class="cb-desc">10% chance the final bill is above this.</div>
+  <div class="cb-range-picks">
+    <div class="cb-pick${_CE.cost==='floor'?' sel':''}" onclick="_CE.cost='floor';showScreen('ce2')">
+      <div class="cb-pick-tag">Low</div>
+      <div class="cb-pick-amt">${fmt(floor)}</div>
+    </div>
+    <div class="cb-pick${_CE.cost==='expected'?' sel':''}" onclick="_CE.cost='expected';showScreen('ce2')">
+      <div class="cb-pick-tag">★ Typical (Recommended)</div>
+      <div class="cb-pick-amt">${fmt(exp)}</div>
+    </div>
+    <div class="cb-pick${_CE.cost==='ceiling'?' sel':''}" onclick="_CE.cost='ceiling';showScreen('ce2')">
+      <div class="cb-pick-tag">High</div>
+      <div class="cb-pick-amt">${fmt(ceil)}</div>
+    </div>
   </div>
 </div>
 
