@@ -118,28 +118,26 @@ tr.highlight td{background:#fdf4ff}
 .modal-f{display:flex;justify-content:flex-end;gap:8px}
 
 /* COST RANGE */
-.cb-range{border:1px solid var(--border);border-radius:10px;padding:20px 22px;margin-bottom:20px;background:#fff}
+.cb-range{border:1px solid var(--border);border-radius:10px;padding:22px 26px 30px;margin-bottom:20px;background:#fff}
 .cb-range-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
-.cb-range-value{font-size:26px;font-weight:900;color:var(--ink);margin-bottom:4px}
+.cb-range-value{font-size:28px;font-weight:900;color:var(--ink);margin-bottom:4px}
 .cb-range-value .dash{color:var(--muted);font-weight:400;margin:0 8px}
-.cb-range-sub{font-size:11px;color:var(--muted);margin-bottom:18px}
-.cb-range-bar{position:relative;height:8px;border-radius:4px;background:var(--border);margin:0 4px 28px}
-.cb-range-bar-fill{position:absolute;top:0;left:0;height:100%;border-radius:4px;
+.cb-range-sub{font-size:11px;color:var(--muted);margin-bottom:38px}
+.cb-range-track-wrap{position:relative;height:6px;margin:0 8px}
+.cb-range-track{position:absolute;inset:0;border-radius:4px;background:var(--border)}
+.cb-range-fill{position:absolute;top:0;left:0;height:100%;border-radius:4px;
   background:linear-gradient(90deg,var(--pl),var(--pm))}
-.cb-range-marker{position:absolute;top:50%;transform:translate(-50%,-50%);width:16px;height:16px;
-  border-radius:50%;background:var(--p);border:3px solid #fff;box-shadow:0 0 0 1.5px var(--p)}
-.cb-range-marker-label{position:absolute;top:16px;left:50%;transform:translateX(-50%);
-  white-space:nowrap;font-size:11px;font-weight:700;color:var(--p)}
-.cb-range-endcap{position:absolute;top:50%;transform:translateY(-50%);font-size:10.5px;color:var(--muted)}
-.cb-range-picks{display:flex;gap:8px}
-.cb-pick{flex:1;border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;
-  text-align:center;cursor:pointer;transition:all .15s;background:#fff}
-.cb-pick:hover{border-color:var(--p)}
-.cb-pick.sel{border-color:var(--p);background:var(--pl)}
-.cb-pick-tag{font-size:9.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
-.cb-pick.sel .cb-pick-tag{color:var(--p)}
-.cb-pick-amt{font-size:14px;font-weight:800;color:var(--ink);margin-top:2px}
-.cb-pick.sel .cb-pick-amt{color:var(--p)}
+.cb-stop{position:absolute;top:50%;cursor:pointer}
+.cb-stop-dot{width:13px;height:13px;border-radius:50%;background:#fff;border:2.5px solid #c7ccd4;
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);transition:all .15s;z-index:2}
+.cb-stop:hover .cb-stop-dot{border-color:var(--pm)}
+.cb-stop.sel .cb-stop-dot{border-color:var(--p);background:var(--p);width:17px;height:17px;
+  box-shadow:0 0 0 4px var(--pl)}
+.cb-stop-label{position:absolute;top:18px;white-space:nowrap;line-height:1.35}
+.cb-stop-tag{font-size:9.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:700}
+.cb-stop-amt{font-size:13px;color:var(--ink2);font-weight:700}
+.cb-stop.sel .cb-stop-tag{color:var(--p)}
+.cb-stop.sel .cb-stop-amt{color:var(--p);font-size:14.5px}
 
 /* STEP FLOW */
 .sf{display:flex;align-items:center;margin-bottom:20px;background:#fff;border:1px solid var(--border);border-radius:8px;overflow:hidden}
@@ -1474,27 +1472,30 @@ ${stepFlow('ce2')}
 <div class="cb-range">
   <div class="cb-range-label">Predicted Final Bill Range</div>
   <div class="cb-range-value">${fmt(floor)}<span class="dash">–</span>${fmt(ceil)}</div>
-  <div class="cb-range-sub">80% of similar admissions land inside this range, per the ML model.</div>
-  <div class="cb-range-bar">
-    <div class="cb-range-bar-fill" style="width:${Math.max(0,Math.min(100,(exp-floor)/((ceil-floor)||1)*100))}%"></div>
-    <span class="cb-range-endcap" style="left:0;transform:translate(-2px,-50%)">Low</span>
-    <span class="cb-range-endcap" style="right:0;transform:translate(2px,-50%)">High</span>
-    <div class="cb-range-marker" style="left:${Math.max(0,Math.min(100,(exp-floor)/((ceil-floor)||1)*100))}%">
-      <div class="cb-range-marker-label">★ Typical ${fmt(exp)}</div>
+  <div class="cb-range-sub">80% of similar admissions land inside this range, per the ML model — click a point below to select it.</div>
+  <div class="cb-range-track-wrap">
+    <div class="cb-range-track"></div>
+    <div class="cb-range-fill" style="width:${Math.max(0,Math.min(100,(exp-floor)/((ceil-floor)||1)*100))}%"></div>
+    <div class="cb-stop${_CE.cost==='floor'?' sel':''}" style="left:0%" onclick="_CE.cost='floor';showScreen('ce2')">
+      <div class="cb-stop-dot"></div>
+      <div class="cb-stop-label" style="left:0;text-align:left">
+        <div class="cb-stop-tag">Low</div>
+        <div class="cb-stop-amt">${fmt(floor)}</div>
+      </div>
     </div>
-  </div>
-  <div class="cb-range-picks">
-    <div class="cb-pick${_CE.cost==='floor'?' sel':''}" onclick="_CE.cost='floor';showScreen('ce2')">
-      <div class="cb-pick-tag">Low</div>
-      <div class="cb-pick-amt">${fmt(floor)}</div>
+    <div class="cb-stop${_CE.cost==='expected'||!_CE.cost?' sel':''}" style="left:${Math.max(15,Math.min(85,(exp-floor)/((ceil-floor)||1)*100))}%" onclick="_CE.cost='expected';showScreen('ce2')">
+      <div class="cb-stop-dot"></div>
+      <div class="cb-stop-label" style="left:50%;transform:translateX(-50%);text-align:center">
+        <div class="cb-stop-tag">★ Typical · Recommended</div>
+        <div class="cb-stop-amt">${fmt(exp)}</div>
+      </div>
     </div>
-    <div class="cb-pick${_CE.cost==='expected'?' sel':''}" onclick="_CE.cost='expected';showScreen('ce2')">
-      <div class="cb-pick-tag">★ Typical (Recommended)</div>
-      <div class="cb-pick-amt">${fmt(exp)}</div>
-    </div>
-    <div class="cb-pick${_CE.cost==='ceiling'?' sel':''}" onclick="_CE.cost='ceiling';showScreen('ce2')">
-      <div class="cb-pick-tag">High</div>
-      <div class="cb-pick-amt">${fmt(ceil)}</div>
+    <div class="cb-stop${_CE.cost==='ceiling'?' sel':''}" style="left:100%" onclick="_CE.cost='ceiling';showScreen('ce2')">
+      <div class="cb-stop-dot"></div>
+      <div class="cb-stop-label" style="right:0;left:auto;text-align:right">
+        <div class="cb-stop-tag">High</div>
+        <div class="cb-stop-amt">${fmt(ceil)}</div>
+      </div>
     </div>
   </div>
 </div>
