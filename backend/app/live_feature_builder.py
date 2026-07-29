@@ -33,6 +33,9 @@ ICU_RATE = _RATES["ICU_RATE"]
 _PROC_MAP = None
 _MED_MAP = None
 _LAB_MAP = None
+_DIAG_BAND_MAP = None
+
+DIAG_BANDS_PATH = os.path.join(PROJECT_DIR, "cost_ml_model", "data", "diagnosis_cost_bands_shrunk.csv")
 
 
 def _dedup_price_map(df: pd.DataFrame, key_col: str) -> pd.Series:
@@ -45,11 +48,13 @@ def _dedup_price_map(df: pd.DataFrame, key_col: str) -> pd.Series:
 
 
 def _load_mappings():
-    global _PROC_MAP, _MED_MAP, _LAB_MAP
+    global _PROC_MAP, _MED_MAP, _LAB_MAP, _DIAG_BAND_MAP
     if _PROC_MAP is None:
         _PROC_MAP = _dedup_price_map(pd.read_csv(os.path.join(MAPPINGS_DIR, "procedure_mapping_v1.csv")), "us_procedure_code")
         _MED_MAP = _dedup_price_map(pd.read_csv(os.path.join(MAPPINGS_DIR, "medicine_mapping_v1.csv")), "us_medicine")
         _LAB_MAP = _dedup_price_map(pd.read_csv(os.path.join(MAPPINGS_DIR, "lab_mapping_v1.csv")), "us_lab_itemid")
+    if _DIAG_BAND_MAP is None:
+        _DIAG_BAND_MAP = pd.read_csv(DIAG_BANDS_PATH).set_index("primary_diagnosis")["band"]
 
 
 def _to_hospital_day(event_dates, admit_date):
@@ -155,20 +160,32 @@ def build_live_feature_row(hadm_id: int, conn, feature_cols: list,
     med_by_day = _price(med_rows, "starttime", "drug", _MED_MAP)
     lab_by_day = _price(lab_rows, "charttime", "itemid", _LAB_MAP)
 
+    # Day 0 = the moment of admission: nothing has been performed on the
+    # patient yet, only the diagnosis is known (confirmed against training
+    # data -- 908/7077, 12.8%, of real Day-0 rows have zero meds/labs/procs,
+    # so this isn't an out-of-distribution input for the model). Real
+    # same-day activity only starts counting from Day 1 onward, once days
+    # have actually started and things get performed on the patient.
+    if hospital_day == 0:
+        day_procedures_cost = 0
+        day_medicines_cost = 0
+        day_labs_cost = 0
+    else:
+        day_procedures_cost = proc_by_day.get(hospital_day, 0)
+        day_medicines_cost = med_by_day.get(hospital_day, 0)
+        day_labs_cost = lab_by_day.get(hospital_day, 0)
     day_ward_cost = 0 if was_in_icu_today else WARD_RATE
     day_icu_cost = ICU_RATE if was_in_icu_today else 0
-    day_procedures_cost = proc_by_day.get(hospital_day, 0)
-    day_medicines_cost = med_by_day.get(hospital_day, 0)
-    day_labs_cost = lab_by_day.get(hospital_day, 0)
     day_total_cost = day_procedures_cost + day_medicines_cost + day_labs_cost + day_ward_cost + day_icu_cost
 
     breakdown = {"procedures": 0.0, "medicines": 0.0, "labs": 0.0, "ward": 0.0, "icu": 0.0}
     for d in range(0, hospital_day + 1):
         d_ward = 0 if d in icu_days else WARD_RATE
         d_icu = ICU_RATE if d in icu_days else 0
-        breakdown["procedures"] += proc_by_day.get(d, 0)
-        breakdown["medicines"] += med_by_day.get(d, 0)
-        breakdown["labs"] += lab_by_day.get(d, 0)
+        if d > 0:
+            breakdown["procedures"] += proc_by_day.get(d, 0)
+            breakdown["medicines"] += med_by_day.get(d, 0)
+            breakdown["labs"] += lab_by_day.get(d, 0)
         breakdown["ward"] += d_ward
         breakdown["icu"] += d_icu
     cumulative_cost_so_far = sum(breakdown.values())
@@ -177,9 +194,10 @@ def build_live_feature_row(hadm_id: int, conn, feature_cols: list,
     # LOS submodel's extra engineered features (cost_ml_model/train_los_predictor_experiment.py) --
     # harmless to compute unconditionally: the cost model's feature_cols doesn't
     # include these keys, so they're silently dropped for that caller below.
-    cumulative_procedures_so_far = sum(1 for d in range(hospital_day + 1) if proc_by_day.get(d, 0) > 0)
-    cumulative_medicines_so_far = sum(1 for d in range(hospital_day + 1) if med_by_day.get(d, 0) > 0)
-    cumulative_labs_so_far = sum(1 for d in range(hospital_day + 1) if lab_by_day.get(d, 0) > 0)
+    _activity_days = range(1, hospital_day + 1) if hospital_day == 0 else range(hospital_day + 1)
+    cumulative_procedures_so_far = sum(1 for d in _activity_days if proc_by_day.get(d, 0) > 0)
+    cumulative_medicines_so_far = sum(1 for d in _activity_days if med_by_day.get(d, 0) > 0)
+    cumulative_labs_so_far = sum(1 for d in _activity_days if lab_by_day.get(d, 0) > 0)
     cost_trend_ratio = (day_total_cost / cost_per_day_so_far) if cost_per_day_so_far else 1.0
 
     today_breakdown = {
@@ -230,5 +248,15 @@ def build_live_feature_row(hadm_id: int, conn, feature_cols: list,
             out[col] = 1
     if diagnosis_col not in out and "primary_diagnosis_grouped_Other" in out:
         out["primary_diagnosis_grouped_Other"] = 1  # unseen diagnosis -> "Other" bucket
+
+    # Shrinkage-based cost band (Low/Mid-Low/Mid-High/High, k=3) -- supplements
+    # the top-15+Other grouping above with real cost signal for every
+    # diagnosis, not just the 15 most frequent ones. Unseen diagnosis ->
+    # Mid-Low, close to the population average, same fallback used at
+    # training time (see add_diagnosis_cost_band_feature.py).
+    band = _DIAG_BAND_MAP.get(ap.primary_diagnosis_title, "Mid-Low")
+    band_col = f"primary_diagnosis_cost_band_{band}"
+    if band_col in out:
+        out[band_col] = 1
 
     return pd.DataFrame([out])[feature_cols], breakdown, today_breakdown, admit_date
