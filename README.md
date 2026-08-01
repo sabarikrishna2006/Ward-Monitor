@@ -35,11 +35,37 @@ Findings land in a **tiered safety gate**:
 Sign-off is backed by digital signature capture (MCI number, designation, signature image), version history, an amendment trail and full audit logging.
 
 **The cost model predicts what's left, not what it all costs.**
-Predicting the *total* bill produced a 32.4% floor-violation rate — the model's P10 came in below money the hospital had already billed, which is worse than useless at a billing desk. Reframing the target to *remaining* cost eliminated that class of error entirely.
-
-Day-0 accuracy then improved from **103.5% → 88.4% MAPE** via a shrinkage-based **diagnosis cost-band** feature. The cohort has 1,317 distinct diagnoses but only ~15 earned their own one-hot column; the other 1,302 fell into an `Other` bucket carrying zero signal. Bucketing by *cost* instead of frequency fixes that — but 54% of diagnoses have a single admission behind their average, so raw means are noise. Shrinkage toward the population mean (tuned k=10 → k=3 after k=10 collapsed the Mid-Low band) makes the feature stable without flattening the separation it exists to create.
+Predicting the *total* bill produced a 32.4% floor-violation rate — the model's P10 came in below money the hospital had already billed, which is worse than useless at a billing desk. Reframing the target to *remaining* cost drove that rate **to zero by construction**, and was the single largest accuracy win on its own (46.1% → 41.3% MAPE).
 
 Trained on **7,077 admissions / 46,145 day-wise rows / 63 engineered features**, split by admission ID so no stay straddles train and test.
+
+| Metric | Before | After |
+| :--- | ---: | ---: |
+| Held-out test MAPE (overall) | 47.3% | **41.3%** |
+| Train / test gap | 38.4% / 47.3% | **35.4% / 41.3%** |
+| Day-0 MAPE | 103.5% | **88.4%** |
+| Floor violations (P10 below already-billed) | 32.4% | **0%** |
+
+The narrowed train/test gap is the number worth reading twice — accuracy improved while the gap *shrank*, so the model generalised rather than memorised. Predictions also sharpen roughly **4× over the course of a stay**: ≈103% MAPE at admission, when almost nothing is known, tightening to ≈21% by day 10 as the record fills in.
+
+Day-0 accuracy specifically came from a shrinkage-based **diagnosis cost-band** feature. The cohort has 1,317 distinct diagnoses but only ~15 earned their own one-hot column; the other 1,302 fell into an `Other` bucket carrying zero signal. Bucketing by *cost* instead of frequency fixes that — but 54% of diagnoses have a single admission behind their average, so raw means are noise. Shrinkage toward the population mean (tuned k=10 → k=3 after k=10 collapsed the Mid-Low band) makes the feature stable without flattening the separation it exists to create. It sits on diagnosis rather than procedures deliberately: procedures can occur on any day of a stay, so a Day-0 model using them would leak future information, whereas diagnosis is legitimately known at admission.
+
+---
+
+## Results
+
+Every chart below is regenerated from `cost_ml_model/` — see `evaluate_models.py`, `evaluate_train_vs_test.py` and `eval_with_band_full.py`.
+
+| | |
+| :---: | :---: |
+| ![Remaining vs total target](cost_ml_model/eval_charts/remaining_vs_total_target_mape.png) | ![Floor violation rate](cost_ml_model/eval_charts/floor_violation_rate.png) |
+| **Remaining vs total cost as target** — the reframing that drove 46.1% → 41.3% MAPE | **Floor violations** — P10 falling below already-billed money, 32.4% → 0% |
+| ![Diagnosis band before/after](cost_ml_model/eval_charts/diagnosis_band_before_after_mape.png) | ![Train vs test MAPE](cost_ml_model/eval_charts/with_band_train_vs_test_mape.png) |
+| **Diagnosis cost-band feature** — Day-0 MAPE 103.5% → 88.4% | **Train vs test by day** — accuracy up while the gap narrows, so it generalises |
+| ![Convergence by day](cost_ml_model/eval_charts/convergence_mape_by_day.png) | ![Interval width tightens](cost_ml_model/eval_charts/relative_width_tightens_by_day.png) |
+| **Sharpening across a stay** — ≈103% MAPE at admission → ≈21% by day 10 | **P10–P90 interval width** — the quoted range tightens as the record fills in |
+
+Further plots — per-day calibration, SHAP vs gain feature importance, LOS sub-model variants and the Day-0 A/B experiments — live in `cost_ml_model/eval_charts/`.
 
 ---
 
