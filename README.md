@@ -1,109 +1,222 @@
-# Foqal CareOS: Early Warning System (EWS) & Clinical AI Monitor
+# Foqal CareOS
+
+**A clinical AI platform that writes verified hospital discharge summaries and predicts patient cost day-by-day — running on real MIMIC-IV data.**
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
-![Python](https://img.shields.io/badge/Python-3.9%2B-blue)
+![Python](https://img.shields.io/badge/Python-3.11%2B-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.100%2B-00a393)
+![XGBoost](https://img.shields.io/badge/XGBoost-2.0-EC4E20)
 ![Vite](https://img.shields.io/badge/Vite-5.0-646CFF)
-![Google Cloud SQL](https://img.shields.io/badge/GCP-Cloud_SQL-4285F4)
+![Cloud SQL](https://img.shields.io/badge/GCP-Cloud_SQL-4285F4)
 
-**Foqal CareOS** is a production-grade, highly concurrent clinical backend system designed to monitor real-time patient vitals, predict clinical deterioration, and automate escalation workflows across intensive care units (CCU) and general wards. 
+Foqal CareOS is an integrated hospital platform built on FastAPI + Google Cloud SQL (PostgreSQL), ingesting real de-identified EHR data from **MIMIC-IV** via BigQuery. It ships three clinical products on one shared patient database:
 
-This repository contains the integrated ecosystem combining the **Clinical Discharge AI** and the **EWS Ward Monitor**, engineered for massive scalability using Google Cloud SQL (PostgreSQL), FastAPI, and BigQuery data ingestion (MIMIC-IV dataset).
-
----
-
-## 🏗️ Architecture & Tech Stack
-
-*   **Backend Framework:** FastAPI (Python) for asynchronous, high-throughput API endpoints.
-*   **Database:** Google Cloud SQL (PostgreSQL). Schema consists of 48 normalized tables with composite indexing to handle high-frequency vitals telemetry.
-*   **Data Ingestion:** Automated BigQuery pipelines extracting and transforming raw MIMIC-IV EHR data.
-*   **Frontend:** Vanilla JS / HTML5 powered by Vite, utilizing dynamic DOM rendering for real-time dashboard updates without framework bloat.
-*   **AI Integration:** MedCPT vector embeddings and Google Gemini AI for automated clinical NLP and Drug-Lab interaction analysis.
-*   **Auth & Security:** 5-Tier Role-Based Access Control (RBAC) with bcrypt password hashing.
+| Module | What it does |
+| :--- | :--- |
+| **Discharge Summary AI** | A 3-pass LLM pipeline that generates a 15-section NABH-compliant discharge summary, then independently audits every section against its own authorised sources. |
+| **Cost Prediction ML** | XGBoost quantile regression (P10/P50/P90) predicting *remaining* hospital cost for each day of a stay, served live into the billing workflow. |
+| **EWS Ward Monitor** | Real-time NEWS2 vitals scoring, drug–lab interaction alerts and nurse escalation workflows across CCU and general wards. |
 
 ---
 
-## 🚀 Getting Started
+## Why this is more than a CRUD app
+
+**The discharge summary pipeline doesn't let the AI grade its own homework.**
+Pass 1 flattens messy EHR rows (notes, labs, vitals, procedures, meds) into strict clinical JSON, cached per admission. Pass 2 streams the 15 sections. Pass 3 verifies each section against **only the source fields that section was allowed to use** — the Discharge Medications section is checked against the medication list and nothing else. That isolation is what turns *"this lab value isn't in the source"* into a reliable signal instead of a model agreeing with itself.
+
+Findings land in a **tiered safety gate**:
+
+| Tier | Catches | Consequence |
+| :--- | :--- | :--- |
+| **T1** | Formatting / structural issues | Advisory |
+| **T2** | Medication errors — wrong drug, dose, frequency | Advisory, highlighted inline |
+| **T3** | Hallucinated labs & vitals, contradicted diagnoses, missed allergies | **Hard-blocks doctor sign-off until resolved** |
+
+Sign-off is backed by digital signature capture (MCI number, designation, signature image), version history, an amendment trail and full audit logging.
+
+**The cost model predicts what's left, not what it all costs.**
+Predicting the *total* bill produced a 32.4% floor-violation rate — the model's P10 came in below money the hospital had already billed, which is worse than useless at a billing desk. Reframing the target to *remaining* cost eliminated that class of error entirely.
+
+Day-0 accuracy then improved from **103.5% → 88.4% MAPE** via a shrinkage-based **diagnosis cost-band** feature. The cohort has 1,317 distinct diagnoses but only ~15 earned their own one-hot column; the other 1,302 fell into an `Other` bucket carrying zero signal. Bucketing by *cost* instead of frequency fixes that — but 54% of diagnoses have a single admission behind their average, so raw means are noise. Shrinkage toward the population mean (tuned k=10 → k=3 after k=10 collapsed the Mid-Low band) makes the feature stable without flattening the separation it exists to create.
+
+Trained on **7,077 admissions / 46,145 day-wise rows / 63 engineered features**, split by admission ID so no stay straddles train and test.
+
+---
+
+## Architecture
+
+```
+                        ┌──────────────────────────┐
+   MIMIC-IV (BigQuery)  │  Google Cloud SQL        │
+        │               │  PostgreSQL · 26 tables  │
+        │  ETL          │  27 versioned migrations │
+        └──────────────▶│                          │
+                        └────────────┬─────────────┘
+                                     │
+            ┌────────────────────────┼────────────────────────┐
+            │                        │                        │
+     ┌──────▼──────┐          ┌──────▼──────┐          ┌──────▼──────┐
+     │  Main API   │          │ Data Server │          │  Ward API   │
+     │   :6010     │          │    :6020    │          │   :6030     │
+     │             │          │             │          │             │
+     │ LLM pipeline│          │ Bulk EHR    │          │ NEWS2 +     │
+     │ Cost model  │          │ reads       │          │ escalations │
+     └──────┬──────┘          └──────┬──────┘          └──────┬──────┘
+            │                        │                        │
+     ┌──────▼────────────────────────▼──────┐          ┌──────▼──────┐
+     │      Main Frontend  ·  Vite :6001    │          │ Ward Monitor│
+     │  doctor queue · review · sign-off    │─ login ─▶│  Vite :6040 │
+     │  billing · CMO · admin dashboards    │  routes  │             │
+     └──────────────────────────────────────┘          └─────────────┘
+```
+
+**Stack**
+
+- **Backend** — FastAPI (async), SQLAlchemy, Cloud SQL Python Connector (pg8000)
+- **Database** — Google Cloud SQL (PostgreSQL), 26 normalised tables, 27 versioned SQL migrations, composite indexing for high-frequency vitals telemetry
+- **Data** — BigQuery ETL from MIMIC-IV; DuckDB + pandas for offline dataset builds
+- **ML** — XGBoost quantile regression, scikit-learn, Elixhauser comorbidity features
+- **AI** — Google Gemini (`google-genai`) for the summary pipeline; MedCPT embeddings + Qdrant for clinical retrieval
+- **Frontend** — Vanilla JS + Vite, component-driven screens, no framework
+- **Auth** — Role-based access control with bcrypt hashing
+
+---
+
+## Getting started
 
 ### Prerequisites
-*   Node.js (v20+)
-*   Python (3.9+)
-*   Google Cloud Service Account credentials (`foqal-healthcare-project-google.json`)
-*   Access to the Foqal Cloud SQL Instance.
 
-### Installation & Deployment
+- Python 3.11+
+- Node.js 20+
+- A GCP service account with Cloud SQL + BigQuery access
+- Access to the Foqal Cloud SQL instance
+- `screen` (the deploy script runs each service in its own session)
 
-We provide an automated deployment script that spins up both the Main Hospital API and the EWS Ward Monitor simultaneously using `screen` sessions.
+### 1. Secrets
+
+Nothing secret is committed. Create `.env.secrets` in the repo root — `deploy.sh` sources it and exports every variable to the services it starts:
 
 ```bash
-# Clone the repository
-git clone https://github.com/sabarikrishna2006/Ward-Monitor.git
-cd Ward-Monitor/common_db_main_latest
+CLOUD_SQL_PASS=<cloud sql password>
+GOOGLE_APPLICATION_CREDENTIALS=<path to service account json>
+GEMINI_API_KEY=<gemini api key>
+```
 
-# Execute the deployment script
+> Without `CLOUD_SQL_PASS` exported the backends will crash-loop on startup.
+
+### 2. Deploy
+
+```bash
+git clone https://github.com/sabarikrishna2006/Ward-Monitor.git
+cd Ward-Monitor
 bash deploy.sh
 ```
 
-**Services Started by `deploy.sh`:**
-*   **Main Hospital App:** `http://localhost:4990/`
-*   **Main Hospital API (Swagger):** `http://localhost:7015/docs`
-*   **EWS Ward Monitor App:** `http://localhost:4985/`
-*   **EWS API (Swagger):** `http://localhost:7816/docs`
+`deploy.sh` builds both virtualenvs, installs Python and npm deps, kills stale `screen` sessions and starts all five services with crash-restart loops.
 
-*(Note: The deployment script maps these to specific IPs in production environments. Please check the terminal output for exact URLs upon running).*
+| Service | Port | URL |
+| :--- | :--- | :--- |
+| Main app (login) | 6001 | `http://localhost:6001/` |
+| Main API docs | 6010 | `http://localhost:6010/docs` |
+| Data server docs | 6020 | `http://localhost:6020/docs` |
+| Ward Monitor API docs | 6030 | `http://localhost:6030/docs` |
+| Ward Monitor app | 6040 | `http://localhost:6040/` |
 
----
+Ports live in **one place** — `frontend/config.js`. Change them there, not in individual HTML files.
 
-## 👥 Demo Users & Role-Based Access Control
-
-The system comes pre-seeded with clinical demo accounts demonstrating the 5-tier RBAC system. You can log in via the Main Hospital App, and relevant roles will be seamlessly redirected to the EWS Ward Monitor.
-
-| Role | Email / Username | Password | Access Level |
-| :--- | :--- | :--- | :--- |
-| **Ward Nurse** | `rekha.devi@foqal.in` | `WardNurse@2026` | Monitor CCU vitals, escalate deteriorating patients. |
-| **Charge Nurse** | `leena.kurup@foqal.in` | `ChargeNurse@2026` | Review escalations, manage CCU step-down transfers, override Drug-Lab flags. |
-| **GW Nurse** | `prathima.m@foqal.in` | `GWNurse@2026` | Acknowledge step-down transfers in the General Ward. |
-| **Resident Doctor**| `dr.anand@foqal.in` | `Resident@2026` | Full clinical oversight and discharge summary generation. |
-
-> **Security Note:** Default plain-text passwords are automatically upgraded to `bcrypt` hashes upon first login via the `015_unified_staff_auth.sql` migration trigger.
-
----
-
-## 🧪 Synthetic Data Seeding
-
-To properly demonstrate the Drug-Lab interaction engine and NEWS2 escalation trajectories, you must seed the synthetic CCU patients.
-
-Ensure the virtual environment is activated, then run:
 ```bash
-# Clears existing synthetic patients (leaves real MIMIC data intact)
-python clear_all_patients.py
-
-# Seeds the 6 Demo CCU patients (IDs 91001-91006)
-python seed_demo_ccu.py
+screen -ls                  # list running services
+screen -r main              # attach to main API logs
+screen -r ward-api          # attach to ward monitor logs
 ```
-This generates 12-hour continuous vital trajectories, labs, and medications designed to trigger specific clinical alerts (e.g., Amiodarone + Hypokalemia).
+
+### 3. Seed demo data
+
+The synthetic CCU patients drive the drug–lab interaction engine and NEWS2 escalation trajectories:
+
+```bash
+source .venv/bin/activate
+python clear_all_patients.py   # clears synthetic patients, leaves MIMIC data intact
+python seed_demo_ccu.py        # seeds 6 demo CCU patients (IDs 91001–91006)
+```
+
+This generates 12 hours of continuous vitals, labs and medications engineered to trip specific clinical alerts (e.g. Amiodarone + hypokalaemia).
 
 ---
 
-## 📁 Repository Structure
+## Demo accounts
+
+Log in at the main app; nurse roles are redirected straight into the Ward Monitor.
+
+| Role | Username | Access |
+| :--- | :--- | :--- |
+| Ward Nurse | `rekha.devi@foqal.in` | Monitor CCU vitals, escalate deteriorating patients |
+| Charge Nurse | `leena.kurup@foqal.in` | Review escalations, manage step-down transfers, override drug–lab flags |
+| GW Nurse | `prathima.m@foqal.in` | Acknowledge step-down transfers in the general ward |
+| Resident Doctor | `dr.anand@foqal.in` | Clinical oversight, discharge summary review and sign-off |
+
+> Passwords for these seeded demo accounts are set by migration `015_unified_staff_auth.sql` and upgraded from plain text to bcrypt on first login. They are **demo credentials on synthetic data** — not valid anywhere else.
+
+---
+
+## Repository layout
 
 ```text
-common_db_main_latest/
-├── backend/                  # Hospital Efficiency Core API (FastAPI)
-├── frontend/                 # Main Login & Hospital Dashboards
-├── sabari_project/           # EWS Ward Monitor Sub-Project
-│   ├── backend/              # EWS Specific API endpoints & MIMIC Sync
-│   ├── app.js                # EWS Core Frontend Logic
-│   └── ...
-├── notebooks/                # ML Data Exploration & Model Training Scripts
-├── deploy.sh                 # Unified Deployment Script
-├── seed_demo_ccu.py          # Synthetic Data Generator
-├── clear_all_patients.py     # Database cleanup utility
-└── foqal-healthcare-...json  # GCP Service Account (Required for DB/BigQuery)
+.
+├── backend/
+│   ├── app/
+│   │   ├── main.py                  # Main API — summaries, auth, workflow
+│   │   ├── data_server.py           # Bulk EHR read API
+│   │   ├── cost_predictor.py        # Serves the XGBoost quantile model
+│   │   ├── live_feature_builder.py  # Builds model features from Cloud SQL in real time
+│   │   ├── bigquery_mimic_loader.py # MIMIC-IV → Cloud SQL ETL
+│   │   ├── embedder.py / qdrant_store.py / chunker.py   # MedCPT retrieval
+│   │   └── migrations/              # 27 versioned SQL migrations
+│   ├── apply_migration.py
+│   └── cloud_sql_schema.sql
+│
+├── frontend/
+│   ├── config.js                    # Single source of truth for ports
+│   ├── screens/
+│   │   ├── doctor-queue.js          # Patients awaiting summaries
+│   │   ├── doctor-dashboard.js      # Assembled clinical record
+│   │   ├── review-v2.js             # Section-by-section AI review + T1/T2/T3 flags
+│   │   ├── signoff.js               # Sign-off, blocked until T3 flags clear
+│   │   ├── signed.js                # Signed summary + signature
+│   │   ├── amendment.js             # Post-sign-off amendment trail
+│   │   └── rejection-flow.js
+│   └── billing.html · cmo.html · admin-dashboard.html · dashboard.html
+│
+├── cost_ml_model/
+│   ├── pull_dcm_admissions.py            # Cohort extraction
+│   ├── build_day_wise_dataset.py         # 46,145 day-wise rows
+│   ├── add_diagnosis_cost_band_feature.py# Shrinkage cost bands
+│   ├── validate_shrinkage.py             # k-tuning validation
+│   ├── train_baseline_and_xgboost.py     # Quantile training
+│   ├── retrain_with_diagnosis_band.py
+│   ├── evaluate_models.py · evaluate_train_vs_test.py
+│   ├── models/                           # Trained artefacts
+│   └── eval_charts/ · eda_charts/        # Accuracy and calibration plots
+│
+├── sabari_project/                  # EWS Ward Monitor (separate module)
+│   ├── backend/
+│   │   ├── main.py · mimic_sync.py
+│   │   ├── engine/ · rules/         # NEWS2 scoring + escalation rules
+│   │   └── ews_migration.sql
+│   └── app.js · index.html
+│
+├── notebooks/                       # EDA and model exploration
+├── deploy.sh                        # Unified deploy — starts all five services
+├── seed_demo_ccu.py                 # Synthetic CCU patient generator
+└── requirements.txt
 ```
 
 ---
 
-## 📄 License
+## Data & licensing
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Patient data comes from **MIMIC-IV**, a de-identified public research dataset governed by a PhysioNet Data Use Agreement. Row-level derived data is **not** committed to this repository (`cost_ml_model/data/` is gitignored) and must not be redistributed via git regardless of repository visibility. Regenerate it locally with the `cost_ml_model/` build scripts once you have your own PhysioNet credentialed access.
+
+The system runs on MIMIC-IV plus synthetic demo patients. It has **not** been deployed in a live hospital with real patients.
+
+Code is licensed under the MIT License — see [LICENSE](LICENSE).

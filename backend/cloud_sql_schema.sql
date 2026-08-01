@@ -1,37 +1,15 @@
--- =============================================================================
--- Foqal Healthcare — Cloud SQL (PostgreSQL) Schema
--- Active Patients + Clinical Data + App Tables
--- Version: 1.0  |  2026-06-04
--- =============================================================================
---
--- ACID guarantees:
---   Atomicity  — every status transition and bulk insert runs in an explicit
---                BEGIN/COMMIT block; partial fetches roll back cleanly.
---   Consistency — CHECK constraints, FK constraints, UNIQUE constraints, and
---                 NOT NULL enforce data integrity at the DB layer.
---   Isolation  — READ COMMITTED (default PG isolation). Status transitions use
---                SELECT FOR UPDATE; fetch jobs use pg_advisory_xact_lock().
---   Durability — Managed Cloud SQL with synchronous replication; WAL enabled.
---
--- Multi-user concurrency patterns (see Section 4 comments):
---   • Status transitions: SELECT FOR UPDATE on active_patients row
---   • BigQuery fetch guard: pg_advisory_xact_lock(hadm_id)
---   • Queue assignment: SELECT FOR UPDATE SKIP LOCKED
---   • Bulk inserts: INSERT … ON CONFLICT DO NOTHING (idempotent re-fetch)
---   • Large table reads: cursor pagination on (hadm_id, charttime)
--- =============================================================================
-
 BEGIN;
 
--- ---------------------------------------------------------------------------
 -- Extensions
--- ---------------------------------------------------------------------------
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";     -- gen_random_uuid()
 CREATE EXTENSION IF NOT EXISTS "pg_stat_statements"; -- query performance
 
--- ---------------------------------------------------------------------------
+
+
+
+
 -- Shared trigger: auto-update updated_at on any row change
--- ---------------------------------------------------------------------------
+
 CREATE OR REPLACE FUNCTION set_updated_at()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$
 BEGIN
@@ -41,15 +19,10 @@ END;
 $$;
 
 
--- =============================================================================
--- SECTION 1: APP TABLES
--- users · active_patients (master) · encounters · summaries
--- uploaded_files · audit_log · settings
--- =============================================================================
 
--- ---------------------------------------------------------------------------
+
 -- 1.1  USERS
--- ---------------------------------------------------------------------------
+
 CREATE TABLE IF NOT EXISTS app_users (
     id              UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
     hospital_email  VARCHAR(255) NOT NULL,

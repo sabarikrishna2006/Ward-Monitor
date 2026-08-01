@@ -1,41 +1,47 @@
 #!/bin/bash
-# ============================================================
-# Foqal CareOS — Integrated Hospital · Full Deploy Script
-# Starts both Ashmit's Hospital Efficiency and
-# Sabari's Ward Monitor projects together.
-#
-# Run from repo root:  bash deploy.sh
-# ============================================================
 
-set -e
+set -e  #if smth is not loaded back
 
+#to load the locn of file
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
-ASHMIT_DIR="$REPO_DIR"            # Hospital_Efficiency root
+ASHMIT_DIR="$REPO_DIR"   # Hospital_Efficiency root
 SABARI_DIR="$REPO_DIR/sabari_project"
 
-# ── Local secrets (never committed — see .env.secrets.example) ──────────────
-# Exported here so every screen session below inherits them automatically.
+
+
+
+#Local Secrets being loaded
 if [ -f "$REPO_DIR/.env.secrets" ]; then
     set -a
     source "$REPO_DIR/.env.secrets"
     set +a
-    echo "Loaded secrets from .env.secrets"
+    echo "Loaded secrets "
 else
-    echo "WARNING: $REPO_DIR/.env.secrets not found — CLOUD_SQL_PASS must already be exported in this shell, or the backends will crash-loop."
+    echo "WARNING: $REPO_DIR/.env.secrets not found — CLOUD_SQL_PASS must already be exported in this shell, or the backends will crash-loop as set -e is applied "
+
+
+
+
+
+
+
+
 fi
-
 echo ""
-echo "==================================================="
-echo " Foqal CareOS · Integrated Hospital — Full Deploy"
+echo 
+echo " Foqal CareOS · Integrated Hospital Full Deploy...."
 echo " Repo : $REPO_DIR"
-echo "==================================================="
+echo 
 echo ""
 
-# ── 0. Ensure Node.js & npm (via NVM) ────────────────────────
+#Ensure Node.js & npm
 echo "[0/5] Checking for Node.js (npm)..."
 if ! command -v npm &> /dev/null; then
-    echo "      npm not found. Attempting to load NVM..."
+    echo "npm not found. Attempting to load NVM..."
+
+
     export NVM_DIR="$HOME/.nvm"
+
     [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
     
     if ! command -v npm &> /dev/null; then
@@ -52,7 +58,11 @@ fi
 echo ""
 
 
-# ── Ashmit's project ─────────────────────────────────────────
+
+
+
+
+#Ashmit's project
 echo "[ASHMIT] Setting up Python environment..."
 if [ ! -d "$ASHMIT_DIR/.venv" ]; then
     python3 -m venv "$ASHMIT_DIR/.venv"
@@ -61,12 +71,17 @@ source "$ASHMIT_DIR/.venv/bin/activate"
 pip install -r "$ASHMIT_DIR/requirements.txt" -q
 echo "         Python deps OK"
 
+
+
 echo "[ASHMIT] Stopping old screen sessions..."
 screen -S main      -X quit 2>/dev/null && echo "         Stopped main"      || true
 screen -S data      -X quit 2>/dev/null && echo "         Stopped data"      || true
 screen -S frontend  -X quit 2>/dev/null && echo "         Stopped frontend"  || true
 sleep 1
 
+
+
+#Main Server
 echo "[ASHMIT] Starting backend main API (port 6010)..."
 screen -dmS main bash -c "
     cd '$ASHMIT_DIR'
@@ -77,6 +92,8 @@ screen -dmS main bash -c "
     done
 "
 
+
+#Data Server
 echo "[ASHMIT] Starting data server (port 6020)..."
 screen -dmS data bash -c "
     cd '$ASHMIT_DIR'
@@ -87,6 +104,8 @@ screen -dmS data bash -c "
     done
 "
 
+
+#Frontend Screens Ashmit
 echo "[ASHMIT] Starting frontend Vite dev server (port 6001)..."
 screen -dmS frontend bash -c "
     export NVM_DIR=\"\$HOME/.nvm\"
@@ -98,8 +117,13 @@ screen -dmS frontend bash -c "
         echo '[frontend] crashed, restarting in 5s...'; sleep 5
     done
 "
+#---------------------------------------------------------------------------------------------------------------------------------
 
-# ── Sabari's Ward Monitor ─────────────────────────────────────
+
+
+
+
+# Sabari's Ward Monitor
 echo ""
 echo "[SABARI] Setting up Ward Monitor..."
 if [ ! -d "$SABARI_DIR" ]; then
@@ -123,6 +147,11 @@ screen -S ward-api      -X quit 2>/dev/null && echo "         Stopped ward-api" 
 screen -S ward-frontend -X quit 2>/dev/null && echo "         Stopped ward-frontend" || true
 sleep 1
 
+
+
+
+
+
 echo "[SABARI] Starting Ward Monitor backend (port 6030)..."
 screen -dmS ward-api bash -c "
     cd '$SABARI_DIR/backend'
@@ -132,6 +161,12 @@ screen -dmS ward-api bash -c "
         echo '[ward-api] crashed, restarting in 5s...'; sleep 5
     done
 "
+
+
+
+
+
+
 
 echo "[SABARI] Starting Ward Monitor frontend (port 6040)..."
 screen -dmS ward-frontend bash -c "
@@ -145,6 +180,10 @@ screen -dmS ward-frontend bash -c "
         echo '[ward-frontend] crashed, restarting in 5s...'; sleep 5
     done
 "
+
+
+
+
 
 echo ""
 echo "==================================================="

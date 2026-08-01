@@ -1,0 +1,99 @@
+This is two separate products sharing one Cloud SQL database, plus an ML side-project:
+
+┌──────────────┬──────────────────────────┬──────────────────┬───────┐
+│  Subsystem   │         Backend          │     Frontend     │ Port  │
+├──────────────┼──────────────────────────┼──────────────────┼───────┤
+│ Discharge    │                          │                  │ API   │
+│ Summary AI   │ backend/app/main.py      │ frontend/        │ 6010, │
+│ (Ashmit's)   │                          │                  │  FE   │
+│              │                          │                  │ 6001  │
+├──────────────┼──────────────────────────┼──────────────────┼───────┤
+│ Data layer   │ backend/app/data_server. │                  │       │
+│ (BigQuery/MI │ py                       │ —                │ 6020  │
+│ MIC cache)   │                          │                  │       │
+├──────────────┼──────────────────────────┼──────────────────┼───────┤
+│ EWS Ward     │                          │                  │ API   │
+│ Monitor      │ sabari_project/backend/m │ sabari_project/a │ 6030, │
+│ (Sabari's)   │ ain.py                   │ pp.js            │  FE   │
+│              │                          │                  │ 6040  │
+├──────────────┼──────────────────────────┼──────────────────┼───────┤
+│ Cost ML      │                          │                  │ offli │
+│ model        │ cost_ml_model/           │ —                │ ne sc │
+│              │                          │                  │ ripts │
+└──────────────┴──────────────────────────┴──────────────────┴───────┘
+
+~35k lines total. The ~70 loose .py files at the repo root are one-off scripts (data pulls, seeding, debugging, PPT builders) — skip them entirely on first pass.
+
+---
+Reading order
+
+Phase 1 — Orientation (~30 min)
+
+1. README.md — you've got context, but re-read section "Repository Structure"
+2. deploy.sh — the single source of truth for what actually runs. 5 processes, 5 ports.
+3. frontend/config.js:1-21 — 21 lines, shows how the frontends find the backends
+4. backend/cloud_sql_schema.sql + backend/app/migrations/ (read 001 → 027 in numeric order) — this is the best way to learn the data model. Each migration is small and tells you why a feature exists.
+
+Phase 2 — The data layer (this is the foundation)
+
+5. backend/app/cloud_sql_db.py (105 lines) — connection/engine setup
+6. backend/app/data_server.py:1-11 — read the docstring first, it explains the cache-aside pattern
+7. backend/app/cloud_sql_reader.py (258) — reads ap_* cached tables
+8. backend/app/bq_mimic_loader.py (604) — BigQuery → MIMIC-IV pulls
+9. backend/app/bigquery_mimic_loader.py (656) — the fetch-and-store ETL
+10. backend/app/data_server.py (full, 953) — now it'll make sense
+11. backend/app/cloud_sql_app_db.py (1117) — app-level tables (encounters, summaries, users, audit). Heavily used by main.py.
+
+Phase 3 — Discharge Summary backend (the biggest thing)
+
+backend/app/main.py is 6781 lines — do not read top to bottom. Read it in these slices:
+
+┌───────────┬──────────────────────────────────────────────────────────┐
+│   Lines   │                        What it is                        │
+├───────────┼──────────────────────────────────────────────────────────┤
+│ 1-100     │ startup, config, CORS                                    │
+├───────────┼──────────────────────────────────────────────────────────┤
+│ 622-815   │ auth (login/register/reset, bcrypt)                      │
+├───────────┼──────────────────────────────────────────────────────────┤
+│ 2151-2900 │ encounters + file ingestion — the upload pipeline        │
+├───────────┼──────────────────────────────────────────────────────────┤
+│ 2891-3600 │ fetch_all_patient_data → build_clinical_context — the    │
+│           │ heart of the system, turns DB rows into LLM prompt text  │
+├───────────┼──────────────────────────────────────────────────────────┤
+│ 3762-4270 │ Gemini calls, precompute_pass1, prompt assembly          │
+├───────────┼──────────────────────────────────────────────────────────┤
+│ 4268-5400 │ generate_summary — the main 1100-line generation         │
+│           │ endpoin
+│           │ cost estimate                                            │
+├───────────┼──────────────────────────────────────────────────────────┤
+│ 6140-6781 │ admin, users, settings, drug-lab rules, audit log        │
+└───────────┴──────────────────────────────────────────────────────────┘
+
+Supporting modules to read alongside:
+- backend/app/models.py (1131) — Pydantic/ORM shapes
+- backend/app/chunker.py (1135) + embedder.py + qdrant_store.py — the vector/RAG path
+- backend/app/cost_predictor.py + los_predictor.py + live_feature_builder.py — where the ML model gets served
+
+Phase 4 — Discharge Summary frontend
+
+12. frontend/index.html (440) — entry point
+13. frontend/state.js (139) → shell.js (97) → api-client.js (276) — the app skeleton
+14. frontend/screens/doctor-queue.js (486) → doctor-dashboard.js (845) → signoff.js (493) → signed.js (215) → amendment.js (308) — read in workflow order, this traces a patient through the system
+15. frontend/screens/review-v2.js (3549) — the monster. The section-by-section summary editor. Save for last.
+16. Standalone pages (each self-contained, read as needed): upload.html (2917), billing.html 
+18. sabari_project/backend/models.py (208) + database.py (84)
+19. sabari_project/backend/rules/news2_thresholds.yaml + drug_lab_rules.yaml — config-as-data, read before the code
+20. sabari_project/backend/main.py:79-300 — calculate_news2, monitoring_plan, build_ews_reason, ml_demo. This is the clinical scoring core.
+21. sabari_project/backend/engine/drug_lab.py (195) — drug-lab interaction engine
+22. sabari_project/backend/main.py:447-902 — /api/ward-data, the 450-line endpoint that powers the whole dashboard
+23. Rest of main.py — escalations, CCU transfers, shift handoffs
+24. sabari_project/backend/mimic_sync.py (661) — how real patient vitals get in
+25. sabari_project/app.js (2131) — the entire EWS frontend in one file
+
+Phase 6 — Cost ML model (your active work)
+
+26. cost_ml_model/pull_dcm_admissions.py → build_day_costs.py → build_day_wise_dataset.py — the data pipeline
+27. cost_ml_model/elixhauser.py → eda_and_preprocessing.py — feature engineering
+28. cost_ml_model/train_baseline_and_xgboost.py → train_los_predictor_experiment.py → train_day0_estimate_experiment.py
+29. cost_ml_model/evaluate_models.py + evaluate_train_vs_test.py
+30. Back to backend/app/cost_predictor.py to see how it's served live
