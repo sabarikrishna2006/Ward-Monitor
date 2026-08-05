@@ -675,7 +675,8 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
 
         # ── Recent Vitals (last 6 readings) — use resolved latest values ──
         recent_vitals = []
-        for pt in trajectory[-6:]:  # Always show just last 6
+        _traj_subset = trajectory[-6:]
+        for i, pt in enumerate(_traj_subset):  # Always show just last 6
             # Compute historical NEWS2
             # Carry the patient's current consciousness / O2 status across the window so the
             # trend NEWS2 stays consistent with the headline score (demo readings are constant).
@@ -698,9 +699,20 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
                 "temp": pt["temp"] if pt["temp"] is not None else "--",
                 "sbp":  pt["sbp"] if pt["sbp"] is not None else "--",
                 "dbp":  pt["dbp"] if pt["dbp"] is not None else "--",
-                "news2": hist_news2
+                "news2": hist_news2,
+                "aiRisk": "--"
             })
 
+            # Calculate historical AI risk for the sparkline
+            try:
+                import escalation_model
+                slice_idx = len(vitals_history) - len(_traj_subset) + i + 1
+                hist_ml = escalation_model.predict(p, vitals_history[:max(1, slice_idx)])
+                if hist_ml:
+                    recent_vitals[-1]["aiRisk"] = hist_ml["escalationRisk"]
+            except Exception:
+                pass
+        
         db_labs = _labs_map[p.hadm_id][:10]
 
         formatted_labs = []
@@ -751,10 +763,11 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
         ml_real = None
         try:
             import escalation_model
-            ml_real = escalation_model.predict(p, recent_vitals)
+            ml_real = escalation_model.predict(p, recent_vitals, news_data.get("factors"))
         except Exception as e:
             pass
             
+        ml_stats = {}
         if ml_real:
             ml_risk = ml_real["escalationRisk"]
             ml_risk_2h = ml_real["escalationRisk2h"]
@@ -762,6 +775,7 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
             ml_window = ml_real["escalationWindow"]
             ml_contributors = ml_real["escalationDrivers"]
             ml_model_type = ml_real["escalationModel"]
+            ml_stats = ml_real.get("stats", {})
         else:
             ml = ml_demo(news2_score, news_data["factors"], recent_vitals, has_critical_flag)
             ml_risk = ml["risk"]
@@ -770,6 +784,19 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
             ml_window = ml["window"]
             ml_contributors = ml["contributors"]
             ml_model_type = "demo"
+            ml_stats = {}
+
+        # Smart Recommendation Injection
+        if ml_tier == 'PAGE' and not any(a.get('source') == 'AI' for a in drug_lab_alerts):
+            # Prepend a high-priority AI alert
+            drug_lab_alerts.insert(0, {
+                "rule_name": "AI Deterioration Alert",
+                "message": "AI prediction indicates high risk of critical deterioration. Recommend attending review and continuous monitoring.",
+                "severity": "CRITICAL",
+                "source": "AI"
+            })
+            if status != 'critical':
+                status = 'critical'
 
         # ── NEWS2 clinical risk tier (per NHS protocol) ──
         # Check if any single parameter scored 3 (Low-Medium risk trigger)
@@ -899,6 +926,7 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
             "escalationRisk2h": ml_risk_2h,
             "escalationTier": ml_tier,
             "escalationModel": ml_model_type,
+            "mlStats": ml_stats,
             "mlExplanation": explanation,
             "recommendedAction": action,
             "trajectory": trajectory,
