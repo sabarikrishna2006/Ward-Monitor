@@ -882,6 +882,10 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
                 "Decide change in frequency of monitoring or escalation of care. "
                 "Minimum monitoring every 4–6 hours."
             )
+            
+        if ml_model_type == "live":
+            explanation = ""
+            action = ""
 
         ews_reason = build_ews_reason(latest_vitals, news_data, drug_lab_alerts, news2_score, status)
 
