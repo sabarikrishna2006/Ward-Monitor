@@ -707,7 +707,8 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
             try:
                 import escalation_model
                 slice_idx = len(vitals_history) - len(_traj_subset) + i + 1
-                hist_ml = escalation_model.predict(p, vitals_history[:max(1, slice_idx)])
+                vitals_dict_sub = [vitals_to_dict(v) for v in vitals_history[:max(1, slice_idx)]]
+                hist_ml = escalation_model.predict(p, vitals_dict_sub)
                 if hist_ml:
                     recent_vitals[-1]["aiRisk"] = hist_ml["escalationRisk"]
             except Exception:
@@ -760,10 +761,11 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
         # Predictive ML risk model output
         has_critical_flag = any(a.get('severity') == 'CRITICAL' for a in drug_lab_alerts)
         
+        vitals_dict_history = [vitals_to_dict(v) for v in vitals_history] if vitals_history else []
         ml_real = None
         try:
             import escalation_model
-            ml_real = escalation_model.predict(p, recent_vitals, news_data.get("factors"))
+            ml_real = escalation_model.predict(p, vitals_dict_history, news_data.get("factors"))
         except Exception as e:
             pass
             
