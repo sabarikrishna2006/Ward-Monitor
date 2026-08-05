@@ -141,7 +141,7 @@ def build_features(patient, recent_vitals):
         
     return np.array([x], dtype=float)
 
-def predict(patient, recent_vitals):
+def predict(patient, recent_vitals, news_factors=None):
     if not load_models():
         return None
         
@@ -199,13 +199,44 @@ def predict(patient, recent_vitals):
         
         window_str = f"next {int(time_to_event)} hours" if risk_24h > 0.05 else "--"
         
+        # 1. Dynamic Drivers
+        drivers = []
+        if news_factors:
+            # Map standard NEWS2 factors to ML Labels, similar to demo but real
+            _ML_LABELS = {
+                "Respiration Rate": "Respiratory rate trend",
+                "SpO2 (Scale 1)": "SpO₂ downtrend", "SpO2 (Scale 2)": "SpO₂ downtrend",
+                "Supplemental Oxygen": "Oxygen requirement",
+                "Systolic BP": "Falling blood pressure", "Heart Rate": "Heart-rate trend",
+                "Consciousness (CVPU)": "Reduced consciousness", "Temperature": "Temperature",
+            }
+            total = sum(f["score"] for f in news_factors) or 1
+            drivers = [
+                {"label": _ML_LABELS.get(f["name"], f["name"]), "pct": round(f["score"] / total * 100)}
+                for f in sorted(news_factors, key=lambda x: x["score"], reverse=True)[:4]
+            ]
+        
+        # Fallback if news_factors isn't passed or is empty
+        if not drivers:
+            # Check the feature dict for obvious anomalies
+            x_dict = dict(zip(_META["features"], X[0]))
+            if x_dict.get("heart_rate_mean", 0) > 100 or x_dict.get("heart_rate_mean", 0) < 50:
+                drivers.append({"label": "Heart-rate trend", "pct": 40})
+            if x_dict.get("sbp_mean", 120) < 90 or x_dict.get("sbp_mean", 120) > 160:
+                drivers.append({"label": "Abnormal blood pressure", "pct": 30})
+            if x_dict.get("resp_rate_mean", 16) > 22 or x_dict.get("resp_rate_mean", 16) < 10:
+                drivers.append({"label": "Respiratory rate trend", "pct": 30})
+            if not drivers:
+                drivers = [{"label": "Multivariate vital instability", "pct": 100}]
+        
         return {
             "escalationRisk": float(round(risk_24h * 100, 1)),
             "escalationRisk2h": float(round(risk_2h * 100, 1)),
             "escalationTier": tier,
             "escalationWindow": window_str,
-            "escalationDrivers": [{"label": "Model Driver 1", "pct": 40}],
-            "escalationModel": "live"
+            "escalationDrivers": drivers,
+            "escalationModel": "live",
+            "stats": _META.get("practitioner_stats", {})
         }
     except Exception as e:
         log.error(f"Escalation model prediction error: {e}")

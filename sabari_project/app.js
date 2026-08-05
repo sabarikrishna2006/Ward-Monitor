@@ -465,6 +465,7 @@ function closeModal() {
 }
 
 const MODALS = {
+  cosign_confirm: () => `
     <div class="modal-t">Co-Sign Override Complete</div>
     <div class="modal-b" style="color:var(--t3)">✅ Override successfully co-signed and recorded in the NABH audit trail.</div>
     <div class="modal-f"><button class="btn btn-pri" onclick="closeModal();nav('dl1')">Back to DL Flags</button></div>`,
