@@ -703,11 +703,25 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
                 "aiRisk": "--"
             })
 
+            def _vt_to_dict(vt):
+                return {
+                    "chart_time": getattr(vt, "chart_time", None),
+                    "dbp": getattr(vt, "dbp", None),
+                    "hr": getattr(vt, "heart_rate", None),
+                    "rr": getattr(vt, "resp_rate", None),
+                    "sbp": getattr(vt, "sbp", None),
+                    "spo2": getattr(vt, "spo2", None),
+                    "temp": getattr(vt, "temperature", None),
+                    "news2": getattr(vt, "news2_score", None),
+                    "consciousness": getattr(vt, "consciousness", "A"),
+                    "air_or_oxygen": getattr(vt, "air_or_oxygen", "Air")
+                }
+
             # Calculate historical AI risk for the sparkline
             try:
                 import escalation_model
                 slice_idx = len(vitals_history) - len(_traj_subset) + i + 1
-                vitals_dict_sub = [vitals_to_dict(v) for v in vitals_history[:max(1, slice_idx)]]
+                vitals_dict_sub = [_vt_to_dict(v) for v in vitals_history[:max(1, slice_idx)]]
                 hist_ml = escalation_model.predict(p, vitals_dict_sub)
                 if hist_ml:
                     recent_vitals[-1]["aiRisk"] = hist_ml["escalationRisk"]
@@ -761,7 +775,7 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
         # Predictive ML risk model output
         has_critical_flag = any(a.get('severity') == 'CRITICAL' for a in drug_lab_alerts)
         
-        vitals_dict_history = [vitals_to_dict(v) for v in vitals_history] if vitals_history else []
+        vitals_dict_history = [_vt_to_dict(v) for v in vitals_history] if vitals_history else []
         ml_real = None
         try:
             import escalation_model
@@ -842,8 +856,8 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
                 "Usually requires transfer to higher level of care (HDU/ICU)."
             )
             if drug_lab_alerts:
-                explanation = drug_lab_alerts[0]['message']
-                action = drug_lab_alerts[0]['action']
+                explanation = drug_lab_alerts[0].get('message', drug_lab_alerts[0].get('text', ''))
+                action = drug_lab_alerts[0].get('action', '')
 
         elif status == 'warning':  # NEWS2 5-6 → MEDIUM risk
             explanation = (
