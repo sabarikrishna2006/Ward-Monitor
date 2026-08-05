@@ -510,10 +510,7 @@ function renderEwsReason(p, compact) {
   // signals/flag set also happens when there's no recent data at all (stale/overdue),
   // which must show as overdue, not as a false "all normal" reassurance.
   const ok = (r.tone === 'stable' && !signals && !flag) ? `<span class="ews-ok">&#10003; All parameters normal</span>` : '';
-  const ai = (p.mlRisk != null && !compact)
-    ? `<div class="ews-ai" title="AI predictive deterioration risk">AI ${p.mlRisk}%</div>`
-    : '';
-  return `<div class="ews-cell">${signals ? `<div class="ews-sigs">${signals}</div>` : ''}${flag}${ok}${action}${ai}</div>`;
+  return `<div class="ews-cell">${signals ? `<div class="ews-sigs">${signals}</div>` : ''}${flag}${ok}${action}</div>`;
 }
 
 /* ── NEWS2 trend mini-chart (SVG) built from real recentVitals ── */
@@ -569,8 +566,9 @@ SCREENS.n1 = () => {
   patients.sort((a, b) => {
     if (a.status === 'stale' && b.status !== 'stale') return 1;
     if (b.status === 'stale' && a.status !== 'stale') return -1;
-    return b.news2 - a.news2;
-  }); // Sort by highest acuity first, push stale to bottom
+    if (APP.sortBy === 'mlRisk') return (b.mlRisk || 0) - (a.mlRisk || 0);
+    return (b.news2 || 0) - (a.news2 || 0);
+  }); // Sort by chosen column, push stale to bottom
   let critCount = 0, medCount = 0, lowCount = 0, staleCount = 0;
   
   APP.n1_filter = APP.n1_filter || 'all';
@@ -633,7 +631,10 @@ SCREENS.n1 = () => {
 <div class="tw"><table class="tbl-stack">
   <thead><tr>
     <th>Patient</th><th>Diagnosis</th><th>Ward</th><th>SpO₂ (%)</th><th>RR (/min)</th><th>BP (mmHg)</th>
-    <th>HR (bpm)</th><th>Temp (°C)</th><th>AVPU</th><th>NEWS2</th><th>EWS Reason</th><th>Status</th><th>Actions</th>
+    <th>HR (bpm)</th><th>Temp (°C)</th><th>AVPU</th>
+    <th onclick="APP.sortBy='news2'; renderAll()" style="cursor:pointer; text-decoration:underline;" title="Sort by NEWS2">NEWS2 ↕</th>
+    <th onclick="APP.sortBy='mlRisk'; renderAll()" style="cursor:pointer; text-decoration:underline;" title="Sort by AI Risk">AI Risk ↕</th>
+    <th>EWS Reason</th><th>Status</th><th>Actions</th>
   </tr></thead>
   <tbody>
     ${filteredPatients.length === 0 ? `
@@ -654,6 +655,7 @@ SCREENS.n1 = () => {
             <span style="display:inline-block;width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--p);border-radius:50%;animation:spin 1s linear infinite;vertical-align:middle;margin-right:6px"></span>
             Syncing clinical data… Ward board will update when complete.
           </td>
+          <td data-label="AI Risk">—</td>
           <td data-label="Status"><span class="bd bd-muted">SYNCING</span></td>
           <td data-label="Actions"></td>
         </tr>`;
@@ -668,6 +670,7 @@ SCREENS.n1 = () => {
           <td data-label="Diagnosis" class="dx-cell">${p.diagnosis_short || p.primary_diagnosis || '—'}</td>
           <td data-label="Ward">${(p.ward||'').split(' ')[1]||p.ward||'--'}${p.ward_location === 'GENERAL_WARD' ? '<br><span class="loc-tag loc-gw">GW</span>' : '<br><span class="loc-tag loc-ccu">CCU</span>'}</td>
           <td colspan="8" style="color:var(--muted);font-style:italic;font-size:12px">Awaiting first vitals — none recorded yet.</td>
+          <td data-label="AI Risk">—</td>
           <td data-label="Status"><span class="bd bd-muted" style="color:var(--muted)">AWAITING</span></td>
           <td data-label="Actions"><button class="btn btn-warn btn-xs" onclick="event.stopPropagation();nav('n_vitals', ${p.id})">Enter Vitals</button></td>
         </tr>`;
@@ -710,6 +713,9 @@ SCREENS.n1 = () => {
         ? `<span class="bd bd-t3" title="Acknowledged for this shift">&#10003; Acked</span>`
         : `<button class="btn btn-sec btn-xs" onclick="event.stopPropagation();ackPatient(event, ${p.id})">Ack</button>`;
       
+      const aiRiskTierHtml = p.escalationTier ? `<span class="bd bd-${p.escalationTier==='PAGE'?'t1':p.escalationTier==='WATCH'?'t2':'t3'}">${p.escalationTier}</span>` : '—';
+      const aiRiskCol = p.escalationTier ? `<div style="display:flex;flex-direction:column;align-items:flex-start;gap:4px">${aiRiskTierHtml}<span class="small" style="color:var(--muted)">${p.mlRisk != null ? p.mlRisk + '%' : ''}</span></div>` : '—';
+      
       return `
         <tr class="${rowClass}${isDischargePending ? ' row-discharge' : ''}" onclick="nav('n1b', ${p.id})">
           <td data-label="Patient">
@@ -733,6 +739,7 @@ SCREENS.n1 = () => {
           <td data-label="Temp" class="${valCrit(p.temp, 38.0, '>')}">${temp} ${timeHtml(p.temp_time)}</td>
           <td data-label="AVPU">${avpu} ${timeHtml(p.avpu_time)}</td>
           <td data-label="NEWS2"><span class="${scoreClass}">${s}</span></td>
+          <td data-label="AI Risk">${isStale ? '—' : aiRiskCol}</td>
           <td data-label="EWS Reason" class="ews-reason-td" style="line-height:1.4">${renderEwsReason(p)}</td>
           <td data-label="Status">
             <div style="display:flex;flex-direction:column;align-items:flex-start;gap:4px">
@@ -849,15 +856,15 @@ SCREENS.n1b = () => {
   // a stable patient can still carry a high predicted risk, and the number
   // needs to reflect that on its own. This card has a plain white background
   // (no severity tint), so the color never clashes with its surroundings.
-  const mlRiskCol = p.mlRisk == null ? 'var(--muted)' : p.mlRisk >= 50 ? 'var(--t1)' : p.mlRisk >= 20 ? 'var(--t2)' : 'var(--t3)';
+  const mlRiskCol = p.escalationTier === 'PAGE' ? 'var(--t1)' : p.escalationTier === 'WATCH' ? 'var(--t2)' : 'var(--t3)';
   const mlInsights = `
     <div class="grid2">
       <div class="card">
         <div class="card-title">Deterioration Risk Prediction</div>
         <div style="display:flex;align-items:center;gap:18px;margin-bottom:12px">
           <div class="ml-risk-num" style="color:${mlRiskCol}">${p.mlRisk != null ? p.mlRisk + '%' : '—'}</div>
-          <div><div style="font-size:12.5px;font-weight:600">${p.mlWindow || '6-12 hour'} deterioration window</div>
-          <div class="muted small">Recomputed on each vitals entry</div></div>
+          <div><div style="font-size:12.5px;font-weight:600">Tier: <span style="color:${mlRiskCol}">${p.escalationTier || '—'}</span></div>
+          <div class="muted small">${p.mlWindow || '—'}</div></div>
         </div>
         <b class="small">Top contributing signals:</b>
         <div style="margin-top:8px">${mlContribs}</div>

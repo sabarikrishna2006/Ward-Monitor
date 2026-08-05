@@ -747,8 +747,29 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
         bp_str = f"{int(sbp_val)}/{int(dbp_val)}" if sbp_val and dbp_val else "--/--"
         # Predictive ML risk model output
         has_critical_flag = any(a.get('severity') == 'CRITICAL' for a in drug_lab_alerts)
-        ml = ml_demo(news2_score, news_data["factors"], recent_vitals, has_critical_flag)
-        ml_risk = ml["risk"]
+        
+        ml_real = None
+        try:
+            import escalation_model
+            ml_real = escalation_model.predict(p, recent_vitals)
+        except Exception as e:
+            pass
+            
+        if ml_real:
+            ml_risk = ml_real["escalationRisk"]
+            ml_risk_2h = ml_real["escalationRisk2h"]
+            ml_tier = ml_real["escalationTier"]
+            ml_window = ml_real["escalationWindow"]
+            ml_contributors = ml_real["escalationDrivers"]
+            ml_model_type = ml_real["escalationModel"]
+        else:
+            ml = ml_demo(news2_score, news_data["factors"], recent_vitals, has_critical_flag)
+            ml_risk = ml["risk"]
+            ml_risk_2h = ml_risk / 2.0
+            ml_tier = "WATCH" if ml_risk >= 60 else "CLEAR"
+            ml_window = ml["window"]
+            ml_contributors = ml["contributors"]
+            ml_model_type = "demo"
 
         # ── NEWS2 clinical risk tier (per NHS protocol) ──
         # Check if any single parameter scored 3 (Low-Medium risk trigger)
@@ -849,8 +870,8 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
             "dueLabel": due_label,
             "urineOutput": int(latest_vitals['urine_output']) if latest_vitals['urine_output'] is not None else None,
             "fluidBalance": int(latest_vitals['fluid_balance']) if latest_vitals['fluid_balance'] is not None else None,
-            "mlContributors": ml["contributors"],
-            "mlWindow": ml["window"],
+            "mlContributors": ml_contributors,
+            "mlWindow": ml_window,
             "name": p.patient_name or f"Patient {p.hadm_id}",
             "age": p.anchor_age,
             "sex": p.gender,
@@ -875,6 +896,9 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
             "news2": news2_score,
             "newsFactors": news_data["factors"],
             "mlRisk": ml_risk,
+            "escalationRisk2h": ml_risk_2h,
+            "escalationTier": ml_tier,
+            "escalationModel": ml_model_type,
             "mlExplanation": explanation,
             "recommendedAction": action,
             "trajectory": trajectory,
