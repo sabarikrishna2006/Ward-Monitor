@@ -55,6 +55,8 @@ def build_features(patient, recent_vitals):
     now = datetime.now()
     admit_time = getattr(patient, "admit_time", None)
     if admit_time:
+        if hasattr(admit_time, 'tzinfo') and admit_time.tzinfo is not None:
+            admit_time = admit_time.replace(tzinfo=None)
         f["hours_since_adm"] = (now - admit_time).total_seconds() / 3600.0
     else:
         f["hours_since_adm"] = 24.0
