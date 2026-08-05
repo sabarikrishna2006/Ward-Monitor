@@ -747,7 +747,7 @@ SCREENS.n1 = () => {
         ? `<span class="bd bd-t3" title="Acknowledged for this shift">&#10003; Acked</span>`
         : `<button class="btn btn-sec btn-xs" onclick="event.stopPropagation();ackPatient(event, ${p.id})">Ack</button>`;
       
-      const aiRiskTierHtml = p.escalationTier ? `<span class="bd bd-${p.escalationTier==='PAGE'?'t1':p.escalationTier==='WATCH'?'t2':'t3'}">${p.escalationTier}</span>` : '—';
+      const aiRiskTierHtml = p.escalationTier ? `<span class="bd bd-${p.escalationTier==='CRITICAL RISK'?'t1':p.escalationTier==='HIGH RISK'?'t2':'t3'}">${p.escalationTier}</span>` : '—';
       const aiSparkline = p.recentVitals ? renderAiSvg(p.recentVitals) : '';
       const aiRiskCol = p.escalationTier ? `<div style="display:flex;flex-direction:column;align-items:flex-start;gap:2px">${aiRiskTierHtml}<div style="display:flex;align-items:center;gap:4px;"><span class="small" style="color:var(--muted);font-weight:600">${p.mlRisk != null ? p.mlRisk + '%' : ''}</span>${aiSparkline}</div></div>` : '—';
       
@@ -891,7 +891,7 @@ SCREENS.n1b = () => {
   // a stable patient can still carry a high predicted risk, and the number
   // needs to reflect that on its own. This card has a plain white background
   // (no severity tint), so the color never clashes with its surroundings.
-  const mlRiskCol = p.escalationTier === 'PAGE' ? 'var(--t1)' : p.escalationTier === 'WATCH' ? 'var(--t2)' : 'var(--t3)';
+  const mlRiskCol = p.escalationTier === 'CRITICAL RISK' ? 'var(--t1)' : p.escalationTier === 'HIGH RISK' ? 'var(--t2)' : 'var(--t3)';
   const mlInsights = `
     <div class="grid2">
       <div class="card">
@@ -906,9 +906,9 @@ SCREENS.n1b = () => {
       </div>
       <div class="card">
         <div class="card-title">What this means</div>
-        <div class="small" style="line-height:1.7">${p.mlExplanation || (p.escalationTier === 'PAGE' ? 'AI predicts a high probability of critical clinical deterioration within the specified window, independent of current NEWS2 stability.' : (p.escalationTier === 'WATCH' ? 'AI detects early physiological instability indicating a moderate risk of future deterioration.' : 'AI model sees stable physiological trajectories.'))}</div>
+        <div class="small" style="line-height:1.7">${p.mlExplanation || (p.escalationTier === 'CRITICAL RISK' ? 'AI predicts a high probability of critical clinical deterioration within the specified window, independent of current NEWS2 stability.' : (p.escalationTier === 'HIGH RISK' ? 'AI detects early physiological instability indicating a moderate risk of future deterioration.' : 'AI model sees stable physiological trajectories.'))}</div>
         <div class="card-title" style="margin-top:14px">Recommended action</div>
-        <div class="small" style="line-height:1.7; font-weight:${p.escalationTier==='PAGE'?'600':'normal'}; color:${p.escalationTier==='PAGE'?'var(--t1)':'inherit'}">${p.escalationTier === 'PAGE' ? '⚠ Continuous monitoring recommended. Escalate to attending physician for proactive review.' : (p.recommendedAction || 'Continue routine monitoring per ward protocol.')}</div>
+        <div class="small" style="line-height:1.7; font-weight:${p.escalationTier==='CRITICAL RISK'?'600':'normal'}; color:${p.escalationTier==='CRITICAL RISK'?'var(--t1)':'inherit'}">${p.escalationTier === 'CRITICAL RISK' ? '🚨 Continuous monitoring recommended. Escalate to attending physician for proactive review.' : (p.recommendedAction || 'Continue routine monitoring per ward protocol.')}</div>
       </div>
     </div>`;
 

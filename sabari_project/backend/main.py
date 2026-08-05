@@ -795,15 +795,19 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
         else:
             ml = ml_demo(news2_score, news_data["factors"], recent_vitals, has_critical_flag)
             ml_risk = ml["risk"]
+            ml_tier = "LOW RISK"
+            if ml_risk >= 90:
+                ml_tier = "CRITICAL RISK"
+            elif ml_risk >= 60:
+                ml_tier = "HIGH RISK"
             ml_risk_2h = ml_risk / 2.0
-            ml_tier = "WATCH" if ml_risk >= 60 else "CLEAR"
             ml_window = ml["window"]
             ml_contributors = ml["contributors"]
             ml_model_type = "demo"
             ml_stats = {}
 
         # Smart Recommendation Injection
-        if ml_tier == 'PAGE' and not any(a.get('source') == 'AI' for a in drug_lab_alerts):
+        if ml_tier == 'CRITICAL RISK' and not any(a.get('source') == 'AI' for a in drug_lab_alerts):
             # Prepend a high-priority AI alert
             drug_lab_alerts.insert(0, {
                 "rule_name": "AI Deterioration Alert",

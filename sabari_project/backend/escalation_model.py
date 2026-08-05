@@ -187,11 +187,11 @@ def predict(patient, recent_vitals, news_factors=None):
         _LATCH_STATE[hadm_id] = currently_latched
         
         if currently_latched:
-            tier = "PAGE"
+            tier = "CRITICAL RISK"
         elif risk_24h >= tau_low: 
-            tier = "WATCH"
+            tier = "HIGH RISK"
         else:
-            tier = "CLEAR"
+            tier = "LOW RISK"
             
         cutpoints = [0] + _META["horizons"]
         midpoints = np.array([(cutpoints[j] + cutpoints[j+1])/2.0 for j in range(len(cutpoints)-1)])
