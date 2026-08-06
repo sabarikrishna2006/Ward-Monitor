@@ -1,0 +1,2200 @@
+/* ═══════════════════════════════════════════════════════════════
+   Foqal CareOS · Ward Monitor — Production App
+   Personas: Bedside Nurse · Charge Nurse
+   Modules:  NEWS2 Early Warning · Drug-Lab Interactions
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ─── GLOBAL STATE ─── */
+const APP = {
+  screen: null,
+  role: null,
+  user: null,
+  history: [],
+
+  /* screen-level sub-states */
+  n1b_tab: 'vitals',   /* 'vitals' | 'drug-lab' */
+  n5_state: 'active',  /* 'active' | 'empty'    */
+  dl2_action: 'hold',  /* 'override' | 'hold' | 'pharmacist' */
+  data: {},            /* Fetched data */
+  currentPatientId: null,
+};
+
+// Sign-Out needs to know where Ashmit's login page actually lives. This page
+// never loads Ashmit's shared config.js (they're separate apps handed off via
+// sessionStorage, not a shared script), so this default is the only source of
+// truth for that redirect target. Kept in sync with common_db_main_latest/
+// frontend/config.js's FE_PORT by hand -- if that changes, update this too.
+const DOCTOR_PORTAL_URL = window.CONFIG?.DOCTOR_PORTAL_URL || `http://${location.hostname}:${['4985', '7816'].includes(location.port) || location.hostname === 'localhost' ? '4990' : '6001'}`;
+
+/* ─── NAV TREE per role ─── */
+const NAV = {
+  nurse: [
+    { id: 'n1',   label: 'NEWS2 Dashboard' },
+    { id: 'n1b',  label: 'Patient Detail'  },
+    { id: 'n2',   label: 'Escalation Form' },
+    { id: 'n3',   label: 'Post-Escalation' },
+    { id: 'n4',   label: 'Status Log'      },
+    { id: 'n4b',  label: 'Post-Resolution' },
+    { id: 'n6',   label: 'Shift Handoff'   },
+    { id: 'n6b',  label: 'Handoff Complete'},
+    { separator: true, label: 'Drug-Lab Awareness' },
+    { id: 'dl3',  label: 'Active DL Flags' },
+
+  ],
+  gw_nurse: [
+    { id: 'n1',   label: 'GW Dashboard'    },
+    { id: 'n1b',  label: 'Patient Detail'  },
+    { id: 'n2',   label: 'Escalation Form' },
+    { id: 'n4',   label: 'Status Log'      },
+    { id: 'n6',   label: 'Shift Handoff'   },
+    { separator: true, label: 'Drug-Lab Awareness' },
+    { id: 'dl3',  label: 'Active DL Flags' },
+
+  ],
+  resident: [
+    { id: 'n1',   label: 'Ward Dashboard'  },
+    { id: 'n1b',  label: 'Patient Detail'  },
+
+  ],
+  charge: [
+    { id: 'n5',   label: 'Escalation Queue' },
+    { id: 'n5b',  label: 'Threshold Config' },
+    { separator: true, label: 'Drug-Lab Co-Sign' },
+    { id: 'dl1',  label: 'DL Flag Overview' },
+    { id: 'dlcosign', label: 'Tier 1 Co-Sign' },
+
+  ]
+};
+
+/* ─── SIDEBAR TOGGLE ─── */
+window.toggleSidebar = function() {
+  const sw = document.getElementById('sidebar-wrap');
+  const ov = document.getElementById('sidebar-overlay');
+  if (!sw) return;
+  if (window.innerWidth <= 768) {
+    const isOpen = sw.classList.toggle('open');
+    if (ov) ov.classList.toggle('open', isOpen);
+  } else {
+    const collapsed = sw.classList.toggle('collapsed');
+    try { localStorage.setItem('foqal_sidebar_collapsed', collapsed ? '1' : '0'); } catch(_) {}
+  }
+};
+(function initSidebarState() {
+  if (window.innerWidth <= 768) return;
+  let saved = null;
+  try { saved = localStorage.getItem('foqal_sidebar_collapsed'); } catch(_) {}
+  const sw = document.getElementById('sidebar-wrap');
+  if (sw && saved !== null) sw.classList.toggle('collapsed', saved === '1');
+})();
+
+/* Icon-rail icons for the collapsed sidebar -- one per nav item id, reused
+   across every role's NAV list. Same 16x16 stroke style as ward-admin.html's
+   .sb-icon so the collapsed rail looks consistent across the whole app. */
+const NAV_ICONS = {
+  n1:        '<path d="M2 9h2.5l1.5-4 2 8 1.5-5H14"/>',
+  n1b:       '<circle cx="8" cy="5.5" r="2.5"/><path d="M3 14c0-2.8 2.2-5 5-5s5 2.2 5 5"/>',
+  n2:        '<path d="M8 2 1 14h14L8 2z"/><path d="M8 6.5v3.2"/><circle cx="8" cy="11.7" r=".9" fill="currentColor" stroke="none"/>',
+  n3:        '<path d="M3 2v12"/><path d="M3 3h9l-2 3 2 3H3"/>',
+  n4:        '<path d="M2 4h12M2 8h8M2 12h10"/><circle cx="13" cy="12" r="1.3" fill="currentColor" stroke="none"/>',
+  n4b:       '<circle cx="8" cy="8" r="6.2"/><path d="M5.3 8.2l1.8 1.8 3.6-3.8"/>',
+  n5:        '<path d="M2 4h12M2 8h8M2 12h10"/><circle cx="13" cy="12" r="1.3" fill="currentColor" stroke="none"/>',
+  n5b:       '<path d="M3 4h10M3 8h10M3 12h10"/><circle cx="6" cy="4" r="1.3" fill="#fff"/><circle cx="10" cy="8" r="1.3" fill="#fff"/><circle cx="5" cy="12" r="1.3" fill="#fff"/>',
+  n6:        '<path d="M2 5h9l-2.5-2.5"/><path d="M14 11H5l2.5 2.5"/>',
+  n6b:       '<circle cx="8" cy="8" r="6.2"/><path d="M5.3 8.2l1.8 1.8 3.6-3.8"/>',
+  dl1:       '<path d="M4 8a4 4 0 018 0v3a4 4 0 01-8 0V8z"/><path d="M4 8h8"/>',
+  dl3:       '<path d="M4 8a4 4 0 018 0v3a4 4 0 01-8 0V8z"/><path d="M4 8h8"/>',
+  dlcosign:  '<path d="M3 13l2.2-.5L13 4.7a1.4 1.4 0 00-2-2L3.2 10.6 3 13z"/>',
+};
+function _navIcon(id) {
+  const p = NAV_ICONS[id];
+  if (!p) return '';
+  return `<svg class="sb-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">${p}</svg>`;
+}
+
+function closeSidebar() {
+  const sw = document.getElementById('sidebar-wrap');
+  const ov = document.getElementById('sidebar-overlay');
+  if (sw) sw.classList.remove('open');
+  if (ov) ov.classList.remove('open');
+}
+
+/* ─── NAVIGATION ─── */
+async function nav(id, param = null) {
+  closeSidebar();
+  if (APP.screen && APP.screen !== id) APP.history.push(APP.screen);
+  APP.screen = id;
+  if (param !== null) APP.currentPatientId = param;
+  if (id === 'n1' || id === 'n1b') APP._dischargePatient = null;
+
+  // Async shell-first: for the data-dashboard screens, paint the shell + skeleton
+  // immediately so the user never sees a blank white screen while data loads.
+  // Limited to these screens (which have a skeleton state); detail/form screens
+  // still render after their fetch to avoid flashing stale data.
+  APP.loading = true;
+  APP.fetchError = false;
+  if (['n1', 'n5', 'dl1'].includes(id)) renderAll();
+
+  try {
+    if (id === 'n1') {
+      // CCU nurse → CCU patients; GW nurse → General Ward; charge → all
+      const loc = APP.role === 'nurse' ? 'CCU' : APP.role === 'gw_nurse' ? 'GENERAL_WARD' : 'All';
+      const res = await fetch('/api/ward-data?location=' + loc);
+      if (res.ok) APP.data.n1 = await res.json();
+    } else if (id === 'dl1') {
+      const res = await fetch('/api/ward-data?ward=All');
+      if (res.ok) APP.data.n1 = await res.json();
+    } else if ((id === 'n1b' || id === 'n2' || id === 'n4' || id === 'n4b') && APP.currentPatientId) {
+      const res = await fetch(`/api/patients/${APP.currentPatientId}`);
+      if (res.ok) APP.data.n1b = await res.json();
+    } else if (id === 'n_vitals' && APP.currentPatientId) {
+      // Performance fix: serve patient info from ward cache if available, only fetch vitals/latest
+      const cached = (APP.data.n1?.patients || []).find(p => String(p.id) === String(APP.currentPatientId));
+      if (cached) {
+        APP.data.n_vitals_patient = { id: cached.id, name: cached.name, patient_code: cached.patient_code, ward: cached.ward };
+      } else {
+        try {
+          const pRes = await fetch(`/api/patients/${APP.currentPatientId}`);
+          if (pRes.ok) APP.data.n_vitals_patient = await pRes.json();
+        } catch { APP.data.n_vitals_patient = null; }
+      }
+      try {
+        const vRes = await fetch(`/api/patients/${APP.currentPatientId}/vitals/latest`);
+        if (vRes.ok) APP.data.n_vitals_latest = await vRes.json();
+        else APP.data.n_vitals_latest = null;
+      } catch { APP.data.n_vitals_latest = null; }
+    } else if (id === 'n_transfer' && APP.currentPatientId) {
+      const res = await fetch(`/api/patients/${APP.currentPatientId}/transfer-eligibility`);
+      if (res.ok) APP.data.n_transfer = await res.json();
+
+    } else if (id === 'n5') {
+      const [eRes, tRes] = await Promise.all([
+        fetch('/api/escalations'),
+        fetch('/api/ccu-transfers?status=pending')
+      ]);
+      if (eRes.ok) APP.data.n5 = await eRes.json();
+      if (tRes.ok) APP.data.n5_transfers = await tRes.json();
+      // 15-min SLA: auto re-escalate breached, unattended alerts (once each), then re-pull
+      if (await autoReescalateBreaches()) {
+        const r = await fetch('/api/escalations');
+        if (r.ok) APP.data.n5 = await r.json();
+      }
+    } else if (id === 'n6') {
+      // Load nurse list for handoff picker; also ward data if the user came
+      // here directly from the sidebar without visiting the dashboard first
+      const needWard = !(APP.data.n1 && APP.data.n1.patients && APP.data.n1.patients.length);
+      const loc = APP.role === 'nurse' ? 'CCU' : APP.role === 'gw_nurse' ? 'GENERAL_WARD' : 'All';
+      const [nRes, wRes] = await Promise.all([
+        fetch('/api/nurses-on-shift'),
+        needWard ? fetch('/api/ward-data?location=' + loc) : Promise.resolve(null),
+      ]);
+      if (nRes.ok) APP.data.n6_nurses = (await nRes.json()).nurses || [];
+      if (wRes && wRes.ok) APP.data.n1 = await wRes.json();
+      // Reset handoff form state
+      APP.data.n6_form = { notes: '', tasks: {} };
+    } else if (id === 'n6b') {
+      // If no in-session handoff, try fetching latest from backend
+      if (!APP.lastHandoff) {
+        const ward = APP.user ? APP.user.ward : 'Ward 4B/4C';
+        const hRes = await fetch('/api/shift-handoffs/latest?ward=' + encodeURIComponent(ward));
+        if (hRes.ok) APP.lastHandoff = await hRes.json();
+      }
+    }
+    APP.lastRefresh = new Date();
+  } catch (err) {
+    console.error('Fetch error:', err);
+    APP.fetchError = true;
+  } finally {
+    APP.loading = false;
+  }
+
+  renderAll();
+  const _m = document.getElementById('main'); if (_m) _m.scrollTop = 0;
+}
+function goBack() {
+  const prev = APP.history.pop();
+  if (prev) { APP.screen = prev; renderAll(); }
+}
+
+/* ─── AUTO-REFRESH (15 min) + AUTO RE-ESCALATION ─── */
+let _refreshTimer = null;
+// 5s so a transfer/escalation/vitals change becomes visible on an already-open
+// board without anyone clicking refresh. Safe because /api/ward-data caches
+// server-side for 45s -- most 5s ticks hit that cache (cheap), and only the
+// one tick right after something actually changed pays a real Cloud SQL
+// round trip. The in-flight guard below is what makes this safe: without it,
+// a single slow cold fetch (~13-15s right after a cache invalidation) would
+// otherwise get hit by 2-3 more overlapping polls before it even returns,
+// stacking concurrent queries against a pool with only 2+3 connections.
+const REFRESH_MS = 5 * 1000;
+const REFRESHABLE = ['n1', 'n5', 'n1b', 'dl1'];   // read-only screens (never a form mid-entry)
+let _refreshInFlight = false;
+
+function startAutoRefresh() {
+  if (_refreshTimer) clearInterval(_refreshTimer);
+  _refreshTimer = setInterval(() => refreshNow(true), REFRESH_MS);
+}
+function stopAutoRefresh() { if (_refreshTimer) { clearInterval(_refreshTimer); _refreshTimer = null; } }
+async function refreshNow(auto) {
+  if (!REFRESHABLE.includes(APP.screen)) return;   // do not clobber an open form
+  if (_refreshInFlight) return;                    // previous poll still in flight -- skip this tick
+  _refreshInFlight = true;
+  try {
+    await nav(APP.screen, APP.currentPatientId);
+  } finally {
+    _refreshInFlight = false;
+  }
+}
+
+/* Auto-bump escalations that breached the 15-min SLA and were never re-escalated (once each). */
+async function autoReescalateBreaches() {
+  const escs = (APP.data.n5?.escalations || []).filter(e => e.slaBreached && !e.reescalatedAt && e.status === 'active');
+  if (escs.length === 0) return false;
+  for (const e of escs) {
+    try {
+      await fetch(`/api/escalations/${e.id}/reescalate`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: '', auto: true })
+      });
+    } catch (_) { /* ignore */ }
+  }
+  return true;
+}
+
+/* ─── ACTIONS ─── */
+window.ackPatient = function(event, patientId) {
+  event.stopPropagation();
+  if (APP.data.n1 && APP.data.n1.patients) {
+    const p = APP.data.n1.patients.find(x => x.id == patientId);
+    if (p) {
+      p._acked = true;
+      renderAll();
+      showToast('success', 'Acknowledged', {
+        patient: p.name || p.patient_code || '',
+        detail: 'Marked as acknowledged for this shift.',
+      });
+    }
+  }
+}
+
+window.showFalseAlarmMenu = function() {
+  const menu = document.getElementById('false-alarm-menu');
+  if (menu) menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+}
+
+window.submitFalseAlarm = async function(patientId, reason) {
+  // Find the active escalation for this patient
+  const escs = APP.data.n5 && APP.data.n5.escalations
+    ? APP.data.n5.escalations.filter(e => e.patientId == patientId && e.status === 'active')
+    : [];
+
+  if (escs.length === 0) {
+    showToast('warning', 'No Active Escalation', { detail: 'No active escalation found for this patient.' });
+    return;
+  }
+  const escId = escs[0].id;
+  const esc   = escs[0];
+
+  try {
+    const res = await fetch(`/api/escalations/${escId}/false-alarm`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason })
+    });
+    if (res.ok) {
+      showToast('info', 'False Alarm Documented', {
+        patient:  esc.patientName || esc.patient_name || '',
+        notified: APP.user?.name || 'Charge Nurse',
+        detail:   `Reason: ${reason}`,
+      });
+      const menu = document.getElementById('false-alarm-menu');
+      if (menu) menu.style.display = 'none';
+      nav('n5');
+    } else {
+      showToast('critical', 'Action Failed', { detail: 'Failed to mark false alarm — check backend.' });
+    }
+  } catch (e) { showToast('critical', 'Network Error', { detail: e.message }); }
+};
+
+/* ─── HOSPITAL TOAST SYSTEM ─── */
+(function() {
+  const rack = document.createElement('div');
+  rack.id = 'toast-rack';
+  rack.setAttribute('aria-live', 'polite');
+  document.body.appendChild(rack);
+})();
+
+const _TOAST_META = {
+  critical: { icon: '⚠', label: 'CRITICAL' },
+  warning:  { icon: '⚡', label: 'WARNING'  },
+  success:  { icon: '✓',  label: 'DONE'     },
+  info:     { icon: 'ℹ',  label: 'INFO'     },
+  notify:   { icon: '🔔', label: 'NOTIFY'   },
+};
+
+function showToast(type, title, opts) {
+  opts = opts || {};
+  const m = _TOAST_META[type] || _TOAST_META.info;
+  const ms = opts.persistent ? 0 : (opts.duration || (type === 'critical' ? 8000 : 5500));
+  const id = 'toast-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+  const t = document.createElement('div');
+  t.className = 'toast toast-' + type;
+  t.id = id;
+  const patRow  = opts.patient  ? `<div class="toast-row"><span class="toast-lbl">Patient</span>${opts.patient}</div>`  : '';
+  const notRow  = opts.notified ? `<div class="toast-row"><span class="toast-lbl">Notified</span>${opts.notified}</div>` : '';
+  const detRow  = opts.detail   ? `<div class="toast-detail">${opts.detail}</div>` : '';
+  const progRow = ms ? `<div class="toast-progress"><div class="toast-prog-bar" style="animation-duration:${ms}ms"></div></div>` : '';
+  t.innerHTML = `
+    <div class="toast-bar"></div>
+    <div class="toast-body">
+      <div class="toast-hdr">
+        <span class="toast-icon">${m.icon}</span>
+        <span class="toast-title">${title}</span>
+        <span class="toast-badge">${m.label}</span>
+        <button class="toast-close" onclick="(function(el){el.style.opacity='0';setTimeout(()=>el.remove(),350)})(document.getElementById('${id}'))">×</button>
+      </div>
+      ${patRow}${notRow}${detRow}${progRow}
+    </div>`;
+  const rack = document.getElementById('toast-rack');
+  if (rack) rack.prepend(t);
+  if (ms) setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 380); }, ms);
+}
+
+/* ─── INITIATE DISCHARGE (General Ward) ─── */
+window.initiateDischarge = async function(patientId, patientName) {
+  try {
+    const res = await fetch(`/api/patients/${patientId}/initiate-discharge`, { method: 'POST' });
+    if (res.ok) {
+      showToast('notify', 'Discharge Initiated', {
+        patient: patientName,
+        notified: 'Resident Doctor — Doctor Portal',
+        detail: 'Patient discharge process started. Resident has been notified to generate the summary.',
+      });
+      APP._dischargePatient = { id: patientId, name: patientName };
+      await refreshNow(false);
+      nav('n_discharge', patientId);
+    } else {
+      const err = await res.json().catch(() => ({}));
+      showToast('critical', 'Discharge Failed', { detail: err.detail || ('Error ' + res.status) });
+    }
+  } catch (e) { showToast('critical', 'Network Error', { detail: e.message }); }
+};
+
+/* ─── LOGIN ─── */
+/* Called by index.html after credentials are verified */
+window.onFoqalLogin = function(user) {
+  APP.role = user.role;   // 'nurse' (CCU) | 'gw_nurse' (General Ward) | 'charge' (Head Nurse)
+  APP.user = {
+    name:  user.name,
+    role:  user.roleLabel,
+    shift: user.shift,
+    ward:  user.ward,
+    empId: user.empId,
+  };
+  // Pre-warm the ward-data cache so first dashboard load is fast
+  fetch('/api/ward-data/warmup').catch(() => {});
+  // Route to the correct first screen by role (charge → escalation queue; nurses → dashboard)
+  nav(user.role === 'charge' ? 'n5' : 'n1');
+  startAutoRefresh();   // 15-min data refresh + SLA re-check
+};
+
+function logout() {
+  stopAutoRefresh();
+  APP.role = null; APP.user = null; APP.screen = null; APP.history = [];
+  sessionStorage.removeItem('foqal_token');
+  sessionStorage.removeItem('foqal_user');
+  sessionStorage.removeItem('unified_auth');
+  document.documentElement.removeAttribute('data-authed');
+
+  const logoutBtn = document.getElementById('logout-btn');
+  if (logoutBtn) {
+    document.getElementById('logout-btn').innerHTML = `<span class="icon">◴</span> Logging out...`;
+    setTimeout(() => {
+      window.location.href = DOCTOR_PORTAL_URL + '/';
+    }, 500);
+  } else {
+    window.location.href = DOCTOR_PORTAL_URL + '/';
+  }
+}
+
+// Re-hydrate session on page refresh (if token still exists)
+(function() {
+  const raw = sessionStorage.getItem('foqal_user');
+  if (!raw) {
+    const noRedirect = sessionStorage.getItem('unified_auth');
+    if (!noRedirect) {
+      window.location.href = DOCTOR_PORTAL_URL + '/';
+    }
+    return;
+  }
+  try {
+    const user = JSON.parse(raw);
+    const loginWrap = document.getElementById('login-wrap');
+    if (loginWrap) loginWrap.style.display = 'none';
+    document.getElementById('app-shell').style.display  = '';
+    document.body.classList.remove('login-mode');
+    // Defer until the whole script has evaluated: this IIFE runs mid-file,
+    // before `const SCREENS` below is initialised, so calling nav() here
+    // hits the TDZ and silently kills the first dashboard load (blank page
+    // until the 30s auto-refresh or a manual sidebar click re-navigates).
+    setTimeout(() => window.onFoqalLogin(user), 0);
+  } catch(e) { /* ignore */ }
+})();
+
+
+/* ─── RENDER ENGINE ─── */
+function renderAll() {
+  renderSidebar();
+  renderHeader();
+  const mainEl = document.getElementById('main');
+  const scrollY = mainEl ? mainEl.scrollTop : 0;
+  const fn = SCREENS[APP.screen];
+  if (mainEl) {
+    mainEl.innerHTML = fn
+      ? fn()
+      : `<div style="padding:60px;text-align:center;color:var(--muted)">Screen not found.</div>`;
+    requestAnimationFrame(() => { mainEl.scrollTop = scrollY; });
+  }
+}
+
+function renderHeader() {
+  const u = APP.user;
+  const roleEl = document.getElementById('hdr-role');
+  roleEl.textContent  = u ? u.role  : '';
+  roleEl.className = 'role-chip' + (u && u.role ? ' ' + u.role : '');
+  document.getElementById('hdr-user').textContent  = u ? u.name  : '';
+  document.getElementById('hdr-ward').textContent  = u ? u.ward  : '';
+}
+
+function renderSidebar() {
+  const items = NAV[APP.role] || [];
+  document.getElementById('sidebar').innerHTML = items.map(it => {
+    if (it.separator) return `<div class="sb-sep">${it.label}</div>`;
+    return `<div class="sb-item${APP.screen === it.id ? ' active' : ''}" onclick="nav('${it.id}')" title="${it.label}">${_navIcon(it.id)}<span class="sb-text">${it.label}</span></div>`;
+  }).join('');
+}
+
+/* ─── MODAL ─── */
+function openModal(id) {
+  const fn = MODALS[id];
+  if (!fn) return;
+  document.getElementById('modal-box').innerHTML = fn();
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+}
+
+const MODALS = {
+  cosign_confirm: () => `
+    <div class="modal-t">Co-Sign Override Complete</div>
+    <div class="modal-b" style="color:var(--t3)">✅ Override successfully co-signed and recorded in the NABH audit trail.</div>
+    <div class="modal-f"><button class="btn btn-pri" onclick="closeModal();nav('dl1')">Back to DL Flags</button></div>`,
+  ai_stats: () => {
+    // These are ward-level model statistics (measured once on held-out test
+    // data), not per-patient — identical for every "live"-scored patient. Look
+    // across all loaded patients for one that actually has them, so a patient
+    // sitting on the ml_demo() fallback (empty mlStats) at whatever position
+    // happened to load first doesn't mask real numbers that exist elsewhere in
+    // the same response. No hardcoded fallback figures: those go stale the
+    // moment thresholds are retuned (as happened once already this session)
+    // and silently misstate what the live model is actually measured at.
+    const pool = [APP.data.n1b, ...((APP.data.n1 && APP.data.n1.patients) || [])].filter(Boolean);
+    const stats = (pool.find(p => p.mlStats && Object.keys(p.mlStats).length) || {}).mlStats || {};
+    const fmt = (v, suffix, digits) => (v === undefined || v === null) ? '—' : (v * 100).toFixed(digits) + suffix;
+    return `
+    <div class="modal-t">AI Model Clinical Performance</div>
+    <div class="modal-b" style="font-size:13px; line-height:1.6">
+      <div style="margin-bottom:12px">This predictive model is validated against MIMIC-IV critical care data and tuned for high-sensitivity early warning.</div>
+      <table style="width:100%; text-align:left; border-collapse:collapse; margin-bottom:12px;">
+        <tr style="border-bottom:1px solid var(--border)"><th style="padding:6px 0">Metric</th><th>Value</th></tr>
+        <tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 0">Patient Recall (Sensitivity)</td><td class="bold" style="color:var(--t1)">${fmt(stats.patient_recall, '%', 0)}</td></tr>
+        <tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 0">Episode PPV (24h Window)</td><td class="bold">${fmt(stats.episode_ppv_24h, '%', 1)}</td></tr>
+        <tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 0">Median Lead Time</td><td class="bold">${stats.median_lead_time_h != null ? stats.median_lead_time_h.toFixed(1) + ' hours' : '—'}</td></tr>
+        <tr><td style="padding:6px 0">Accuracy (AUROC)</td><td class="bold">${stats.auroc_test != null ? stats.auroc_test.toFixed(2) : '—'}</td></tr>
+      </table>
+      <div class="muted small">A high recall model ensures no critical deterioration is missed, but may flag early or transient instability. Clinical judgement remains paramount.</div>
+    </div>
+    <div class="modal-f"><button class="btn btn-sec" onclick="closeModal()">Close</button></div>`;
+  },
+};
+
+/* Screens like the escalation flow (n2/n3/n4) and shift handoff are shared
+   across roles, but their "back to dashboard" breadcrumb was hardcoded to
+   nav('n1') labeled "NEWS2 Dashboard" regardless of who's viewing it — wrong
+   label for a GW nurse, and for a charge nurse it pointed at a screen not
+   even in her own sidebar (her dashboard is n5, "Escalation Queue"). */
+function _dashboardCrumb() {
+  if (APP.role === 'charge')   return { id: 'n5', label: 'Escalation Queue' };
+  if (APP.role === 'gw_nurse') return { id: 'n1', label: 'GW Dashboard' };
+  if (APP.role === 'resident') return { id: 'n1', label: 'Ward Dashboard' };
+  return { id: 'n1', label: 'NEWS2 Dashboard' };
+}
+function dashboardCrumbHtml() {
+  const c = _dashboardCrumb();
+  return `<span class="bc-link" onclick="nav('${c.id}')">${c.label}</span>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SCREENS
+   ═══════════════════════════════════════════════════════════════ */
+const SCREENS = {};
+
+/* ── Plain-language EWS reason cell (colored vital arrows + flag + action) ── */
+function sevColor(s) { return s === 'crit' ? 'var(--t1)' : s === 'warn' ? 'var(--t2)' : 'var(--muted)'; }
+
+function renderEwsReason(p, compact) {
+  const r = p.ewsReason || {};
+  const signals = (r.signals || []).map(s =>
+    `<span class="ews-sig" style="color:${sevColor(s.sev)}" title="${(s.plain||'').replace(/"/g,'')}">${s.arrow}${s.short}</span>`
+  ).join('');
+  const flag = r.flag
+    ? `<div class="ews-flag" style="color:${sevColor(r.flag.sev)}" title="${(r.flag.text||'').replace(/"/g,'')}">&#128138; ${r.flag.text}</div>`
+    : '';
+  const toneCol = r.tone === 'crit' ? 'var(--t1)' : r.tone === 'warn' ? 'var(--t2)'
+                 : r.tone === 'stable' ? 'var(--t3)' : 'var(--muted)';
+  const action = r.action ? `<div class="ews-action" style="color:${toneCol}">&rarr; ${r.action}</div>` : '';
+  // Only claim "normal" when the backend actually confirmed stable vitals — an empty
+  // signals/flag set also happens when there's no recent data at all (stale/overdue),
+  // which must show as overdue, not as a false "all normal" reassurance.
+  const ok = (r.tone === 'stable' && !signals && !flag) ? `<span class="ews-ok">&#10003; All parameters normal</span>` : '';
+  return `<div class="ews-cell">${signals ? `<div class="ews-sigs">${signals}</div>` : ''}${flag}${ok}${action}</div>`;
+}
+
+/* ── NEWS2 trend mini-chart (SVG) built from real recentVitals ── */
+function renderNews2Svg(recent) {
+  const pts = (recent || []).filter(r => typeof r.news2 === 'number');
+  if (pts.length < 2) return '<div class="muted small" style="padding:14px 0">Not enough data for a trend.</div>';
+  const W = 480, H = 92, pad = 22;
+  const maxScore = Math.max(9, ...pts.map(p => p.news2));
+  const x = i => pad + i * ((W - 2 * pad) / (pts.length - 1));
+  const y = v => H - 16 - (v / maxScore) * (H - 30);
+  const col = v => v >= 7 ? 'var(--t1)' : v >= 5 ? 'var(--t2)' : 'var(--t3)';
+  const line = pts.map((p, i) => `${x(i).toFixed(0)},${y(p.news2).toFixed(0)}`).join(' ');
+  const dots = pts.map((p, i) =>
+    `<circle cx="${x(i).toFixed(0)}" cy="${y(p.news2).toFixed(0)}" r="3.5" fill="${col(p.news2)}"/>` +
+    `<text x="${x(i).toFixed(0)}" y="${(y(p.news2) - 6).toFixed(0)}" font-size="9" fill="${col(p.news2)}" text-anchor="middle" font-weight="700">${p.news2}</text>`
+  ).join('');
+  const labels = pts.map((p, i) =>
+    `<text x="${x(i).toFixed(0)}" y="${H - 2}" font-size="8" fill="var(--muted)" text-anchor="middle">${p.time}</text>`
+  ).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:92px;display:block">
+    <line x1="0" y1="${y(7).toFixed(0)}" x2="${W}" y2="${y(7).toFixed(0)}" stroke="var(--t1)" stroke-width="1" stroke-dasharray="4,3" opacity="0.4"/>
+    <line x1="0" y1="${y(5).toFixed(0)}" x2="${W}" y2="${y(5).toFixed(0)}" stroke="var(--t2)" stroke-width="1" stroke-dasharray="4,3" opacity="0.4"/>
+    <text x="3" y="${(y(7) - 2).toFixed(0)}" font-size="8" fill="var(--t1)">&#8805;7</text>
+    <text x="3" y="${(y(5) - 2).toFixed(0)}" font-size="8" fill="var(--t2)">&#8805;5</text>
+    <polyline points="${line}" fill="none" stroke="var(--p)" stroke-width="2.5" stroke-linejoin="round"/>
+    ${dots}${labels}
+  </svg>`;
+}
+
+/* ── AI Risk trend chart (SVG) ── */
+function renderAiSvgLarge(recent) {
+  const pts = (recent || []).filter(r => r.aiRisk !== '--' && r.aiRisk != null);
+  if (pts.length < 2) return '<div class="muted small" style="margin-top:10px">Not enough historical data to show trend.</div>';
+  const W = 300, H = 60, pad = 4;
+  const x = i => pad + i * ((W - 2 * pad) / (pts.length - 1));
+  const y = v => H - pad - (v / 100) * (H - 2 * pad);
+  const line = pts.map((p, i) => `${x(i).toFixed(1)},${y(p.aiRisk).toFixed(1)}`).join(' ');
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:300px;height:60px;display:block;margin-top:6px;background:#fcfcfc;border:1px solid var(--border);border-radius:4px;padding:4px;">
+    <polyline points="${line}" fill="none" stroke="var(--t1)" stroke-width="2.5" stroke-linejoin="round"/>
+  </svg>`;
+}
+
+/* ── N1 — NEWS2 PRIORITY DASHBOARD ─────────────────────────── */
+function skeletonDashboard(title) {
+  const cell = `<td><div class="skeleton" style="height:12px;width:80%"></div></td>`;
+  const row  = `<tr class="sk-row">${cell.repeat(8)}</tr>`;
+  const stat = `<div class="stat"><div class="skeleton" style="height:26px;width:42px;margin-bottom:6px"></div><div class="skeleton" style="height:10px;width:72px"></div></div>`;
+  return `
+<div class="bc"><span>Loading…</span></div>
+<div class="sh"><h1 class="sh-title">${title}</h1></div>
+<div class="stats">${stat.repeat(4)}</div>
+<div class="tw"><table class="tbl-stack"><tbody>${row.repeat(6)}</tbody></table></div>`;
+}
+function errorState(msg) {
+  return `<div style="padding:48px;text-align:center;color:var(--muted)">
+    <div style="font-size:15px;margin-bottom:10px">${msg}</div>
+    <button class="btn btn-sec btn-sm" onclick="refreshNow(false)">Retry</button>
+  </div>`;
+}
+
+SCREENS.n1 = () => {
+  if (APP.loading && !APP.data.n1)
+    return skeletonDashboard(APP.role==='gw_nurse'?'General Ward — NEWS2 Dashboard':APP.role==='nurse'?'CCU — NEWS2 Dashboard':'NEWS2 Priority Dashboard');
+  if (APP.fetchError && !APP.data.n1) return errorState('Could not load ward data. Check the connection and retry.');
+  const patients = (APP.data.n1?.patients || []);
+  patients.sort((a, b) => {
+    if (a.status === 'stale' && b.status !== 'stale') return 1;
+    if (b.status === 'stale' && a.status !== 'stale') return -1;
+    if (APP.sortBy === 'mlRisk') return (b.mlRisk || 0) - (a.mlRisk || 0);
+    return (b.news2 || 0) - (a.news2 || 0);
+  }); // Sort by chosen column, push stale to bottom
+  let critCount = 0, medCount = 0, lowCount = 0, staleCount = 0;
+  
+  APP.n1_filter = APP.n1_filter || 'all';
+
+  // A patient has usable vitals if at least one core vital is present (not null/'--'/'-').
+  const hasVitals = p => [p.hr, p.rr, p.spo2, p.bp, p.temp]
+    .some(v => v != null && v !== '--' && v !== '' && v !== '-');
+
+  patients.forEach(p => {
+    if (p.status === 'loading') return;                 // syncing — don't count
+    if (!hasVitals(p) && p.status !== 'stale') return;  // awaiting first vitals — don't count toward acuity
+    if (p.status === 'stale') staleCount++;
+    else if (p.news2 >= 7) critCount++;
+    else if (p.news2 >= 5) medCount++;
+    else lowCount++;
+  });
+
+  const filteredPatients = patients.filter(p => {
+    if (p.status === 'loading') return true; // always show loading patients regardless of filter
+    if (APP.n1_filter === 'critical') return p.news2 >= 7 && p.status !== 'stale';
+    if (APP.n1_filter === 'medium') return p.news2 >= 5 && p.news2 < 7 && p.status !== 'stale';
+    if (APP.n1_filter === 'low') return p.news2 < 5 && p.status !== 'stale';
+    if (APP.n1_filter === 'stale') return p.status === 'stale';
+    return true;
+  });
+
+  const nowStr = new Date().toLocaleString('en-IN', {day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'});
+
+  return `
+<div class="bc"><span>${APP.role==='gw_nurse'?'General Ward':APP.role==='nurse'?'CCU · Ward 4B/4C':'Ward 4B/4C'}</span><span class="bc-sep">/</span><span>NEWS2 Dashboard</span></div>
+<div class="sh">
+  <h1 class="sh-title">${APP.role==='gw_nurse'?'General Ward — NEWS2 Dashboard':APP.role==='nurse'?'CCU — NEWS2 Dashboard':'NEWS2 Priority Dashboard'}</h1>
+  <div class="sh-actions">
+    <span class="muted small">${APP.lastRefresh ? 'Updated ' + APP.lastRefresh.toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'}) + ' · auto 5s' : nowStr}</span>
+    <button class="btn btn-sec btn-sm" onclick="refreshNow(false)" title="Refresh now">↻</button>
+    ${APP.role === 'nurse' ? `<button class="btn btn-pri btn-sm" style="background:var(--p)" onclick="nav('n_transfer')">CCU GW Transfer</button>` : ''}
+    <button class="btn btn-sec btn-sm" onclick="nav('n6')">Shift Handoff</button>
+  </div>
+</div>
+
+<div class="stats">
+  <div class="stat ${APP.n1_filter==='critical'?'active-filter':''}" style="border-left:3px solid var(--t1); cursor:pointer;" onclick="APP.n1_filter = APP.n1_filter==='critical' ? 'all' : 'critical'; renderAll()">
+    <div class="stat-v" style="color:var(--t1)">${critCount}</div>
+    <div class="stat-l">Critical ≥7</div>
+  </div>
+  <div class="stat ${APP.n1_filter==='medium'?'active-filter':''}" style="border-left:3px solid var(--t2); cursor:pointer;" onclick="APP.n1_filter = APP.n1_filter==='medium' ? 'all' : 'medium'; renderAll()">
+    <div class="stat-v" style="color:var(--t2)">${medCount}</div>
+    <div class="stat-l">Medium 5–6</div>
+  </div>
+  <div class="stat ${APP.n1_filter==='low'?'active-filter':''}" style="border-left:3px solid var(--t3); cursor:pointer;" onclick="APP.n1_filter = APP.n1_filter==='low' ? 'all' : 'low'; renderAll()">
+    <div class="stat-v" style="color:var(--t3)">${lowCount}</div>
+    <div class="stat-l">Low 1–4</div>
+  </div>
+  <div class="stat ${APP.n1_filter==='stale'?'active-filter':''}" style="cursor:pointer;" onclick="APP.n1_filter = APP.n1_filter==='stale' ? 'all' : 'stale'; renderAll()">
+    <div class="stat-v" style="color:var(--muted)">${staleCount}</div>
+    <div class="stat-l">Stale Vitals</div>
+  </div>
+</div>
+
+<div class="tw"><table class="tbl-stack">
+  <thead><tr>
+    <th>Patient</th><th>Diagnosis</th><th>Ward</th><th>SpO₂ (%)</th><th>RR (/min)</th><th>BP (mmHg)</th>
+    <th>HR (bpm)</th><th>Temp (°C)</th><th>AVPU</th>
+    <th onclick="APP.sortBy='news2'; renderAll()" style="cursor:pointer; text-decoration:underline;" title="Sort by NEWS2">NEWS2 ↕</th>
+    <th title="AI Deterioration Risk Prediction">
+      <span onclick="APP.sortBy='mlRisk'; renderAll()" style="cursor:pointer; text-decoration:underline;">AI Risk ↕</span>
+      <span style="cursor:pointer; margin-left:4px; opacity:0.6;" onclick="event.stopPropagation();openModal('ai_stats')">ⓘ</span>
+    </th>
+    <th>EWS Reason</th><th>Status</th><th>Actions</th>
+  </tr></thead>
+  <tbody>
+    ${filteredPatients.length === 0 ? `
+      <tr><td colspan="13" style="text-align:center;padding:40px 20px;color:var(--muted)">
+        ${APP.n1_filter === 'all'
+          ? 'No patients currently in this ward.'
+          : `No patients match this filter right now. <span class="bc-link" onclick="APP.n1_filter='all';renderAll()">Clear filter</span>`}
+      </td></tr>
+    ` : filteredPatients.map(p => {
+      // Patient just provisioned from billing — BQ prefetch still in progress
+      if (p.status === 'loading') {
+        return `
+        <tr class="stale" style="opacity:.75">
+          <td data-label="Patient"><b>${p.name}</b><br><span class="pid">${p.patient_code || 'PT-' + p.id}</span></td>
+          <td data-label="Diagnosis" class="dx-cell">${p.primary_diagnosis || '—'}</td>
+          <td data-label="Ward">${(p.ward||'').split(' ')[1]||p.ward||'--'}${p.ward_location==='GENERAL_WARD'?'<br><span class="loc-tag loc-gw">GW</span>':'<br><span class="loc-tag loc-ccu">CCU</span>'}</td>
+          <td colspan="8" style="color:var(--muted);font-style:italic;font-size:12px">
+            <span style="display:inline-block;width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--p);border-radius:50%;animation:spin 1s linear infinite;vertical-align:middle;margin-right:6px"></span>
+            Syncing clinical data… Ward board will update when complete.
+          </td>
+          <td data-label="AI Risk">—</td>
+          <td data-label="Status"><span class="bd bd-muted">SYNCING</span></td>
+          <td data-label="Actions"></td>
+        </tr>`;
+      }
+      const isStale = p.status === 'stale';
+      // No vitals recorded yet (and not stale) — show an explicit, actionable
+      // "awaiting" row instead of a silent all-dash card the nurse can't interpret.
+      if (!isStale && !hasVitals(p)) {
+        return `
+        <tr style="opacity:.8">
+          <td data-label="Patient"><b>${p.name}</b><br><span class="pid">${p.patient_code || 'PT-' + p.id}</span></td>
+          <td data-label="Diagnosis" class="dx-cell">${p.diagnosis_short || p.primary_diagnosis || '—'}</td>
+          <td data-label="Ward">${(p.ward||'').split(' ')[1]||p.ward||'--'}${p.ward_location === 'GENERAL_WARD' ? '<br><span class="loc-tag loc-gw">GW</span>' : '<br><span class="loc-tag loc-ccu">CCU</span>'}</td>
+          <td colspan="8" style="color:var(--muted);font-style:italic;font-size:12px">Awaiting first vitals — none recorded yet.</td>
+          <td data-label="AI Risk">—</td>
+          <td data-label="Status"><span class="bd bd-muted" style="color:var(--muted)">AWAITING</span></td>
+          <td data-label="Actions"><button class="btn btn-warn btn-xs" onclick="event.stopPropagation();nav('n_vitals', ${p.id})">Enter Vitals</button></td>
+        </tr>`;
+      }
+      const score = p.news2 || 0;
+      
+      let rowClass = score >= 7 ? 'row-crit' : score >= 5 ? 'row-warn' : '';
+      if (isStale) rowClass = 'stale'; // defined in css for faded row
+      if (p._acked) rowClass += ' acked-row';
+
+      const scoreClass = isStale ? 'muted' : score >= 7 ? 'n2s hi' : score >= 5 ? 'n2s med' : 'n2s lo';
+      const statusBd = isStale ? 'bd bd-muted' : score >= 7 ? 'bd bd-t1' : score >= 5 ? 'bd bd-t2' : 'bd bd-t3';
+      
+      // Discharge-initiated patients stay on dashboard (physically in ward) but get a visual cue
+      const isDischargePending = p.db_status === 'discharge_initiated';
+      // Calculate stale minutes for UI
+      const statusLbl = isDischargePending ? 'Pending Discharge'
+        : isStale ? 'Overdue' : score >= 7 ? 'Escalate' : score >= 5 ? 'Monitor' : 'Stable';
+      
+      const valCrit = (val, thres, op) => {
+        if (!val || val === '--' || isStale) return '';
+        if (op === '<' && val < thres) return 'v-crit';
+        if (op === '>' && val > thres) return 'v-crit';
+        return '';
+      };
+      
+      const timeHtml = t => t ? `<br><span class="muted small">${t}</span>` : '';
+      const bpVal = p.bp ? p.bp.split('/')[0] : '';
+      
+      // If stale, show dashes instead of old values
+      const hr = isStale ? '-' : (p.hr || '-');
+      const rr = isStale ? '-' : (p.rr || '-');
+      const spo2 = isStale ? '-' : (p.spo2 || '-');
+      const bp = isStale ? '-' : (p.bp || '-');
+      const temp = isStale ? '-' : (p.temp || '-');
+      const avpu = isStale ? '-' : (p.avpu || 'A');
+      const s = isStale ? '-' : score;
+      
+      const ackBtn = p._acked
+        ? `<span class="bd bd-t3" title="Acknowledged for this shift">&#10003; Acked</span>`
+        : `<button class="btn btn-sec btn-xs" onclick="event.stopPropagation();ackPatient(event, ${p.id})">Ack</button>`;
+      
+      const aiRiskTierHtml = p.escalationTier ? `<span class="bd bd-${p.escalationTier==='CRITICAL RISK'?'t1':p.escalationTier==='HIGH RISK'?'t2':'t3'}">${p.escalationTier}</span>` : '—';
+      const aiRiskCol = p.escalationTier ? `<div style="display:flex;flex-direction:column;align-items:flex-start;gap:2px">${aiRiskTierHtml}<div style="display:flex;align-items:center;gap:4px;"><span class="small" style="color:var(--muted);font-weight:600">${p.mlRisk != null ? p.mlRisk + '%' : ''}</span></div></div>` : '—';
+      
+      return `
+        <tr class="${rowClass}${isDischargePending ? ' row-discharge' : ''}" onclick="nav('n1b', ${p.id})">
+          <td data-label="Patient">
+            <div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:4px">
+              <b>${p.name}</b>
+              ${isDischargePending ? '<span class="badge-discharge" style="margin:0">Discharge Pending</span>' : ''}
+            </div>
+            <div class="pid">${p.patient_code || 'PT-' + p.id}</div>
+          </td>
+          <td data-label="Diagnosis" class="dx-cell">${p.diagnosis_short || '—'}</td>
+          <td data-label="Ward">
+            <div style="display:flex;flex-direction:column;align-items:flex-start;gap:4px">
+              <span>${p.ward ? (p.ward.split(' ')[1] || p.ward) : '—'}</span>
+              ${p.ward_location === 'GENERAL_WARD' ? '<span class="loc-tag loc-gw" style="margin:0">GW</span>' : '<span class="loc-tag loc-ccu" style="margin:0">CCU</span>'}
+            </div>
+          </td>
+          <td data-label="SpO₂" class="${valCrit(p.spo2, 92, '<')}">${spo2} ${timeHtml(p.spo2_time)}</td>
+          <td data-label="RR" class="${valCrit(p.rr, 21, '>')}">${rr} ${timeHtml(p.rr_time)}</td>
+          <td data-label="BP" class="${valCrit(bpVal, 90, '<')}">${bp} ${timeHtml(p.bp_time)}</td>
+          <td data-label="HR" class="${valCrit(p.hr, 110, '>')}">${hr} ${timeHtml(p.hr_time)}</td>
+          <td data-label="Temp" class="${valCrit(p.temp, 38.0, '>')}">${temp} ${timeHtml(p.temp_time)}</td>
+          <td data-label="AVPU">${avpu} ${timeHtml(p.avpu_time)}</td>
+          <td data-label="NEWS2"><span class="${scoreClass}">${s}</span></td>
+          <td data-label="AI Risk">${isStale ? '—' : aiRiskCol}</td>
+          <td data-label="EWS Reason" class="ews-reason-td" style="line-height:1.4">${renderEwsReason(p)}</td>
+          <td data-label="Status">
+            <div style="display:flex;flex-direction:column;align-items:flex-start;gap:4px">
+              <span class="${statusBd}" style="${isStale?'color:var(--muted)':''}">${statusLbl.toUpperCase()}</span>
+              ${p.dueLabel ? `<div class="due-label ${p.isOverdue ? 'due-over' : ''}" style="margin:0">${p.dueLabel}</div>` : ''}
+            </div>
+          </td>
+          <td data-label="Actions">
+            ${isDischargePending
+              ? `<button class="btn btn-sec btn-xs" style="border-color:var(--disch);color:var(--disch)" onclick="event.stopPropagation();nav('n_discharge', ${p.id})">View Status</button>`
+              : isStale
+                ? `<button class="btn btn-warn btn-xs" onclick="event.stopPropagation();nav('n_vitals', ${p.id})">Enter Vitals</button>`
+                : `${score >= 5 ? `<button class="btn ${score >= 7 ? 'btn-danger' : 'btn-warn'} btn-xs" onclick="event.stopPropagation();nav('n2', ${p.id})">Escalate</button>` : ''}
+              ${ackBtn}`
+            }
+          </td>
+        </tr>
+      `;
+    }).join('')}
+  </tbody>
+</table></div>`;
+};
+
+/* ── N1b — PATIENT DETAIL ───────────────────────────────────── */
+SCREENS.n1b = () => {
+  const p = APP.data.n1b || {};
+  const v = p.vitals || {};
+  const score = p.news2 || 0;
+  const isCrit = score >= 7;
+  const isWarn = score >= 5 && score < 7;
+  const bdClass = isCrit ? 'bd-t1' : isWarn ? 'bd-t2' : 'bd-t3';
+  const lbl = isCrit ? 'CRITICAL' : isWarn ? 'WARNING' : 'STABLE';
+
+  const valCrit = (val, thres, op) => {
+    if (!val) return '';
+    if (op === '<' && val < thres) return 'v-crit';
+    if (op === '>' && val > thres) return 'v-crit';
+    return '';
+  };
+
+  // DCM heart-failure params (with data-source tags) + NEWS2 trend chart
+  const dcmRow = (l, val, sev, f, src) => `<tr><td class="muted">${l} <span class="src-tag">(${src})</span></td><td class="bold" style="color:${sev==='crit'?'var(--t1)':sev==='warn'?'var(--t2)':'var(--ink)'}">${val}</td><td class="small" style="font-weight:600;color:${sev==='crit'?'var(--t1)':'var(--t2)'}">${f||''}</td></tr>`;
+  const kLab = (p.recentLabs || []).find(l => l.test === 'Potassium');
+  const kNum = kLab ? kLab.value : null;
+  const kVal = kNum != null ? kNum + ' mmol/L' : '—';
+  const kSev = kNum != null && (kNum < 3.5 || kNum > 5.5) ? 'crit' : (kNum != null && kNum > 5.0 ? 'warn' : '');
+  const kFlag = kNum == null ? '' : kNum < 3.5 ? '↓ Low' : kNum > 5.5 ? '⚠ High' : kNum > 5.0 ? 'High-normal' : 'Normal';
+  const hrNum = typeof p.hr === 'number' ? p.hr : parseInt(p.hr);
+  const rhythm = isNaN(hrNum) ? '—' : hrNum > 100 ? 'Sinus tachycardia' : hrNum < 50 ? 'Bradycardia' : 'Sinus rhythm';
+  const fb = p.fluidBalance;
+  const trendSvg = `<div class="card" style="margin-bottom:14px"><div class="card-title">NEWS2 Trend — Last 6h <span class="muted small" style="font-weight:400">🔴 ≥7 · 🟡 ≥5</span></div>${renderNews2Svg(p.recentVitals)}</div>`;
+  const dcmCard = `<div class="card" style="margin-top:14px">
+      <div class="card-title">Heart-Failure Watch — DCM-specific</div>
+      <table style="width:100%;font-size:12.5px"><tbody>
+        ${dcmRow('Fluid Balance (24h)', fb != null ? (fb > 0 ? '+' : '') + fb + ' ml' : '—', fb > 500 ? 'crit' : fb > 0 ? 'warn' : '', fb > 0 ? '⚠ Positive (overload)' : fb != null ? 'Balanced' : '', 'manual / HIS')}
+        ${dcmRow('Urine Output (4h)', p.urineOutput != null ? p.urineOutput + ' ml' : '—', p.urineOutput != null && p.urineOutput < 200 ? 'warn' : '', p.urineOutput != null && p.urineOutput < 200 ? '↓ Low output' : '', 'manual')}
+        ${dcmRow('Serum K⁺ (last)', kVal, kSev, kFlag, 'lab / HIS')}
+        ${dcmRow('Rhythm (from HR)', rhythm, '', '', 'monitor')}
+      </tbody></table>
+      <div class="muted small" style="margin-top:6px">Fluid status, urine output and K⁺ are the key bedside signals in decompensated heart failure.</div>
+    </div>`;
+
+  const vitals = trendSvg + `
+    <div class="grid2">
+      <div class="card">
+        <div class="card-title">Current Vitals <span class="muted" style="font-weight:400;font-size:11px">${new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span></div>
+        <table style="width:100%;font-size:12.5px"><tbody>
+          ${(() => {
+            const sbp = p.bp ? parseInt(p.bp.split('/')[0]) : null;
+            return [
+            ['SpO₂',             (p.spo2 || '-') + '%' + (p.o2 === 'Oxygen' ? ' (on O₂)' : ''), valCrit(p.spo2, 92, '<'), p.spo2 < 92 ? '⚠ LOW' : (p.o2 === 'Oxygen' ? 'On oxygen' : '')],
+            ['Respiratory Rate', (p.rr || '-') + ' /min',             valCrit(p.rr, 21, '>'), p.rr > 21 ? '⚠ HIGH' : ''],
+            ['Blood Pressure',   (p.bp || '-/-') + ' mmHg',           valCrit(sbp, 90, '<'), (sbp && sbp < 90) ? '⚠ LOW' : ''],
+            ['Heart Rate',       (p.hr || '-') + ' bpm',              valCrit(p.hr, 110, '>'), p.hr > 110 ? '⚠ HIGH' : ''],
+            ['Temperature',      (p.temp || '-') + '°C',              valCrit(p.temp, 38.0, '>'), p.temp > 38.0 ? '⚠ ELEVATED' : ''],
+            ['AVPU',             p.avpu || 'A',                       (p.avpu && p.avpu !== 'A') ? 'v-crit' : '', (p.avpu && p.avpu !== 'A') ? ('⚠ ' + ({C:'Confused',V:'Voice',P:'Pain',U:'Unresponsive'}[p.avpu] || p.avpu)) : ''],
+            ['NEWS2 Score',      score,                  isCrit ? 'v-crit' : '', isCrit ? '🔴 CRITICAL' : ''],
+          ] })().map(([lbl,val,cls,f]) => `
+            <tr>
+              <td class="muted">${lbl}</td>
+              <td class="${cls}" style="font-weight:700">${val}</td>
+              <td style="font-size:11px;font-weight:600;color:var(--t1)">${f}</td>
+            </tr>`).join('')}
+        </tbody></table>
+      </div>
+      <div class="card">
+        <div class="card-title">Vitals Trend — Last 6 Hours</div>
+        <div class="tw" style="border:none"><table>
+          <thead><tr><th>Time</th><th>SpO₂</th><th>RR</th><th>BP</th><th>HR</th><th>NEWS2</th></tr></thead>
+          <tbody>
+            ${(p.recentVitals || []).map(t => {
+              const bpStr = t.sbp && t.dbp ? t.sbp + '/' + t.dbp : '--/--';
+              return `
+              <tr>
+                <td class="muted">${t.time}</td>
+                <td class="${valCrit(t.spo2, 92, '<')}">${t.spo2}%</td>
+                <td class="${valCrit(t.rr, 21, '>')}">${t.rr}</td>
+                <td class="${valCrit(t.sbp, 90, '<')}">${bpStr}</td>
+                <td class="${valCrit(t.hr, 110, '>')}">${t.hr}</td>
+                <td class="${t.news2 >= 5 ? 'v-crit' : ''}">${t.news2}</td>
+              </tr>
+            `}).join('')}
+            ${(!p.recentVitals || p.recentVitals.length === 0) ? `<tr><td colspan="6" class="muted small text-center" style="padding: 20px">No recent vitals recorded.</td></tr>` : ''}
+          </tbody>
+        </table></div>
+      </div>
+    </div>` + dcmCard;
+
+  // ── ML Insights ──
+  const riskTrendGraph = renderAiSvgLarge(p.recentVitals);
+  
+  // Colored by the predicted risk value itself, not the current NEWS2 score —
+  // a stable patient can still carry a high predicted risk, and the number
+  // needs to reflect that on its own. This card has a plain white background
+  // (no severity tint), so the color never clashes with its surroundings.
+  const mlRiskCol = p.escalationTier === 'CRITICAL RISK' ? 'var(--t1)' : p.escalationTier === 'HIGH RISK' ? 'var(--t2)' : 'var(--t3)';
+  const mlInsights = `
+    <div class="grid2">
+      <div class="card">
+        <div class="card-title">Deterioration Risk Prediction</div>
+        <div style="display:flex;align-items:center;gap:18px;margin-bottom:12px">
+          <div class="ml-risk-num" style="color:${mlRiskCol}">${p.mlRisk != null ? p.mlRisk + '%' : '—'}</div>
+          <div><div style="font-size:12.5px;font-weight:600">Tier: <span style="color:${mlRiskCol}">${p.escalationTier || '—'}</span></div>
+          <div class="muted small">${p.mlWindow || '—'}</div></div>
+        </div>
+        <b class="small" style="margin-top:12px;display:block;">Risk Trend (Last 24h):</b>
+        ${riskTrendGraph}
+      </div>
+      <div class="card">
+        <div class="card-title">What this means</div>
+        <div class="small" style="line-height:1.7">${p.mlExplanation || (p.escalationTier === 'CRITICAL RISK' ? 'AI predicts a high probability of critical clinical deterioration within the specified window, independent of current NEWS2 stability.' : (p.escalationTier === 'HIGH RISK' ? 'AI detects early physiological instability indicating a moderate risk of future deterioration.' : 'AI model sees stable physiological trajectories.'))}</div>
+        <div class="card-title" style="margin-top:14px">Recommended action</div>
+        <div class="small" style="line-height:1.7; font-weight:${p.escalationTier==='CRITICAL RISK'?'600':'normal'}; color:${p.escalationTier==='CRITICAL RISK'?'var(--t1)':'inherit'}">${p.escalationTier === 'CRITICAL RISK' ? '🚨 Continuous monitoring recommended. Escalate to attending physician for proactive review.' : (p.recommendedAction || 'Continue routine monitoring per ward protocol.')}</div>
+      </div>
+    </div>`;
+
+  const dlAlerts = p.drugLabAlerts || [];
+  const druglab = dlAlerts.length === 0
+    ? `<div class="alert al-ok">No active drug-lab interaction flags for this patient.</div>`
+    : `<div class="alert al-info">Nurse awareness only — clinical actions are taken by the Attending Physician. Log any adverse observations in the escalation form.</div>
+    ${dlAlerts.map(a => {
+      const tier = a.severity === 'CRITICAL' ? 't1' : 't2';
+      const badge = a.severity === 'CRITICAL' ? 'bd-t1' : 'bd-t2';
+      return `<div class="dlf ${tier}" style="margin-bottom:10px"><div class="dlf-bd">
+        <div class="flex-r"><div class="dlf-title">&#9888; ${a.rule_name || a.severity}</div><span class="bd ${badge}">${a.severity}</span></div>
+        <div class="dlf-desc"><b>Alert:</b> ${a.message}<br><b>Action:</b> ${a.action || ''}</div>
+        <div style="margin-top:6px;font-size:11px;color:var(--muted)">${a.guideline || ''}</div>
+      </div></div>`;
+    }).join('')}
+    <div class="card" style="margin-top:12px">
+      <div class="card-title">Monitor for — report immediately if observed</div>
+      ${['Unusual bruising or petechiae','Black/tarry stools (melena)','Blood in urine (haematuria)','Prolonged bleeding from puncture sites','Sudden confusion or neurological change'].map(s=>`<div class="check-row"><input type="checkbox"> ${s}</div>`).join('')}
+      <div style="margin-top:12px"><button class="btn btn-sec btn-sm" onclick="nav('n2')">Log in Escalation Form</button></div>
+    </div>
+    <div style="margin-top:10px;padding:10px 0;border-top:1px solid var(--border)">
+      ${APP.role === 'nurse' ? `<div class="muted small" style="margin-bottom:8px">Nurse view — read only. Attending resolution required.</div>` : ''}
+      <button class="btn btn-sec btn-sm" onclick="nav('${APP.role === 'charge' ? 'dl1' : 'dl3'}', ${p.id})">View Drug-Lab Details →</button>
+    </div>`;
+
+  const labsHtml = `
+    <div class="card">
+      <div class="card-title">Recent Lab Results</div>
+      <div class="tw" style="border:none"><table>
+        <thead><tr><th>Time</th><th>Test</th><th>Result</th><th>Unit</th></tr></thead>
+        <tbody>
+          ${(p.recentLabs || []).map(l => `
+            <tr>
+              <td class="muted">${l.time.split('T').join(' ').substring(0,16)}</td>
+              <td>${l.test}</td>
+              <td style="font-weight:bold">${l.value}</td>
+              <td class="muted">${l.unit}</td>
+            </tr>
+          `).join('')}
+          ${(!p.recentLabs || p.recentLabs.length === 0) ? `<tr><td colspan="4" class="muted small text-center" style="padding: 20px">No recent labs.</td></tr>` : ''}
+        </tbody>
+      </table></div>
+    </div>`;
+
+  const medsHtml = `
+    <div class="card">
+      <div class="card-title">Active Medications</div>
+      <div class="tw" style="border:none"><table>
+        <thead><tr><th>Medication</th><th>Dose</th><th>Frequency</th></tr></thead>
+        <tbody>
+          ${(p.medications || []).map(m => `
+            <tr>
+              <td><b>${m.name}</b></td>
+              <td>${m.dose}</td>
+              <td class="muted">${m.frequency}</td>
+            </tr>
+          `).join('')}
+          ${(!p.medications || p.medications.length === 0) ? `<tr><td colspan="3" class="muted small text-center" style="padding: 20px">No active medications.</td></tr>` : ''}
+        </tbody>
+      </table></div>
+    </div>`;
+
+  return `
+<div class="bc">
+  ${dashboardCrumbHtml()}
+  <span class="bc-sep">/</span>
+  <span>${APP.role === 'charge' ? 'Head Nurse Review' : 'Patient Detail'}</span>
+</div>
+<div class="sh">
+  <h1 class="sh-title">${p.name || 'Unknown'} <span class="pid" style="font-size:13px">${p.patient_code || 'PT-' + (p.id || '')}</span></h1>
+  <div class="sh-actions">
+    <span class="bd ${bdClass}" style="font-size:12px;padding:5px 12px">NEWS2: ${score} — ${lbl}</span>
+    ${score >= 5 ? `<button class="btn ${isCrit ? 'btn-danger' : 'btn-warn'} btn-sm" onclick="nav('n2', ${p.id})">Escalate Now</button>` : ''}
+  </div>
+</div>
+
+${(() => {
+  const sev = score >= 7 ? 't1' : score >= 5 ? 't2' : 't3';
+  const sig = ((p.ewsReason && p.ewsReason.signals) || []).map(s => s.arrow + s.short).join('  ') || '✓ Stable';
+  const loc = p.ward_location === 'GENERAL_WARD' ? 'General Ward' : 'CCU';
+  const locTag = p.ward_location === 'GENERAL_WARD' ? 'loc-gw' : 'loc-ccu';
+  return `<div class="dx-banner sev-${sev}">
+    <div><span class="dx-lbl">Diagnosis</span><b>${p.diagnosis_short || p.complaint || '—'}</b></div>
+    <div><span class="dx-lbl">EWS Trigger</span><b>${sig}</b></div>
+    <div><span class="dx-lbl">Ward · Bed</span><b>${p.ward || ''} · Bed ${p.bed || ''} <span class="loc-tag ${locTag}">${loc}</span></b></div>
+    <div><span class="dx-lbl">Monitoring</span><b>${(p.monitoring && p.monitoring.label) || '—'}${p.dueLabel ? ' · ' + p.dueLabel : ''}</b></div>
+    <div><span class="dx-lbl">AI risk</span><b style="color:${p.escalationTier === 'CRITICAL RISK' ? 'var(--t1)' : p.escalationTier === 'HIGH RISK' ? 'var(--t2)' : 'var(--t3)'}">${p.mlRisk != null ? p.mlRisk + '%' : '—'}</b></div>
+  </div>`;
+})()}
+
+<div class="tab-strip">
+  <button class="tab-btn${APP.n1b_tab==='vitals'?' active':''}" onclick="APP.n1b_tab='vitals';renderAll()">Vital Signs</button>
+  <button class="tab-btn${APP.n1b_tab==='ml'?' active':''}" onclick="APP.n1b_tab='ml';renderAll()">ML Insights</button>
+  <button class="tab-btn${APP.n1b_tab==='drug-lab'?' active':''}" onclick="APP.n1b_tab='drug-lab';renderAll()">Drug-Lab Alerts</button>
+  <button class="tab-btn${APP.n1b_tab==='labs'?' active':''}" onclick="APP.n1b_tab='labs';renderAll()">Lab Results</button>
+  <button class="tab-btn${APP.n1b_tab==='meds'?' active':''}" onclick="APP.n1b_tab='meds';renderAll()">Medications</button>
+</div>
+
+${APP.n1b_tab === 'ml' ? mlInsights : APP.n1b_tab === 'drug-lab' ? druglab : APP.n1b_tab === 'labs' ? labsHtml : APP.n1b_tab === 'meds' ? medsHtml : vitals}
+
+${p.db_status === 'discharge_initiated' ? `
+<div class="alert al-ok" style="border-left:4px solid var(--disch);margin-top:16px;display:flex;align-items:center;gap:10px">
+  <span style="font-size:18px">🏥</span>
+  <div>
+    <b>Discharge in Progress</b> — Resident Doctor has been notified.
+    <div class="muted small" style="margin-top:2px">Discharge summary generation pending. Patient remains in ward until summary is signed off.</div>
+  </div>
+  <button class="btn btn-sec btn-sm" style="margin-left:auto;border-color:var(--disch);color:var(--disch);white-space:nowrap" onclick="nav('n_discharge', ${p.id})">View Status →</button>
+</div>` : ''}
+<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+  ${APP.role === 'charge' ? `
+    <button class="btn btn-sec btn-sm" onclick="nav('n5')">← Back to Escalation Queue</button>
+    <button class="btn btn-warn btn-sm" onclick="showFalseAlarmMenu()">Mark False Alarm ▾</button>
+    ${score >= 5 ? `<button class="btn btn-danger btn-sm" onclick="nav('n2', ${p.id})">Escalate to Attending</button>` : ''}
+  ` : `
+    <button class="btn btn-sec btn-sm" onclick="nav('n1')">← Back to Dashboard</button>
+    ${score >= 5 ? `<button class="btn btn-danger btn-sm" onclick="nav('n2', ${p.id})">Escalate Patient</button>` : ''}
+  `}
+  ${(!p.ward_location || p.ward_location === 'CCU') ? `<button class="btn btn-pri btn-sm" style="background:var(--p)" onclick="nav('n_transfer', ${p.id})">CCU→GW Transfer →</button>` : ''}
+  ${p.ward_location === 'GENERAL_WARD' && p.db_status !== 'discharge_initiated' ? `<button class="btn btn-go btn-sm" onclick="initiateDischarge(${p.id}, '${p.name}')">→ Initiate Discharge</button>` : ''}
+  <button class="btn btn-warn btn-sm" onclick="nav('n_vitals', ${p.id})">✎ Enter/Override Vitals</button>
+</div>
+<div id="false-alarm-menu" style="display:none;margin-top:8px;background:#fff;border:1px solid var(--border);border-radius:8px;padding:12px;max-width:400px">
+  <div class="card-title" style="margin-bottom:8px">Reason for False Alarm</div>
+  ${['Expected clinical variation','Data entry error','Post-procedure transient change','Medication effect','Other'].map(r =>
+    `<button class="btn btn-sec btn-sm" style="margin:4px;display:inline-block" onclick="submitFalseAlarm(${p.id}, '${r}')">${r}</button>`
+  ).join('')}
+</div>`;
+};
+
+/* ── N_TRANSFER — CCU → GENERAL WARD STEP-DOWN ──────────────── */
+SCREENS.n_transfer = () => {
+  const e = APP.data.n_transfer || {};
+  const pid = APP.currentPatientId;
+  const pending = e.pendingTransfer;
+
+  const isCharge = APP.role === 'charge';
+
+  window.submitTransfer = async function() {
+    const rationale = (document.getElementById('tr-rationale')?.value || '').trim();
+    if (!rationale) { showToast('warning', 'Missing Information', { detail: 'Please enter a clinical rationale before submitting.' }); return; }
+    const target = document.getElementById('tr-target')?.value || 'General Ward';
+    const btn = document.getElementById('tr-submit'); if (btn) { btn.disabled = true; btn.textContent = 'Submitting…'; }
+    try {
+      const res = await fetch(`/api/patients/${pid}/ccu-transfer`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rationale, targetWard: target, recommendedBy: APP.user ? APP.user.name : 'Nurse' })
+      });
+      if (res.ok) {
+        const created = await res.json().catch(() => ({}));
+        // Charge/head nurse is the approver — no point making her submit a
+        // recommendation to herself and then separately go approve it. She
+        // reviews the same criteria on this same screen, so submitting here
+        // IS the approval decision.
+        if (isCharge && created.id) {
+          const decider = APP.user ? APP.user.name : 'Charge Nurse';
+          const appr = await fetch(`/api/ccu-transfers/${created.id}/approve`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ decidedBy: decider })
+          });
+          if (appr.ok) {
+            showToast('success', 'Patient Transferred to General Ward', {
+              patient: e.name || '', notified: decider,
+              detail: `Moved CCU → ${target}.`,
+            });
+            nav('n1b', pid);
+            return;
+          }
+        }
+        showToast('notify', 'Step-Down Request Submitted', {
+          notified: 'Charge Nurse / Head Nurse',
+          detail: `Transfer to ${target} — awaiting charge nurse approval.`,
+        });
+        nav('n_transfer', pid);
+      }
+      else { const d = await res.json().catch(() => ({})); showToast('critical', 'Submission Failed', { detail: d.detail || ('Error ' + res.status) }); if (btn) { btn.disabled = false; btn.textContent = isCharge ? 'Transfer to General Ward →' : 'Submit to Head Nurse →'; } }
+    } catch (err) { showToast('critical', 'Network Error', { detail: err.message }); if (btn) { btn.disabled = false; } }
+  };
+  window.withdrawTransfer = async function(tid) {
+    try { const res = await fetch(`/api/ccu-transfers/${tid}/withdraw`, { method: 'POST' }); if (res.ok) nav('n_transfer', pid); }
+    catch (err) { showToast('critical', 'Network Error', {}); }
+  };
+  window.approveTransferHere = async function(tid) {
+    const decider = APP.user ? APP.user.name : 'Charge Nurse';
+    try {
+      const res = await fetch(`/api/ccu-transfers/${tid}/approve`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ decidedBy: decider }) });
+      if (res.ok) { showToast('success', 'Transfer Approved', { patient: e.name || '', notified: decider }); nav('n1b', pid); }
+      else showToast('critical', 'Approval Failed', {});
+    } catch (err) { showToast('critical', 'Network Error', {}); }
+  };
+  window.rejectTransferHere = async function(tid) {
+    const decider = APP.user ? APP.user.name : 'Charge Nurse';
+    try {
+      const res = await fetch(`/api/ccu-transfers/${tid}/reject`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ decidedBy: decider }) });
+      if (res.ok) { showToast('warning', 'Transfer Rejected', { patient: e.name || '', notified: decider, detail: 'Patient remains in CCU.' }); nav('n1b', pid); }
+      else showToast('critical', 'Rejection Failed', {});
+    } catch (err) { showToast('critical', 'Network Error', {}); }
+  };
+
+  const header = `<div class="bc"><span class="bc-link" onclick="nav('n1b', ${pid})">Patient Detail</span><span class="bc-sep">/</span><span>CCU&rarr;GW Transfer</span></div>
+  <div class="sh"><h1 class="sh-title">CCU → General Ward Step-Down</h1><div class="sh-actions">${pending ? '<span class="bd bd-t3">Submitted ✓</span>' : (e.eligible ? '<span class="bd bd-t3">Eligible</span>' : '<span class="bd bd-t2">Criteria not fully met</span>')}</div></div>`;
+
+  if (pending) {
+    return header + `
+      <div class="alert al-ok">✅ Step-down recommendation submitted — Head Nurse review pending. Patient remains in CCU until approval.</div>
+      <div class="card" style="max-width:660px"><div class="card-title">Submitted Recommendation</div>
+      <table style="width:100%;font-size:12.5px"><tbody>
+        <tr><td class="muted">Patient</td><td class="bold">${e.name || ''} <span class="pid">${e.patientCode || ''}</span></td></tr>
+        <tr><td class="muted">Diagnosis</td><td>${e.diagnosis || ''}</td></tr>
+        <tr><td class="muted">Transfer</td><td>CCU → ${pending.targetWard}</td></tr>
+        <tr><td class="muted">NEWS2 at submit</td><td>${pending.news2AtSubmit}</td></tr>
+        <tr><td class="muted">Stable window</td><td>${pending.stableWindowHours}h</td></tr>
+        <tr><td class="muted">Recommended by</td><td>${pending.recommendedBy}</td></tr>
+        <tr><td class="muted">Rationale</td><td>${pending.rationale}</td></tr>
+        <tr><td class="muted">Submitted</td><td class="mono">${pending.submittedAt}</td></tr>
+        <tr><td class="muted">Status</td><td><span class="bd bd-t2">Pending Head Nurse</span></td></tr>
+      </tbody></table>
+      <div style="display:flex;gap:8px;margin-top:14px">
+        ${isCharge ? `
+          <button class="btn btn-go" onclick="approveTransferHere(${pending.id})">Approve Transfer →</button>
+          <button class="btn btn-danger" onclick="rejectTransferHere(${pending.id})">Reject</button>
+        ` : `<button class="btn btn-sec" onclick="withdrawTransfer(${pending.id})">Withdraw Recommendation</button>`}
+        <button class="btn btn-sec" onclick="nav('n1', ${pid})">← Back to Dashboard</button>
+      </div></div>`;
+  }
+
+  const criteria = (e.criteria || []).map(c => {
+    const col = c.met ? 'var(--t3)' : (c.info ? 'var(--t2)' : 'var(--t1)');
+    const mark = c.met ? '✓ Met' : (c.info ? '⚠ ' + (c.detail || '') : '✗ Not met');
+    return `<tr><td style="padding:5px 0">${c.label}<div class="muted small">${c.detail || ''}</div></td><td style="text-align:right;font-weight:700;color:${col};white-space:nowrap;vertical-align:top">${mark}</td></tr>`;
+  }).join('');
+
+  return header + `
+    ${e.eligible ? `<div class="alert al-ok">✅ Step-down criteria met — ${isCharge ? 'you can transfer this patient directly.' : 'you can submit this recommendation to the Head Nurse.'}</div>` : '<div class="alert al-warn">⚠️ Not all step-down criteria are met. NEWS2 must be ≤ 2 sustained for 2h+ before transfer.</div>'}
+    <div class="grid2" style="margin-bottom:14px">
+      <div class="card"><div class="card-title">Step-Down Criteria (computed live)</div>
+        <table style="width:100%;font-size:12.5px"><tbody>${criteria}</tbody></table>
+      </div>
+      <div class="card"><div class="card-title">Patient Summary</div>
+        <table style="width:100%;font-size:12.5px"><tbody>
+          <tr><td class="muted">Patient</td><td class="bold">${e.name || ''} <span class="pid">${e.patientCode || ''}</span></td></tr>
+          <tr><td class="muted">Diagnosis</td><td>${e.diagnosis || ''}</td></tr>
+          <tr><td class="muted">Current location</td><td>${e.wardLocation === 'GENERAL_WARD' ? 'General Ward' : 'CCU'} · Bed ${e.bed || ''}</td></tr>
+          <tr><td class="muted">Admitted</td><td>${e.admitted || ''}</td></tr>
+          <tr><td class="muted">Current NEWS2</td><td class="bold">${e.news2}</td></tr>
+          <tr><td class="muted">Stable window</td><td>${e.stableWindowHours}h</td></tr>
+        </tbody></table>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:14px"><div class="card-title">Step-Down Recommendation Form</div>
+      <div class="frow">
+        <div class="fg"><label class="fl">Transfer type</label><input class="fi" value="CCU → General Ward" readonly style="background:var(--surf)"></div>
+        <div class="fg"><label class="fl">Target ward</label><select class="fi" id="tr-target"><option>General Ward</option><option>Step-Down Unit (HDU)</option></select></div>
+      </div>
+      <div class="fg"><label class="fl">${isCharge ? 'Charge nurse' : 'Recommending nurse'}</label><input class="fi" value="${APP.user ? APP.user.name : 'Nurse'}" readonly style="background:var(--surf)"></div>
+      <div class="fg"><label class="fl">Clinical rationale <span style="color:var(--t1)">*</span></label>
+        <textarea class="fi" id="tr-rationale" rows="3" placeholder="e.g. NEWS2 ≤2 sustained 8h+; haemodynamically stable; inotropes weaned; no escalation in 24h.">${e.eligible ? 'NEWS2 ≤ 2 sustained ' + (e.stableWindowHours || 6) + 'h; haemodynamically stable; no escalation in 24h.' : ''}</textarea>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-pri" id="tr-submit" onclick="submitTransfer()" ${e.eligible ? '' : 'disabled title="Criteria not met"'}>${isCharge ? 'Transfer to General Ward →' : 'Submit to Head Nurse →'}</button>
+        <button class="btn btn-sec" onclick="nav('n1b', ${pid})">Cancel</button>
+      </div>
+    </div>`;
+};
+
+/* ── N2 — ESCALATION FORM ───────────────────────────────────── */
+SCREENS.n2 = () => {
+  const p = APP.data.n1b || {};
+  const v = p.vitals || {};
+  const score = p.news2 || 0;
+  
+  // Submit function to API — saves response to APP.data.lastEscalation for N3 screen
+  window.submitEscalation = async function() {
+    const lvlEl = document.querySelector('input[name="lvl"]:checked');
+    const level = lvlEl ? lvlEl.value : 'doctor';
+    const attending = document.getElementById('esc-attending').value;
+    const observations = document.getElementById('esc-obs').value;
+    const interventions = document.getElementById('esc-int').value;
+
+    const payload = {
+      patientId: APP.currentPatientId,
+      level, attending, observations, interventions,
+      escalatedBy: APP.user ? APP.user.name : 'Nurse'
+    };
+
+    try {
+      const res = await fetch('/api/escalations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        APP.lastEscalation = await res.json();
+        const toastType = score >= 7 ? 'critical' : 'warning';
+        const levelLabel = { nurse: 'Head Nurse', doctor: 'Attending', consultant: 'Consultant', code_blue: 'Code Blue' }[level] || level;
+        showToast(toastType, `Escalation Raised — ${levelLabel}`, {
+          patient:  p.name || p.patient_code || '',
+          notified: `Charge Nurse + ${attending || 'Attending'}`,
+          detail:   `NEWS2: ${score} — ${(observations || '').slice(0, 80) || 'See escalation record'}`,
+          persistent: score >= 7,
+        });
+        nav('n3');
+      } else {
+        showToast('critical', 'Escalation Failed', { detail: 'Failed to submit escalation — check backend is running.' });
+      }
+    } catch(e) { console.error(e); showToast('critical', 'Network Error', { detail: e.message }); }
+  };
+
+  setTimeout(async () => {
+    const sel = document.getElementById('esc-attending');
+    if (!sel) return;
+    try {
+      const res = await fetch('/api/on-call-doctors');
+      const docs = await res.json();
+      sel.innerHTML = docs.map(d => `<option value="${d.name}">${d.name} (${d.role})</option>`).join('');
+    } catch(e) {
+      sel.innerHTML = '<option value="Unknown">Failed to load on-call list</option>';
+    }
+  }, 0);
+
+  return `
+<div class="bc">${dashboardCrumbHtml()}<span class="bc-sep">/</span><span>Escalation</span></div>
+<div class="sh"><h1 class="sh-title">Raise Escalation — ${p.patient_code || 'PT-' + p.id}</h1></div>
+<div class="alert al-err">🔴 NEWS2 Score: ${score} — CRITICAL · ${p.name} · ${p.ward}</div>
+
+<div style="max-width:580px">
+  <div class="card" style="margin-bottom:12px">
+    <div class="card-title">Vitals at Time of Escalation</div>
+    <div class="grid3">
+      <div><div class="muted small">SpO₂</div><div class="bold v-crit">${p.spo2||'-'}%</div></div>
+      <div><div class="muted small">RR</div><div class="bold v-crit">${p.rr||'-'} /min</div></div>
+      <div><div class="muted small">BP</div><div class="bold v-crit">${p.bp||'-/-'}</div></div>
+      <div><div class="muted small">HR</div><div class="bold v-crit">${p.hr||'-'} bpm</div></div>
+      <div><div class="muted small">Temp</div><div class="bold">${p.temp||'-'}°C</div></div>
+      <div><div class="muted small">AVPU</div><div class="bold">A</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Escalation Details</div>
+    <div class="fg"><label class="fl">Escalation Level</label>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
+        <label class="radio-row"><input type="radio" name="lvl" value="nurse"> Nurse-to-Nurse (Senior Nurse)</label>
+        <label class="radio-row"><input type="radio" name="lvl" value="doctor" checked> Nurse-to-Doctor (Attending)</label>
+        <label class="radio-row"><input type="radio" name="lvl" value="code_blue"> Code Blue (Cardiac Arrest Team)</label>
+      </div>
+    </div>
+    <div class="fg"><label class="fl">Attending to Notify</label>
+      <select class="fi" id="esc-attending">
+        <option>Loading...</option>
+      </select>
+    </div>
+    <div class="fg"><label class="fl">Clinical Observations</label>
+      <textarea class="fi" id="esc-obs" rows="3" placeholder="Enter patient symptoms and condition... (e.g., Shortness of breath, escalating O2 req)"></textarea>
+    </div>
+    <div class="fg"><label class="fl">Interventions Already Taken</label>
+      <textarea class="fi" id="esc-int" rows="2" placeholder="List actions taken prior to escalation..."></textarea>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn btn-sec" onclick="nav('n1')">Cancel</button>
+      <button class="btn btn-danger" onclick="submitEscalation()">Submit Escalation →</button>
+    </div>
+  </div>
+</div>`;
+};
+
+/* ── N3 — POST-ESCALATION (shows real submitted escalation) ─── */
+SCREENS.n3 = () => {
+  const e = APP.lastEscalation || {};
+  const p = APP.data.n1b || {};
+  const v = p.vitals || {};
+  const hasData = !!e.id;
+  return `
+<div class="bc">${dashboardCrumbHtml()}<span class="bc-sep">/</span><span>Escalation Recorded</span></div>
+<div class="sh"><h1 class="sh-title">Escalation Recorded</h1></div>
+<div class="alert al-ok">Escalation submitted · ${hasData ? e.escalatedAt : new Date().toLocaleString('en-IN')} · ${hasData ? e.attending : 'Attending'} notified via secure pager</div>
+
+<div class="card" style="max-width:560px;margin-bottom:16px">
+  <div class="card-title">Escalation Summary</div>
+  <div class="tw" style="border:none"><table><tbody>
+    <tr><td class="muted">Patient</td><td class="bold">${hasData ? e.patientName : (p.name || 'Unknown')}</td></tr>
+    <tr><td class="muted">Ward / Bed</td><td>${hasData ? (e.ward + ' / ' + e.bed) : (p.ward || '--')}</td></tr>
+    <tr><td class="muted">NEWS2 at escalation</td><td><span class="n2s hi">${hasData ? e.news2 : (p.news2 || '--')}</span></td></tr>
+    <tr><td class="muted">Attending notified</td><td>${hasData ? e.attending : '--'}</td></tr>
+    <tr><td class="muted">Escalated at</td><td class="mono">${hasData ? e.escalatedAt : '--'}</td></tr>
+    <tr><td class="muted">Reference ID</td><td class="mono">ESC-${hasData ? String(e.id).padStart(4,'0') : '----'}</td></tr>
+  </tbody></table></div>
+</div>
+
+${p.spo2 ? `<div class="card" style="max-width:560px;margin-bottom:16px">
+  <div class="card-title">Vitals at Time of Escalation</div>
+  <div class="grid3">
+    <div><div class="muted small">SpO2</div><div class="bold ${(p.spo2||99)<92?'v-crit':''}">` + (p.spo2||'--') + `%</div></div>
+    <div><div class="muted small">RR</div><div class="bold">` + (p.rr||'--') + ` /min</div></div>
+    <div><div class="muted small">BP</div><div class="bold">` + (p.bp||'--') + `</div></div>
+    <div><div class="muted small">HR</div><div class="bold">` + (p.hr||'--') + ` bpm</div></div>
+    <div><div class="muted small">Temp</div><div class="bold">` + (p.temp||'--') + `&deg;C</div></div>
+    <div><div class="muted small">AVPU</div><div class="bold">A</div></div>
+  </div>
+</div>` : ''}
+<div style="display:flex;gap:8px">
+  <button class="btn btn-sec" onclick="nav('n4')">View Status Log</button>
+  <button class="btn btn-pri" onclick="nav('n1')">Back to Dashboard</button>
+</div>`;
+};
+
+/* ── N4 — STATUS LOG ────────────────────────────────────────── */
+SCREENS.n4 = () => {
+  const e = APP.lastEscalation || {};
+  const p = APP.data.n1b || {};
+  const patCode = p.patient_code || 'PT-' + p.id;
+  
+  window.doctorAcknowledge = async function(escId) {
+    if (!escId) return nav('n4b');
+    const resolvedBy = APP.user?.name || 'Doctor';
+    try {
+      await fetch('/api/escalations/' + escId + '/resolve', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ resolvedBy, notes: '' })
+      });
+      showToast('success', 'Escalation Resolved', {
+        patient:  p.patient_code || p.name || '',
+        notified: resolvedBy + ' · Ward Nurse notified',
+        detail:   'Patient de-escalated — continue monitoring.',
+      });
+    } catch(err) {}
+    nav('n4b');
+  };
+
+  setTimeout(async () => {
+    const tlEl = document.getElementById('esc-timeline');
+    if (!tlEl) return;
+    if (!e.id) {
+      tlEl.innerHTML = '<div class="muted" style="padding: 20px;">No escalation data available.</div>';
+      return;
+    }
+    try {
+      const res = await fetch('/api/escalations/' + e.id);
+      const fullEsc = await res.json();
+      let html = '';
+      const escAt = new Date(fullEsc.escalated_at || Date.now());
+      html += '<div class="tl-date">' + escAt.toLocaleDateString('en-IN') + '</div>';
+      
+      html += '<div class="tl-item"><div class="tl-dot err">!</div><div class="tl-body"><div class="tl-title">Escalation Raised</div><div class="tl-time">' + escAt.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) + '</div><div class="tl-detail">To ' + fullEsc.attending + '. Level: ' + fullEsc.level + '. Recorded by ' + fullEsc.escalated_by + '.</div></div></div>';
+
+      if (fullEsc.acknowledged_at) {
+         html += '<div class="tl-item"><div class="tl-dot ok">✓</div><div class="tl-body"><div class="tl-title">Doctor Acknowledged</div><div class="tl-time">' + new Date(fullEsc.acknowledged_at).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) + '</div><div class="tl-detail">Acknowledged.</div></div></div>';
+      }
+      if (fullEsc.resolved_at) {
+         html += '<div class="tl-item"><div class="tl-dot ok">✓</div><div class="tl-body"><div class="tl-title">Resolved</div><div class="tl-time">' + new Date(fullEsc.resolved_at).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) + '</div><div class="tl-detail">Resolved by ' + fullEsc.resolved_by + '.</div></div></div>';
+      }
+      tlEl.innerHTML = html;
+    } catch (err) {}
+  }, 0);
+
+  return `
+<div class="bc">${dashboardCrumbHtml()}<span class="bc-sep">/</span><span>Escalation Status</span></div>
+<div class="sh">
+  <h1 class="sh-title">Escalation Status — ${patCode}</h1>
+  <div class="sh-actions">
+    <button class="btn btn-pri btn-sm" onclick="doctorAcknowledge(${e.id || 0})">Doctor Acknowledges →</button>
+  </div>
+</div>
+<div class="tl" id="esc-timeline">
+  <div class="muted" style="padding: 20px;">Loading timeline...</div>
+</div>
+<div class="card" style="margin-top:16px">
+  <div class="card-title">De-escalation Criteria</div>
+  <div class="check-row"><input type="checkbox"> SpO₂ ≥ 94% sustained 30 min</div>
+  <div class="check-row"><input type="checkbox"> Systolic BP ≥ 90 mmHg</div>
+  <div class="check-row"><input type="checkbox"> NEWS2 ≤ 4 for 60 minutes</div>
+  <div class="check-row"><input type="checkbox"> Doctor confirmed de-escalation</div>
+</div>`;
+};
+
+/* ── N4b — POST RESOLUTION ──────────────────────────────────── */
+SCREENS.n4b = () => {
+  const p = APP.data.n1b || {};
+  const score = p.news2 != null ? p.news2 : '--';
+  const sc = typeof score === 'number' ? (score >= 7 ? 'hi' : score >= 5 ? 'med' : 'lo') : 'lo';
+  const who = APP.user ? APP.user.name : 'Clinical team';
+  return `
+<div class="bc"><span class="bc-link" onclick="nav('n4')">Status Log</span><span class="bc-sep">/</span><span>Resolved</span></div>
+<div class="sh"><h1 class="sh-title">Escalation Resolved — ${p.name || 'Patient'} <span class="pid" style="font-size:13px">${p.patient_code || ''}</span></h1></div>
+<div class="alert al-ok">✅ ${who} marked the escalation resolved. Continue routine monitoring per NEWS2 cadence (${(p.monitoring && p.monitoring.label) || 'as indicated'}).</div>
+<div class="tw"><table>
+  <thead><tr><th>Patient</th><th>SpO₂</th><th>RR</th><th>BP</th><th>HR</th><th>NEWS2</th><th>Status</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><b>${p.name || '—'}</b><br><span class="pid">${p.patient_code || ''}</span></td>
+      <td style="color:var(--t3)">${p.spo2 != null ? p.spo2 + '%' : '--'}</td>
+      <td>${p.rr != null ? p.rr : '--'}</td>
+      <td>${p.bp || '--'}</td>
+      <td>${p.hr != null ? p.hr : '--'}</td>
+      <td><span class="n2s ${sc}">${score}</span></td>
+      <td><span class="bd bd-t3">✓ Resolved</span></td>
+    </tr>
+  </tbody>
+</table></div>
+<div style="display:flex;gap:8px;margin-top:12px">
+  <button class="btn btn-pri" onclick="nav('n1')">← Back to Dashboard</button>
+</div>`;
+};
+
+/* ── N5 — CHARGE NURSE QUEUE ────────────────────────────────── */
+SCREENS.n5 = () => {
+  if (APP.loading && !APP.data.n5) return skeletonDashboard('Escalation Queue');
+  if (APP.fetchError && !APP.data.n5) return errorState('Could not load the escalation queue. Retry.');
+  const allEsc = (APP.data.n5?.escalations || []);
+  const escalations = allEsc.filter(e => e.status === 'active');
+  const transfers = (APP.data.n5_transfers?.transfers || []);
+  const emptyState = `<div style="text-align:center;padding:48px 24px;color:var(--muted)">
+    <div style="font-size:44px;margin-bottom:14px">&#10003;</div>
+    <div style="font-size:15px;font-weight:700;color:var(--t3);margin-bottom:6px">No Active Escalations</div>
+    <div style="font-size:12.5px">All patients in Ward 4B/4C are within normal NEWS2 thresholds.</div>
+  </div>`;
+  const levelLabel = l => ({nurse:'Head Nurse', doctor:'Attending', consultant:'Consultant', code_blue:'Code Blue'}[l] || l || '--');
+  const fmtTime = ts => { if (!ts) return '--'; try { return new Date(ts).toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'}); } catch (e) { return ts; } };
+
+  window.reescalateEsc = async function(id) {
+    const esc = (APP.data.n5?.escalations || []).find(e => e.id == id) || {};
+    try {
+      const res = await fetch(`/api/escalations/${id}/reescalate`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({reason:''})});
+      if (res.ok) {
+        const d = await res.json();
+        showToast('critical', `Escalation Re-raised — ${d.newLevelLabel || 'Higher Level'}`, {
+          patient:  esc.patientName || esc.patient_name || '',
+          notified: 'Attending Physician + Medical Director',
+          detail:   'SLA window exceeded — escalation escalated to next tier.',
+          persistent: true,
+        });
+        nav('n5');
+      } else showToast('critical', 'Re-escalation Failed', {});
+    } catch (e) { showToast('critical', 'Network Error', {}); }
+  };
+  window.approveTransfer = async function(id) {
+    const tr = (APP.data.n5?.transfers || []).find(t => t.id == id) || {};
+    const decider = APP.user ? APP.user.name : 'Head Nurse';
+    try {
+      const res = await fetch(`/api/ccu-transfers/${id}/approve`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({decidedBy: decider})});
+      if (res.ok) {
+        showToast('success', 'CCU Transfer Approved', {
+          patient:  tr.patientName || tr.patient_name || '',
+          notified: decider,
+          detail:   `Patient cleared for transfer → ${tr.targetWard || 'General Ward'}`,
+        });
+        nav('n5');
+      } else showToast('critical', 'Approval Failed', {});
+    } catch (e) { showToast('critical', 'Network Error', {}); }
+  };
+  window.rejectTransfer = async function(id) {
+    const tr = (APP.data.n5?.transfers || []).find(t => t.id == id) || {};
+    const decider = APP.user ? APP.user.name : 'Head Nurse';
+    try {
+      const res = await fetch(`/api/ccu-transfers/${id}/reject`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({decidedBy: decider})});
+      if (res.ok) {
+        showToast('warning', 'Transfer Rejected', {
+          patient:  tr.patientName || tr.patient_name || '',
+          notified: decider,
+          detail:   'Patient remains in CCU. Continue monitoring protocol.',
+        });
+        nav('n5');
+      }
+    } catch (e) { showToast('critical', 'Network Error', {}); }
+  };
+
+  return `
+<div class="bc"><span>Ward 4B / 4C</span><span class="bc-sep">/</span><span>Escalation Queue</span></div>
+<div class="sh">
+  <h1 class="sh-title">Escalation Queue</h1>
+  <div class="sh-actions">
+    <span class="muted small">${new Date().toLocaleString('en-IN', {day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'})}</span>
+    <button class="btn btn-warn btn-sm" onclick="nav('dl1')">Drug-Lab Overview</button>
+    <button class="btn btn-sec btn-sm" onclick="nav('n5b')">Threshold Config</button>
+  </div>
+</div>
+
+<div class="stats">
+  <div class="stat" style="border-left:3px solid var(--t1)"><div class="stat-v" style="color:var(--t1)">${escalations.filter(e=>e.level==='code_blue').length}</div><div class="stat-l">Code Blue</div></div>
+  <div class="stat" style="border-left:3px solid var(--t2)"><div class="stat-v" style="color:var(--t2)">${escalations.filter(e=>e.level==='doctor').length}</div><div class="stat-l">To Doctor</div></div>
+  <div class="stat" style="border-left:3px solid var(--t3)"><div class="stat-v" style="color:var(--t3)">${escalations.filter(e=>e.level==='nurse').length}</div><div class="stat-l">To Sr. Nurse</div></div>
+  <div class="stat"><div class="stat-v" style="color:var(--muted)">${allEsc.filter(e=>e.status==='resolved').length}</div><div class="stat-l">Resolved Today</div></div>
+</div>
+
+${escalations.length === 0 ? emptyState : `
+<div class="tw" style="margin-bottom:14px"><table class="tbl-stack">
+  <thead><tr><th>Patient</th><th>Ward</th><th>NEWS2</th><th>Level</th><th>Escalated</th><th>By</th><th>Status / SLA</th><th>Action</th></tr></thead>
+  <tbody>
+    ${escalations.map(e => {
+      const breached = e.slaBreached;
+      const slaCell = e.reescalatedAt
+        ? `<span class="bd bd-t1">⏱ Re-escalated</span><div class="muted small">${e.reescalationNote || ''}</div>`
+        : breached
+          ? `<span class="bd bd-t1">⏱ SLA BREACHED</span><div class="due-over small">${e.minsElapsed}m unattended</div>`
+          : `<span class="bd bd-t2">Active</span>${e.slaRemaining != null ? `<div class="muted small">${e.slaRemaining}m to SLA</div>` : ''}`;
+      return `
+        <tr class="${breached ? 'row-crit' : ''}">
+          <td data-label="Patient"><b>${e.patientName}</b><br><span class="pid">PT-${e.patientId}</span></td>
+          <td data-label="Ward">${e.ward} / Bed ${e.bed}</td>
+          <td data-label="NEWS2"><span class="n2s ${e.news2 >= 7 ? 'hi' : 'med'}">${e.news2}</span></td>
+          <td data-label="Level" class="small">${levelLabel(e.level)}</td>
+          <td data-label="Escalated" class="mono">${fmtTime(e.escalatedAt)}</td>
+          <td data-label="By">${e.escalatedBy || '--'}</td>
+          <td data-label="Status / SLA">${slaCell}</td>
+          <td data-label="Action"><div style="display:flex;gap:4px;flex-wrap:wrap">
+            <button class="btn ${breached ? 'btn-danger' : 'btn-sec'} btn-xs" onclick="reescalateEsc(${e.id})">Re-escalate ↑</button>
+            <button class="btn btn-sec btn-xs" onclick="nav('n1b', ${e.patientId})">Review</button>
+          </div></td>
+        </tr>
+      `;
+    }).join('')}
+  </tbody>
+</table></div>
+`}
+
+<div class="card" style="margin-top:14px">
+  <div class="card-title">CCU → General Ward Transfer Approvals ${transfers.length ? `<span class="bd bd-t2" style="margin-left:8px">${transfers.length} Pending</span>` : ''}</div>
+  ${transfers.length === 0
+    ? '<div class="muted small" style="padding:8px 0">No pending step-down recommendations.</div>'
+    : `<div class="tw" style="border:none"><table class="tbl-stack">
+        <thead><tr><th>Patient</th><th>Recommended By</th><th>NEWS2</th><th>Stable Window</th><th>Submitted</th><th>Actions</th></tr></thead>
+        <tbody>${transfers.map(t => `
+          <tr>
+            <td data-label="Patient"><b>${t.patientName}</b><br><span class="pid">${t.diagnosis || ''}</span></td>
+            <td data-label="Recommended By">${t.recommendedBy}</td>
+            <td data-label="NEWS2"><span class="n2s lo">${t.news2AtSubmit}</span></td>
+            <td data-label="Stable Window" style="color:var(--t3);font-weight:700">${t.stableWindowHours}h ✓</td>
+            <td data-label="Submitted" class="mono">${fmtTime(t.submittedAt)}</td>
+            <td data-label="Actions"><div style="display:flex;gap:6px">
+              <button class="btn btn-pri btn-xs" onclick="approveTransfer(${t.id})">Approve →</button>
+              <button class="btn btn-sec btn-xs" onclick="rejectTransfer(${t.id})">Reject</button>
+            </div></td>
+          </tr>`).join('')}</tbody></table></div>
+       <div class="muted small" style="margin-top:6px">Approval moves the patient CCU → General Ward (ward_location change). Requires charge-nurse credentials; cannot be undone without re-admission.</div>`}
+</div>
+`;
+};
+
+/* ── N5b — THRESHOLD CONFIG ─────────────────────────────────── */
+SCREENS.n5b = () => {
+  window.submitThresholds = function() {
+    const passEl = document.getElementById('th-pass');
+    const btn = document.getElementById('th-save-btn');
+    if (!passEl || !passEl.value.trim()) return;
+    if (btn) { btn.disabled = true; btn.textContent = 'Saved ✓'; }
+    if (passEl) passEl.value = '';
+    showToast('success', 'Thresholds Updated', {
+      notified: APP.user ? APP.user.name : 'Charge Nurse',
+      detail: 'Ward overrides saved and logged in the NABH audit trail.',
+    });
+  };
+  window.checkThresholdPass = function() {
+    const passEl = document.getElementById('th-pass');
+    const btn = document.getElementById('th-save-btn');
+    if (btn) btn.disabled = !(passEl && passEl.value.trim());
+  };
+
+  return `
+<div class="bc"><span class="bc-link" onclick="nav('n5')">Escalation Queue</span><span class="bc-sep">/</span><span>Threshold Config</span></div>
+<div class="sh"><h1 class="sh-title">NEWS2 Threshold Configuration — Ward 4B/4C</h1></div>
+<div class="alert al-warn">⚠️ Changes require Charge Nurse sign-off and are logged in the NABH audit trail. They propagate to all bedside dashboards in this ward.</div>
+
+<div class="card" style="max-width:640px">
+  <div class="card-title">Ward-level Overrides</div>
+  <div class="tw" style="border:none;margin-bottom:16px"><table>
+    <thead><tr><th>Parameter</th><th>Global Default</th><th>Ward Override</th><th>Rationale</th></tr></thead>
+    <tbody>
+      ${[
+        ['SpO₂ low alert',          '< 88%',    '< 90%',   'Post-PCI patients require stricter threshold'],
+        ['RR high alert',           '> 25/min', '> 22/min','Ward cardiology protocol'],
+        ['HR high alert',           '> 130/min','> 120/min','Post-arrhythmia patients'],
+        ['NEWS2 escalate trigger',  '≥ 7',      '≥ 5',     'Proactive escalation policy'],
+        ['Stale vitals warning',    '> 60 min', '> 45 min','Ward safety policy'],
+      ].map(([p,g,w,r]) => `
+      <tr>
+        <td class="bold">${p}</td>
+        <td class="muted">${g}</td>
+        <td style="color:var(--p)"><input class="fi" style="width:90px;display:inline;padding:3px 8px;font-size:11.5px" value="${w}"></td>
+        <td class="muted small">${r}</td>
+      </tr>`).join('')}
+    </tbody>
+  </table></div>
+  <div class="fg"><label class="fl">Charge Nurse Password (required to save)</label>
+    <input class="fi" type="password" id="th-pass" placeholder="Enter credentials to sign off" oninput="checkThresholdPass()">
+  </div>
+  <div style="display:flex;gap:8px;justify-content:flex-end">
+    <button class="btn btn-sec" onclick="nav('n5')">Cancel</button>
+    <button class="btn btn-pri" id="th-save-btn" disabled onclick="submitThresholds()">Save Changes</button>
+  </div>
+</div>`;
+};
+
+/* ── N6 — SHIFT HANDOFF (live ward data + real nurse list) ────────── */
+SCREENS.n6 = () => {
+  const nurseName = APP.user ? APP.user.name : 'Nurse';
+  const shiftLabel = APP.user ? APP.user.shift || 'Day' : 'Day';
+  const ward       = APP.user ? APP.user.ward || 'Ward 4B/4C' : 'Ward 4B/4C';
+  const timeStr    = new Date().toLocaleString('en-IN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short', year: 'numeric' });
+
+  // Live patients from ward cache
+  const patients = APP.data.n1?.patients || [];
+  const critPts  = patients.filter(p => p.status === 'critical' || p.status === 'warning');
+  const allPts   = patients.length > 0 ? patients : null;
+
+  // Live nurse list from API (loaded in nav() when navigating to 'n6')
+  const nurseList = APP.data.n6_nurses || [];
+  const nurseOpts = nurseList.length > 0
+    ? nurseList.map(n => `<option value="${n.name}">${n.name}${n.shift ? ' (' + n.shift + ' Shift)' : ''}</option>`).join('')
+    : '<option value="">Loading nurses…</option>';
+
+  // Auto-generate pending tasks from critical/warning patients
+  const autoPendingTasks = critPts.map(p =>
+    `<div class="check-row"><input type="checkbox" class="n6-task-check" data-task-id="pt-${p.id}"> <b>${p.patient_code || p.id}</b> ${p.name ? '— ' + p.name + ':' : ':'} ${p.status === 'critical' ? '⚠ CRITICAL — continuous monitoring' : 'NEWS2 ' + p.news2 + ' — monitor closely'}</div>`
+  ).join('');
+
+  // Patient summary table (real data)
+  const ptRows = allPts
+    ? allPts.slice(0, 10).map(p => {
+        const scoreClass = p.news2 >= 7 ? 'bd-t1' : p.news2 >= 5 ? 'bd-t2' : 'bd-t3';
+        const note = p.status === 'critical' ? '⚠ Critical — requires handoff attention'
+                   : p.status === 'warning'  ? 'Elevated — watch overnight'
+                   : p.status === 'stale'    ? 'Vitals overdue — check on arrival'
+                   : 'Stable';
+        return `<tr><td><b>${p.patient_code || p.id}</b>${p.name ? ' ' + p.name.split(' ').slice(0,2).join(' ') : ''}</td><td><span class="bd ${scoreClass}" style="min-width:28px;justify-content:center">${p.news2 ?? '--'}</span></td><td class="muted small">${note}</td></tr>`;
+      }).join('')
+    : '<tr><td colspan="3" class="muted small">No patients in ward — login to dashboard first</td></tr>';
+
+  // Submit handler
+  window.submitHandoff = async function() {
+    const incoming = document.getElementById('ho-incoming')?.value || '';
+    if (!incoming) { showToast('warning', 'Select incoming nurse', { detail: 'Please select the incoming nurse before completing handoff.' }); return; }
+    const notes   = document.getElementById('ho-notes')?.value || '';
+    const tasks   = Array.from(document.querySelectorAll('.n6-task-check')).map(cb => ({ id: cb.dataset.taskId, label: cb.parentElement?.textContent?.trim() || '', checked: cb.checked }));
+    const btn     = document.getElementById('ho-submit-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+    try {
+      const res = await fetch('/api/shift-handoffs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ outgoingNurse: nurseName, incomingNurse: incoming, ward, shift: shiftLabel, notes, pendingTasks: tasks })
+      });
+      if (res.ok) {
+        APP.lastHandoff = await res.json();
+        showToast('success', 'Handoff Complete', { notified: incoming, detail: 'Shift handoff logged and persisted.' });
+        setTimeout(() => nav('n6b'), 1200);
+      } else {
+        if (btn) { btn.disabled = false; btn.textContent = 'Complete Handoff'; }
+        showToast('warning', 'Handoff Save Failed', { detail: 'Backend returned an error — please try again.' });
+      }
+    } catch (e) {
+      if (btn) { btn.disabled = false; btn.textContent = 'Complete Handoff'; }
+      showToast('critical', 'Network Error', { detail: e.message });
+    }
+  };
+
+  return `
+<div class="bc">${dashboardCrumbHtml()}<span class="bc-sep">/</span><span>Shift Handoff</span></div>
+<div class="sh"><h1 class="sh-title">Shift Handoff — ${ward}</h1></div>
+
+<div class="grid2" style="margin-bottom:12px">
+  <div class="card">
+    <div class="card-title">Handoff Details</div>
+    <div class="frow">
+      <div class="fg"><label class="fl">Outgoing Nurse</label>
+        <input class="fi" value="${nurseName}" readonly style="background:var(--surf)">
+      </div>
+      <div class="fg"><label class="fl">Shift</label>
+        <input class="fi" value="${shiftLabel} Shift" readonly style="background:var(--surf)">
+      </div>
+    </div>
+    <div class="fg"><label class="fl">Incoming Nurse <span style="color:var(--t1)">*</span></label>
+      <select class="fi" id="ho-incoming">
+        <option value="">— select incoming nurse —</option>
+        ${nurseOpts}
+      </select>
+    </div>
+    <div class="fg"><label class="fl">Handoff Time</label>
+      <input class="fi" value="${timeStr}" readonly style="background:var(--surf)">
+    </div>
+    <div class="fg"><label class="fl">Ward</label>
+      <input class="fi" value="${ward}" readonly style="background:var(--surf)">
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Patient Summary (${allPts ? allPts.length : 0} patients)</div>
+    <div class="tw" style="border:none"><table>
+      <thead><tr><th>Patient</th><th>NEWS2</th><th>Priority Note</th></tr></thead>
+      <tbody>${ptRows}</tbody>
+    </table></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title">Pending Tasks for Incoming Shift</div>
+  ${autoPendingTasks || '<div class="muted small">No critical/warning patients — routine handoff.</div>'}
+  <div style="margin-top:8px">
+    <div class="check-row"><input type="checkbox" class="n6-task-check" data-task-id="all-news2"> All patients: NEWS2 vitals entry before ${new Date().getHours() >= 20 ? '23:00' : '20:00'}</div>
+  </div>
+  <div class="fg" style="margin-top:12px"><label class="fl">Handoff Notes</label>
+    <textarea class="fi" id="ho-notes" rows="3" placeholder="Doctor on call, pending labs, family notes, any ongoing concerns…"></textarea>
+  </div>
+  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+    <button class="btn btn-sec" onclick="nav('n1')">Cancel</button>
+    <button class="btn btn-pri" id="ho-submit-btn" onclick="submitHandoff()">Complete Handoff</button>
+  </div>
+</div>`;
+};
+
+/* ── N6b — HANDOFF COMPLETE (reads from APP.lastHandoff or backend) ── */
+SCREENS.n6b = () => {
+  const ho = APP.lastHandoff;
+
+  // Guard: if navigated directly with no active handoff
+  if (!ho) {
+    return `
+<div class="bc"><span class="bc-link" onclick="nav('n6')">Shift Handoff</span><span class="bc-sep">/</span><span>Complete</span></div>
+<div class="sh"><h1 class="sh-title">Handoff Complete</h1></div>
+<div class="card" style="max-width:440px;margin:0 auto;text-align:center;padding:36px">
+  <div style="font-size:44px;margin-bottom:14px">⚠️</div>
+  <div style="font-size:16px;font-weight:700;margin-bottom:12px">No Active Handoff</div>
+  <div class="muted small" style="margin-bottom:20px">No handoff has been completed in this session. Start a new handoff from the Shift Handoff screen.</div>
+  <button class="btn btn-pri" style="width:100%;justify-content:center" onclick="nav('n6')">Go to Shift Handoff</button>
+</div>`;
+  }
+
+  const timeStr = ho.createdAt
+    ? new Date(ho.createdAt).toLocaleString('en-IN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short', year: 'numeric' })
+    : new Date().toLocaleString('en-IN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short', year: 'numeric' });
+
+  return `
+<div class="bc"><span class="bc-link" onclick="nav('n6')">Shift Handoff</span><span class="bc-sep">/</span><span>Complete</span></div>
+<div class="sh"><h1 class="sh-title">Shift Handoff Complete</h1></div>
+<div class="card" style="max-width:440px;margin:0 auto;text-align:center;padding:36px">
+  <div style="font-size:44px;margin-bottom:14px">🤝</div>
+  <div style="font-size:16px;font-weight:800;color:var(--t3);margin-bottom:16px">Handoff Complete</div>
+  <div class="tw" style="text-align:left;margin-bottom:20px"><table><tbody>
+    <tr><td class="muted">Outgoing</td><td class="bold">${ho.outgoingNurse}</td></tr>
+    <tr><td class="muted">Incoming</td><td class="bold">${ho.incomingNurse}</td></tr>
+    <tr><td class="muted">Ward</td><td class="mono">${ho.ward || 'Ward 4B/4C'}</td></tr>
+    <tr><td class="muted">Shift end</td><td class="mono">${timeStr}</td></tr>
+    <tr><td class="muted">Reference</td><td class="mono">${ho.referenceId}</td></tr>
+    <tr><td class="muted">Acknowledged</td><td style="color:var(--t3)">✓ ${ho.incomingNurse}</td></tr>
+  </tbody></table></div>
+  ${ho.notes ? `<div class="alert al-info" style="text-align:left;margin-bottom:16px"><b>Notes handed over:</b><br>${ho.notes}</div>` : ''}
+  <button class="btn btn-pri" style="width:100%;justify-content:center" onclick="APP.lastHandoff=null;nav('n1')">← Return to Dashboard</button>
+</div>`;
+};
+
+
+
+/* ══════════════════════════════════════════════════════════════
+   DRUG-LAB SCREENS
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── DL3 — NURSE AWARENESS (read-only) ──────────────────────── */
+SCREENS.dl3 = () => {
+  const p = APP.data.n1b || {};
+  const alerts = p.drugLabAlerts || [];
+  return `
+<div class="bc"><span class="bc-link" onclick="nav('n1b', ${p.id})">Patient Detail</span><span class="bc-sep">/</span><span>Drug-Lab Awareness</span></div>
+<div class="sh"><h1 class="sh-title">Drug-Lab Awareness — ${p.name || 'Patient'}</h1><div class="sh-actions"><span class="pid">${p.patient_code || ''}</span></div></div>
+<div class="alert al-info">Nurse awareness only — clinical actions (override / hold / consult) are taken by the Head Nurse / Attending. Document any adverse observations in the escalation form.</div>
+
+${alerts.length === 0
+  ? '<div class="alert al-ok">No active drug-lab flags for this patient.</div>'
+  : alerts.map(a => {
+      const tier = a.severity === 'CRITICAL' ? 't1' : 't2';
+      return `<div class="dlf ${tier}" style="margin-bottom:10px"><div class="dlf-bd">
+        <div class="flex-r"><div class="dlf-title">&#9888; ${a.severity} — ${a.rule_name || ''}</div><span class="bd ${a.severity==='CRITICAL'?'bd-t1':'bd-t2'}">${a.severity}</span></div>
+        <div class="dlf-desc"><b>Alert:</b> ${a.message || ''}<br><b>Watch / action:</b> ${a.action || ''}</div>
+        ${a.guideline ? `<div class="muted small" style="margin-top:4px">${a.guideline}</div>` : ''}
+      </div></div>`;
+    }).join('')}
+
+<div class="card">
+  <div class="card-title">Observation Checklist — report immediately if any observed</div>
+  ${['Unusual bruising or petechiae','Black or tarry stools (melena)','Blood in urine (haematuria)','Haematemesis (blood in vomit)','Prolonged bleeding from puncture sites','Sudden confusion or neurological change'].map(s => `<div class="check-row"><input type="checkbox"> ${s}</div>`).join('')}
+  <div style="margin-top:12px;display:flex;gap:8px">
+    <button class="btn btn-sec btn-sm" onclick="nav('n1b', ${p.id})">← Back to Patient</button>
+    <button class="btn btn-sec btn-sm" onclick="nav('n2', ${p.id})">Log in Escalation</button>
+  </div>
+</div>`;
+};
+
+/* ── DL1 — DL FLAG OVERVIEW (Charge Nurse — live from ward data) ──── */
+SCREENS.dl1 = () => {
+  if (APP.loading && !APP.data.n1) return skeletonDashboard('Drug–Lab Flags');
+  if (APP.fetchError && !APP.data.n1) return errorState('Could not load drug–lab data. Retry.');
+  const patients = APP.data.n1?.patients || [];
+  const allFlags = [];
+  patients.forEach(p => {
+    (p.drugLabAlerts || []).forEach(a => {
+      allFlags.push({ ...a, patientName: p.name, patientId: p.id, ward: p.ward, bed: p.bed });
+    });
+  });
+  const critFlags = allFlags.filter(f => f.severity === 'CRITICAL');
+  const warnFlags = allFlags.filter(f => f.severity === 'WARNING');
+
+  return `
+<div class="bc"><span>Drug-Lab</span><span class="bc-sep">/</span><span>Active Flags</span></div>
+<div class="sh"><h1 class="sh-title">Active Drug-Lab Flags &mdash; Ward 4B/4C</h1></div>
+<div class="alert al-warn">Flags are computed live from patient medication &amp; lab records. CRITICAL flags require attending action and charge nurse co-sign for override.</div>
+
+<div class="stats">
+  <div class="stat" style="border-left:3px solid var(--t1)"><div class="stat-v" style="color:var(--t1)">${critFlags.length}</div><div class="stat-l">CRITICAL Flags</div></div>
+  <div class="stat" style="border-left:3px solid var(--t2)"><div class="stat-v" style="color:var(--t2)">${warnFlags.length}</div><div class="stat-l">WARNING Flags</div></div>
+  <div class="stat"><div class="stat-v" style="color:var(--muted)">${patients.length}</div><div class="stat-l">Patients Checked</div></div>
+</div>
+
+${allFlags.length === 0
+  ? `<div class="alert al-ok">No active drug-lab interaction flags across all ward patients.</div>`
+  : allFlags.map(a => {
+      const tier = a.severity === 'CRITICAL' ? 't1' : 't2';
+      const badge = a.severity === 'CRITICAL' ? 'bd-t1' : 'bd-t2';
+      return `<div class="dlf ${tier}" style="margin-bottom:10px"><div class="dlf-bd">
+        <div class="flex-r">
+          <div class="dlf-title">&#9888; ${a.rule_name || a.severity} &mdash; ${a.patientName} (${a.ward}, Bed ${a.bed})</div>
+          <span class="bd ${badge}">${a.severity}</span>
+        </div>
+        <div class="dlf-desc">${a.message}</div>
+        <div style="margin-top:6px;font-size:11.5px;color:var(--ink2)"><b>Action:</b> ${a.action || ''}</div>
+        <div style="margin-top:4px;font-size:11px;color:var(--muted)">${a.guideline || ''}</div>
+        <div style="margin-top:8px;display:flex;align-items:center;gap:12px">
+          <span class="dlf-link" onclick="openDl2('${a.patientId}', '${(a.rule_name||'').replace(/'/g,"\\'")}')">View detail &amp; take action &rarr;</span>
+        </div>
+      </div></div>`;
+    }).join('')}`;
+};
+
+/* Open the real flag a user clicked, then route to DL2 (Flag Detail & Action) */
+window.openDl2 = function(pid, ruleName) {
+  const pats = APP.data.n1?.patients || [];
+  for (const p of pats) {
+    if (p.id == pid) {
+      const a = (p.drugLabAlerts || []).find(x => x.rule_name === ruleName) || (p.drugLabAlerts || [])[0];
+      if (a) {
+        APP.dl2_flag = { ...a, patientName: p.name, patientId: p.id, patientCode: p.patient_code, ward: p.ward, bed: p.bed, diagnosis: p.diagnosis_short };
+        APP.dl2_action = 'hold';
+        APP.dl2_justification = '';
+        nav('dl2');
+        return;
+      }
+    }
+  }
+  showToast('warning', 'Flag Details Missing', { detail: 'Flag details unavailable — refresh the dashboard.' });
+};
+
+/* Persist a Drug-Lab action (DL2/dlcosign → DL2b) to the NABH audit trail */
+window.recordDlAction = async function(cosignedBy) {
+  const f = APP.dl2_flag;
+  if (!f) { showToast('warning', 'No Flag Selected', { detail: 'Please select a drug-lab flag first.' }); return; }
+  const noteEl = document.getElementById('dl2-note');
+  if (noteEl) APP.dl2_justification = noteEl.value;
+  const nurseName = APP.user ? APP.user.name : 'Charge Nurse';
+  try {
+    const res = await fetch('/api/drug-lab-actions', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        subjectId: f.patientId, ruleName: f.rule_name, severity: f.severity,
+        action: APP.dl2_action, justification: APP.dl2_justification || '',
+        recordedBy: nurseName, cosignedBy: cosignedBy || null
+      })
+    });
+    if (res.ok) {
+      APP.dl2_result = await res.json();
+      APP.dl2_result.patientName = f.patientName;
+      APP.dl2_result.diagnosis = f.diagnosis;
+      showToast('warning', 'Drug–Lab Safety Flag — NABH DL2', {
+        patient:  f.patientName || '',
+        notified: nurseName + (cosignedBy ? ` · Cosigned: ${cosignedBy}` : ' · Cosign pending'),
+        detail:   `${f.rule_name} — ${APP.dl2_action}`,
+      });
+      nav('dl2b');
+    } else { showToast('critical', 'Action Failed', { detail: 'Could not record drug-lab action.' }); }
+  } catch (e) { showToast('critical', 'Network Error', { detail: e.message }); }
+};
+
+/* ── DL2 — FLAG DETAIL & ACTION (data-driven from the clicked flag) ── */
+SCREENS.dl2 = () => {
+  const f = APP.dl2_flag;
+  if (!f) return `<div class="bc"><span class="bc-link" onclick="nav('dl1')">DL Flags</span></div>
+    <div class="alert al-warn">No flag selected. <span class="bc-link" onclick="nav('dl1')">← Back to Drug-Lab flags</span></div>`;
+  const isCrit = f.severity === 'CRITICAL';
+  const tier = isCrit ? 't1' : 't2';
+
+  window.submitDl2 = function() {
+    const noteEl = document.getElementById('dl2-note');
+    if (noteEl) APP.dl2_justification = noteEl.value;
+    if (APP.dl2_action === 'override' && isCrit) { nav('dlcosign'); return; }  // T1 override needs co-sign
+    recordDlAction(null);
+  };
+  const actCard = (key, title, desc, badge) => `
+    <div class="card action-card${APP.dl2_action===key?' selected-action':''}" style="border:2px solid ${APP.dl2_action===key?'var(--p)':'var(--border)'};cursor:pointer" onclick="APP.dl2_action='${key}';renderAll()">
+      <div class="flex-r" style="margin-bottom:4px"><input type="radio" name="dl-action" ${APP.dl2_action===key?'checked':''}> <b>${title}</b>${badge?`<span class="bd bd-t1" style="margin-left:auto">${badge}</span>`:''}</div>
+      <div style="font-size:11.5px;color:var(--ink2)">${desc}</div>
+    </div>`;
+
+  return `
+<div class="bc"><span class="bc-link" onclick="nav('dl1')">DL Flags</span><span class="bc-sep">/</span><span>Flag Detail</span></div>
+<div class="sh"><h1 class="sh-title">Drug-Lab Flag Detail</h1><div class="sh-actions"><span class="bd ${isCrit?'bd-t1':'bd-t2'}">${f.severity}</span></div></div>
+
+<div class="grid2">
+  <div>
+    <div class="dlf ${tier}" style="margin-bottom:12px">
+      <div class="dlf-bd">
+        <div class="dlf-title">&#9888; ${f.severity} — ${f.rule_name || ''}</div>
+        <div class="dlf-desc" style="margin-top:8px;line-height:1.7">
+          <b>Patient:</b> ${f.patientName} <span class="pid">${f.patientCode || ''}</span> · ${f.diagnosis || ''} · ${f.ward}, Bed ${f.bed}<br>
+          <b>Alert:</b> ${f.message || ''}<br>
+          <b>Recommended action:</b> ${f.action || ''}
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Evidence</div>
+      <div class="tw" style="border:none"><table><tbody>
+        <tr><td class="muted">Rule</td><td class="bold">${f.rule_name || ''}</td></tr>
+        <tr><td class="muted">Severity</td><td style="color:${isCrit?'var(--t1)':'var(--t2)'};font-weight:700">${f.severity}</td></tr>
+        <tr><td class="muted">Clinical basis</td><td>${f.message || ''}</td></tr>
+        <tr><td class="muted">Guideline</td><td>${f.guideline || '—'}</td></tr>
+      </tbody></table></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Required Action — Choose One</div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      ${actCard('override', 'Override with clinical justification', 'Document why the regimen is clinically necessary.' + (isCrit?' Head-Nurse co-sign required for a CRITICAL (T1) override.':''), isCrit?'Requires T1 Co-sign':'')}
+      ${actCard('hold', 'Hold implicated drug — pending review', 'Suspend the implicated drug until specialist/haematology review. Monitor relevant labs.')}
+      ${actCard('pharmacist', 'Consult Clinical Pharmacist', 'Refer for formal medication review. Action pending pharmacist recommendation.')}
+    </div>
+    <div class="fg" style="margin-top:12px"><label class="fl">Clinical note (optional)</label>
+      <textarea class="fi" id="dl2-note" rows="2" placeholder="Add any context for the audit trail…">${APP.dl2_justification||''}</textarea>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn btn-sec" onclick="nav('dl1')">← Back</button>
+      <button class="btn btn-pri" onclick="submitDl2()">${APP.dl2_action==='override'&&isCrit?'Continue to Co-Sign →':'Submit Action →'}</button>
+    </div>
+  </div>
+</div>`;
+};
+
+/* ── DL2b — DL ACTION CONFIRMATION (data-driven from the persisted record) ── */
+SCREENS.dl2b = () => {
+  const r = APP.dl2_result;
+  if (!r) return `<div class="bc"><span class="bc-link" onclick="nav('dl1')">DL Flags</span></div>
+    <div class="alert al-warn">No action on record. <span class="bc-link" onclick="nav('dl1')">← Back to flags</span></div>`;
+  const labels = { override: 'Override with clinical justification', hold: 'Hold implicated drug — pending review', pharmacist: 'Consult Clinical Pharmacist' };
+  return `
+<div class="bc"><span class="bc-link" onclick="nav('dl1')">DL Flags</span><span class="bc-sep">/</span><span>Confirmation</span></div>
+<div class="sh"><h1 class="sh-title">Drug-Lab Action Recorded</h1></div>
+<div class="alert al-ok">✅ Action recorded for ${r.patientName || 'patient'}: <b>${labels[r.action] || r.action}</b></div>
+<div class="card" style="max-width:560px">
+  <div class="tw" style="border:none;margin-bottom:14px"><table><tbody>
+    <tr><td class="muted">Patient</td><td class="bold">${r.patientName || ''} ${r.diagnosis ? '· ' + r.diagnosis : ''}</td></tr>
+    <tr><td class="muted">Flag</td><td>${r.ruleName || ''} <span class="bd ${r.severity==='CRITICAL'?'bd-t1':'bd-t2'}">${r.severity}</span></td></tr>
+    <tr><td class="muted">Action taken</td><td class="bold">${labels[r.action] || r.action}</td></tr>
+    ${r.justification ? `<tr><td class="muted">Justification</td><td>${r.justification}</td></tr>` : ''}
+    <tr><td class="muted">Recorded by</td><td>${r.recordedBy || ''}</td></tr>
+    ${r.cosignedBy ? `<tr><td class="muted">Co-signed by</td><td>${r.cosignedBy} (Head Nurse)</td></tr>` : ''}
+    <tr><td class="muted">Timestamp</td><td class="mono">${r.recordedAt || ''}</td></tr>
+    <tr><td class="muted">Status</td><td><span class="bd bd-t3">Resolved</span></td></tr>
+  </tbody></table></div>
+  <div class="alert al-info">ℹ️ Recorded in the NABH audit trail (<span class="mono">/api/drug-lab-actions</span>).</div>
+  <div style="display:flex;gap:8px">
+    <button class="btn btn-sec" onclick="nav('dl1')">← Back to Flags</button>
+  </div>
+</div>`;
+};
+
+/* ── N_VITALS — NURSE VITALS ENTRY SCREEN ───────────────────── */
+SCREENS.n_vitals = () => {
+  const p = APP.data.n_vitals_patient || {};
+  const latest = APP.data.n_vitals_latest;
+  const staleMins = latest ? latest.stale_mins : null;
+  const isStale = latest ? latest.is_stale : true;
+  const staleWarning = isStale && staleMins !== null
+    ? '<div class="alert al-warn">⚠ Last vitals recorded ' + staleMins + ' min ago — entry required.</div>'
+    : staleMins !== null
+      ? '<div class="alert al-ok">Last vitals recorded ' + staleMins + ' min ago.</div>'
+      : '<div class="alert al-warn">⚠ No vitals on record for this patient.</div>';
+
+  window.submitVitals = async function() {
+    const get = id => document.getElementById(id)?.value;
+    const spo2 = parseFloat(get('v-spo2'));
+    const rr   = parseFloat(get('v-rr'));
+    const hr   = parseFloat(get('v-hr'));
+    const sbp  = parseFloat(get('v-sbp'));
+    const dbp  = parseFloat(get('v-dbp'));
+    const temp = parseFloat(get('v-temp'));
+    const consciousness = get('v-avpu') || 'A';
+    const air_or_oxygen = get('v-air') || 'Air';
+
+    const _fieldNames = { spo2: 'SpO2', rr: 'Resp Rate', hr: 'Heart Rate', sbp: 'BP Systolic', dbp: 'BP Diastolic', temp: 'Temperature' };
+    const _blank = Object.entries({ spo2, rr, hr, sbp, dbp, temp }).filter(([, v]) => isNaN(v)).map(([k]) => _fieldNames[k]);
+    if (_blank.length) {
+      showToast('warning', 'Missing Values', { detail: `Please fill in: ${_blank.join(', ')}` });
+      return;
+    }
+    if (spo2 < 0 || spo2 > 100)   { showToast('warning', 'Validation Error', { detail: 'SpO2 must be 0–100%' }); return; }
+    if (spo2 < 85) showToast('critical', 'Critically Low SpO₂', { patient: p.name||'', detail: `SpO2 ${spo2}% — confirm O₂ delivery immediately.`, persistent: true });
+    if (rr < 5   || rr > 60)       { showToast('warning', 'Validation Error', { detail: 'Resp Rate must be 5–60' }); return; }
+    if (hr < 20  || hr > 250)      { showToast('warning', 'Validation Error', { detail: 'Heart Rate must be 20–250' }); return; }
+    if (sbp < 50 || sbp > 250)     { showToast('warning', 'Validation Error', { detail: 'SBP must be 50–250' }); return; }
+    if (dbp < 30 || dbp > 150)     { showToast('warning', 'Validation Error', { detail: 'DBP must be 30–150' }); return; }
+    if (temp < 33 || temp > 42)    { showToast('warning', 'Validation Error', { detail: 'Temp must be 33–42 °C' }); return; }
+
+    const btn = document.getElementById('submit-vitals-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+
+    try {
+      const res = await fetch('/api/patients/' + APP.currentPatientId + '/vitals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ spo2, resp_rate: rr, heart_rate: hr, sbp, dbp, temperature: temp, consciousness, air_or_oxygen })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const score = data.news2_score;
+        const level = data.risk_level;
+        const badgeClass = level === 'critical' ? 'bd-t1' : level === 'warning' ? 'bd-t2' : 'bd-t3';
+        const factors = (data.factors || []).map(function(f) { return f.name + ': +' + f.score; }).join(' · ') || 'All parameters within range';
+        const el = document.getElementById('vitals-result');
+        if (el) {
+          el.innerHTML = '<div class="alert al-ok" style="margin-top:16px">' +
+            '✓ Vitals saved — NEWS2: <span class="bd ' + badgeClass + '" style="font-size:13px;padding:3px 10px">' + score + ' — ' + level.toUpperCase() + '</span>' +
+            '<br><span class="muted small">' + factors + '</span></div>';
+        }
+        const toastType = level === 'critical' ? 'critical' : level === 'warning' ? 'warning' : 'success';
+        showToast(toastType, `Vitals Updated — NEWS2 ${score}`, {
+          patient:  p.name || p.patient_code || '',
+          notified: APP.user?.name || 'Nurse',
+          detail:   score >= 7 ? '⚠ CRITICAL threshold — escalation required immediately.'
+                  : score >= 5 ? 'Monitor closely — escalation threshold approaching.'
+                  : 'Patient within safe parameters.',
+        });
+        setTimeout(function() { nav('n1b', APP.currentPatientId); }, 2200);
+      } else {
+        if (btn) { btn.disabled = false; btn.textContent = 'Submit Vitals'; }
+        showToast('critical', 'Vitals Save Failed', { detail: 'Failed to save vitals — check backend is running.' });
+      }
+    } catch(e) {
+      if (btn) { btn.disabled = false; btn.textContent = 'Submit Vitals'; }
+      showToast('critical', 'Network Error', { detail: e.message });
+    }
+  };
+
+  const pid = APP.currentPatientId;
+  const patName = p.patient_code || p.name || 'Patient';
+  const patSubname = p.name || '';
+  return '<div class="bc">' +
+    dashboardCrumbHtml() +
+    '<span class="bc-sep">/</span>' +
+    '<span class="bc-link" onclick="nav(\'n1b\',' + pid + ')">Patient Detail</span>' +
+    '<span class="bc-sep">/</span>' +
+    '<span>Enter Vitals</span>' +
+    '</div>' +
+    '<div class="sh"><h1 class="sh-title">Enter Vitals — ' + patName + '</h1>' +
+    '<div class="sh-actions"><span class="muted small">' + patSubname + '</span></div></div>' +
+    staleWarning +
+    '<div class="card" style="max-width:560px">' +
+    '<div class="card-title">Vital Signs Entry</div>' +
+    '<div class="grid3" style="gap:12px;margin-bottom:16px">' +
+    '<div class="fg"><label class="fl">SpO2 (%)</label><input class="fi" id="v-spo2" type="number" min="70" max="100" step="0.1" placeholder="e.g. 96" value="' + (latest && latest.spo2 != null ? latest.spo2 : '') + '"></div>' +
+    '<div class="fg"><label class="fl">Resp Rate (/min)</label><input class="fi" id="v-rr" type="number" min="5" max="60" placeholder="e.g. 18" value="' + (latest && latest.resp_rate != null ? latest.resp_rate : '') + '"></div>' +
+    '<div class="fg"><label class="fl">Heart Rate (bpm)</label><input class="fi" id="v-hr" type="number" min="20" max="250" placeholder="e.g. 88" value="' + (latest && latest.heart_rate != null ? latest.heart_rate : '') + '"></div>' +
+    '<div class="fg"><label class="fl">BP Systolic (mmHg)</label><input class="fi" id="v-sbp" type="number" min="50" max="250" placeholder="e.g. 118" value="' + (latest && latest.sbp != null ? latest.sbp : '') + '"></div>' +
+    '<div class="fg"><label class="fl">BP Diastolic (mmHg)</label><input class="fi" id="v-dbp" type="number" min="30" max="150" placeholder="e.g. 76" value="' + (latest && latest.dbp != null ? latest.dbp : '') + '"></div>' +
+    '<div class="fg"><label class="fl">Temperature (C)</label><input class="fi" id="v-temp" type="number" min="33" max="42" step="0.1" placeholder="e.g. 37.0" value="' + (latest && latest.temperature != null ? latest.temperature : '') + '"></div>' +
+    '<div class="fg"><label class="fl">AVPU</label><select class="fi" id="v-avpu"><option value="A"' + (!latest || latest.consciousness === 'A' || !latest.consciousness ? ' selected' : '') + '>Alert</option><option value="V"' + (latest && latest.consciousness === 'V' ? ' selected' : '') + '>Voice</option><option value="P"' + (latest && latest.consciousness === 'P' ? ' selected' : '') + '>Pain</option><option value="U"' + (latest && latest.consciousness === 'U' ? ' selected' : '') + '>Unresponsive</option></select></div>' +
+    '<div class="fg"><label class="fl">Air / O2</label><select class="fi" id="v-air"><option value="Air"' + (!latest || latest.air_or_oxygen !== 'Oxygen' ? ' selected' : '') + '>Air</option><option value="Oxygen"' + (latest && latest.air_or_oxygen === 'Oxygen' ? ' selected' : '') + '>Oxygen</option></select></div>' +
+    '</div>' +
+    (latest ? '<div class="muted small" style="margin-bottom:12px">Pre-filled with the most recent recorded values — edit only the field(s) that need correcting.</div>' : '') +
+    '<div style="display:flex;gap:8px;align-items:center">' +
+    '<button class="btn btn-sec btn-sm" onclick="nav(\'n1b\',' + pid + ')">Cancel</button>' +
+    '<button class="btn btn-pri" id="submit-vitals-btn" onclick="submitVitals()">Submit Vitals</button>' +
+    '</div></div>' +
+    '<div id="vitals-result"></div>';
+};
+
+/* ── DL CO-SIGN (Tier-1 override, data-driven) ──────────────── */
+SCREENS.dlcosign = () => {
+  const f = APP.dl2_flag;
+  if (!f) return `<div class="bc"><span class="bc-link" onclick="nav('dl1')">DL Flags</span></div>
+    <div class="alert al-warn">No flag selected. <span class="bc-link" onclick="nav('dl1')">← Back to flags</span></div>`;
+  window.submitCosign = function() {
+    APP.dl2_justification = document.getElementById('co-just')?.value || '';
+    APP.dl2_action = 'override';
+    const cosigner = document.getElementById('co-name')?.value || (APP.user ? APP.user.name : 'Head Nurse');
+    recordDlAction(cosigner);
+  };
+  return `
+<div class="bc"><span class="bc-link" onclick="nav('dl1')">DL Flags</span><span class="bc-sep">/</span><span class="bc-link" onclick="nav('dl2')">Flag Detail</span><span class="bc-sep">/</span><span>Tier 1 Co-Sign</span></div>
+<div class="sh"><h1 class="sh-title">Tier 1 Override — Co-Sign Required</h1><div class="sh-actions"><span class="bd bd-t1">${f.severity}</span></div></div>
+<div class="alert al-err">🔐 Overriding a CRITICAL (T1) Drug-Lab flag requires a second sign-off — an NABH mandatory safety requirement.</div>
+<div class="alert al-info">Flag: <b>${f.rule_name || ''}</b> — ${f.patientName} <span class="pid">${f.patientCode || ''}</span>. ${f.message || ''}</div>
+
+<div class="grid2">
+  <div class="card">
+    <div class="card-title">Override Justification</div>
+    <div class="fg"><label class="fl">Clinical Justification <span style="color:var(--t1)">*</span></label>
+      <textarea class="fi" id="co-just" rows="5" placeholder="Document why this regimen must continue despite the flag…">${APP.dl2_justification || ''}</textarea>
+    </div>
+    <div class="fg"><label class="fl">Recorded by</label>
+      <input class="fi" value="${APP.user ? APP.user.name : 'Charge Nurse'}" readonly style="background:var(--surf)">
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Head Nurse Co-Sign</div>
+    <div class="muted small" style="margin-bottom:12px">A second senior nurse must verify the justification and provide credentials to complete the override.</div>
+    <div class="fg"><label class="fl">Co-signing Head Nurse</label><input class="fi" id="co-name" placeholder="Enter co-signing Head Nurse's name"></div>
+    <div class="fg"><label class="fl">Employee ID</label><input class="fi" placeholder="EMP-XXXX"></div>
+    <div class="fg"><label class="fl">Password</label><input class="fi" type="password" placeholder="Enter credentials"></div>
+    <div class="alert al-warn" style="margin-top:10px">⚠️ By co-signing, you accept oversight responsibility for this override.</div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn btn-sec" onclick="nav('dl2')">← Back</button>
+      <button class="btn btn-pri" onclick="submitCosign()">Co-Sign Override ✓</button>
+    </div>
+  </div>
+</div>`;
+};
+
+/* ── DISCHARGE CONFIRMATION SCREEN ─────────────────────────────────────── */
+SCREENS.n_discharge = () => {
+  const dp = APP._dischargePatient || {};
+  return `
+<div class="bc">${dashboardCrumbHtml()}<span class="bc-sep">/</span><span>Discharge Initiated</span></div>
+<div class="sh"><h1 class="sh-title">Discharge Process Started</h1><div class="sh-actions"><span class="bd bd-t3">✓ Submitted</span></div></div>
+
+<div class="alert al-ok" style="font-size:14px">
+  ✅ Discharge initiated for <b>${dp.name || 'Patient'}</b>.<br>
+  The Resident Doctor has been notified to generate the discharge summary.
+</div>
+
+<div class="card" style="max-width:560px">
+  <div class="card-title">What Happens Next</div>
+  <table style="width:100%;font-size:13px;border-collapse:collapse">
+    <tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:10px 0;color:var(--muted)">Step 1</td>
+      <td style="padding:10px 0"><b>Ward Nurse (you)</b> — Discharge initiated ✓</td>
+    </tr>
+    <tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:10px 0;color:var(--muted)">Step 2</td>
+      <td style="padding:10px 0"><b>Resident Doctor</b> — Reviews patient, generates the discharge summary</td>
+    </tr>
+    <tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:10px 0;color:var(--muted)">Step 3</td>
+      <td style="padding:10px 0"><b>Attending Physician</b> — Signs off the discharge summary</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 0;color:var(--muted)">Step 4</td>
+      <td style="padding:10px 0"><b>Billing</b> — Final cost estimate generated for patient</td>
+    </tr>
+  </table>
+</div>
+
+<div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
+  <button class="btn btn-sec btn-sm" onclick="nav('n1')">← Back to Ward Dashboard</button>
+</div>`;
+};
+

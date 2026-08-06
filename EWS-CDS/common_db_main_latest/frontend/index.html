@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Foqal CareOS</title>
+<style>
+/* ── RESET ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:system-ui,-apple-system,'Segoe UI',sans-serif;
+  font-size:13px;
+  color:#111827;
+  background:#f9fafb;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:100vh;
+}
+button,input,select,textarea{font-family:inherit;font-size:inherit}
+a{color:inherit;text-decoration:none}
+
+/* ── VARIABLES ── */
+:root{
+  --p:#800080;
+  --pl:#f7edf7;
+  --ink:#111827;
+  --ink2:#374151;
+  --muted:#6b7280;
+  --border:#e5e7eb;
+  --surf:#f9fafb;
+  --t1:#dc2626;
+  --t1b:#fef2f2;
+  --t3:#059669;
+  --t3b:#ecfdf5;
+}
+
+/* ── LOGIN WRAPPER ── */
+.login-page{
+  width:100%;
+  max-width:480px;
+  padding:32px 20px;
+}
+
+/* ── HEADER ── */
+.login-header{
+  text-align:center;
+  margin-bottom:32px;
+}
+.login-logo{
+  font-size:30px;
+  font-weight:900;
+  color:var(--p);
+  letter-spacing:-.5px;
+  line-height:1;
+}
+.login-sub{
+  font-size:13.5px;
+  color:var(--muted);
+  margin-top:7px;
+}
+
+/* ── CARD ── */
+.card{
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:28px 28px 22px;
+}
+
+/* ── FORM ── */
+.fg{margin-bottom:16px}
+.fl{
+  display:block;
+  font-size:12.5px;
+  font-weight:600;
+  color:var(--ink2);
+  margin-bottom:5px;
+}
+.fi{
+  width:100%;
+  padding:9px 13px;
+  border:1px solid var(--border);
+  border-radius:7px;
+  font-size:14px;
+  color:var(--ink);
+  background:#fff;
+  outline:none;
+  transition:border-color .12s,box-shadow .12s;
+}
+.fi:focus{
+  border-color:var(--p);
+  box-shadow:0 0 0 3px rgba(128,0,128,.1);
+}
+.fi.err{border-color:var(--t1)}
+
+/* ── BUTTON ── */
+.btn-pri{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:100%;
+  padding:11px 16px;
+  border:none;
+  border-radius:7px;
+  background:var(--p);
+  color:#fff;
+  font-size:14.5px;
+  font-weight:600;
+  cursor:pointer;
+  margin-top:8px;
+  transition:background .12s;
+}
+.btn-pri:hover{background:#5c0060}
+.btn-pri:disabled{opacity:.5;cursor:not-allowed}
+
+/* ── LINKS ── */
+.login-links{
+  margin-top:16px;
+  text-align:center;
+  font-size:12.5px;
+  color:var(--muted);
+}
+.login-links a{
+  color:var(--p);
+  cursor:pointer;
+}
+.login-links a:hover{text-decoration:underline}
+
+/* ── CREDENTIAL HINTS ── */
+.cred-section{
+  margin-top:24px;
+  border-top:1px solid var(--border);
+  padding-top:16px;
+}
+.cred-section-title{
+  font-size:10.5px;
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:.6px;
+  color:var(--muted);
+  margin-bottom:12px;
+  text-align:center;
+}
+.cred-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+}
+.cred-row{
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+  padding:9px 10px;
+  border:1px solid var(--border);
+  border-radius:8px;
+  background:#fafafa;
+  cursor:pointer;
+  transition:border-color .12s,background .12s,box-shadow .12s,transform .12s;
+}
+.cred-row:hover{
+  border-color:var(--p);
+  background:#fdf5ff;
+  box-shadow:0 2px 6px rgba(128,0,128,.12);
+  transform:translateY(-1px);
+}
+.cred-row:active{transform:translateY(0)}
+.cred-badge{
+  display:inline-block;
+  font-size:9.5px;
+  font-weight:700;
+  padding:2.5px 7px;
+  border-radius:4px;
+  color:#fff;
+  white-space:nowrap;
+  width:fit-content;
+}
+.cb-ccu{background:#7c3aed}
+.cb-gw{background:#16a34a}
+.cb-charge{background:#dc2626}
+.cb-res{background:#0369a1}
+.cb-bill{background:#92400e}
+.cb-attend{background:#b45309}
+.cb-ward{background:#0f766e}
+.cb-cmo{background:#1d4ed8}
+.cb-super{background:#6b21a8}
+.cred-name{font-size:11.5px;font-weight:600;color:var(--ink)}
+
+/* ── ERROR BANNER ── */
+.err-banner{
+  display:none;
+  margin-top:10px;
+  padding:9px 12px;
+  background:var(--t1b);
+  border:1px solid #fca5a5;
+  border-radius:6px;
+  font-size:12px;
+  color:var(--t1);
+  line-height:1.5;
+}
+
+/* ── SPINNER ── */
+.spinner{
+  display:inline-block;
+  width:12px;
+  height:12px;
+  border:2px solid rgba(255,255,255,.4);
+  border-top-color:#fff;
+  border-radius:50%;
+  animation:spin .6s linear infinite;
+  margin-right:6px;
+  vertical-align:middle;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+<script src="/config.js"></script>
+</head>
+<body>
+
+<div class="login-page">
+  <div class="login-header">
+    <div class="login-logo">Foqal CareOS</div>
+    <div class="login-sub">Clinical Decision Support · AI-Powered</div>
+  </div>
+
+  <div class="card">
+    <form id="login-form">
+      <div class="fg">
+        <label class="fl" for="emp-id">Hospital Email or Username</label>
+        <input class="fi" id="emp-id" type="text" placeholder="you@hospital.org or ward123" autocomplete="username">
+      </div>
+
+      <div class="fg">
+        <label class="fl" for="password">Password</label>
+        <input class="fi" id="password" type="password" autocomplete="current-password">
+      </div>
+
+      <button type="submit" class="btn-pri" id="sign-in-btn">Sign In →</button>
+      <div class="err-banner" id="err-banner"></div>
+    </form>
+
+    <div class="login-links">
+      <a id="forgot-link">Forgot password?</a>
+      &nbsp;·&nbsp;
+      <a>Contact IT Support</a>
+    </div>
+
+    <div class="cred-section">
+      <div class="cred-section-title">Quick sign-in — click to fill</div>
+
+      <div class="cred-grid">
+        <div class="cred-row" onclick="fillCreds('rekha.devi@foqal.in','WardNurse@2026')">
+          <span class="cred-badge cb-ccu">CCU Nurse</span>
+          <span class="cred-name">Rekha Devi</span>
+        </div>
+        <div class="cred-row" onclick="fillCreds('prathima.m@foqal.in','GWNurse@2026')">
+          <span class="cred-badge cb-gw">GW Nurse</span>
+          <span class="cred-name">Prathima M</span>
+        </div>
+        <div class="cred-row" onclick="fillCreds('leena.kurup@foqal.in','ChargeNurse@2026')">
+          <span class="cred-badge cb-charge">Head Nurse</span>
+          <span class="cred-name">Leena Kurup</span>
+        </div>
+        <div class="cred-row" onclick="fillCreds('ashmit24134@iiitd.ac.in','12345678')">
+          <span class="cred-badge cb-res">Resident</span>
+          <span class="cred-name">Dr. Anand Sharma</span>
+        </div>
+        <div class="cred-row" onclick="fillCreds('ashmit24134@iiitd.ac.in','zxcvbnm')">
+          <span class="cred-badge cb-attend">Attending</span>
+          <span class="cred-name">Dr. Raj Mehta</span>
+        </div>
+        <div class="cred-row" onclick="fillCreds('bill','12345678')">
+          <span class="cred-badge cb-bill">Billing</span>
+          <span class="cred-name">Ravi Kumar</span>
+        </div>
+        <div class="cred-row" onclick="fillCreds('ward123','12345678')">
+          <span class="cred-badge cb-ward">Ward Admin</span>
+          <span class="cred-name">Arun Pillai</span>
+        </div>
+        <div class="cred-row" onclick="fillCreds('cmo','zxcvbnm')">
+          <span class="cred-badge cb-cmo">CMO</span>
+          <span class="cred-name">Dr. Nitin Gupta</span>
+        </div>
+        <div class="cred-row" onclick="fillCreds('super','12345678')">
+          <span class="cred-badge cb-super">Super Admin</span>
+          <span class="cred-name">Super Admin</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const _cfg        = window.FOQAL_CONFIG || {};
+  const _apiBase    = window.FOQAL_API_BASE  || `http://${location.hostname}:${_cfg.API_PORT    || 6010}`;
+  const _sabariBase = `http://${location.hostname}:${_cfg.SABARI_PORT || 6040}`;
+
+  const form  = document.getElementById('login-form');
+  const btn   = document.getElementById('sign-in-btn');
+  const errEl = document.getElementById('err-banner');
+
+  function showError(msg) {
+    errEl.textContent = msg;
+    errEl.style.display = 'block';
+  }
+  function clearError() {
+    errEl.style.display = 'none';
+  }
+  function parseDetail(detail) {
+    if (!detail) return 'Sign-in failed.';
+    if (typeof detail === 'string') return detail;
+    // FastAPI 422 returns detail as array of {loc, msg, type}
+    if (Array.isArray(detail)) return detail.map(d => d.msg || JSON.stringify(d)).join('; ');
+    return JSON.stringify(detail);
+  }
+
+  function fillCreds(email, pw) {
+    document.getElementById('emp-id').value = email;
+    document.getElementById('password').value = pw;
+    clearError();
+    document.getElementById('emp-id').focus();
+  }
+
+  form.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    clearError();
+    const email = document.getElementById('emp-id').value.trim();
+    const pw    = document.getElementById('password').value;
+    if (!email) { showError('Please enter your hospital email or username.'); return; }
+    if (!pw)    { showError('Please enter your password.'); return; }
+
+    // Local Ward Admin credentials — bypasses API
+    if (email === 'ward123' && pw === '12345678') {
+      sessionStorage.setItem('foqal_token', 'ward-admin-local');
+      sessionStorage.setItem('foqal_user', JSON.stringify({ full_name: 'Arun Pillai', role: 'ward-admin', email: 'ward123' }));
+      window.location.href = '/ward-admin.html';
+      return;
+    }
+
+    // Local Super Admin credentials — bypasses API
+    if (email === 'super' && pw === '12345678') {
+      sessionStorage.setItem('foqal_token', 'super-admin-local');
+      sessionStorage.setItem('foqal_user', JSON.stringify({ full_name: 'Super Admin', role: 'superadmin', email: 'super' }));
+      window.location.href = '/super-admin.html';
+      return;
+    }
+
+    // Local Billing Staff credentials — bypasses API
+    if (email === 'bill' && pw === '12345678') {
+      sessionStorage.setItem('foqal_token', 'billing-local');
+      sessionStorage.setItem('foqal_user', JSON.stringify({ full_name: 'Ravi Kumar', role: 'billing', email: 'bill' }));
+      window.location.href = '/billing.html';
+      return;
+    }
+
+    // Local Attending Doctor credentials — bypasses API
+    if ((email === 'dr.attending' || email === 'dr.attending@foqal.in') && (pw === 'Attending@2026' || pw === 'zxcvbnm')) {
+      sessionStorage.setItem('foqal_token', 'attending-local');
+      sessionStorage.setItem('foqal_user', JSON.stringify({ full_name: 'Dr. Raj Mehta', role: 'doctor', email: 'dr.attending@foqal.in' }));
+      window.location.href = '/doctor-queue.html';
+      return;
+    }
+
+    // Local CMO credentials — bypasses API
+    if (email === 'cmo' && pw === 'zxcvbnm') {
+      sessionStorage.setItem('foqal_token', 'cmo-local');
+      sessionStorage.setItem('foqal_user', JSON.stringify({ full_name: 'Dr. Nitin Gupta', role: 'cmo', email: 'cmo' }));
+      window.location.href = '/cmo.html';
+      return;
+    }
+
+    // ── Ward Monitor (Sabari Project) — Bedside Nurse ───────────────────────
+    if ((email === 'rekha.devi' || email === 'rekha.devi@foqal.in') && pw === 'WardNurse@2026') {
+      const user = { name: 'Nurse Rekha Devi', role: 'nurse', roleLabel: 'Bedside Nurse',
+                     shift: 'Day Shift', ward: 'Ward 4B/4C', empId: 'EMP-0001' };
+      // Redirect instantly with URL SSO parameters
+      window.location.href = `${_sabariBase}/?foqal_token=local-nurse&foqal_user=${encodeURIComponent(JSON.stringify(user))}`;
+      return;
+    }
+
+    // ── Ward Monitor (Sabari Project) — Charge Nurse ────────────────────────
+    if ((email === 'leena.kurup' || email === 'leena.kurup@foqal.in') && pw === 'ChargeNurse@2026') {
+      const user = { name: 'Sister Leena Kurup', role: 'charge', roleLabel: 'Charge Nurse',
+                     shift: 'Day Shift', ward: 'Ward 4B/4C', empId: 'EMP-0002' };
+      window.location.href = `${_sabariBase}/?foqal_token=local-charge&foqal_user=${encodeURIComponent(JSON.stringify(user))}`;
+      return;
+    }
+
+    // ── Ward Monitor (Sabari Project) — GW Nurse ────────────────────────────
+    if ((email === 'prathima.m' || email === 'prathima.m@foqal.in') && pw === 'GWNurse@2026') {
+      const user = { name: 'Nurse Prathima M', role: 'gw_nurse', roleLabel: 'General Ward Nurse',
+                     shift: 'Day Shift', ward: 'General Ward', empId: 'EMP-0003' };
+      window.location.href = `${_sabariBase}/?foqal_token=local-gwnurse&foqal_user=${encodeURIComponent(JSON.stringify(user))}`;
+      return;
+    }
+
+    // ── Ward Monitor (Sabari Project) — Resident Doctor ─────────────────────
+    if ((email === 'dr.anand' || email === 'dr.anand@foqal.in') && pw === 'Resident@2026') {
+      const user = { name: 'Dr. Anand Sharma', role: 'resident', roleLabel: 'Resident Doctor',
+                     shift: 'Day Shift', ward: 'Ward 4B/4C', empId: 'EMP-0004' };
+      window.location.href = `${_sabariBase}/?foqal_token=local-resident&foqal_user=${encodeURIComponent(JSON.stringify(user))}`;
+      return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Signing in…';
+
+    try {
+      const resp = await fetch(`${_apiBase}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hospital_email: email, password: pw }),
+      });
+      const body = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        throw new Error(parseDetail(body.detail) || `Sign-in failed (${resp.status})`);
+      }
+      // Store session
+      sessionStorage.setItem('foqal_token', body.token || '');
+      sessionStorage.setItem('foqal_user', JSON.stringify(body.user || {}));
+      // Route by role
+      const role = (body.user || {}).role;
+      window.location.href = role === 'doctor' ? '/doctor-queue.html' : '/dashboard.html';
+    } catch (err) {
+      showError(err.message);
+      btn.disabled = false;
+      btn.innerHTML = 'Sign In →';
+    }
+  });
+
+  document.getElementById('forgot-link').addEventListener('click', function() {
+    const email = document.getElementById('emp-id').value.trim();
+    if (!email) { showError('Enter your hospital email first, then click Forgot password.'); return; }
+    clearError();
+    alert('A reset link has been sent to ' + email);
+  });
+</script>
+</body>
+</html>

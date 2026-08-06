@@ -1,0 +1,21 @@
+{
+    "rates": {
+        "WARD_RATE": 2000,
+        "ICU_RATE": 8000
+    },
+    "thresholds": {
+        "procedure_confidence": 0.70,
+        "medicine_confidence": 0.85,
+        "lab_confidence": 0.85
+    },
+    "llm_settings": {
+        "enrichment_model": "gemini-flash-latest",
+        "validation_model": "gemini-pro-latest",
+        "temperature": 0.0
+    },
+    "versions": {
+        "procedure_mapping": "v1",
+        "medicine_mapping": "v1",
+        "lab_mapping": "v1"
+    }
+}

@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>Foqal CareOS · Super Admin</title>
+<style>
+/* ── VARIABLES ── */
+:root{
+  --p:#800080;--pl:#f7edf7;--pm:#c060c0;
+  --t1:#dc2626;--t1b:#fef2f2;
+  --t2:#d97706;--t2b:#fffbeb;
+  --t3:#059669;--t3b:#ecfdf5;
+  --ink:#111827;--ink2:#374151;--muted:#6b7280;
+  --border:#e5e7eb;--surf:#f9fafb;
+  --font:system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'SF Mono','Menlo','Consolas',monospace;
+  --sb:220px;--ab:56px;--tb:38px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:var(--font);color:var(--ink);background:#fff;font-size:13px}
+button{cursor:pointer;font-family:inherit;font-size:inherit}
+input,select,textarea{font-family:inherit;font-size:inherit}
+a{color:inherit;text-decoration:none}
+
+#app-shell{display:flex;flex-direction:column;height:100%}
+#topbar{height:4px;background:#9f1239;flex-shrink:0}
+#appbar{
+  height:var(--ab);background:#fff;border-bottom:1px solid var(--border);
+  flex-shrink:0;display:flex;align-items:center;padding:0 18px;gap:10px;
+}
+.alogo{font-size:15px;font-weight:800;color:var(--p);letter-spacing:-.4px;white-space:nowrap}
+.alogo em{color:var(--ink);font-style:normal;font-weight:400}
+.adiv{width:1px;height:20px;background:var(--border)}
+.aspace{flex:1}
+.role-chip{padding:3px 10px;border-radius:12px;font-size:10px;font-weight:700;
+  letter-spacing:.5px;text-transform:uppercase;background:#fff1f2;color:#9f1239;white-space:nowrap}
+.abtn{padding:5px 11px;border:1px solid var(--border);background:#fff;border-radius:6px;
+  font-size:11px;font-weight:500;color:var(--muted);transition:all .12s}
+.abtn:hover{background:var(--surf);color:var(--ink)}
+.abtn-danger{border-color:#fca5a5;color:var(--t1)}
+.abtn-danger:hover{background:var(--t1b)}
+
+#body-row{display:flex;flex:1;overflow:hidden}
+#sidebar{
+  width:var(--sb);background:#fafafa;border-right:1px solid var(--border);
+  overflow-y:auto;flex-shrink:0;display:flex;flex-direction:column;gap:0;
+}
+.sb-sec{padding:14px 0 6px;border-bottom:1px solid var(--border)}
+.sb-sec:last-child{border-bottom:none;flex:1}
+.sb-lbl{padding:0 16px 6px;font-size:9px;font-weight:800;text-transform:uppercase;
+  letter-spacing:1px;color:#b0b8c4}
+.sb-item{
+  display:flex;align-items:center;gap:10px;padding:9px 16px;
+  font-size:12.5px;color:#52586b;cursor:pointer;
+  border-left:3px solid transparent;transition:background .1s,color .1s;
+  border-radius:0;user-select:none;
+}
+.sb-item:hover{background:#f2f4f7;color:var(--ink)}
+.sb-item.active{background:#fff1f2;color:#9f1239;border-left-color:#9f1239;font-weight:700}
+.sb-item.active .sb-icon{color:#9f1239}
+.sb-icon{width:16px;height:16px;flex-shrink:0;color:#9aa3b0;transition:color .1s}
+
+#content{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+#tabbar{
+  height:var(--tb);background:#fff;border-bottom:1px solid var(--border);
+  display:flex;align-items:stretch;padding:0 12px;overflow-x:auto;flex-shrink:0;
+}
+#tabbar::-webkit-scrollbar{height:0}
+.tb{padding:0 14px;border:none;background:none;font-size:11.5px;font-weight:500;
+  color:var(--muted);white-space:nowrap;border-bottom:2px solid transparent;
+  margin-bottom:-1px;cursor:pointer;transition:all .12s}
+.tb:hover{color:var(--ink)}
+.tb.active{color:#9f1239;border-bottom-color:#9f1239;font-weight:600}
+#main{flex:1;overflow-y:auto;padding:20px 24px;background:var(--surf)}
+
+.bc{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);margin-bottom:14px;flex-wrap:wrap}
+.bc-link{color:var(--p);cursor:pointer}.bc-link:hover{text-decoration:underline}
+.bc-sep{color:var(--border)}
+
+.sh{display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap}
+.sh-title{font-size:17px;font-weight:800;color:var(--ink);flex:1}
+.sh-id{font-family:var(--mono);font-size:10px;padding:2px 8px;background:#9f1239;color:#fff;border-radius:4px;font-weight:700;white-space:nowrap}
+.sh-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+
+.stats{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap}
+.stat{flex:1;min-width:120px;background:#fff;border:1px solid var(--border);border-radius:8px;padding:12px 16px}
+.stat-v{font-size:28px;font-weight:800;line-height:1;color:var(--ink)}
+.stat-l{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:3px}
+.stat.c-p .stat-v{color:var(--p)}
+.stat.c-a .stat-v{color:var(--t2)}
+.stat.c-g .stat-v{color:var(--t3)}
+.stat.c-r .stat-v{color:var(--t1)}
+.stat.c-sa .stat-v{color:#9f1239}
+
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:6px;
+  font-size:12.5px;font-weight:500;border:1px solid transparent;cursor:pointer;
+  transition:all .12s;white-space:nowrap}
+.btn-pri{background:var(--p);color:#fff;border-color:var(--p)}
+.btn-pri:hover{background:#5c0060}
+.btn-sec{background:#fff;color:var(--ink);border-color:var(--border)}
+.btn-sec:hover{background:var(--surf)}
+.btn-danger{background:var(--t1);color:#fff;border-color:var(--t1)}
+.btn-danger:hover{background:#b91c1c}
+.btn-warn{background:var(--t2b);color:#92400e;border-color:#fcd34d}
+.btn-sm{padding:5px 10px;font-size:11.5px}
+.btn-xs{padding:3px 8px;font-size:11px}
+
+.bd{display:inline-flex;align-items:center;padding:2px 7px;border-radius:10px;font-size:10.5px;font-weight:700}
+.bd-t1{background:var(--t1b);color:var(--t1)}
+.bd-t2{background:var(--t2b);color:var(--t2)}
+.bd-t3{background:var(--t3b);color:var(--t3)}
+.bd-p{background:var(--pl);color:var(--p)}
+.bd-blue{background:#eff6ff;color:#1e40af}
+.bd-gray{background:#f3f4f6;color:#4b5563}
+.bd-sa{background:#fff1f2;color:#9f1239}
+
+.tw{background:#fff;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+table{width:100%;border-collapse:collapse}
+th{padding:9px 14px;text-align:left;font-size:10.5px;font-weight:700;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.4px;background:var(--surf);
+  border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:10px 14px;border-bottom:1px solid var(--border);color:var(--ink2);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fcfcfc}
+
+.card{background:#fff;border:1px solid var(--border);border-radius:8px;padding:16px}
+.card-title{font-size:12px;font-weight:700;color:var(--ink);margin-bottom:10px}
+
+.alert{padding:10px 14px;border-radius:6px;display:flex;align-items:flex-start;gap:8px;
+  font-size:12px;margin-bottom:12px;line-height:1.5}
+.alert b{font-weight:700}
+.al-err{background:var(--t1b);color:var(--t1);border:1px solid #fca5a5}
+.al-warn{background:var(--t2b);color:#92400e;border:1px solid #fcd34d}
+.al-ok{background:var(--t3b);color:#065f46;border:1px solid #6ee7b7}
+.al-info{background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe}
+
+#modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300;
+  align-items:center;justify-content:center}
+#modal-overlay.open{display:flex}
+#modal-box{background:#fff;border-radius:10px;padding:24px;width:520px;max-width:90vw;
+  box-shadow:0 20px 60px rgba(0,0,0,.25);max-height:85vh;overflow-y:auto}
+.modal-t{font-size:15px;font-weight:800;color:var(--ink);margin-bottom:8px}
+.modal-b{font-size:12.5px;color:var(--ink2);margin-bottom:16px;line-height:1.6}
+.modal-f{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+
+.divider{height:1px;background:var(--border);margin:16px 0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.frow3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.mono{font-family:var(--mono)}
+.muted{color:var(--muted)}
+.small{font-size:11px}
+.bold{font-weight:700}
+.flex-r{display:flex;align-items:center;gap:8px}
+.flex-sb{display:flex;align-items:center;justify-content:space-between}
+
+.fg{margin-bottom:13px}
+.fl{display:block;font-size:11px;font-weight:600;color:var(--ink2);margin-bottom:4px}
+.fi{width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;color:var(--ink);background:#fff;transition:border-color .12s;outline:none}
+.fi:focus{border-color:var(--p);box-shadow:0 0 0 2px rgba(128,0,128,.1)}
+.fi.valid{border-color:var(--t3)}
+.fi.err{border-color:var(--t1)}
+.fi-hint{font-size:10.5px;color:var(--muted);margin-top:3px}
+
+.radio-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:12.5px}
+.radio-row input[type=radio]{accent-color:var(--p)}
+.check-row{display:flex;align-items:flex-start;gap:8px;margin-bottom:10px;font-size:12.5px}
+.check-row input[type=checkbox]{margin-top:2px;accent-color:var(--p)}
+
+.health-dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:6px;vertical-align:middle}
+.hd-ok{background:var(--t3)}.hd-warn{background:var(--t2)}.hd-err{background:var(--t1)}
+</style>
+</head>
+<body>
+
+<div id="app-shell">
+  <div id="topbar"></div>
+
+  <header id="appbar">
+    <div class="alogo">Foqal <em>CareOS</em></div>
+    <div class="adiv"></div>
+    <span class="role-chip">Super Admin</span>
+    <div class="aspace"></div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font-size:11.5px;color:var(--muted)" id="admin-name">Super Admin</span>
+      <button class="abtn abtn-danger" onclick="doLogout()">Sign Out</button>
+    </div>
+  </header>
+
+  <div id="body-row">
+    <nav id="sidebar">
+      <div class="sb-sec">
+        <div class="sb-lbl">Administration</div>
+        <div class="sb-item" id="nav-sa1" onclick="showScreen('sa1')">
+          <svg class="sb-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="6" cy="5" r="2.5"/><path d="M1 13c0-2.8 2.2-5 5-5h.5"/><circle cx="11.5" cy="10.5" r="3"/><path d="M11.5 9v1.5l1 1"/>
+          </svg>
+          User Management
+        </div>
+        <div class="sb-item" id="nav-sa2" onclick="showScreen('sa2')">
+          <svg class="sb-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 8h6M5 5h3M5 11h4"/>
+          </svg>
+          Module Config
+        </div>
+        <div class="sb-item" id="nav-sa3" onclick="showScreen('sa3')">
+          <svg class="sb-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M2 4h12M4 8h8M6 12h4"/>
+          </svg>
+          Drug-Lab Rules
+        </div>
+      </div>
+      <div class="sb-sec">
+        <div class="sb-lbl">System Summary</div>
+        <div style="padding:8px 16px 10px">
+          <div style="font-size:10.5px;color:var(--muted);margin-bottom:10px;font-weight:500">Medanta · Ward 4B / 4C</div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div class="flex-sb"><span style="font-size:11.5px;color:#52586b">Active Users</span><span class="bd bd-t3">10</span></div>
+            <div class="flex-sb"><span style="font-size:11.5px;color:#52586b">Drug-Lab Rules</span><span class="bd bd-sa">13</span></div>
+            <div class="flex-sb"><span style="font-size:11.5px;color:#52586b">Modules Active</span><span class="bd bd-t3">4</span></div>
+            <div class="flex-sb"><span style="font-size:11.5px;color:#52586b">PHI Breaches</span><span class="bd bd-t3">0</span></div>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <div id="content">
+      <div id="tabbar">
+        <button class="tb active" onclick="showScreen('sa1')">System Administration</button>
+      </div>
+      <div id="main"></div>
+    </div>
+  </div>
+</div>
+
+<div id="modal-overlay" onclick="closeModal()">
+  <div id="modal-box" onclick="event.stopPropagation()"></div>
+</div>
+
+<script>
+/* ─── AUTH ─── */
+function doLogout() {
+  sessionStorage.removeItem('foqal_token');
+  sessionStorage.removeItem('foqal_user');
+  window.location.href = '/';
+}
+
+/* ─── NAVIGATION ─── */
+let CURRENT = 'sa1';
+const SCREENS_LIST = ['sa1','sa2','sa3'];
+
+function showScreen(id) {
+  CURRENT = id;
+  SCREENS_LIST.forEach(s => {
+    const el = document.getElementById('nav-' + s);
+    if (el) el.classList.toggle('active', s === id);
+  });
+  const fn = SCREENS[id];
+  document.getElementById('main').innerHTML = fn ? fn() : '<div style="padding:40px;color:var(--muted)">Screen not found.</div>';
+}
+
+/* ─── MODAL ─── */
+function openModal(id, extra) {
+  const box = document.getElementById('modal-box');
+  box.innerHTML = MODALS[id] ? MODALS[id](extra) : '';
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+}
+
+/* ─── STATE ─── */
+const _SA = {
+  sa1_view: 'table',
+  sa3_view: 'table',
+  sa3_edit_id: null,
+  toggleConfirm: null,
+};
+
+/* ─── SCREENS ─── */
+const SCREENS = {
+
+/* ════════════════════════════════════
+   SA1 — USER MANAGEMENT
+════════════════════════════════════ */
+sa1: () => {
+  const USERS = [
+    {id:'USR-001',name:'Dr. Anand Sharma',  role:'Attending',    dept:'Cardiology',      status:'Active',last:'02 Jun, 14:31'},
+    {id:'USR-002',name:'Dr. Rekha Nair',    role:'Resident',     dept:'Cardiology',      status:'Active',last:'02 Jun, 10:15'},
+    {id:'USR-003',name:'Ms. Rekha Devi',    role:'Nurse',        dept:'Ward 4B',         status:'Active',last:'02 Jun, 07:02'},
+    {id:'USR-004',name:'Sister Leena Kurup',role:'Charge Nurse', dept:'Ward 4B/4C',      status:'Active',last:'02 Jun, 07:00'},
+    {id:'USR-005',name:'Ravi Kumar',        role:'Billing Staff',dept:'Billing Dept.',   status:'Active',last:'02 Jun, 09:30'},
+    {id:'USR-006',name:'Arun Pillai',       role:'Ward Admin',   dept:'Ward 4B/4C',      status:'Active',last:'02 Jun, 08:45'},
+    {id:'USR-007',name:'Dr. Priya Mehta',   role:'Attending',    dept:'Cardiology',      status:'Active',last:'02 Jun, 09:12'},
+    {id:'USR-008',name:'Dr. Deepak Rao',    role:'Resident',     dept:'Cardiology',      status:'Active',last:'02 Jun, 11:05'},
+    {id:'USR-009',name:'Nurse Prathima M',  role:'Nurse',        dept:'Ward 4B',         status:'Active',last:'01 Jun, 19:00'},
+    {id:'USR-010',name:'Dr. Nitin Gupta',   role:'CMO',          dept:'Administration',  status:'Active',last:'01 Jun, 16:30'},
+  ];
+  const ROLE_COLORS = {
+    'Attending':'background:#eff6ff;color:#1e40af',
+    'Resident':'background:#f0fdf4;color:#166534',
+    'Nurse':'background:#f0f9ff;color:#0369a1',
+    'Charge Nurse':'background:#e0f2fe;color:#075985',
+    'Billing Staff':'background:#fdf4ff;color:#7e22ce',
+    'Ward Admin':'background:#fffbeb;color:#92400e',
+    'CMO':'background:#f5f3ff;color:#5b21b6',
+    'Super Admin':'background:#fff1f2;color:#9f1239',
+  };
+  const roleBadge = r => `<span style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:10px;font-size:10.5px;font-weight:700;${ROLE_COLORS[r]||'background:#f3f4f6;color:#4b5563'}">${r}</span>`;
+
+  if (_SA.sa1_view === 'add') {
+    return `
+<div class="bc"><span class="bc-link" onclick="_SA.sa1_view='table';showScreen('sa1')">User Management</span><span class="bc-sep">/</span><span>Add User</span></div>
+<div class="sh"><h1 class="sh-title">Add New User</h1></div>
+<div class="card" style="max-width:560px">
+  <div class="frow">
+    <div class="fg"><label class="fl">Full Name</label><input class="fi" id="u-name" placeholder="Dr. / Ms. / Mr. Full Name"></div>
+    <div class="fg"><label class="fl">Employee ID</label><input class="fi" id="u-empid" placeholder="EMP-XXXX"></div>
+  </div>
+  <div class="frow">
+    <div class="fg"><label class="fl">Hospital Email</label><input class="fi" id="u-email" type="email" placeholder="name@medanta.org"></div>
+    <div class="fg"><label class="fl">Mobile</label><input class="fi" id="u-mobile" placeholder="+91-XXXXX-XXXXX"></div>
+  </div>
+  <div class="frow">
+    <div class="fg"><label class="fl">Role</label>
+      <select class="fi" id="u-role">
+        <option value="">Select role…</option>
+        <option>Resident</option><option>Attending</option><option>Nurse</option>
+        <option>Charge Nurse</option><option>Billing Staff</option><option>Ward Admin</option>
+        <option>Super Admin</option><option>CMO</option>
+      </select>
+    </div>
+    <div class="fg"><label class="fl">Department</label>
+      <select class="fi" id="u-dept">
+        <option>Cardiology — Ward 4B</option><option>Cardiology — Ward 4C</option>
+        <option>Cardiology — Ward 4A</option><option>Billing Department</option>
+        <option>Administration</option><option>ICU</option>
+      </select>
+    </div>
+  </div>
+  <div class="fg"><label class="fl">Medical Registration No. <span class="muted" style="font-weight:400">(doctors only)</span></label>
+    <input class="fi" id="u-mci" placeholder="MCI-XXXXX-XX">
+    <div class="fi-hint">Leave blank for non-clinical staff</div>
+  </div>
+  <div class="fg"><label class="fl">Temporary Password</label>
+    <input class="fi" id="u-pw" type="password" placeholder="Min 8 characters">
+    <div class="fi-hint">User will be prompted to change on first login</div>
+  </div>
+  <div class="divider"></div>
+  <div style="display:flex;gap:8px;justify-content:flex-end">
+    <button class="btn btn-sec" onclick="_SA.sa1_view='table';showScreen('sa1')">Cancel</button>
+    <button class="btn btn-pri" onclick="_SA.sa1_view='table';showScreen('sa1')">Create User</button>
+  </div>
+</div>`;
+  }
+
+  if (_SA.sa1_view === 'deactivate') {
+    return `
+<div class="bc"><span class="bc-link" onclick="_SA.sa1_view='table';showScreen('sa1')">User Management</span><span class="bc-sep">/</span><span>Deactivate</span></div>
+<div class="sh"><h1 class="sh-title">Deactivate User</h1></div>
+<div class="card" style="max-width:480px">
+  <div class="alert al-err">⚠ This will immediately revoke all access. Any active sessions will be terminated and the user will be signed out.</div>
+  <div class="fg"><label class="fl">Deactivating</label>
+    <input class="fi" value="Dr. Rekha Nair — USR-002 · Resident" readonly style="background:var(--surf)">
+  </div>
+  <div class="fg"><label class="fl">Reason</label>
+    <select class="fi">
+      <option>Staff departure</option><option>Role change</option>
+      <option>Misconduct investigation</option><option>Temporary leave</option><option>Other</option>
+    </select>
+  </div>
+  <div class="fg"><label class="fl">Notes (optional)</label>
+    <textarea class="fi" rows="2" placeholder="Additional context for audit trail…"></textarea>
+  </div>
+  <div class="alert al-warn">⚠ This action is irreversible via the UI. Contact engineering to re-activate.</div>
+  <div class="divider"></div>
+  <div style="display:flex;gap:8px;justify-content:flex-end">
+    <button class="btn btn-sec" onclick="_SA.sa1_view='table';showScreen('sa1')">Cancel</button>
+    <button class="btn btn-danger" onclick="_SA.sa1_view='table';showScreen('sa1')">Confirm Deactivation</button>
+  </div>
+</div>`;
+  }
+
+  return `
+<div class="bc"><span class="bc-link" onclick="showScreen('sa1')">System Admin</span><span class="bc-sep">/</span><span>User Management</span></div>
+<div class="sh">
+  <h1 class="sh-title">User Management — RBAC</h1>
+  
+  <div class="sh-actions">
+    <button class="btn btn-pri btn-sm" onclick="_SA.sa1_view='add';showScreen('sa1')">+ Add User</button>
+  </div>
+</div>
+<div class="stats">
+  <div class="stat c-sa"><div class="stat-v">10</div><div class="stat-l">Total Users</div></div>
+  <div class="stat c-p"><div class="stat-v">8</div><div class="stat-l">Roles Configured</div></div>
+  <div class="stat c-g"><div class="stat-v">10</div><div class="stat-l">Active</div></div>
+  <div class="stat c-a"><div class="stat-v">0</div><div class="stat-l">Deactivated</div></div>
+</div>
+<div class="tw"><table>
+  <thead><tr>
+    <th>Employee ID</th><th>Name</th><th>Role</th><th>Department</th>
+    <th>Status</th><th>Last Login</th><th>Actions</th>
+  </tr></thead>
+  <tbody>
+    ${USERS.map(u => `<tr>
+      <td class="mono small">${u.id}</td>
+      <td class="bold">${u.name}</td>
+      <td>${roleBadge(u.role)}</td>
+      <td class="muted small">${u.dept}</td>
+      <td><span class="bd bd-t3">${u.status}</span></td>
+      <td class="muted small">${u.last}</td>
+      <td>
+        <button class="btn btn-sec btn-xs" style="margin-right:4px" onclick="openModal('edit-user','${u.id}')">Edit</button>
+        <button class="btn btn-danger btn-xs" onclick="_SA.sa1_view='deactivate';showScreen('sa1')">Deactivate</button>
+      </td>
+    </tr>`).join('')}
+  </tbody>
+</table></div>`;
+},
+
+/* ════════════════════════════════════
+   SA2 — NEWS2 THRESHOLDS & MODULE CONFIG
+════════════════════════════════════ */
+sa2: () => `
+<div class="bc"><span class="bc-link" onclick="showScreen('sa2')">System Admin</span><span class="bc-sep">/</span><span>NEWS2 / Module Config</span></div>
+<div class="sh"><h1 class="sh-title">NEWS2 Thresholds &amp; Module Toggles</h1></div>
+<div class="grid2">
+  <div class="card">
+    <div class="card-title">NEWS2 Global Thresholds</div>
+    <div class="tw" style="border:none"><table>
+      <thead><tr>
+        <th>Parameter</th><th>Low Alert</th><th>High Alert</th><th>Action Level</th>
+      </tr></thead>
+      <tbody>
+        ${[
+          ['SpO₂','&lt; 88%','—','&lt; 90% → Escalate'],
+          ['Respiratory Rate','&lt; 8/min','&gt; 25/min','&gt; 20 → Alert'],
+          ['Heart Rate','&lt; 40/min','&gt; 130/min','&lt; 50 or &gt; 120 → Alert'],
+          ['Systolic BP','&lt; 90 mmHg','—','&lt; 90 → Escalate'],
+          ['Temperature','&lt; 35.0°C','&gt; 39.0°C','&lt; 35.5 or &gt; 38.5 → Alert'],
+          ['AVPU','V/P/U','—','Any V,P,U → Escalate'],
+          ['NEWS2 Score','—','&gt; 7','&gt; 5 → Doctor alert'],
+        ].map(([p,l,h,a]) => `<tr>
+          <td class="bold">${p}</td>
+          <td style="color:var(--t1)">${l}</td>
+          <td style="color:var(--t2)">${h}</td>
+          <td style="color:var(--p);font-size:11px">${a}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table></div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px">
+      <button class="btn btn-sec btn-sm" onclick="openModal('reset-thresholds')">Reset to Defaults</button>
+      <button class="btn btn-pri btn-sm" onclick="openModal('save-thresholds')">Save Thresholds</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Module Toggles</div>
+    ${[
+      ['Module A','Discharge Summary AI','on'],
+      ['Module B','Cost Estimator','on'],
+      ['Module C','Early Warning (NEWS2)','on'],
+      ['Module D','Drug-Lab Interaction Engine','on'],
+      ['LLM Integration','Foqal-Med-v3 API','on'],
+      ['DPDPA Consent Gate','Required before upload','on'],
+      ['Push Notifications','Non-PHI alerts to staff','on'],
+    ].map(([m,d,s]) => `
+    <div class="flex-sb" style="padding:10px 0;border-bottom:1px solid var(--border)">
+      <div>
+        <div class="bold" style="font-size:12.5px">${m}</div>
+        <div class="muted small">${d}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:11px;color:var(--t3);font-weight:700">ON</span>
+        <div style="width:36px;height:20px;background:var(--t3);border-radius:10px;cursor:pointer;position:relative;flex-shrink:0"
+          onclick="openModal('module-toggle','${m}')">
+          <div style="position:absolute;right:2px;top:2px;width:16px;height:16px;background:#fff;border-radius:50%"></div>
+        </div>
+      </div>
+    </div>`).join('')}
+  </div>
+</div>`,
+
+/* ════════════════════════════════════
+   SA3 — DRUG-LAB RULES
+════════════════════════════════════ */
+sa3: () => {
+  const RULES = [
+    {id:'R-001',a:'Warfarin',       b:'Aspirin',              type:'DDI','sev':'T1',action:'Hold + Co-sign required'},
+    {id:'R-002',a:'Digoxin',        b:'K⁺ < 3.0 mEq/L',      type:'DLI',sev:'T1', action:'Alert attending immediately'},
+    {id:'R-003',a:'ACE Inhibitor',  b:'K⁺ supplement',        type:'DDI',sev:'T2', action:'Monitor K⁺ every 48h'},
+    {id:'R-004',a:'Statins',        b:'Amiodarone',            type:'DDI',sev:'T2', action:'Myopathy risk — CK monitoring'},
+    {id:'R-005',a:'Heparin',        b:'NSAID',                 type:'DDI',sev:'T1', action:'Bleeding risk — hold NSAID'},
+    {id:'R-006',a:'β-blocker',      b:'Verapamil',             type:'DDI',sev:'T1', action:'Heart block risk — ECG monitoring'},
+    {id:'R-007',a:'Clopidogrel',    b:'Omeprazole',            type:'DDI',sev:'T2', action:'CYP2C19 interaction — switch PPI'},
+    {id:'R-008',a:'Vancomycin',     b:'Creatinine > 1.5',      type:'DLI',sev:'T2', action:'Renal dose adjustment required'},
+    {id:'R-009',a:'Metformin',      b:'Contrast dye',          type:'DDI',sev:'T1', action:'Hold 48h pre/post contrast'},
+    {id:'R-010',a:'Amiodarone',     b:'Warfarin',              type:'DDI',sev:'T2', action:'INR monitoring — target 2.0–3.0'},
+    {id:'R-011',a:'Furosemide',     b:'K⁺ < 3.2 mEq/L',      type:'DLI',sev:'T2', action:'K⁺ replacement — 40 mEq/day'},
+    {id:'R-012',a:'—',              b:'Troponin > 0.4 μg/L',   type:'LI', sev:'T1', action:'STEMI protocol — cath lab alert'},
+    {id:'R-013',a:'Haloperidol',    b:'QTc > 460ms',           type:'DLI',sev:'T1', action:'Hold haloperidol — ECG monitoring'},
+  ];
+
+  if (_SA.sa3_view === 'add' || _SA.sa3_view === 'edit') {
+    const r = _SA.sa3_view === 'edit' ? RULES[0] : null;
+    return `
+<div class="bc"><span class="bc-link" onclick="_SA.sa3_view='table';showScreen('sa3')">Drug-Lab Rules</span><span class="bc-sep">/</span><span>${_SA.sa3_view === 'add' ? 'Add Rule' : 'Edit Rule'}</span></div>
+<div class="sh"><h1 class="sh-title">${_SA.sa3_view === 'add' ? 'Add New Rule' : 'Edit Rule — ' + (_SA.sa3_edit_id || 'R-001')}</h1></div>
+<div class="card" style="max-width:580px">
+  <div class="frow">
+    <div class="fg"><label class="fl">Drug / Agent A</label>
+      <input class="fi" value="${r ? r.a : ''}" placeholder="Drug name or —">
+    </div>
+    <div class="fg"><label class="fl">Drug / Lab / Condition B</label>
+      <input class="fi" value="${r ? r.b : ''}" placeholder="Drug, lab value, or threshold">
+    </div>
+  </div>
+  <div class="frow">
+    <div class="fg"><label class="fl">Interaction Type</label>
+      <select class="fi">
+        <option ${r && r.type === 'DDI' ? 'selected' : ''}>DDI — Drug-Drug</option>
+        <option ${r && r.type === 'DLI' ? 'selected' : ''}>DLI — Drug-Lab</option>
+        <option ${r && r.type === 'LI'  ? 'selected' : ''}>LI — Lab Threshold</option>
+      </select>
+    </div>
+    <div class="fg"><label class="fl">Severity Tier</label>
+      <select class="fi">
+        <option ${r && r.sev === 'T1' ? 'selected' : ''}>T1 — Critical (blocks signing)</option>
+        <option ${r && r.sev === 'T2' ? 'selected' : ''}>T2 — Major (warning only)</option>
+      </select>
+    </div>
+  </div>
+  <div class="fg"><label class="fl">Clinical Action Required</label>
+    <input class="fi" value="${r ? r.action : ''}" placeholder="What must the attending do?">
+  </div>
+  <div class="fg"><label class="fl">Evidence / Guideline Reference</label>
+    <textarea class="fi" rows="2" placeholder="Clinical guideline or literature reference…">${r ? 'ESC Heart Failure Guidelines 2023 · ACCP 2022' : ''}</textarea>
+  </div>
+  <div class="fg"><label class="fl">Active</label>
+    <div style="display:flex;gap:16px">
+      <label class="radio-row"><input type="radio" name="active" checked> Active — rule will fire</label>
+      <label class="radio-row"><input type="radio" name="active"> Inactive — disabled</label>
+    </div>
+  </div>
+  <div class="divider"></div>
+  <div style="display:flex;gap:8px;justify-content:flex-end">
+    <button class="btn btn-sec" onclick="_SA.sa3_view='table';showScreen('sa3')">Cancel</button>
+    <button class="btn btn-pri" onclick="_SA.sa3_view='table';showScreen('sa3')">${_SA.sa3_view === 'add' ? 'Create Rule' : 'Save Changes'}</button>
+  </div>
+</div>`;
+  }
+
+  return `
+<div class="bc"><span class="bc-link" onclick="showScreen('sa3')">System Admin</span><span class="bc-sep">/</span><span>Drug-Lab Rules</span></div>
+<div class="sh">
+  <h1 class="sh-title">Drug-Lab Interaction Rules</h1>
+  
+  <div class="sh-actions">
+    <span class="muted small">${RULES.length} rules active</span>
+    <button class="btn btn-pri btn-sm" onclick="_SA.sa3_view='add';showScreen('sa3')">+ Add Rule</button>
+  </div>
+</div>
+<div class="stats">
+  <div class="stat c-r"><div class="stat-v">${RULES.filter(r=>r.sev==='T1').length}</div><div class="stat-l">T1 Critical Rules</div></div>
+  <div class="stat c-a"><div class="stat-v">${RULES.filter(r=>r.sev==='T2').length}</div><div class="stat-l">T2 Major Rules</div></div>
+  <div class="stat c-sa"><div class="stat-v">${RULES.filter(r=>r.type==='DDI').length}</div><div class="stat-l">Drug-Drug (DDI)</div></div>
+  <div class="stat c-p"><div class="stat-v">${RULES.filter(r=>r.type==='DLI'||r.type==='LI').length}</div><div class="stat-l">Drug-Lab (DLI/LI)</div></div>
+</div>
+<div class="tw"><table>
+  <thead><tr>
+    <th style="width:60px">#</th>
+    <th>Drug / Agent A</th>
+    <th>Drug / Lab B</th>
+    <th>Type</th>
+    <th>Severity</th>
+    <th>Clinical Action</th>
+    <th>Actions</th>
+  </tr></thead>
+  <tbody>
+    ${RULES.map(r => `<tr>
+      <td class="mono small">${r.id}</td>
+      <td class="bold">${r.a}</td>
+      <td>${r.b}</td>
+      <td><span class="bd bd-gray" style="font-size:10px">${r.type}</span></td>
+      <td><span class="bd bd-${r.sev.toLowerCase()}">${r.sev}</span></td>
+      <td style="font-size:11.5px;color:var(--ink2)">${r.action}</td>
+      <td>
+        <button class="btn btn-sec btn-xs" style="margin-right:4px"
+          onclick="_SA.sa3_view='edit';_SA.sa3_edit_id='${r.id}';showScreen('sa3')">Edit</button>
+        <button class="btn btn-danger btn-xs" onclick="openModal('delete-rule','${r.id}')">Delete</button>
+      </td>
+    </tr>`).join('')}
+  </tbody>
+</table></div>`;
+},
+
+/* ════════════════════════════════════
+   CMO1 — CMO DASHBOARD
+════════════════════════════════════ */
+cmo1: () => `
+<div class="bc"><span class="bc-link" onclick="showScreen('cmo1')">System Admin</span><span class="bc-sep">/</span><span>CMO Dashboard</span></div>
+<div class="sh">
+  <h1 class="sh-title">Medanta Pilot — CMO Dashboard</h1>
+  
+  <div class="sh-actions">
+    <span class="muted small">Dr. Nitin Gupta · CMO</span>
+    <span class="bd bd-gray">Read-only</span>
+  </div>
+</div>
+<div class="alert al-ok">✅ <b>Pilot Week 1 of 8</b> · Jun 1–2, 2026 · Ward 4B/4C · 28 summaries processed</div>
+<div class="stats">
+  <div class="stat c-g"><div class="stat-v">-71%</div><div class="stat-l">Documentation Time</div></div>
+  <div class="stat c-g"><div class="stat-v">+17%</div><div class="stat-l">NABH Compliance</div></div>
+  <div class="stat c-a"><div class="stat-v">22%</div><div class="stat-l">Cases with T1 Flags</div></div>
+  <div class="stat c-p"><div class="stat-v">61</div><div class="stat-l">Attending NPS</div></div>
+</div>
+<div class="grid2">
+  <div class="card">
+    <div class="card-title">Section-wise Accuracy</div>
+    <div class="tw" style="border:none"><table>
+      <thead><tr><th>Section</th><th>Accuracy</th><th>T1 Rate</th><th>T2 Rate</th></tr></thead>
+      <tbody>
+        ${[
+          ['§1 Patient Identification','99.8%','0%','0.2%'],
+          ['§2 Chief Complaint','96.4%','0%','3.6%'],
+          ['§4 Clinical Examination','98.2%','0%','1.8%'],
+          ['§5 Investigations','89.3%','10.7%','14.2%'],
+          ['§6 Diagnosis','91.1%','8.9%','11.4%'],
+          ['§7 Medications','94.7%','5.3%','8.9%'],
+          ['§11 Discharge Condition','87.6%','12.4%','9.3%'],
+          ['§12 Discharge Meds','93.2%','6.8%','12.1%'],
+          ['§15 Complications','85.4%','14.6%','18.2%'],
+        ].map(([s,a,t1,t2]) => `<tr>
+          <td>${s}</td>
+          <td style="color:${parseFloat(a)>95?'var(--t3)':parseFloat(a)>90?'var(--t2)':'var(--t1)'};font-weight:600">${a}</td>
+          <td style="color:${parseFloat(t1)>10?'var(--t1)':'var(--muted)'}">${t1}</td>
+          <td style="color:${parseFloat(t2)>15?'var(--t2)':'var(--muted)'}">${t2}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table></div>
+  </div>
+  <div>
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-title">Rejection &amp; Resolution Stats</div>
+      <table style="width:100%;font-size:12px"><tbody>
+        <tr><td class="muted">Total summaries signed</td><td class="bold">28</td></tr>
+        <tr><td class="muted">Rejections</td><td class="bold">3</td></tr>
+        <tr><td class="muted">Avg re-sign time</td><td class="bold" style="color:var(--t3)">2h 14m</td></tr>
+        <tr><td class="muted">PHI breaches</td><td class="bold" style="color:var(--t3)">0</td></tr>
+        <tr><td class="muted">DPDPA consent rate</td><td class="bold" style="color:var(--t3)">100%</td></tr>
+      </tbody></table>
+    </div>
+    <div class="card">
+      <div class="card-title">Baseline vs. Pilot</div>
+      <table style="width:100%;font-size:12px"><tbody>
+        ${[
+          ['Documentation time','3.2 hours','55 minutes','-71%'],
+          ['NABH compliance','71% avg','88% avg','+17%'],
+          ['T1 flag detection','Manual review','Auto-detected','100% catch rate'],
+          ['Re-admission risk','Not flagged','LLM flagged','New capability'],
+        ].map(([m,b,p,d]) => `<tr>
+          <td class="muted">${m}</td><td>${b}</td>
+          <td style="color:var(--t3);font-weight:600">${p}</td>
+          <td style="color:var(--p);font-weight:700">${d}</td>
+        </tr>`).join('')}
+      </tbody></table>
+    </div>
+  </div>
+</div>`,
+
+};
+
+/* ─── MODALS ─── */
+const MODALS = {
+  'edit-user': (uid) => `
+<div class="modal-t">Edit User — ${uid}</div>
+<div class="fg"><label class="fl">Full Name</label><input class="fi" value="Dr. Anand Sharma"></div>
+<div class="frow">
+  <div class="fg"><label class="fl">Role</label>
+    <select class="fi"><option selected>Attending</option><option>Resident</option><option>Nurse</option><option>Charge Nurse</option><option>Billing Staff</option><option>Ward Admin</option><option>Super Admin</option><option>CMO</option></select>
+  </div>
+  <div class="fg"><label class="fl">Department</label>
+    <select class="fi"><option selected>Cardiology — Ward 4B</option><option>Cardiology — Ward 4C</option><option>Billing Department</option><option>Administration</option></select>
+  </div>
+</div>
+<div class="fg"><label class="fl">Status</label>
+  <select class="fi"><option selected>Active</option><option>Inactive</option></select>
+</div>
+<div class="alert al-info">Changes are logged in the RBAC audit trail with your Super Admin credentials.</div>
+<div class="modal-f">
+  <button class="btn btn-sec" onclick="closeModal()">Cancel</button>
+  <button class="btn btn-pri" onclick="closeModal()">Save Changes</button>
+</div>`,
+
+  'delete-rule': (rid) => `
+<div class="modal-t">Delete Rule — ${rid}?</div>
+<div class="modal-b">This rule will be permanently removed from the Drug-Lab engine. Any summaries currently flagged by this rule will not be retroactively cleared.</div>
+<div class="alert al-err">⚠ Deletion cannot be undone. Export a backup before deleting critical rules.</div>
+<div class="modal-f">
+  <button class="btn btn-sec" onclick="closeModal()">Cancel</button>
+  <button class="btn btn-danger" onclick="closeModal()">Delete Rule</button>
+</div>`,
+
+  'module-toggle': (m) => `
+<div class="modal-t">Disable ${m}?</div>
+<div class="modal-b">Disabling this module will affect all active users immediately. Any in-progress operations will be suspended. This action is logged in the audit trail.</div>
+<div class="fg"><label class="fl">Type DISABLE to confirm</label><input class="fi" placeholder="DISABLE" id="disable-confirm"></div>
+<div class="alert al-warn">⚠ All active sessions using this module will receive a service interruption notice.</div>
+<div class="modal-f">
+  <button class="btn btn-sec" onclick="closeModal()">Cancel</button>
+  <button class="btn btn-danger" onclick="closeModal()">Disable Module</button>
+</div>`,
+
+  'reset-thresholds': () => `
+<div class="modal-t">Reset Thresholds to Defaults?</div>
+<div class="modal-b">All NEWS2 threshold overrides for Ward 4B/4C will be reverted to the system defaults. Ward-level overrides will be lost.</div>
+<div class="modal-f">
+  <button class="btn btn-sec" onclick="closeModal()">Cancel</button>
+  <button class="btn btn-danger" onclick="closeModal()">Reset to Defaults</button>
+</div>`,
+
+  'save-thresholds': () => `
+<div class="modal-t">Save Threshold Changes</div>
+<div class="modal-b">Updated thresholds will propagate to all nurse dashboards in Ward 4B/4C within 60 seconds.</div>
+<div class="alert al-info">Changes are versioned and logged. Previous thresholds remain accessible in the audit trail.</div>
+<div class="modal-f">
+  <button class="btn btn-sec" onclick="closeModal()">Cancel</button>
+  <button class="btn btn-pri" onclick="closeModal()">Save &amp; Propagate</button>
+</div>`,
+};
+
+/* ─── INIT ─── */
+(function init() {
+  const token = sessionStorage.getItem('foqal_token');
+  const user  = JSON.parse(sessionStorage.getItem('foqal_user') || '{}');
+  if (!token || user.role !== 'superadmin') {
+    window.location.href = '/';
+    return;
+  }
+  const nameEl = document.getElementById('admin-name');
+  if (nameEl && user.full_name) nameEl.textContent = user.full_name;
+  showScreen('sa1');
+})();
+</script>
+</body>
+</html>

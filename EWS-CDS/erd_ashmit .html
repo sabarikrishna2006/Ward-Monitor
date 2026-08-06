@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Foqal CareOS — Unified Database ERD v3.1</title>
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({
+    startOnLoad: true,
+    er: { useMaxWidth: false, layoutDirection: 'TB', minEntityWidth: 120, entityPadding: 15 }
+  });
+</script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+  :root {
+    --hc:       #2563EB; --hc-light: #EFF6FF; --hc-dark: #1e40af; --hc-mid: #93c5fd;
+    --ews:      #7c3aed; --ews-light: #F5F3FF; --ews-dark: #5b21b6; --ews-mid: #c4b5fd;
+    --dai:      #059669; --dai-light: #ECFDF5; --dai-dark: #065f46; --dai-mid: #6ee7b7;
+    --border: #e2e8f0;
+    --text: #0f172a;
+    --muted: #64748b;
+    --bg: #f8fafc;
+    --card: #ffffff;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    font-size: 13px;
+    color: var(--text);
+    background: var(--bg);
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    background: linear-gradient(135deg, #1e3a5f 0%, #2563EB 40%, #7c3aed 75%, #059669 100%);
+    color: white;
+    padding: 40px 48px 32px;
+  }
+  .header-inner { max-width: 1600px; margin: 0 auto; }
+  .header h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; }
+  .header p { font-size: 14px; opacity: 0.82; margin-top: 8px; line-height: 1.6; }
+  .header-meta {
+    display: flex; flex-wrap: wrap; gap: 32px; margin-top: 20px;
+  }
+  .meta-pill {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 24px;
+    padding: 6px 16px;
+    font-size: 12px; font-weight: 600;
+  }
+  .meta-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .dot-hc  { background: #93c5fd; }
+  .dot-ews { background: #c4b5fd; }
+  .dot-dai { background: #6ee7b7; }
+
+  /* ── PAGE BODY ── */
+  .page { max-width: 1600px; margin: 0 auto; padding: 32px 40px 80px; }
+
+  /* ── SECTION ── */
+  .section {
+    margin-bottom: 56px;
+  }
+  .section-header {
+    display: flex; align-items: center; gap: 14px;
+    padding-bottom: 14px;
+    border-bottom: 3px solid;
+    margin-bottom: 18px;
+  }
+  .section-header.hc  { border-color: var(--hc); }
+  .section-header.ews { border-color: var(--ews); }
+  .section-header.dai { border-color: var(--dai); }
+
+  .schema-badge {
+    display: inline-block;
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 11px; font-weight: 700;
+    letter-spacing: 1px; text-transform: uppercase;
+    font-family: 'Courier New', monospace;
+    white-space: nowrap;
+  }
+  .badge-hc  { background: var(--hc-light);  color: var(--hc-dark); }
+  .badge-ews { background: var(--ews-light); color: var(--ews-dark); }
+  .badge-dai { background: var(--dai-light); color: var(--dai-dark); }
+
+  .section-header h2 { font-size: 19px; font-weight: 700; }
+  .section-desc {
+    color: var(--muted); font-size: 13px; line-height: 1.7;
+    margin-bottom: 20px; max-width: 900px;
+  }
+  .section-desc code {
+    background: #f1f5f9; border: 1px solid var(--border);
+    border-radius: 4px; padding: 1px 5px;
+    font-family: 'Courier New', monospace; font-size: 12px;
+    color: var(--hc-dark);
+  }
+
+  /* ── DIAGRAM WRAPPER ── */
+  .diagram-wrap {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px 32px;
+    overflow-x: auto;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .diagram-wrap pre.mermaid {
+    min-width: 900px;
+  }
+
+  /* ── KEY LEGEND ── */
+  .legend-box {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 22px;
+    margin-bottom: 36px;
+    display: flex; flex-wrap: wrap; gap: 24px; align-items: center;
+  }
+  .legend-title { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-right: 8px; }
+  .legend-item { display: flex; align-items: center; gap: 7px; font-size: 12.5px; }
+  .leg-code { font-family: 'Courier New', monospace; font-weight: 700; font-size: 12px; color: var(--hc); background: var(--hc-light); padding: 1px 6px; border-radius: 4px; }
+
+  /* ── DIVIDER ── */
+  .divider { border: none; border-top: 1px solid var(--border); margin: 48px 0; }
+
+  /* ── FOOTER ── */
+  footer {
+    text-align: center;
+    padding: 20px;
+    font-size: 12px;
+    color: var(--muted);
+    border-top: 1px solid var(--border);
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-inner">
+    <h1>Foqal CareOS — Unified Database ERD v3.1</h1>
+    <p>Three-schema architecture on Google Cloud SQL PostgreSQL 15+. The <strong>admission_id UUID</strong> is the universal key flowing from hospital_core into both ews and discharge_ai. <strong>staff_id UUID</strong> is the universal actor key for all clinical attributions.</p>
+    <div class="header-meta">
+      <div class="meta-pill"><div class="meta-dot dot-hc"></div>hospital_core — 16 tables — Shared master data</div>
+      <div class="meta-pill"><div class="meta-dot dot-ews"></div>ews — 10 tables — Ward Monitor / EWS</div>
+      <div class="meta-pill"><div class="meta-dot dot-dai"></div>discharge_ai — 22 tables — Discharge Summary AI</div>
+    </div>
+  </div>
+</div>
+
+<div class="page">
+
+  <div class="legend-box">
+    <span class="legend-title">Notation</span>
+    <div class="legend-item"><span class="leg-code">||--o{</span> One-to-Many (required parent)</div>
+    <div class="legend-item"><span class="leg-code">||--o|</span> One-to-Zero-or-One (optional)</div>
+    <div class="legend-item"><span class="leg-code">PK</span> Primary Key</div>
+    <div class="legend-item"><span class="leg-code">FK</span> Foreign Key → another table</div>
+    <div class="legend-item"><span class="leg-code">UK</span> Unique Key (not PK)</div>
+  </div>
+
+  <div class="section">
+    <div class="section-header hc">
+      <span class="schema-badge badge-hc">hospital_core</span>
+      <h2>Master Data Schema — 16 Tables</h2>
+    </div>
+    <p class="section-desc">
+      Shared schema owned by neither team. Both <code>ews</code> and <code>discharge_ai</code> reference these tables via FK.
+      <code>HOSPITALS</code> is the multi-tenancy root. <code>ADMISSIONS.admission_id</code> (UUID) is the <strong>universal key</strong> that flows into every downstream table.
+      <code>STAFF</code> replaces all free-text name fields — every clinical action is attributed to a staff UUID for NABH MN-4 compliance.
+    </p>
+    <div class="diagram-wrap">
+<pre class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#EFF6FF', 'primaryBorderColor': '#2563EB', 'primaryTextColor': '#1e40af', 'lineColor': '#2563EB', 'secondaryColor': '#dbeafe', 'tertiaryColor': '#f8fafc', 'background': '#ffffff', 'fontFamily': 'Segoe UI, sans-serif', 'fontSize': '13px', 'attributeBackgroundColorEven': '#EFF6FF', 'attributeBackgroundColorOdd': '#ffffff'}}}%%
+erDiagram
+    HOSPITALS {
+        uuid hospital_id PK
+        string short_code UK "e.g. AIIMS-DEL"
+        string name
+        string type
+        boolean nabh_accredited
+        string rohini_id "Indian insurance ID"
+    }
+    DEPARTMENTS {
+        uuid dept_id PK
+        uuid hospital_id FK
+        string name "Cardiology, ICU, Medicine"
+        string code "CARD, ICU, MED"
+    }
+    WARDS {
+        uuid ward_id PK
+        uuid hospital_id FK
+        uuid dept_id FK
+        string name "CCU, General Ward 4B"
+        string ward_type "CCU GW ICU HDU EMERGENCY"
+        int capacity
+    }
+    BEDS {
+        uuid bed_id PK
+        uuid ward_id FK
+        string bed_number "CCU-01, GW-12"
+        string status "available occupied maintenance"
+        uuid current_admission_id FK "nullable"
+    }
+    STAFF {
+        uuid staff_id PK
+        uuid hospital_id FK
+        uuid dept_id FK
+        string full_name
+        string role "staff_nurse charge_nurse resident attending cmo"
+        string hospital_email UK
+        string license_no "MCI or Nursing Council"
+    }
+    PATIENTS {
+        varchar uhid PK "AIIMS-2026-0001234"
+        uuid hospital_id FK
+        string full_name
+        date dob
+        char sex
+        string insurance_type
+    }
+    ADMISSIONS {
+        uuid admission_id PK "UNIVERSAL KEY"
+        varchar uhid FK
+        uuid hospital_id FK
+        uuid assigned_doctor_id FK
+        string admission_type "EMERGENCY ELECTIVE TRANSFER_IN"
+        string status "admitted in_ccu transferred_to_gw discharged"
+        timestamptz admitted_at
+        timestamptz discharged_at "NULL until discharge"
+    }
+    DOCTOR_PATIENT_ASSIGNMENTS {
+        uuid assignment_id PK
+        uuid admission_id FK
+        uuid doctor_id FK
+        string assignment_type "PRIMARY COVERING CONSULTANT"
+        timestamptz assigned_at
+        timestamptz unassigned_at "NULL if currently active"
+    }
+    WARD_TRANSFERS {
+        uuid transfer_id PK
+        uuid admission_id FK
+        uuid from_ward_id FK
+        uuid to_ward_id FK
+        string transfer_type "CCU_TO_GW or GW_TO_CCU"
+        int news2_at_transfer
+        string status "pending approved completed"
+    }
+    INSURANCE_POLICIES {
+        uuid policy_id PK
+        varchar uhid FK
+        string provider_name
+        string scheme "Ayushman_Bharat CGHS ESI Private"
+        string policy_number
+        date valid_until
+    }
+    PRE_AUTH_REQUESTS {
+        uuid request_id PK
+        uuid admission_id FK
+        uuid policy_id FK
+        string status "draft submitted approved rejected"
+        float estimated_cost_inr
+        timestamptz submitted_at
+    }
+    COST_LOOKUPS {
+        uuid cost_id PK
+        uuid hospital_id FK
+        string category "procedure bed drug lab"
+        string item_code "CPT or NABH code"
+        string item_name
+        float unit_cost_inr
+        date effective_from
+    }
+    NOTIFICATIONS {
+        uuid notification_id PK
+        uuid recipient_staff_id FK
+        uuid admission_id FK
+        string type "transfer_ready escalation_pending drug_flag"
+        string status "unread read dismissed"
+        timestamptz created_at
+    }
+    AUDIT_LOGS {
+        bigserial log_id PK
+        uuid actor_staff_id FK
+        uuid admission_id FK "nullable"
+        string action_type "CREATE UPDATE DELETE ACCESS SIGN"
+        string entity_table
+        string entity_id
+        jsonb old_values "nullable"
+        jsonb new_values "nullable"
+        timestamptz ts
+    }
+    HIS_PATIENT_SYNC {
+        uuid sync_id PK
+        varchar uhid FK
+        string his_system "Meditech Cerner Epic"
+        string status "success failed pending"
+        timestamptz synced_at
+    }
+    DE_IDENTIFICATION_MAPPING {
+        uuid mapping_id PK
+        varchar uhid FK
+        string de_id "used in MIMIC or research exports"
+        string request_purpose "nullable"
+        uuid requested_by FK
+        timestamptz created_at
+        timestamptz expires_at "nullable"
+    }
+
+    HOSPITALS ||--o{ DEPARTMENTS : "has"
+    HOSPITALS ||--o{ WARDS : "has"
+    HOSPITALS ||--o{ STAFF : "employs"
+    HOSPITALS ||--o{ PATIENTS : "registers"
+    HOSPITALS ||--o{ ADMISSIONS : "hosts"
+    HOSPITALS ||--o{ COST_LOOKUPS : "prices in"
+    DEPARTMENTS ||--o{ WARDS : "organises"
+    DEPARTMENTS ||--o{ STAFF : "has"
+    WARDS ||--o{ BEDS : "contains"
+    WARDS ||--o{ WARD_TRANSFERS : "from or to"
+    PATIENTS ||--o{ ADMISSIONS : "admitted via"
+    PATIENTS ||--o{ INSURANCE_POLICIES : "holds"
+    PATIENTS ||--o{ HIS_PATIENT_SYNC : "synced in"
+    PATIENTS ||--o{ DE_IDENTIFICATION_MAPPING : "mapped in"
+    STAFF ||--o{ ADMISSIONS : "assigned to treat"
+    STAFF ||--o{ DOCTOR_PATIENT_ASSIGNMENTS : "fulfils role"
+    STAFF ||--o{ NOTIFICATIONS : "receives"
+    STAFF ||--o{ AUDIT_LOGS : "actor in"
+    ADMISSIONS ||--o{ DOCTOR_PATIENT_ASSIGNMENTS : "tracked by"
+    ADMISSIONS ||--o{ WARD_TRANSFERS : "logged in ADT"
+    ADMISSIONS ||--o{ PRE_AUTH_REQUESTS : "triggers"
+    ADMISSIONS ||--o{ NOTIFICATIONS : "about"
+    ADMISSIONS ||--o{ AUDIT_LOGS : "audited in"
+    INSURANCE_POLICIES ||--o{ PRE_AUTH_REQUESTS : "covers"
+</pre>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <div class="section">
+    <div class="section-header ews">
+      <span class="schema-badge badge-ews">ews</span>
+      <h2>EWS Schema — Ward Monitor (10 Tables)</h2>
+    </div>
+    <p class="section-desc">
+      Foqal CareOS early warning system. All 10 tables FK to <code>hospital_core.admissions.admission_id</code>
+      (shown as anchor entity). Vitals retain full 12-field richness. Drug-lab rules move to DB with hospital-level scoping.
+      DCM assessments and fluid balance are new tables specific to dilated cardiomyopathy monitoring.
+      The step-down transfer workflow has a multi-stage approval FSM.
+    </p>
+    <div class="diagram-wrap">
+<pre class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#F5F3FF', 'primaryBorderColor': '#7c3aed', 'primaryTextColor': '#5b21b6', 'lineColor': '#7c3aed', 'secondaryColor': '#ede9fe', 'background': '#ffffff', 'fontFamily': 'Segoe UI, sans-serif', 'fontSize': '13px', 'attributeBackgroundColorEven': '#F5F3FF', 'attributeBackgroundColorOdd': '#ffffff'}}}%%
+erDiagram
+    ADMISSIONS {
+        uuid admission_id PK "anchor from hospital_core"
+    }
+    VITALS_TIMESERIES {
+        bigserial id PK
+        uuid admission_id FK
+        timestamptz chart_time "4-hour bucket window"
+        float heart_rate "bpm"
+        float resp_rate "breaths per min"
+        float spo2 "percent"
+        float sbp "mmHg systolic"
+        float dbp "mmHg diastolic"
+        float temperature "Celsius"
+        char consciousness "AVPU scale"
+        float urine_output "mL nullable"
+        float fluid_balance "mL per 24h nullable"
+        float weight_kg "daily weigh-in nullable"
+        uuid recorded_by FK "hospital_core.staff"
+        timestamptz recorded_at
+    }
+    LAB_EVENTS {
+        bigserial id PK
+        uuid admission_id FK
+        timestamptz chart_time
+        float potassium "mmol/L"
+        float creatinine "mg/dL"
+        float lactate "mmol/L"
+        float inr
+        float egfr "CKD-EPI mL/min"
+        float bnp "pg/mL - DCM key marker"
+        float troponin "ng/mL"
+        float sodium "mmol/L"
+        float hemoglobin "g/dL"
+        float alt "U/L"
+        uuid recorded_by FK
+        timestamptz recorded_at
+    }
+    MEDICATIONS {
+        bigserial id PK
+        uuid admission_id FK
+        string med_name
+        string dose
+        string frequency
+        string route "PO IV SC IM"
+        string brand_name "nullable"
+        uuid prescribed_by FK
+        timestamptz prescribed_at
+    }
+    DRUG_LAB_RULES {
+        uuid rule_id PK
+        uuid hospital_id FK
+        string drug_name
+        string lab_parameter
+        float threshold_value
+        string comparator "gt lt gte lte"
+        int flag_tier "1 2 or 3"
+        string guideline_source
+        boolean is_active
+    }
+    DRUG_LAB_FLAGS {
+        uuid flag_id PK
+        uuid admission_id FK
+        uuid rule_id FK
+        int flag_tier "1 minor 2 moderate 3 critical"
+        string drug_name
+        string lab_parameter
+        float observed_value
+        boolean acknowledged
+        uuid acknowledged_by FK "nullable"
+        timestamptz detected_at
+    }
+    ESCALATIONS {
+        uuid id PK
+        uuid admission_id FK
+        int news2_score
+        string level "low medium high code_blue"
+        string status "active pending_charge_ack charge_acked resolved"
+        boolean false_alarm
+        string false_alarm_reason "nullable"
+        boolean sla_breached
+        uuid escalated_by FK
+        uuid actioned_by FK "nullable"
+        timestamptz created_at
+    }
+    EWS_EVENTS {
+        uuid id PK
+        uuid admission_id FK
+        string event_type "NEWS2_RISING TREND_ALERT STEP_DOWN_ELIGIBLE DCM_DECOMPENSATION"
+        float trend_score "EWMA composite"
+        float ml_confidence "0 to 100"
+        jsonb top_signals "nullable"
+        string status "pending actioned dismissed"
+        uuid actioned_by FK "nullable"
+        timestamptz detected_at
+    }
+    DCM_ASSESSMENTS {
+        uuid id PK
+        uuid admission_id FK
+        int nyha_class "1-4"
+        float ef_percent "LVEF from echo"
+        float baseline_weight_kg "at admission"
+        float bnp_admission "pg/mL"
+        int edema_grade "0-3"
+        uuid assessed_by FK
+        timestamptz assessed_at
+    }
+    FLUID_BALANCE {
+        uuid id PK
+        uuid admission_id FK
+        int period_hours "8 or 24"
+        float intake_ml "IV plus oral"
+        float urine_ml
+        float drain_ml "nullable"
+        float net_balance_ml
+        float daily_weight_kg "nullable"
+        uuid recorded_by FK
+        timestamptz recorded_at
+    }
+    TRANSFER_REQUESTS {
+        uuid id PK
+        uuid admission_id FK
+        uuid from_ward_id FK "CCU ward"
+        uuid to_ward_id FK "GW ward"
+        uuid requested_by FK "Staff Nurse"
+        int news2_at_submit
+        int stable_window_hours
+        jsonb checklist_json "5 criteria auto-populated"
+        boolean vitals_fresh "charted within 45 min"
+        uuid charge_approved_by FK "Head Nurse nullable"
+        uuid attending_signed_by FK "nullable"
+        string status "pending_charge charge_approved attending_review approved rejected"
+        string rejection_reason "nullable"
+        timestamptz submitted_at
+        timestamptz decided_at "nullable"
+    }
+
+    ADMISSIONS ||--o{ VITALS_TIMESERIES : "records vitals"
+    ADMISSIONS ||--o{ LAB_EVENTS : "records labs"
+    ADMISSIONS ||--o{ MEDICATIONS : "prescribes"
+    ADMISSIONS ||--o{ DRUG_LAB_FLAGS : "generates flags"
+    ADMISSIONS ||--o{ ESCALATIONS : "triggers"
+    ADMISSIONS ||--o{ EWS_EVENTS : "generates events"
+    ADMISSIONS ||--o{ DCM_ASSESSMENTS : "assessed via"
+    ADMISSIONS ||--o{ FLUID_BALANCE : "tracked in"
+    ADMISSIONS ||--o{ TRANSFER_REQUESTS : "initiates"
+    DRUG_LAB_RULES ||--o{ DRUG_LAB_FLAGS : "evaluated as"
+</pre>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <div class="section">
+    <div class="section-header dai">
+      <span class="schema-badge badge-dai">discharge_ai</span>
+      <h2>Discharge Summary AI Schema — 22 Tables</h2>
+    </div>
+    <p class="section-desc">
+      Discharge summary AI system. <code>ACTIVE_PATIENTS</code> is the bridge table linking <code>MIMIC-IV hadm_id</code> to <code>hospital_core.admissions.admission_id</code>.
+      The Gemini pipeline, MedCPT embeddings, and all 18 <code>ap_*</code> MIMIC-IV clinical tables are preserved.
+      Section-level NABH tracking with a doctor amendment FSM ensures each of the 15 NABH discharge sections can be individually rejected and regenerated.
+      The 3-tier AI error log (tier 1 minor, tier 2 factual, tier 3 hallucination) is unique to this architecture.
+    </p>
+    <div class="diagram-wrap">
+<pre class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#ECFDF5', 'primaryBorderColor': '#059669', 'primaryTextColor': '#065f46', 'lineColor': '#059669', 'secondaryColor': '#d1fae5', 'background': '#ffffff', 'fontFamily': 'Segoe UI, sans-serif', 'fontSize': '13px', 'attributeBackgroundColorEven': '#ECFDF5', 'attributeBackgroundColorOdd': '#ffffff'}}}%%
+erDiagram
+    ADMISSIONS {
+        uuid admission_id PK "anchor from hospital_core"
+    }
+    STAFF {
+        uuid staff_id PK "from hospital_core"
+        string full_name
+        string role
+    }
+    ACTIVE_PATIENTS {
+        bigint hadm_id PK "MIMIC-IV legacy key"
+        uuid admission_id FK "integration bridge key"
+        string data_fetch_status "pending fetching fetched failed"
+        string status "active data_ready summary_generated signed_off"
+        string discharge_type "Standard LAMA DAMA Death Referral"
+        uuid assigned_doctor_id FK "nullable"
+        uuid signed_by FK "nullable"
+        timestamptz created_at
+        timestamptz updated_at
+    }
+    APP_UPLOADED_FILES {
+        uuid file_id PK
+        bigint hadm_id FK
+        uuid encounter_id FK
+        string file_type "labs meds notes diagnoses icu microbiology"
+        string file_name
+        bigint file_size
+        string gcs_path "GCS URI"
+        string indexed_status "pending indexed failed"
+        uuid uploaded_by FK
+        timestamptz uploaded_at
+    }
+    APP_CLINICAL_ROWS {
+        bigserial id PK
+        bigint hadm_id FK
+        string file_type
+        uuid file_id FK
+        jsonb rows "array of CSV row objects"
+        timestamptz created_at
+    }
+    APP_ENCOUNTERS {
+        uuid encounter_id PK
+        bigint hadm_id FK
+        uuid admission_id FK
+        string status "Pending_Ingestion Processing Ready_for_Review Signed_Off"
+        string complexity "Low Medium High"
+        uuid assigned_to FK "hospital_core.staff"
+        int version
+        timestamptz created_at
+        timestamptz updated_at
+    }
+    APP_SUMMARIES {
+        uuid summary_id PK
+        uuid encounter_id FK
+        bigint hadm_id
+        text content "full summary text"
+        string version "v1.0 v1.1"
+        float nli_score "NLI entailment score"
+        string nabh_status "draft doctor_review signed final"
+        boolean doctor_signed
+        uuid signed_by FK "nullable"
+        timestamptz signed_at "nullable"
+        timestamptz generated_at
+    }
+    DISCHARGE_SECTIONS {
+        uuid section_id PK
+        uuid summary_id FK
+        int section_number "1 to 15 NABH sections"
+        string section_name "Chief_Complaint History Medications"
+        text content "AI-generated section text"
+        float confidence_score "0 to 1 per section"
+        boolean source_present "grounding check"
+        int error_tier "0 1 2 or 3"
+        boolean doctor_approved
+        timestamptz created_at
+    }
+    DISCHARGE_AMENDMENTS {
+        uuid amendment_id PK
+        uuid summary_id FK
+        uuid section_id FK
+        string rejection_reason
+        text revised_content "regenerated by AI"
+        int amendment_round "1 2 3"
+        string status "pending_regen regenerated doctor_approved"
+        uuid requested_by FK "staff_id"
+        timestamptz requested_at
+    }
+    ERROR_LOG {
+        serial id PK
+        bigint hadm_id
+        string summary_version "v1.0 v1.1"
+        string nabh_section "s1 through s15"
+        int error_tier "1 minor 2 moderate 3 critical"
+        text ai_output
+        text correct_value
+        string error_category "medication_dose diagnosis hallucination"
+        boolean source_present
+        uuid attending_id FK "nullable"
+        timestamptz created_at
+    }
+    BILLING {
+        uuid bill_id PK
+        uuid encounter_id FK
+        uuid insurance_policy_id FK "nullable OOP if NULL"
+        string bill_status "draft submitted pre_auth_pending approved paid"
+        float total_amount_inr
+        float insurance_covered_inr
+        float patient_payable_inr
+        string payment_scheme "Ayushman_Bharat CGHS ESI Private OOP"
+    }
+    BILLING_LINE_ITEMS {
+        uuid line_item_id PK
+        uuid bill_id FK "links to BILLING summary"
+        bigint hadm_id FK "MIMIC-IV patient admission"
+        uuid cost_id FK "links to hospital_core.COST_LOOKUPS"
+        string source_table "e.g., MEDICATIONS or APP_CLINICAL_ROWS"
+        string source_record_id "ID of the specific med/procedure"
+        int quantity "number of units/doses"
+        float unit_cost_applied_inr "snapshot of cost at time of use"
+        float total_line_charge_inr "quantity * unit_cost"
+        timestamptz charged_at
+    }
+    APP_SETTINGS {
+        int id PK "always 1 singleton"
+        uuid hospital_id FK
+        string hospital_name
+        string wing "nullable"
+        string city "nullable"
+        string mci_nabh_number "nullable"
+        float nli_entailment_threshold "default 0.5"
+        int k_retrieved_chunks "default 5"
+        boolean auto_notify_doctor
+        timestamptz updated_at
+    }
+    APP_AUDIT_LOG {
+        bigserial id PK
+        string action "80-char label"
+        bigint hadm_id "nullable"
+        uuid user_id FK
+        jsonb details "nullable"
+        timestamptz created_at
+    }
+
+    ADMISSIONS ||--o| ACTIVE_PATIENTS : "maps to"
+    ADMISSIONS ||--o{ APP_ENCOUNTERS : "creates"
+    STAFF ||--o{ APP_ENCOUNTERS : "assigned to"
+    STAFF ||--o{ APP_SUMMARIES : "signs"
+    STAFF ||--o{ APP_AUDIT_LOG : "performs action"
+    ACTIVE_PATIENTS ||--o{ APP_UPLOADED_FILES : "has files"
+    ACTIVE_PATIENTS ||--o{ APP_CLINICAL_ROWS : "has clinical rows"
+    ACTIVE_PATIENTS ||--o{ APP_ENCOUNTERS : "has encounters"
+    ACTIVE_PATIENTS ||--o{ BILLING_LINE_ITEMS : "incurs charges for"
+    APP_UPLOADED_FILES ||--o{ APP_CLINICAL_ROWS : "parsed into"
+    APP_ENCOUNTERS ||--o{ APP_SUMMARIES : "generates"
+    APP_ENCOUNTERS ||--o{ BILLING : "billed via"
+    APP_SUMMARIES ||--o{ DISCHARGE_SECTIONS : "split into 15 sections"
+    APP_SUMMARIES ||--o{ DISCHARGE_AMENDMENTS : "amended by"
+    APP_SUMMARIES ||--o{ ERROR_LOG : "monitored in"
+    DISCHARGE_SECTIONS ||--o{ DISCHARGE_AMENDMENTS : "rejected in"
+    BILLING ||--o{ BILLING_LINE_ITEMS : "itemizes"
+</pre>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  Foqal CareOS — Unified Database Architecture v3.1 &nbsp;·&nbsp; June 2026 &nbsp;·&nbsp; Google Cloud SQL PostgreSQL 15+ &nbsp;·&nbsp; 3 Schemas · ~48 Tables
+</footer>
+
+</body>
+</html>

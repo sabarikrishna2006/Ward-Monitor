@@ -1,0 +1,1485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Foqal Hospital OS — Integrated Architecture & ERD</title>
+<style>
+  :root {
+    --core: #0d9488;
+    --core-light: #ccfbf1;
+    --core-dark: #0f766e;
+    --ews: #7c3aed;
+    --ews-light: #ede9fe;
+    --ews-dark: #6d28d9;
+    --discharge: #16a34a;
+    --discharge-light: #dcfce7;
+    --discharge-dark: #15803d;
+    --gray: #f8fafc;
+    --border: #e2e8f0;
+    --text: #1e293b;
+    --muted: #64748b;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    font-size: 13px;
+    color: var(--text);
+    background: #fff;
+    line-height: 1.5;
+  }
+
+  /* PRINT */
+  @media print {
+    .no-print { display: none !important; }
+    .page-break { page-break-before: always; }
+    body { font-size: 11px; }
+    .cover { height: auto; min-height: 220px; }
+  }
+
+  /* LAYOUT */
+  .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+
+  /* COVER */
+  .cover {
+    background: linear-gradient(135deg, #0f766e 0%, #7c3aed 60%, #1e1b4b 100%);
+    color: white;
+    padding: 60px 48px 48px;
+    min-height: 280px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .cover-logo { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; opacity: 0.7; margin-bottom: 16px; }
+  .cover h1 { font-size: 32px; font-weight: 700; margin-bottom: 8px; }
+  .cover h2 { font-size: 17px; font-weight: 400; opacity: 0.85; margin-bottom: 24px; }
+  .cover-meta { display: flex; gap: 32px; font-size: 12px; opacity: 0.75; flex-wrap: wrap; }
+  .cover-meta span { display: flex; flex-direction: column; }
+  .cover-meta strong { font-size: 13px; opacity: 1; font-weight: 600; color: #fff; }
+
+  /* PRINT BUTTON */
+  .print-bar {
+    background: #1e293b;
+    padding: 10px 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .print-btn {
+    background: var(--core);
+    color: white;
+    border: none;
+    padding: 7px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .print-btn:hover { background: var(--core-dark); }
+  .print-bar p { color: #94a3b8; font-size: 12px; }
+
+  /* SECTION */
+  .section { padding: 40px 0 32px; border-bottom: 1px solid var(--border); }
+  .section:last-child { border-bottom: none; }
+  .section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .section-num {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .section h2 {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  /* SCHEMA BADGES */
+  .badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .badge-core { background: var(--core-light); color: var(--core-dark); }
+  .badge-ews { background: var(--ews-light); color: var(--ews-dark); }
+  .badge-discharge { background: var(--discharge-light); color: var(--discharge-dark); }
+
+  /* PROBLEM TABLE */
+  table.problem {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 12px;
+  }
+  table.problem th {
+    background: #1e293b;
+    color: white;
+    padding: 10px 14px;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  table.problem td {
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  table.problem tr:nth-child(even) td { background: var(--gray); }
+  .red-text { color: #dc2626; font-weight: 600; }
+  .green-text { color: #16a34a; font-weight: 600; }
+
+  /* ARCH DIAGRAM */
+  .arch-box {
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin: 16px 0;
+    background: var(--gray);
+  }
+  .arch-box h4 { font-size: 13px; color: var(--muted); margin-bottom: 12px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; }
+  .arch-schemas { display: flex; gap: 16px; flex-wrap: wrap; }
+  .arch-schema {
+    flex: 1;
+    min-width: 200px;
+    border-radius: 8px;
+    padding: 16px;
+    border: 2px solid;
+  }
+  .arch-schema.core { border-color: var(--core); background: var(--core-light); }
+  .arch-schema.ews { border-color: var(--ews); background: var(--ews-light); }
+  .arch-schema.discharge { border-color: var(--discharge); background: var(--discharge-light); }
+  .arch-schema h3 { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+  .arch-schema.core h3 { color: var(--core-dark); }
+  .arch-schema.ews h3 { color: var(--ews-dark); }
+  .arch-schema.discharge h3 { color: var(--discharge-dark); }
+  .arch-schema p { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+  .arch-schema ul { list-style: none; font-size: 12px; }
+  .arch-schema ul li { padding: 2px 0; }
+  .arch-schema ul li::before { content: "→ "; opacity: 0.5; }
+
+  /* ERD GRID */
+  .erd-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+  }
+  .erd-grid.two-col { grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); }
+
+  /* ENTITY BOX */
+  .entity {
+    border-radius: 8px;
+    border: 1.5px solid;
+    overflow: hidden;
+  }
+  .entity.core { border-color: var(--core); }
+  .entity.ews { border-color: var(--ews); }
+  .entity.discharge { border-color: var(--discharge); }
+  .entity.new { border-style: dashed; border-width: 2px; }
+
+  .entity-header {
+    padding: 8px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .entity.core .entity-header { background: var(--core); }
+  .entity.ews .entity-header { background: var(--ews); }
+  .entity.discharge .entity-header { background: var(--discharge); }
+  .entity-header h4 { color: white; font-size: 13px; font-weight: 700; font-family: 'Courier New', monospace; }
+  .entity-header .new-tag {
+    background: rgba(255,255,255,0.25);
+    color: white;
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-weight: 600;
+  }
+
+  .entity-body { background: white; }
+  .field {
+    display: flex;
+    align-items: flex-start;
+    padding: 5px 12px;
+    border-bottom: 1px solid #f1f5f9;
+    gap: 8px;
+    font-size: 12px;
+  }
+  .field:last-child { border-bottom: none; }
+  .field-key {
+    font-size: 10px;
+    font-weight: 700;
+    border-radius: 3px;
+    padding: 1px 5px;
+    min-width: 30px;
+    text-align: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .pk { background: #fef08a; color: #713f12; }
+  .fk { background: #bfdbfe; color: #1e3a8a; }
+  .idx { background: #e9d5ff; color: #4c1d95; }
+  .field-name {
+    font-family: 'Courier New', monospace;
+    font-size: 11.5px;
+    color: var(--text);
+    font-weight: 600;
+    min-width: 160px;
+  }
+  .field-type { color: var(--muted); font-size: 11px; flex: 1; }
+  .field-note { color: #94a3b8; font-size: 10.5px; font-style: italic; }
+
+  /* FLOW DIAGRAM */
+  .flow {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin-top: 16px;
+  }
+  .flow-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+  }
+  .flow-left {
+    width: 130px;
+    text-align: right;
+    padding: 12px 16px 12px 0;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+  .flow-line {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 32px;
+    flex-shrink: 0;
+  }
+  .flow-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 3px solid;
+    background: white;
+    margin-top: 14px;
+    flex-shrink: 0;
+  }
+  .flow-dot.core { border-color: var(--core); }
+  .flow-dot.ews { border-color: var(--ews); }
+  .flow-dot.discharge { border-color: var(--discharge); }
+  .flow-dot.both { border-color: var(--core); background: var(--core); }
+  .flow-connector {
+    width: 2px;
+    flex: 1;
+    background: var(--border);
+    min-height: 24px;
+  }
+  .flow-content {
+    flex: 1;
+    padding: 8px 0 16px 16px;
+  }
+  .flow-content h4 { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+  .flow-content p { font-size: 12px; color: var(--muted); }
+  .flow-content ul { font-size: 12px; color: var(--muted); list-style: none; margin-top: 4px; }
+  .flow-content ul li::before { content: "• "; color: var(--core); }
+  .flow-pill {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 600;
+    margin-right: 4px;
+  }
+  .pill-core { background: var(--core-light); color: var(--core-dark); }
+  .pill-ews { background: var(--ews-light); color: var(--ews-dark); }
+  .pill-discharge { background: var(--discharge-light); color: var(--discharge-dark); }
+
+  /* SWIMLANE */
+  .swimlane { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 12px; }
+  .swimlane th {
+    padding: 10px 12px;
+    text-align: center;
+    font-weight: 700;
+    font-size: 12px;
+    border: 1px solid var(--border);
+  }
+  .swimlane td {
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    vertical-align: top;
+    line-height: 1.5;
+  }
+  .swimlane .row-label {
+    font-weight: 700;
+    font-size: 11px;
+    background: var(--gray);
+    text-align: center;
+    writing-mode: initial;
+    min-width: 80px;
+  }
+  .swim-nurse { background: #fff7ed; }
+  .swim-charge { background: #faf5ff; }
+  .swim-attending { background: #f0fdf4; }
+  .swim-system { background: #f0f9ff; }
+  th.swim-nurse { background: #fed7aa; color: #9a3412; }
+  th.swim-charge { background: #ddd6fe; color: #4c1d95; }
+  th.swim-attending { background: #bbf7d0; color: #14532d; }
+  th.swim-system { background: #bae6fd; color: #0c4a6e; }
+
+  .swim-action {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 10px;
+    margin: 4px 0;
+    font-size: 11.5px;
+  }
+  .swim-decision {
+    background: #fef9c3;
+    border: 1px solid #fde047;
+    border-radius: 6px;
+    padding: 6px 10px;
+    margin: 4px 0;
+    font-size: 11.5px;
+    font-weight: 600;
+  }
+  .arrow-down {
+    text-align: center;
+    color: var(--muted);
+    font-size: 16px;
+    padding: 2px 0;
+    display: block;
+  }
+
+  /* LEVEL BADGES */
+  .level { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 11px; font-weight: 700; }
+  .level-routine { background: #f1f5f9; color: var(--muted); }
+  .level-low { background: #fef9c3; color: #713f12; }
+  .level-medium { background: #fed7aa; color: #9a3412; }
+  .level-high { background: #fecaca; color: #991b1b; }
+  .level-code { background: #1e293b; color: white; }
+
+  /* SCREENS GRID */
+  .screens-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 12px;
+    margin-top: 16px;
+  }
+  .screen-card {
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .screen-card.new-screen { border-color: var(--ews); border-style: dashed; }
+  .screen-card.modified-screen { border-color: var(--core); }
+  .screen-header {
+    padding: 8px 12px;
+    font-weight: 700;
+    font-size: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .screen-card.new-screen .screen-header { background: var(--ews-light); color: var(--ews-dark); }
+  .screen-card.modified-screen .screen-header { background: var(--core-light); color: var(--core-dark); }
+  .screen-card:not(.new-screen):not(.modified-screen) .screen-header { background: var(--gray); color: var(--text); }
+  .screen-body { padding: 10px 12px; font-size: 11.5px; color: var(--muted); }
+  .screen-body ul { list-style: none; }
+  .screen-body ul li { padding: 2px 0; }
+  .screen-body ul li::before { content: "→ "; opacity: 0.4; }
+  .screen-role {
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-weight: 700;
+    background: white;
+    border: 1px solid currentColor;
+  }
+
+  /* MIGRATION */
+  .phase-list { margin-top: 16px; }
+  .phase {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 20px;
+    align-items: flex-start;
+  }
+  .phase-num {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--text);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 15px;
+    flex-shrink: 0;
+  }
+  .phase-content h4 { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+  .phase-content ul { list-style: disc; padding-left: 20px; font-size: 12px; color: var(--muted); }
+  .phase-content ul li { padding: 2px 0; }
+
+  /* PRINCIPLES */
+  .principles { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; margin-top: 16px; }
+  .principle {
+    background: var(--gray);
+    border-radius: 8px;
+    padding: 14px;
+    border-left: 4px solid var(--core);
+  }
+  .principle h4 { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+  .principle p { font-size: 12px; color: var(--muted); }
+
+  /* STATUS MACHINE */
+  .status-chain {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin: 8px 0;
+  }
+  .status-node {
+    background: #f1f5f9;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-size: 11px;
+    font-family: 'Courier New', monospace;
+    font-weight: 600;
+  }
+  .status-arrow { color: var(--muted); font-size: 14px; }
+
+  /* INFO CALLOUT */
+  .callout {
+    background: #f0fdf4;
+    border-left: 4px solid var(--discharge);
+    border-radius: 0 8px 8px 0;
+    padding: 12px 16px;
+    margin: 12px 0;
+    font-size: 12px;
+  }
+  .callout.info { background: #eff6ff; border-color: #3b82f6; }
+  .callout.warn { background: #fffbeb; border-color: #f59e0b; }
+  .callout strong { display: block; margin-bottom: 4px; font-size: 13px; }
+
+  .divider { height: 1px; background: var(--border); margin: 24px 0; }
+</style>
+</head>
+<body>
+
+<!-- COVER -->
+<div class="cover">
+  <div class="cover-logo">Foqal Hospital OS · Internal Architecture Document</div>
+  <h1>Integrated Clinical Ecosystem</h1>
+  <h2>Admission → CCU Monitoring → Ward Transfer → Discharge Summary AI</h2>
+  <div class="cover-meta">
+    <span><strong>Version</strong>2.0 — Unified Integration</span>
+    <span><strong>Date</strong>June 2026</span>
+    <span><strong>Status</strong>Architecture Review</span>
+    <span><strong>Projects</strong>Foqal CareOS EWS · Discharge Summary AI</span>
+  </div>
+</div>
+
+<!-- PRINT BAR -->
+<div class="print-bar no-print">
+  <button class="print-btn" onclick="window.print()">⬇ Save as PDF</button>
+  <p>Open browser Print dialog → "Save as PDF" → A4 paper, default margins</p>
+</div>
+
+<div class="container">
+
+<!-- ─── 1. PROBLEM & ARCHITECTURE DECISION ─────────────────────────── -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-num">Section 01</span>
+    <h2>Problem Statement & Architecture Decision</h2>
+  </div>
+
+  <p style="color:var(--muted); margin-bottom:16px;">
+    Both projects currently operate as isolated systems with incompatible patient identity models, separate databases, and no shared data layer. The integration goal is to create a single shared Cloud SQL instance that ties both systems together through a common <strong>admission_id</strong> that travels with the patient from admission to discharge.
+  </p>
+
+  <table class="problem">
+    <thead>
+      <tr>
+        <th>Gap</th>
+        <th>Current State</th>
+        <th>Target State</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Patient Identity</strong></td>
+        <td class="red-text">EWS uses integer subject_id; Discharge AI uses integer hadm_id — two unrelated keys</td>
+        <td class="green-text">Single UUID admission_id shared across both systems + UHID for master patient record</td>
+      </tr>
+      <tr>
+        <td><strong>Database</strong></td>
+        <td class="red-text">EWS: SQLite file on laptop. Discharge AI: Cloud SQL (separate)</td>
+        <td class="green-text">Single Google Cloud SQL PostgreSQL instance, 3 schemas, both apps connect to it</td>
+      </tr>
+      <tr>
+        <td><strong>Staff / Doctors</strong></td>
+        <td class="red-text">No staff table in EWS; Discharge AI has app_users (auth-only)</td>
+        <td class="green-text">Unified hospital_core.staff table — one record per clinical staff member across both apps</td>
+      </tr>
+      <tr>
+        <td><strong>Doctor-Patient Mapping</strong></td>
+        <td class="red-text">No doctor assigned to patient in EWS; no chain of custody</td>
+        <td class="green-text">doctor_patient_assignments tracks which consultant is responsible at every point — feeds Discharge AI sign-off</td>
+      </tr>
+      <tr>
+        <td><strong>Ward Transfer</strong></td>
+        <td class="red-text">Not tracked in EWS; no CCU→GW transition record</td>
+        <td class="green-text">Full ADT log in ward_transfers; beds, wards, and admissions auto-updated on transfer completion</td>
+      </tr>
+      <tr>
+        <td><strong>Escalation Hierarchy</strong></td>
+        <td class="red-text">No defined approval chain — single escalation table, no co-sign</td>
+        <td class="green-text">Nurse → Head Nurse (gatekeeper/false-alarm screening) → Attending. Head Nurse is mandatory tier for levels 1–2.</td>
+      </tr>
+      <tr>
+        <td><strong>Multi-Hospital</strong></td>
+        <td class="red-text">No hospital_id — impossible to scale to multiple sites</td>
+        <td class="green-text">hospital_id UUID on every master record; UHID format includes hospital short_code</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="arch-box" style="margin-top:24px;">
+    <h4>Architecture — Single Cloud SQL Instance, Three Schemas</h4>
+    <div class="arch-schemas">
+      <div class="arch-schema core">
+        <h3>hospital_core</h3>
+        <p>Shared master data — owned by neither app</p>
+        <ul>
+          <li>hospitals, departments, wards, beds</li>
+          <li>staff (replaces app_users)</li>
+          <li>patients (UHID-based)</li>
+          <li>admissions (universal key)</li>
+          <li>doctor_patient_assignments</li>
+          <li>ward_transfers (ADT log)</li>
+        </ul>
+      </div>
+      <div class="arch-schema ews">
+        <h3>ews</h3>
+        <p>Foqal CareOS — Sabari Project</p>
+        <ul>
+          <li>vitals_timeseries</li>
+          <li>lab_events</li>
+          <li>medications</li>
+          <li>escalations</li>
+          <li>ews_events <em>(new)</em></li>
+          <li>dcm_assessments <em>(new)</em></li>
+          <li>fluid_balance <em>(new)</em></li>
+          <li>transfer_requests <em>(new)</em></li>
+        </ul>
+      </div>
+      <div class="arch-schema discharge">
+        <h3>discharge_ai</h3>
+        <p>Discharge Summary AI — Ashmit Project</p>
+        <ul>
+          <li>app_encounters (+ admission_id FK)</li>
+          <li>app_summaries</li>
+          <li>app_uploaded_files</li>
+          <li>app_clinical_data</li>
+          <li>active_patients</li>
+          <li>18 ap_* clinical tables (unchanged)</li>
+          <li>app_settings, app_audit_log</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── 2. hospital_core SCHEMA ───────────────────────────────────────── -->
+<div class="section page-break">
+  <div class="section-header">
+    <span class="section-num">Section 02</span>
+    <h2>ERD — <span class="badge badge-core">hospital_core</span> Schema</h2>
+  </div>
+  <p style="color:var(--muted); margin-bottom:16px;">New shared layer. Neither the EWS app nor the Discharge AI app owns this schema — both read from it. All FKs in ews.* and discharge_ai.* point here for patient, staff, and admission identity.</p>
+
+  <div class="erd-grid">
+
+    <!-- hospitals -->
+    <div class="entity core">
+      <div class="entity-header"><h4>hospitals</h4></div>
+      <div class="entity-body">
+        <div class="field"><span class="field-key pk">PK</span><span class="field-name">hospital_id</span><span class="field-type">UUID</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">name</span><span class="field-type">VARCHAR(200) NOT NULL</span></div>
+        <div class="field"><span class="field-key idx">UQ</span><span class="field-name">short_code</span><span class="field-type">VARCHAR(20) — e.g. "AIIMS-DEL"</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">type</span><span class="field-type">TERTIARY | SECONDARY | PRIMARY | PRIVATE | GOVT</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">nabh_accredited</span><span class="field-type">BOOLEAN DEFAULT FALSE</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">nabh_grade</span><span class="field-type">A | B | C</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">rohini_id</span><span class="field-type">VARCHAR(30) — Indian insurance provider ID</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">city, state, pin_code</span><span class="field-type">VARCHAR</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">is_active</span><span class="field-type">BOOLEAN DEFAULT TRUE</span></div>
+      </div>
+    </div>
+
+    <!-- departments -->
+    <div class="entity core">
+      <div class="entity-header"><h4>departments</h4></div>
+      <div class="entity-body">
+        <div class="field"><span class="field-key pk">PK</span><span class="field-name">dept_id</span><span class="field-type">UUID</span></div>
+        <div class="field"><span class="field-key fk">FK</span><span class="field-name">hospital_id</span><span class="field-type">→ hospitals</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">name</span><span class="field-type">VARCHAR(100) — "Cardiology", "ICU"</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">code</span><span class="field-type">VARCHAR(20) — "CARD", "ICU"</span></div>
+        <div class="field"><span class="field-key fk">FK</span><span class="field-name">hod_staff_id</span><span class="field-type">→ staff (nullable)</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">is_active</span><span class="field-type">BOOLEAN DEFAULT TRUE</span></div>
+      </div>
+    </div>
+
+    <!-- wards -->
+    <div class="entity core">
+      <div class="entity-header"><h4>wards</h4></div>
+      <div class="entity-body">
+        <div class="field"><span class="field-key pk">PK</span><span class="field-name">ward_id</span><span class="field-type">UUID</span></div>
+        <div class="field"><span class="field-key fk">FK</span><span class="field-name">hospital_id</span><span class="field-type">→ hospitals</span></div>
+        <div class="field"><span class="field-key fk">FK</span><span class="field-name">dept_id</span><span class="field-type">→ departments</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">name</span><span class="field-type">VARCHAR(100) — "CCU", "General Ward 4B"</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">code</span><span class="field-type">VARCHAR(20) — "CCU-1", "GW-4B"</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">ward_type</span><span class="field-type">CCU | GW | ICU | HDU | EMERGENCY</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">capacity</span><span class="field-type">SMALLINT — total bed count</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">is_active</span><span class="field-type">BOOLEAN DEFAULT TRUE</span></div>
+      </div>
+    </div>
+
+    <!-- beds -->
+    <div class="entity core">
+      <div class="entity-header"><h4>beds</h4></div>
+      <div class="entity-body">
+        <div class="field"><span class="field-key pk">PK</span><span class="field-name">bed_id</span><span class="field-type">UUID</span></div>
+        <div class="field"><span class="field-key fk">FK</span><span class="field-name">ward_id</span><span class="field-type">→ wards</span></div>
+        <div class="field"><span class="field-key fk">FK</span><span class="field-name">hospital_id</span><span class="field-type">→ hospitals</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">bed_number</span><span class="field-type">VARCHAR(20) — "CCU-01"</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">room_number</span><span class="field-type">VARCHAR(20)</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">status</span><span class="field-type">available | occupied | maintenance | reserved</span></div>
+        <div class="field"><span class="field-key fk">FK</span><span class="field-name">current_admission_id</span><span class="field-type">→ admissions (nullable)</span></div>
+      </div>
+    </div>
+
+    <!-- staff -->
+    <div class="entity core">
+      <div class="entity-header"><h4>staff</h4><span class="new-tag">replaces app_users</span></div>
+      <div class="entity-body">
+        <div class="field"><span class="field-key pk">PK</span><span class="field-name">staff_id</span><span class="field-type">UUID</span></div>
+        <div class="field"><span class="field-key fk">FK</span><span class="field-name">hospital_id</span><span class="field-type">→ hospitals</span></div>
+        <div class="field"><span class="field-key fk">FK</span><span class="field-name">dept_id</span><span class="field-type">→ departments (nullable)</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">full_name</span><span class="field-type">VARCHAR(120) NOT NULL</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">designation</span><span class="field-type">VARCHAR(80) — e.g. "Associate Professor"</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">role</span><span class="field-type">staff_nurse | charge_nurse | resident | attending | admin_staff | super_admin | cmo</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">license_no</span><span class="field-type">VARCHAR(50) — MCI / Nursing Council reg.</span></div>
+        <div class="field"><span class="field-key idx">UQ</span><span class="field-name">hospital_email</span><span class="field-type">VARCHAR(255)</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">password_hash</span><span class="field-type">TEXT (bcrypt)</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">phone</span><span class="field-type">VARCHAR(20)</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">is_active, created_at</span><span class="field-type">BOOLEAN, TIMESTAMPTZ</span></div>
+      </div>
+    </div>
+
+    <!-- patients -->
+    <div class="entity core">
+      <div class="entity-header"><h4>patients</h4><span class="new-tag">UHID-based</span></div>
+      <div class="entity-body">
+        <div class="field"><span class="field-key pk">PK</span><span class="field-name">uhid</span><span class="field-type">VARCHAR(20) — e.g. "AIIMS-2026-0001234"</span></div>
+        <div class="field"><span class="field-key fk">FK</span><span class="field-name">hospital_id</span><span class="field-type">→ hospitals</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">full_name</span><span class="field-type">VARCHAR(200) NOT NULL</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">dob</span><span class="field-type">DATE</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">age</span><span class="field-type">SMALLINT — entered if DOB unknown</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">sex</span><span class="field-type">CHAR(1) — M | F | O</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">blood_group</span><span class="field-type">VARCHAR(5) — A+, B-, O+, AB+</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">phone, address</span><span class="field-type">VARCHAR, TEXT</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">kin_name, kin_phone, kin_relation</span><span class="field-type">Next of kin details</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">insurance_type</span><span class="field-type">Ayushman_Bharat | CGHS | ESI | Private | Self_Pay</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">insurance_id</span><span class="field-type">VARCHAR(50) — policy / card number</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">is_active, created_at</span><span class="field-type">BOOLEAN, TIMESTAMPTZ</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- admissions + doctor_patient_assignments side by side -->
+  <div class="erd-grid two-col" style="margin-top:16px;">
+
+    <!-- admissions -->
+    <div class="entity core">
+      <div class="entity-header"><h4>admissions</h4><span class="new-tag">UNIVERSAL KEY</span></div>
+      <div class="entity-body">
+        <div class="field"><span class="field-key pk">PK</span><span class="field-name">admission_id</span><span class="field-type">UUID — the key shared by both systems</span></div>
+        <div class="field"><span class="field-key fk">FK</span><span class="field-name">uhid</span><span class="field-type">→ patients</span></div>
+        <div class="field"><span class="field-key fk">FK</span><span class="field-name">hospital_id</span><span class="field-type">→ hospitals</span></div>
+        <div class="field"><span class="field-key fk">FK</span><span class="field-name">dept_id</span><span class="field-type">→ departments</span></div>
+        <div class="field"><span class="field-key fk">FK</span><span class="field-name">initial_ward_id</span><span class="field-type">→ wards (ward at time of admission)</span></div>
+        <div class="field"><span class="field-key fk">FK</span><span class="field-name">initial_bed_id</span><span class="field-type">→ beds</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">admission_type</span><span class="field-type">EMERGENCY | ELECTIVE | TRANSFER_IN | DAY_CARE</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">admission_source</span><span class="field-type">ER | OPD | ICU | REFERRAL | SELF</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">admitted_at</span><span class="field-type">TIMESTAMPTZ NOT NULL</span></div>
+        <div class="field"><span class="field-key fk">FK</span><span class="field-name">admitting_doctor_id</span><span class="field-type">→ staff (ER / OPD doctor)</span></div>
+        <div class="field"><span class="field-key fk">FK</span><span class="field-name">assigned_doctor_id</span><span class="field-type">→ staff (treating consultant)</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">admitting_diagnosis</span><span class="field-type">TEXT — working diagnosis</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">icd_primary</span><span class="field-type">VARCHAR(20) — ICD-10 (e.g. I42.0 DCM)</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">status</span><span class="field-type">admitted | in_ccu | transferred_to_gw | discharge_pending | discharged | dama | lama | death</span></div>
+        <div class="field"><span class="field-key fk">FK</span><span class="field-name">current_ward_id</span><span class="field-type">→ wards (updated on each transfer)</span></div>
+        <div class="field"><span class="field-key fk">FK</span><span class="field-name">current_bed_id</span><span class="field-type">→ beds (updated on each transfer)</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">discharged_at</span><span class="field-type">TIMESTAMPTZ (NULL until discharge)</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">discharge_type</span><span class="field-type">Standard | LAMA | DAMA | Death | Referral</span></div>
+      </div>
+    </div>
+
+    <!-- doctor_patient_assignments + ward_transfers -->
+    <div style="display:flex;flex-direction:column;gap:16px;">
+
+      <div class="entity core">
+        <div class="entity-header"><h4>doctor_patient_assignments</h4></div>
+        <div class="entity-body">
+          <div class="field"><span class="field-key pk">PK</span><span class="field-name">assignment_id</span><span class="field-type">UUID</span></div>
+          <div class="field"><span class="field-key fk">FK</span><span class="field-name">admission_id</span><span class="field-type">→ admissions ON DELETE CASCADE</span></div>
+          <div class="field"><span class="field-key fk">FK</span><span class="field-name">doctor_id</span><span class="field-type">→ staff</span></div>
+          <div class="field"><span class="field-key"></span><span class="field-name">assignment_type</span><span class="field-type">PRIMARY | COVERING | CONSULTANT | REFERRING</span></div>
+          <div class="field"><span class="field-key"></span><span class="field-name">assigned_at</span><span class="field-type">TIMESTAMPTZ DEFAULT now()</span></div>
+          <div class="field"><span class="field-key"></span><span class="field-name">unassigned_at</span><span class="field-type">TIMESTAMPTZ — NULL = currently active</span></div>
+          <div class="field"><span class="field-key fk">FK</span><span class="field-name">assigned_by</span><span class="field-type">→ staff (HOD/CMO who assigned)</span></div>
+          <div class="field"><span class="field-key"></span><span class="field-name">notes</span><span class="field-type">TEXT</span></div>
+          <div class="field" style="background:#f0fdf4; font-size:11px; color:#166534; padding:6px 12px;">
+            <span>Query: WHERE assignment_type='PRIMARY' AND unassigned_at IS NULL → currently responsible consultant</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="entity core">
+        <div class="entity-header"><h4>ward_transfers</h4><span class="new-tag">ADT Log</span></div>
+        <div class="entity-body">
+          <div class="field"><span class="field-key pk">PK</span><span class="field-name">transfer_id</span><span class="field-type">UUID</span></div>
+          <div class="field"><span class="field-key fk">FK</span><span class="field-name">admission_id</span><span class="field-type">→ admissions</span></div>
+          <div class="field"><span class="field-key fk">FK</span><span class="field-name">from_ward_id, from_bed_id</span><span class="field-type">→ wards, beds</span></div>
+          <div class="field"><span class="field-key fk">FK</span><span class="field-name">to_ward_id, to_bed_id</span><span class="field-type">→ wards, beds</span></div>
+          <div class="field"><span class="field-key"></span><span class="field-name">transfer_type</span><span class="field-type">CCU_TO_GW | GW_TO_CCU | INTER_WARD | INTER_DEPT</span></div>
+          <div class="field"><span class="field-key"></span><span class="field-name">reason</span><span class="field-type">TEXT — clinical reason</span></div>
+          <div class="field"><span class="field-key"></span><span class="field-name">news2_at_transfer</span><span class="field-type">INTEGER — EWS score snapshot</span></div>
+          <div class="field"><span class="field-key fk">FK</span><span class="field-name">initiated_by, approved_by</span><span class="field-type">→ staff</span></div>
+          <div class="field"><span class="field-key fk">FK</span><span class="field-name">received_by</span><span class="field-type">→ staff (GW Charge Nurse)</span></div>
+          <div class="field"><span class="field-key"></span><span class="field-name">initiated_at, approved_at, transfer_at, received_at</span><span class="field-type">TIMESTAMPTZ</span></div>
+          <div class="field"><span class="field-key"></span><span class="field-name">status</span><span class="field-type">pending_approval | approved | rejected | completed</span></div>
+          <div class="field" style="background:#f0fdf4; font-size:11px; color:#166534; padding:6px 12px;">
+            <span>ON status='completed' → trigger updates admissions.current_ward_id + beds.status</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ─── 3. EWS SCHEMA ─────────────────────────────────────────────────── -->
+<div class="section page-break">
+  <div class="section-header">
+    <span class="section-num">Section 03</span>
+    <h2>ERD — <span class="badge badge-ews">ews</span> Schema (Foqal CareOS)</h2>
+  </div>
+  <p style="color:var(--muted); margin-bottom:16px;">Migration: SQLite → Cloud SQL PostgreSQL. Primary key change: <code>subject_id INTEGER</code> → <code>admission_id UUID FK → hospital_core.admissions</code>. Patients table removed — replaced by hospital_core.patients. SQLAlchemy connection string is the only code change for existing tables.</p>
+
+  <p style="font-weight:700; font-size:13px; margin-bottom:10px;">Existing Tables — Modified</p>
+  <div class="erd-grid">
+
+    <div class="entity ews">
+      <div class="entity-header"><h4>ews.vitals_timeseries</h4></div>
+      <div class="entity-body">
+        <div class="field"><span class="field-key pk">PK</span><span class="field-name">id</span><span class="field-type">UUID</span></div>
+        <div class="field"><span class="field-key fk">FK</span><span class="field-name">admission_id</span><span class="field-type">→ hospital_core.admissions</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">chart_hour</span><span class="field-type">TIMESTAMPTZ (was VARCHAR)</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">heart_rate, resp_rate</span><span class="field-type">FLOAT</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">spo2</span><span class="field-type">FLOAT</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">sbp, dbp</span><span class="field-type">FLOAT</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">temperature</span><span class="field-type">FLOAT</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">consciousness</span><span class="field-type">VARCHAR(5) — ACVPU</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">air_or_oxygen</span><span class="field-type">VARCHAR(10)</span></div>
+        <div class="field"><span class="field-key fk">FK</span><span class="field-name">recorded_by</span><span class="field-type">→ hospital_core.staff (nurse)</span></div>
+      </div>
+    </div>
+
+    <div class="entity ews">
+      <div class="entity-header"><h4>ews.lab_events</h4></div>
+      <div class="entity-body">
+        <div class="field"><span class="field-key pk">PK</span><span class="field-name">id</span><span class="field-type">UUID</span></div>
+        <div class="field"><span class="field-key fk">FK</span><span class="field-name">admission_id</span><span class="field-type">→ hospital_core.admissions</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">chart_hour</span><span class="field-type">TIMESTAMPTZ</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">potassium, creatinine</span><span class="field-type">FLOAT</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">lactate, inr, egfr, alt</span><span class="field-type">FLOAT</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">bnp</span><span class="field-type">FLOAT — NEW: BNP/NT-proBNP for DCM</span></div>
+        <div class="field"><span class="field-key fk">FK</span><span class="field-name">recorded_by</span><span class="field-type">→ hospital_core.staff</span></div>
+      </div>
+    </div>
+
+    <div class="entity ews">
+      <div class="entity-header"><h4>ews.medications</h4></div>
+      <div class="entity-body">
+        <div class="field"><span class="field-key pk">PK</span><span class="field-name">id</span><span class="field-type">UUID</span></div>
+        <div class="field"><span class="field-key fk">FK</span><span class="field-name">admission_id</span><span class="field-type">→ hospital_core.admissions</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">med_name</span><span class="field-type">VARCHAR(200) — Indian generics/brands</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">dose, frequency</span><span class="field-type">VARCHAR</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">route</span><span class="field-type">PO | IV | SC | IM</span></div>
+        <div class="field"><span class="field-key fk">FK</span><span class="field-name">prescribed_by</span><span class="field-type">→ hospital_core.staff</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">start_date, stop_date</span><span class="field-type">TIMESTAMPTZ (NULL = active)</span></div>
+      </div>
+    </div>
+
+    <div class="entity ews">
+      <div class="entity-header"><h4>ews.escalations</h4></div>
+      <div class="entity-body">
+        <div class="field"><span class="field-key pk">PK</span><span class="field-name">id</span><span class="field-type">UUID</span></div>
+        <div class="field"><span class="field-key fk">FK</span><span class="field-name">admission_id</span><span class="field-type">→ hospital_core.admissions</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">news2_score</span><span class="field-type">INTEGER</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">level</span><span class="field-type">low | medium | high | code_blue</span></div>
+        <div class="field"><span class="field-key fk">FK</span><span class="field-name">initiated_by</span><span class="field-type">→ staff (Staff Nurse)</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">status</span><span class="field-type">active | pending_charge_ack | charge_acked | false_alarm | attending_notified | attending_reviewed | resolved</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">initiated_at</span><span class="field-type">TIMESTAMPTZ</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">charge_ack_at</span><span class="field-type">TIMESTAMPTZ</span></div>
+        <div class="field"><span class="field-key fk">FK</span><span class="field-name">charge_ack_by</span><span class="field-type">→ staff (Head Nurse)</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">false_alarm</span><span class="field-type">BOOLEAN DEFAULT FALSE</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">false_alarm_reason</span><span class="field-type">VARCHAR(100) — from dropdown, feeds EWD model</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">attending_notified_at, attending_reviewed_at</span><span class="field-type">TIMESTAMPTZ</span></div>
+        <div class="field"><span class="field-key fk">FK</span><span class="field-name">attending_reviewed_by</span><span class="field-type">→ staff</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">resolved_at, resolved_by</span><span class="field-type">TIMESTAMPTZ, FK → staff</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">resolution_notes, observations, interventions</span><span class="field-type">TEXT</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">sla_breached</span><span class="field-type">BOOLEAN DEFAULT FALSE — NABH SLA tracking</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <p style="font-weight:700; font-size:13px; margin: 20px 0 10px;">New Tables</p>
+  <div class="erd-grid">
+
+    <div class="entity ews new">
+      <div class="entity-header"><h4>ews.ews_events</h4><span class="new-tag">NEW</span></div>
+      <div class="entity-body">
+        <div class="field"><span class="field-key pk">PK</span><span class="field-name">id</span><span class="field-type">UUID</span></div>
+        <div class="field"><span class="field-key fk">FK</span><span class="field-name">admission_id</span><span class="field-type">→ hospital_core.admissions</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">event_type</span><span class="field-type">NEWS2_RISING | TREND_ALERT | WEIGHT_GAIN | STABILIZING | STEP_DOWN_ELIGIBLE | DCM_DECOMPENSATION</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">triggered_at</span><span class="field-type">TIMESTAMPTZ</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">news2_at_trigger</span><span class="field-type">INTEGER</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">trend_score</span><span class="field-type">FLOAT — EWMA/regression composite</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">ml_confidence</span><span class="field-type">FLOAT — 0–100</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">top_signals</span><span class="field-type">JSONB — [{param, direction, slope, contribution}]</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">status</span><span class="field-type">pending | actioned | dismissed | monitoring</span></div>
+        <div class="field"><span class="field-key fk">FK</span><span class="field-name">actioned_by</span><span class="field-type">→ staff</span></div>
+      </div>
+    </div>
+
+    <div class="entity ews new">
+      <div class="entity-header"><h4>ews.dcm_assessments</h4><span class="new-tag">NEW</span></div>
+      <div class="entity-body">
+        <div class="field"><span class="field-key pk">PK</span><span class="field-name">id</span><span class="field-type">UUID</span></div>
+        <div class="field"><span class="field-key fk">FK</span><span class="field-name">admission_id</span><span class="field-type">→ hospital_core.admissions</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">assessed_at</span><span class="field-type">TIMESTAMPTZ</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">nyha_class</span><span class="field-type">SMALLINT — 1–4</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">ef_percent</span><span class="field-type">FLOAT — ejection fraction</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">baseline_weight</span><span class="field-type">FLOAT — kg (at admission)</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">bnp_admission</span><span class="field-type">FLOAT — pg/mL</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">orthopnea_pillows</span><span class="field-type">SMALLINT</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">edema_grade</span><span class="field-type">SMALLINT — 0–3</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">lvedd_mm</span><span class="field-type">FLOAT — echo LV dimension</span></div>
+        <div class="field"><span class="field-key fk">FK</span><span class="field-name">assessed_by</span><span class="field-type">→ staff</span></div>
+      </div>
+    </div>
+
+    <div class="entity ews new">
+      <div class="entity-header"><h4>ews.fluid_balance</h4><span class="new-tag">NEW</span></div>
+      <div class="entity-body">
+        <div class="field"><span class="field-key pk">PK</span><span class="field-name">id</span><span class="field-type">UUID</span></div>
+        <div class="field"><span class="field-key fk">FK</span><span class="field-name">admission_id</span><span class="field-type">→ hospital_core.admissions</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">recorded_at</span><span class="field-type">TIMESTAMPTZ</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">period_hours</span><span class="field-type">SMALLINT — 8 or 24</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">intake_ml</span><span class="field-type">FLOAT</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">urine_ml</span><span class="field-type">FLOAT</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">other_output_ml</span><span class="field-type">FLOAT</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">daily_weight_kg</span><span class="field-type">FLOAT — for fluid overload trending</span></div>
+        <div class="field"><span class="field-key fk">FK</span><span class="field-name">recorded_by</span><span class="field-type">→ staff</span></div>
+      </div>
+    </div>
+
+    <div class="entity ews new">
+      <div class="entity-header"><h4>ews.transfer_requests</h4><span class="new-tag">NEW</span></div>
+      <div class="entity-body">
+        <div class="field"><span class="field-key pk">PK</span><span class="field-name">id</span><span class="field-type">UUID</span></div>
+        <div class="field"><span class="field-key fk">FK</span><span class="field-name">admission_id</span><span class="field-type">→ hospital_core.admissions</span></div>
+        <div class="field"><span class="field-key fk">FK</span><span class="field-name">from_ward_id, to_ward_id</span><span class="field-type">→ hospital_core.wards</span></div>
+        <div class="field"><span class="field-key fk">FK</span><span class="field-name">requested_by</span><span class="field-type">→ staff (Staff Nurse recommends)</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">requested_at</span><span class="field-type">TIMESTAMPTZ</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">checklist_json</span><span class="field-type">JSONB — 5 step-down criteria, auto-populated</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">clinical_rationale</span><span class="field-type">TEXT — nurse's notes</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">attending_notified</span><span class="field-type">BOOLEAN — nurse confirms attending aware</span></div>
+        <div class="field"><span class="field-key fk">FK</span><span class="field-name">charge_approved_by</span><span class="field-type">→ staff (Head Nurse who approves)</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">charge_approved_at</span><span class="field-type">TIMESTAMPTZ</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">rejection_reason</span><span class="field-type">TEXT</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">status</span><span class="field-type">pending_charge | approved | rejected | completed</span></div>
+        <div class="field" style="background:#ede9fe; font-size:11px; color:#4c1d95; padding:6px 12px;">
+          <span>ON approved → hospital_core.ward_transfers row auto-created</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ─── 4. discharge_ai SCHEMA ────────────────────────────────────────── -->
+<div class="section page-break">
+  <div class="section-header">
+    <span class="section-num">Section 04</span>
+    <h2>ERD — <span class="badge badge-discharge">discharge_ai</span> Schema (Changes Only)</h2>
+  </div>
+  <p style="color:var(--muted); margin-bottom:16px;">Ashmit's 18 ap_* clinical tables and the Gemini/RAG pipeline are <strong>unchanged</strong>. The changes below integrate Ashmit into the shared identity layer and add the admission_id key so data from the EWS system can be referenced unambiguously.</p>
+
+  <div class="callout info">
+    <strong>What does NOT change in Discharge AI</strong>
+    Gemini 2.5 Flash two-pass pipeline · MedCPT embeddings (768-dim, asymmetric) · Qdrant vector store · BM25 hybrid retrieval · 18 ap_* clinical tables (ap_admissions, ap_diagnoses, ap_labevents…) · Cardiology staging tables · SMTP email reset · Chunker / RAG pipeline
+  </div>
+
+  <div class="erd-grid two-col">
+
+    <div class="entity discharge">
+      <div class="entity-header"><h4>discharge_ai.app_encounters</h4><span class="new-tag">+ admission_id</span></div>
+      <div class="entity-body">
+        <div class="field"><span class="field-key pk">PK</span><span class="field-name">encounter_id</span><span class="field-type">UUID (unchanged)</span></div>
+        <div class="field"><span class="field-key fk">FK</span><span class="field-name">admission_id</span><span class="field-type">→ hospital_core.admissions (NEW — the integration key)</span></div>
+        <div class="field"><span class="field-key fk">FK</span><span class="field-name">hospital_id</span><span class="field-type">→ hospital_core.hospitals (NEW — multi-tenancy)</span></div>
+        <div class="field"><span class="field-key fk">FK</span><span class="field-name">assigned_to</span><span class="field-type">→ hospital_core.staff (was: app_users)</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">hadm_id</span><span class="field-type">BIGINT (kept for MIMIC-IV backward compat, nullable)</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">status</span><span class="field-type">Pending_Ingestion | Ingested | Generating | Ready_for_Review | Signed</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">version, complexity</span><span class="field-type">INTEGER, VARCHAR (unchanged)</span></div>
+      </div>
+    </div>
+
+    <div class="entity discharge">
+      <div class="entity-header"><h4>discharge_ai.app_summaries</h4><span class="new-tag">signed_by → staff FK</span></div>
+      <div class="entity-body">
+        <div class="field"><span class="field-key pk">PK</span><span class="field-name">summary_id</span><span class="field-type">UUID (unchanged)</span></div>
+        <div class="field"><span class="field-key fk">FK</span><span class="field-name">encounter_id</span><span class="field-type">→ app_encounters (unchanged)</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">content</span><span class="field-type">JSONB — 10 NABH sections (unchanged)</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">nli_score</span><span class="field-type">FLOAT — claim verification score</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">claim_verification_status</span><span class="field-type">VARCHAR (unchanged)</span></div>
+        <div class="field"><span class="field-key fk">FK</span><span class="field-name">signed_by</span><span class="field-type">→ hospital_core.staff (was: free text doctor name)</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">signed_at</span><span class="field-type">TIMESTAMPTZ (unchanged)</span></div>
+        <div class="field" style="background:#dcfce7; font-size:11px; color:#14532d; padding:6px 12px;">
+          <span>signed_by resolved via: doctor_patient_assignments WHERE type='PRIMARY' AND unassigned_at IS NULL</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="entity discharge">
+      <div class="entity-header"><h4>discharge_ai.active_patients</h4><span class="new-tag">+ admission_id</span></div>
+      <div class="entity-body">
+        <div class="field"><span class="field-key pk">PK</span><span class="field-name">hadm_id</span><span class="field-type">BIGINT (unchanged — MIMIC-IV key)</span></div>
+        <div class="field"><span class="field-key fk">FK</span><span class="field-name">admission_id</span><span class="field-type">→ hospital_core.admissions (NEW, nullable for MIMIC demo data)</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">data_fetch_status</span><span class="field-type">fetched | pending | failed (unchanged)</span></div>
+        <div class="field"><span class="field-key"></span><span class="field-name">status</span><span class="field-type">Pending_Ingestion | … (unchanged)</span></div>
+      </div>
+    </div>
+
+    <div class="entity discharge">
+      <div class="entity-header"><h4>Integration Trigger — EWS → Discharge AI</h4></div>
+      <div class="entity-body" style="padding:12px;">
+        <p style="font-size:12px; color:var(--muted); margin-bottom:8px;">When a patient is marked discharge-ready in Foqal CareOS, the EWS backend calls:</p>
+        <div style="background:#f8fafc; border:1px solid var(--border); border-radius:6px; padding:10px; font-family:'Courier New',monospace; font-size:11.5px; color:#1e293b;">
+          POST /api/encounters<br>
+          Host: discharge-ai:8000<br><br>
+          {<br>
+          &nbsp;&nbsp;"admission_id": "uuid",<br>
+          &nbsp;&nbsp;"uhid": "AIIMS-2026-0001234",<br>
+          &nbsp;&nbsp;"assigned_doctor_id": "uuid",<br>
+          &nbsp;&nbsp;"discharge_type": "Standard",<br>
+          &nbsp;&nbsp;"hospital_id": "uuid"<br>
+          }
+        </div>
+        <p style="font-size:11px; color:var(--muted); margin-top:8px;">Discharge AI creates <code>active_patients</code> + <code>app_encounters</code> rows using the shared <code>admission_id</code>. The <code>assigned_doctor_id</code> maps directly to <code>hospital_core.staff</code>.</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ─── 5. END-TO-END DATA FLOW ───────────────────────────────────────── -->
+<div class="section page-break">
+  <div class="section-header">
+    <span class="section-num">Section 05</span>
+    <h2>End-to-End Data Flow — Admission to Discharge</h2>
+  </div>
+
+  <div class="flow">
+
+    <div class="flow-step">
+      <div class="flow-left">ADMISSION</div>
+      <div class="flow-line"><div class="flow-dot both"></div><div class="flow-connector"></div></div>
+      <div class="flow-content">
+        <h4>Patient Registration &amp; Admission</h4>
+        <ul>
+          <li><span class="flow-pill pill-core">hospital_core</span> Admin Staff registers: <code>patients</code> row created with UHID (e.g. AIIMS-2026-0001234)</li>
+          <li><span class="flow-pill pill-core">hospital_core</span> Admission event: <code>admissions</code> row created → generates <code>admission_id</code> UUID</li>
+          <li><span class="flow-pill pill-core">hospital_core</span> Treating Consultant assigned → <code>doctor_patient_assignments</code> row (type=PRIMARY)</li>
+          <li><span class="flow-pill pill-core">hospital_core</span> CCU bed assigned → <code>beds.status = 'occupied'</code>, <code>beds.current_admission_id = admission_id</code></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="flow-step">
+      <div class="flow-left">CCU MONITORING</div>
+      <div class="flow-line"><div class="flow-dot ews"></div><div class="flow-connector"></div></div>
+      <div class="flow-content">
+        <h4>EWS Monitoring Loop (every hour)</h4>
+        <ul>
+          <li><span class="flow-pill pill-ews">ews</span> Nurse enters vitals → <code>vitals_timeseries</code> row (keyed by admission_id)</li>
+          <li><span class="flow-pill pill-ews">ews</span> NEWS2 score computed + EWMA trend engine runs → <code>ews_events</code> if threshold crossed</li>
+          <li><span class="flow-pill pill-ews">ews</span> Labs entered → <code>lab_events</code>; Drug-lab YAML rules evaluated → alerts on <code>ews_events</code></li>
+          <li><span class="flow-pill pill-ews">ews</span> DCM patients: fluid balance entered → <code>fluid_balance</code>; weight gain alerts → <code>ews_events</code></li>
+          <li><span class="flow-pill pill-ews">ews</span> If NEWS2 ≥ 5 → nurse creates <code>escalations</code> row → Head Nurse gatekeeper flow (Section 06)</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="flow-step">
+      <div class="flow-left">CCU → GW TRANSFER</div>
+      <div class="flow-line"><div class="flow-dot core"></div><div class="flow-connector"></div></div>
+      <div class="flow-content">
+        <h4>Step-Down / De-escalation</h4>
+        <ul>
+          <li><span class="flow-pill pill-ews">ews</span> System detects: NEWS2 ≤ 2 sustained 6h+ → <code>ews_events.event_type = 'STEP_DOWN_ELIGIBLE'</code></li>
+          <li><span class="flow-pill pill-ews">ews</span> Staff Nurse fills N_transfer form → <code>transfer_requests</code> row (status: pending_charge)</li>
+          <li><span class="flow-pill pill-ews">ews</span> Head Nurse approves in N5 → status: approved; Attending notified (no sign required)</li>
+          <li><span class="flow-pill pill-core">hospital_core</span> <code>ward_transfers</code> row created (CCU→GW); <code>admissions.current_ward_id</code> updated; beds updated</li>
+          <li><span class="flow-pill pill-ews">ews</span> Patient disappears from N1 (CCU dashboard) → appears on G1 (GW dashboard)</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="flow-step">
+      <div class="flow-left">GW MONITORING</div>
+      <div class="flow-line"><div class="flow-dot ews"></div><div class="flow-connector"></div></div>
+      <div class="flow-content">
+        <h4>General Ward — Lower Intensity</h4>
+        <ul>
+          <li><span class="flow-pill pill-ews">ews</span> Vitals q2h (vs q1h in CCU) → same <code>vitals_timeseries</code> table, different ward context</li>
+          <li><span class="flow-pill pill-ews">ews</span> GW escalation: Nurse → Ward Doctor → Attending (if deterioration → GW→CCU readmission)</li>
+          <li><span class="flow-pill pill-ews">ews</span> Discharge readiness: NEWS2 ≤ 1, stable, attending approval → "Flag for Discharge" button</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="flow-step">
+      <div class="flow-left">DISCHARGE HANDOFF</div>
+      <div class="flow-line"><div class="flow-dot both"></div><div class="flow-connector"></div></div>
+      <div class="flow-content">
+        <h4>EWS → Discharge AI Handoff</h4>
+        <ul>
+          <li><span class="flow-pill pill-ews">ews</span> Attending approves discharge → Foqal CareOS backend fires POST to Discharge AI with <code>admission_id</code></li>
+          <li><span class="flow-pill pill-discharge">discharge_ai</span> <code>active_patients</code> + <code>app_encounters</code> rows created. Status: Pending_Ingestion</li>
+          <li><span class="flow-pill pill-discharge">discharge_ai</span> BigQuery ETL / CSV upload populates <code>ap_*</code> clinical tables for this admission</li>
+          <li><span class="flow-pill pill-discharge">discharge_ai</span> Gemini 2.5 Flash two-pass pipeline generates 10-section NABH discharge summary</li>
+          <li><span class="flow-pill pill-discharge">discharge_ai</span> Consultant reviews and signs → <code>app_summaries.signed_by = staff_id</code> from <code>doctor_patient_assignments</code></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="flow-step">
+      <div class="flow-left">DISCHARGE COMPLETE</div>
+      <div class="flow-line"><div class="flow-dot core"></div></div>
+      <div class="flow-content">
+        <h4>Close of Admission</h4>
+        <ul>
+          <li><span class="flow-pill pill-core">hospital_core</span> <code>admissions.status = 'discharged'</code>, <code>discharged_at = now()</code></li>
+          <li><span class="flow-pill pill-core">hospital_core</span> <code>beds.status = 'available'</code>, <code>beds.current_admission_id = NULL</code></li>
+          <li><span class="flow-pill pill-core">hospital_core</span> <code>doctor_patient_assignments.unassigned_at = now()</code> for PRIMARY assignment</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ─── 6. ESCALATION & DE-ESCALATION ────────────────────────────────── -->
+<div class="section page-break">
+  <div class="section-header">
+    <span class="section-num">Section 06</span>
+    <h2>Escalation &amp; De-escalation Workflow</h2>
+  </div>
+  <p style="color:var(--muted); margin-bottom:8px;">Aligned with the Foqal CareOS wireframe (careos-2026-06-12.html). Head Nurse is the <strong>primary gatekeeper</strong> for all escalations at levels 1–2. False alarm mechanism feeds back to the EWD trend model.</p>
+
+  <!-- Escalation levels -->
+  <h3 style="font-size:14px; margin:16px 0 10px;">Escalation Levels</h3>
+
+  <table class="swimlane">
+    <thead>
+      <tr>
+        <th style="width:90px; background:#f1f5f9; color:var(--text);">Level</th>
+        <th class="swim-nurse">Staff Nurse</th>
+        <th class="swim-charge">Head Nurse (N5)</th>
+        <th class="swim-attending">Attending</th>
+        <th class="swim-system">System / EWS</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="row-label"><span class="level level-routine">ROUTINE</span><br><small>NEWS2 = 0</small></td>
+        <td class="swim-nurse"><div class="swim-action">Monitor q1h (CCU)<br>Normal charting</div></td>
+        <td class="swim-charge"><div class="swim-action">No action required</div></td>
+        <td class="swim-attending"><div class="swim-action">No action required</div></td>
+        <td class="swim-system"><div class="swim-action">No EWS event created</div></td>
+      </tr>
+      <tr>
+        <td class="row-label"><span class="level level-low">LOW</span><br><small>NEWS2 1–4</small></td>
+        <td class="swim-nurse"><div class="swim-action">Amber badge appears on N1</div><div class="swim-action">Continue monitoring</div></td>
+        <td class="swim-charge"><div class="swim-action">Acknowledges on next ward round (within shift)</div></td>
+        <td class="swim-attending"><div class="swim-action">Not notified (HN handles)</div></td>
+        <td class="swim-system"><div class="swim-action">ews_events: LOW_RISK created</div><div class="swim-action">escalations.status: active → charge_acked</div></td>
+      </tr>
+      <tr>
+        <td class="row-label"><span class="level level-medium">MEDIUM</span><br><small>NEWS2 5–6 OR any param ≥3</small></td>
+        <td class="swim-nurse"><div class="swim-action">Creates escalation on N2 screen</div><div class="swim-action">Documents observations + interventions</div></td>
+        <td class="swim-charge"><div class="swim-decision">GATEKEEPER DECISION</div><div class="swim-action">Option A: Mark False Alarm → selects reason from dropdown</div><div class="swim-action">Option B: Escalate to Attending → notifies attending</div><span class="arrow-down">↓</span><small style="font-size:10px;color:var(--muted);">NABH SLA: 30 min response</small></td>
+        <td class="swim-attending"><div class="swim-action">Notified only if HN escalates</div><div class="swim-action">Documents review in N1b</div></td>
+        <td class="swim-system"><div class="swim-action">active → pending_charge_ack → charge_acked → [false_alarm | attending_notified → attending_reviewed]</div></td>
+      </tr>
+      <tr>
+        <td class="row-label"><span class="level level-high">HIGH</span><br><small>NEWS2 7+</small></td>
+        <td class="swim-nurse"><div class="swim-action">Creates HIGH escalation on N2</div><div class="swim-action">Stays at bedside</div></td>
+        <td class="swim-charge"><div class="swim-action">Responds within 5 min (NABH SLA)</div><div class="swim-action">Documents HN arrival timestamp</div><div class="swim-action">Notified simultaneously with Attending</div></td>
+        <td class="swim-attending"><div class="swim-action">Must be at bedside within 20 min (NABH SLA)</div><div class="swim-action">Documents bedside arrival</div><div class="swim-action">Documents intervention + resolution note</div></td>
+        <td class="swim-system"><div class="swim-action">active → charge_acked → attending_notified → attending_reviewed → resolved</div><div class="swim-action">sla_breached = TRUE if SLA exceeded</div></td>
+      </tr>
+      <tr>
+        <td class="row-label"><span class="level level-code">CODE BLUE</span><br><small>NEWS2 ≥9 / sudden arrest / Critical DL alert</small></td>
+        <td class="swim-nurse"><div class="swim-action">Any staff — Initiates code blue</div></td>
+        <td class="swim-charge"><div class="swim-action">Responds (no gatekeeping role here)</div></td>
+        <td class="swim-attending"><div class="swim-action">Direct notification + CMO simultaneously</div><div class="swim-action">Code documentation per hospital protocol</div></td>
+        <td class="swim-system"><div class="swim-action">BYPASSES Head Nurse gatekeeping</div><div class="swim-action">All response timestamps tracked</div></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- False Alarm -->
+  <div class="callout warn" style="margin-top:16px;">
+    <strong>False Alarm Mechanism (Head Nurse N5 screen)</strong>
+    Head Nurse selects reason from dropdown: <em>Expected clinical variation · Data entry error · Post-procedure transient change · Medication effect (expected) · Other</em><br>
+    Effect: <code>ews_events.false_alarm = TRUE</code>, reason stored in <code>false_alarm_reason</code> → Feeds back to the EWD (trend model) to reduce future noise for similar patterns.
+  </div>
+
+  <!-- De-escalation -->
+  <h3 style="font-size:14px; margin:24px 0 10px;">De-escalation (CCU → General Ward)</h3>
+  <table class="swimlane">
+    <thead>
+      <tr>
+        <th style="width:90px; background:#f1f5f9; color:var(--text);">Step</th>
+        <th class="swim-nurse">Staff Nurse</th>
+        <th class="swim-charge">Head Nurse (N5)</th>
+        <th class="swim-attending">Attending</th>
+        <th class="swim-system">System / EWS</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="row-label">1. AUTO DETECT</td>
+        <td class="swim-nurse"><div class="swim-action">Green "Step-down eligible" badge appears on N1</div></td>
+        <td class="swim-charge"><div class="swim-action">Badge visible in N5 list view</div></td>
+        <td class="swim-attending"><div class="swim-action">Not yet involved</div></td>
+        <td class="swim-system"><div class="swim-action">Trigger: NEWS2 ≤2 sustained 6h+ AND no escalation in last 24h AND haemodynamically stable</div><div class="swim-action">ews_events: STEP_DOWN_ELIGIBLE created</div></td>
+      </tr>
+      <tr>
+        <td class="row-label">2. NURSE RECOMMENDS</td>
+        <td class="swim-nurse"><div class="swim-action">Opens N_transfer screen</div><div class="swim-action">Reviews 5-item step-down checklist (auto-populated from vitals data)</div><div class="swim-action">Adds clinical rationale</div><div class="swim-action">Checks "Attending notified" box</div><div class="swim-action">Submits → Head Nurse</div></td>
+        <td class="swim-charge"><div class="swim-action">Not yet involved</div></td>
+        <td class="swim-attending"><div class="swim-action">Nurse manually notifies Attending (phone / in-person)</div></td>
+        <td class="swim-system"><div class="swim-action">ews.transfer_requests row created (status: pending_charge)</div></td>
+      </tr>
+      <tr>
+        <td class="row-label">3. HEAD NURSE APPROVES</td>
+        <td class="swim-nurse"><div class="swim-action">Awaiting outcome</div></td>
+        <td class="swim-charge"><div class="swim-action">Reviews patient data + checklist in N5 — "CCU Transfer Approvals" section</div><div class="swim-decision">[Approve] or [Reject]</div><div class="swim-action">On approve: Attending receives system notification</div></td>
+        <td class="swim-attending"><div class="swim-action">Receives system notification (awareness only — no sign required)</div></td>
+        <td class="swim-system"><div class="swim-action">status: pending_charge → approved</div><div class="swim-action">hospital_core.ward_transfers row auto-created</div></td>
+      </tr>
+      <tr>
+        <td class="row-label">4. TRANSFER EXECUTED</td>
+        <td class="swim-nurse"><div class="swim-action">Prepares patient for transfer</div></td>
+        <td class="swim-charge"><div class="swim-action">Coordinates GW bed assignment</div><div class="swim-action">GW Charge Nurse marks "Received"</div></td>
+        <td class="swim-attending"><div class="swim-action">Notified of transfer completion</div></td>
+        <td class="swim-system"><div class="swim-action">ward_transfers.status = 'completed'</div><div class="swim-action">admissions.current_ward_id = GW ward, status = 'transferred_to_gw'</div><div class="swim-action">CCU bed → available; GW bed → occupied</div><div class="swim-action">Patient: N1 (CCU) → G1 (GW dashboard)</div></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ─── 7. NEW SCREENS ─────────────────────────────────────────────────── -->
+<div class="section page-break">
+  <div class="section-header">
+    <span class="section-num">Section 07</span>
+    <h2>New &amp; Modified Screens</h2>
+  </div>
+  <p style="color:var(--muted); margin-bottom:16px;">Wireframe source: <code>careos-2026-06-12.html</code>. Screens marked NEW are additions beyond the current wireframe. Modified screens already exist but require additions.</p>
+
+  <div class="divider"></div>
+  <p style="font-weight:700; margin-bottom:12px;">New Screens</p>
+  <div class="screens-grid">
+
+    <div class="screen-card new-screen">
+      <div class="screen-header">R1 — Resident Dashboard<span class="screen-role" style="color:var(--ews-dark);">resident</span></div>
+      <div class="screen-body">
+        <ul>
+          <li>All patients in assigned ward (CCU + any GW)</li>
+          <li>Columns: Bed · Patient · Ward · NYHA · NEWS2 · EWS Badge · Escalation Status · Last Reviewed</li>
+          <li>"Pending my action" section (escalations, transfer requests)</li>
+          <li>NABH SLA approaching badge (yellow/red)</li>
+          <li>Quick actions: Review Patient · Approve Transfer · Call Code Blue</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="screen-card new-screen">
+      <div class="screen-header">R1b — Resident Patient Detail<span class="screen-role" style="color:var(--ews-dark);">resident</span></div>
+      <div class="screen-body">
+        <ul>
+          <li>Same vitals view as N1b (nurse view)</li>
+          <li>Resident Review Notes — chronological doctor visit log</li>
+          <li>"Add Assessment" → saves note with timestamp + staff_id</li>
+          <li>Transfer Initiation form (when eligible)</li>
+          <li>Discharge planning form</li>
+          <li>ML Trend Card + DCM Assessment section visible</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="screen-card new-screen">
+      <div class="screen-header">G1 — GW Ward Overview<span class="screen-role" style="color:var(--ews-dark);">gw_nurse · gw_charge</span></div>
+      <div class="screen-body">
+        <ul>
+          <li>Same card grid as N1 but filtered: ward_type = GW only</li>
+          <li>Monitoring interval: q2h (vs q1h in CCU)</li>
+          <li>"Transferred from CCU" badge with transfer date</li>
+          <li>Wider safe-range thresholds for badges</li>
+          <li>NEWS2 same algorithm; escalation path → Ward Doctor → Attending</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="screen-card new-screen">
+      <div class="screen-header">G1b — GW Patient Detail<span class="screen-role" style="color:var(--ews-dark);">gw_nurse</span></div>
+      <div class="screen-body">
+        <ul>
+          <li>Simplified vitals view (fewer CCU-specific parameters)</li>
+          <li>Transfer summary from CCU shown at top</li>
+          <li>Discharge readiness criteria visible</li>
+          <li>"Flag for Discharge" button → notifies Attending</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="screen-card new-screen">
+      <div class="screen-header">G2 — GW Escalation Form<span class="screen-role" style="color:var(--ews-dark);">gw_nurse</span></div>
+      <div class="screen-body">
+        <ul>
+          <li>Escalation levels: Ward Nurse-to-Nurse · Ward Doctor · Attending</li>
+          <li>NEWS2 ≥ 7 in GW → option to request CCU readmission (GW→CCU transfer)</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="divider"></div>
+  <p style="font-weight:700; margin-bottom:12px;">Modified Screens (existing wireframe — additions required)</p>
+  <div class="screens-grid">
+
+    <div class="screen-card modified-screen">
+      <div class="screen-header">N1 — NEWS2 Dashboard (CCU)<span class="screen-role" style="color:var(--core-dark);">nurse</span></div>
+      <div class="screen-body">
+        <ul>
+          <li>Add: EWS trend badge (EWMA arrow ↑↓→)</li>
+          <li>Add: "Step-down eligible" green badge when criteria met</li>
+          <li>Add: Drug-lab interaction pill (existing DL logic, new display)</li>
+          <li>Add: DCM weight-gain alert indicator</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="screen-card modified-screen">
+      <div class="screen-header">N1b — Patient Detail<span class="screen-role" style="color:var(--core-dark);">nurse</span></div>
+      <div class="screen-body">
+        <ul>
+          <li>Add: ML Trend Card with EWMA chart (replaces fake ml_risk)</li>
+          <li>Add: DCM Assessment section (NYHA, EF%, fluid balance)</li>
+          <li>Add: 24h fluid balance summary</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="screen-card modified-screen">
+      <div class="screen-header">N2 — Escalation Form<span class="screen-role" style="color:var(--core-dark);">nurse</span></div>
+      <div class="screen-body">
+        <ul>
+          <li>Escalation path selector: Standard (HN→Attending) · Direct Attending (HN unavailable) · Code Blue</li>
+          <li>Level auto-populated from NEWS2</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="screen-card modified-screen">
+      <div class="screen-header">N5 — Escalation Queue<span class="screen-role" style="color:var(--core-dark);">charge</span></div>
+      <div class="screen-body">
+        <ul>
+          <li>Add: "Mark False Alarm" button with reason dropdown</li>
+          <li>Add: "CCU Transfer Approvals" section (new sub-tab)</li>
+          <li>Add: NABH SLA countdown timers</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ─── 8. MIGRATION & PRINCIPLES ─────────────────────────────────────── -->
+<div class="section page-break">
+  <div class="section-header">
+    <span class="section-num">Section 08</span>
+    <h2>Migration Phases &amp; Design Principles</h2>
+  </div>
+
+  <div class="phase-list">
+    <div class="phase">
+      <div class="phase-num">1</div>
+      <div class="phase-content">
+        <h4>Database Migration — hospital_core schema</h4>
+        <ul>
+          <li>Create <code>hospital_core</code> schema on existing Cloud SQL instance</li>
+          <li>Create all 9 master tables (hospitals → ward_transfers) with seed data: 1 hospital, cardiology dept, CCU + GW wards, bed roster</li>
+          <li>Migrate Ashmit's <code>app_users</code> → <code>hospital_core.staff</code> (data migration)</li>
+          <li>Migrate Sabari SQLite → Cloud SQL <code>ews</code> schema (SQLAlchemy connection string change + schema prefix)</li>
+          <li>Map existing Sabari <code>patients.subject_id</code> integers → generate UHID + <code>admission_id</code> UUIDs</li>
+        </ul>
+      </div>
+    </div>
+    <div class="phase">
+      <div class="phase-num">2</div>
+      <div class="phase-content">
+        <h4>Sabari Backend Changes</h4>
+        <ul>
+          <li>Replace SQLite connection with Cloud SQL (psycopg2/asyncpg) in <code>backend/main.py</code></li>
+          <li>Update all ORM queries: <code>subject_id</code> → <code>admission_id</code></li>
+          <li>Add <code>hospital_core</code> schema reads for patient and staff lookup</li>
+          <li>Implement <code>compute_trend_score()</code> — EWMA linear regression per vital parameter</li>
+          <li>Add 8 new API endpoints: EWS events, DCM assessments, fluid balance, transfer requests (CRUD)</li>
+          <li>Add roles to auth middleware: <code>resident</code>, <code>gw_nurse</code>, <code>gw_charge</code>, <code>attending</code></li>
+          <li>Escalation workflow: add tier tracking, false alarm endpoint, NABH SLA auto-set</li>
+        </ul>
+      </div>
+    </div>
+    <div class="phase">
+      <div class="phase-num">3</div>
+      <div class="phase-content">
+        <h4>New &amp; Modified Frontend Screens (Sabari)</h4>
+        <ul>
+          <li>Add: R1 / R1b — Resident Dashboard + Patient Detail</li>
+          <li>Add: G1 / G1b / G2 — GW Monitoring screens</li>
+          <li>Modify: N1 / N1b — EWS trend badges, ML Card, DCM section</li>
+          <li>Modify: N2 — 3-path escalation selector</li>
+          <li>Modify: N5 — False alarm mechanism, CCU Transfer Approvals section, NABH timers</li>
+          <li>Add: N_transfer screen (CCU→GW nurse recommendation)</li>
+        </ul>
+      </div>
+    </div>
+    <div class="phase">
+      <div class="phase-num">4</div>
+      <div class="phase-content">
+        <h4>Ashmit (Discharge AI) Changes</h4>
+        <ul>
+          <li>Move tables to <code>discharge_ai</code> schema (was default public schema)</li>
+          <li>Replace <code>app_users</code> FK with <code>hospital_core.staff</code> FK on encounters, summaries, audit_log</li>
+          <li>Add <code>admission_id UUID</code> field to <code>app_encounters</code> and <code>active_patients</code></li>
+          <li>Update <code>POST /api/encounters</code> endpoint to accept and store <code>admission_id</code></li>
+          <li>Map discharge summary <code>signed_by</code> → Consultant's <code>staff_id</code> from <code>doctor_patient_assignments</code></li>
+        </ul>
+      </div>
+    </div>
+    <div class="phase">
+      <div class="phase-num">5</div>
+      <div class="phase-content">
+        <h4>Integration Testing (End-to-End)</h4>
+        <ul>
+          <li>Register patient → UHID created in <code>hospital_core.patients</code></li>
+          <li>Admit to CCU → <code>admission_id</code> generated; bed occupied</li>
+          <li>Enter vitals → EWS events fire; NEWS2 computed; drug-lab alerts raised</li>
+          <li>Create escalation → Head Nurse gatekeeper → false alarm and escalation paths both tested</li>
+          <li>CCU→GW transfer → <code>ward_transfers</code> logged; beds updated; G1 dashboard shows patient</li>
+          <li>Discharge ready → Sabari fires to Ashmit with <code>admission_id</code> → discharge summary generated</li>
+          <li>Summary signed → <code>signed_by = treating Consultant's staff_id</code> from <code>doctor_patient_assignments</code></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+  <h3 style="font-size:15px; margin-bottom:12px;">Design Principles (Production Grade)</h3>
+  <div class="principles">
+    <div class="principle">
+      <h4>UUID Primary Keys Everywhere</h4>
+      <p>No integer PKs except MIMIC-IV legacy. UUIDs prevent collisions across hospitals when scaling to multi-site deployment.</p>
+    </div>
+    <div class="principle">
+      <h4>Audit Trail — Insert Only</h4>
+      <p>Clinical data is never UPDATE'd — each correction appends a new row. Vitals, labs, escalations are immutable once written.</p>
+    </div>
+    <div class="principle">
+      <h4>NABH Compliance</h4>
+      <p>Every escalation has documented response timestamps. All clinical sign-offs stored with timestamp + staff_id. SLA breaches auto-flagged.</p>
+    </div>
+    <div class="principle">
+      <h4>Chain of Custody</h4>
+      <p><code>doctor_patient_assignments</code> ensures every clinical action maps to the doctor responsible at that moment in time.</p>
+    </div>
+    <div class="principle">
+      <h4>Admission ID is the Universal Key</h4>
+      <p>Never pass patient name or UHID between systems. Always use <code>admission_id</code> (UUID). Both Sabari and Ashmit keyed to this single value.</p>
+    </div>
+    <div class="principle">
+      <h4>Ward Type Gates</h4>
+      <p>CCU patients only visible in CCU screens (N1); GW patients only in GW screens (G1). Transfer is the explicit, audited boundary crossing.</p>
+    </div>
+    <div class="principle">
+      <h4>Soft Deletes</h4>
+      <p><code>is_active = FALSE</code> instead of DELETE for staff and patients. Clinical records are never physically deleted.</p>
+    </div>
+    <div class="principle">
+      <h4>Hot-Reloadable Rules</h4>
+      <p>Drug-lab interaction rules remain in YAML (<code>drug_lab_rules.yaml</code>). New rules added without Python code changes or server restart.</p>
+    </div>
+  </div>
+
+  <!-- What doesn't change -->
+  <div class="callout" style="margin-top:24px;">
+    <strong>What Does NOT Change</strong>
+    Gemini 2.5 Flash two-pass pipeline · MedCPT asymmetric encoders (768-dim) · Qdrant vector store · BM25 hybrid retrieval · 18 ap_* MIMIC-IV clinical tables · Cardiology staging tables · NEWS2 scoring engine (calculate_news2()) · Drug-lab YAML rule engine (13 rules) · Sabari's existing API endpoints (/api/ward-data, /api/escalations, /api/patients) · Ashmit's frontend screens S1–S7
+  </div>
+
+</div>
+
+</div><!-- /container -->
+
+<script>
+  // Print button already calls window.print()
+</script>
+</body>
+</html>

@@ -1,0 +1,2308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>Foqal CareOS · Module B — Cost Estimator</title>
+<style>
+:root{
+  --p:#800080;--pl:#f7edf7;--pm:#c060c0;
+  --t1:#dc2626;--t1b:#fef2f2;
+  --t2:#d97706;--t2b:#fffbeb;
+  --t3:#059669;--t3b:#ecfdf5;
+  --ink:#111827;--ink2:#374151;--muted:#6b7280;
+  --border:#e5e7eb;--surf:#f9fafb;
+  --font:system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'SF Mono','Menlo','Consolas',monospace;
+  --sb:220px;--ab:56px;--tb:38px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:var(--font);color:var(--ink);background:#fff;font-size:13px}
+button{cursor:pointer;font-family:inherit;font-size:inherit}
+input,select,textarea{font-family:inherit;font-size:inherit}
+a{color:inherit;text-decoration:none}
+
+#app-shell{display:flex;flex-direction:column;height:100%}
+#topbar{height:4px;background:var(--p);flex-shrink:0}
+#appbar{
+  height:var(--ab);background:#fff;border-bottom:1px solid var(--border);
+  flex-shrink:0;display:flex;align-items:center;padding:0 18px;gap:10px;
+}
+.alogo{font-size:15px;font-weight:800;color:var(--p);letter-spacing:-.4px;white-space:nowrap;cursor:pointer;transition:opacity .15s}
+.alogo:hover{opacity:.7}
+.alogo em{color:var(--ink);font-style:normal;font-weight:400}
+.adiv{width:1px;height:20px;background:var(--border)}
+.aspace{flex:1}
+.role-chip{padding:3px 10px;border-radius:12px;font-size:10px;font-weight:700;
+  letter-spacing:.5px;text-transform:uppercase;background:#fdf4ff;color:var(--p);white-space:nowrap}
+.abtn{padding:5px 11px;border:1px solid var(--border);background:#fff;border-radius:6px;
+  font-size:11px;font-weight:500;color:var(--muted);transition:all .12s}
+.abtn:hover{background:var(--surf);color:var(--ink)}
+.abtn-danger{border-color:#fca5a5;color:var(--t1)}
+.abtn-danger:hover{background:var(--t1b)}
+
+#body-row{display:flex;flex:1;overflow:hidden}
+#content{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+#main{flex:1;overflow-y:auto;padding:20px 28px;background:var(--surf)}
+
+.bc{display:none}
+.bc-link{color:var(--p);cursor:pointer}.bc-link:hover{text-decoration:underline}
+.bc-sep{color:var(--border)}
+
+.sh{display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap}
+.sh-title{font-size:17px;font-weight:800;color:var(--ink);flex:1}
+.sh-id{display:none}
+.sh-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+
+.stats{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap}
+.stat{flex:1;min-width:120px;background:#fff;border:1px solid var(--border);border-radius:8px;padding:12px 16px}
+.stat-v{font-size:28px;font-weight:800;line-height:1;color:var(--ink)}
+.stat-l{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:3px}
+.stat.c-p .stat-v{color:var(--p)}
+.stat.c-a .stat-v{color:var(--t2)}
+.stat.c-g .stat-v{color:var(--t3)}
+.stat.c-b .stat-v{color:var(--p)}
+
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:6px;
+  font-size:12.5px;font-weight:500;border:1px solid transparent;cursor:pointer;
+  transition:all .12s;white-space:nowrap}
+.btn-pri{background:var(--p);color:#fff;border-color:var(--p)}
+.btn-pri:hover{background:#5c0060}
+.btn-sec{background:#fff;color:var(--ink);border-color:var(--border)}
+.btn-sec:hover{background:var(--surf)}
+.btn-danger{background:var(--t1);color:#fff;border-color:var(--t1)}
+.btn-danger:hover{background:#b91c1c}
+.btn-warn{background:var(--t2b);color:#92400e;border-color:#fcd34d}
+.btn-sm{padding:5px 10px;font-size:11.5px}
+.btn-xs{padding:3px 8px;font-size:11px}
+
+.bd{display:inline-flex;align-items:center;padding:2px 7px;border-radius:10px;font-size:10.5px;font-weight:700}
+.bd-t1{background:var(--t1b);color:var(--t1)}
+.bd-t2{background:var(--t2b);color:var(--t2)}
+.bd-t3{background:var(--t3b);color:var(--t3)}
+.bd-p{background:var(--pl);color:var(--p)}
+.bd-blue{background:#eff6ff;color:#1e40af}
+.bd-gray{background:#f3f4f6;color:#4b5563}
+.bd-purple{background:#fdf4ff;color:var(--p)}
+.bd-ok{background:#dcfce7;color:#15803d}
+
+.tw{background:#fff;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+table{width:100%;border-collapse:collapse}
+th{padding:9px 14px;text-align:left;font-size:10.5px;font-weight:700;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.4px;background:var(--surf);
+  border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:10px 14px;border-bottom:1px solid var(--border);color:var(--ink2);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fcfcfc}
+tr.highlight td{background:#fdf4ff}
+
+.card{background:#fff;border:1px solid var(--border);border-radius:8px;padding:16px}
+.card-title{font-size:12px;font-weight:700;color:var(--ink);margin-bottom:10px}
+
+.alert{padding:10px 14px;border-radius:6px;display:flex;align-items:flex-start;gap:8px;
+  font-size:12px;margin-bottom:12px;line-height:1.5}
+.alert b{font-weight:700}
+.al-err{background:var(--t1b);color:var(--t1);border:1px solid #fca5a5}
+.al-warn{background:var(--t2b);color:#92400e;border:1px solid #fcd34d}
+.al-ok{background:var(--t3b);color:#065f46;border:1px solid #6ee7b7}
+.al-info{background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe}
+
+#modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300;
+  align-items:center;justify-content:center}
+#modal-overlay.open{display:flex}
+#modal-box{background:#fff;border-radius:10px;padding:24px;width:480px;max-width:90vw;
+  box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.modal-t{font-size:15px;font-weight:800;color:var(--ink);margin-bottom:8px}
+.modal-b{font-size:12.5px;color:var(--ink2);margin-bottom:20px;line-height:1.6}
+.modal-f{display:flex;justify-content:flex-end;gap:8px}
+
+/* COST RANGE */
+.cb-range{border:1px solid var(--border);border-radius:12px;padding:20px 24px 22px;margin-bottom:20px;background:#fff}
+.cb-range-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;font-weight:700;margin-bottom:6px}
+.cb-range-value{font-size:26px;font-weight:900;color:var(--ink);letter-spacing:-.5px}
+.cb-range-value .dash{color:#c9cfd8;font-weight:400;margin:0 10px}
+.cb-range-sub{font-size:11.5px;color:var(--muted);margin-top:6px}
+
+/* The interval scale. Capped + centred so it never stretches into a hairline on
+   wide monitors, and reads as a RANGE (a tinted band densest at the P50) rather
+   than a progress bar filled from the left edge. padding-bottom reserves room
+   for the absolutely-positioned stop labels, which contribute no height and
+   would otherwise spill outside the card. */
+.cb-scale{max-width:660px;margin:46px auto 0;padding:0 10px 48px}
+.cb-range-track-wrap{position:relative;height:8px}
+.cb-range-track{position:absolute;inset:0;border-radius:99px;border:1px solid #ecdcec;
+  background:var(--pl)}
+.cb-stop{position:absolute;top:50%;cursor:pointer;z-index:2}
+.cb-stop-dot{width:14px;height:14px;border-radius:50%;background:#fff;border:2px solid #c4ccd6;
+  position:absolute;top:0;left:0;transform:translate(-50%,-50%);transition:all .16s ease;
+  box-shadow:0 1px 2px rgba(17,24,39,.08)}
+.cb-stop:hover .cb-stop-dot{border-color:var(--pm);transform:translate(-50%,-50%) scale(1.18)}
+.cb-stop.sel .cb-stop-dot{background:var(--p);border-color:#fff;width:18px;height:18px;
+  box-shadow:0 0 0 3px rgba(128,0,128,.16),0 2px 6px rgba(128,0,128,.28)}
+.cb-stop-chip{position:absolute;bottom:15px;left:50%;transform:translateX(-50%);
+  font-size:8.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--p);
+  background:var(--pl);border:1px solid #e8d0e8;padding:3px 8px;border-radius:99px;white-space:nowrap}
+.cb-stop-label{position:absolute;top:16px;white-space:nowrap;line-height:1.4}
+.cb-stop-tag{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:800}
+.cb-stop-amt{font-size:14px;color:var(--ink2);font-weight:800;letter-spacing:-.2px;margin-top:2px}
+.cb-stop.sel .cb-stop-tag{color:var(--p)}
+.cb-stop.sel .cb-stop-amt{color:var(--p);font-size:16px}
+
+/* STEP FLOW */
+.sf{display:flex;align-items:center;margin-bottom:20px;background:#fff;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.step{flex:1;padding:9px 4px;text-align:center;border-right:1px solid var(--border);position:relative}
+.step:last-child{border-right:none}
+.step-n{width:22px;height:22px;border-radius:50%;border:2px solid var(--border);background:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;
+  color:var(--muted);margin:0 auto 4px}
+.step.done .step-n{background:var(--t3);border-color:var(--t3);color:#fff}
+.step.cur .step-n{background:var(--p);border-color:var(--p);color:#fff}
+.step-l{font-size:9.5px;color:var(--muted);line-height:1.3}
+.step.cur .step-l{color:var(--p);font-weight:600}
+
+.divider{height:1px;background:var(--border);margin:16px 0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.mono{font-family:var(--mono)}
+.muted{color:var(--muted)}
+.small{font-size:11px}
+.bold{font-weight:700}
+.flex-r{display:flex;align-items:center;gap:8px}
+.flex-sb{display:flex;align-items:center;justify-content:space-between}
+
+.fg{margin-bottom:13px}
+.fl{display:block;font-size:11px;font-weight:600;color:var(--ink2);margin-bottom:4px}
+.fi{width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;
+  color:var(--ink);background:#fff;transition:border-color .12s;outline:none}
+.fi:focus{border-color:var(--p);box-shadow:0 0 0 2px rgba(128,0,128,.12)}
+.fi.valid{border-color:var(--t3)}
+.fi.err{border-color:var(--t1)}
+.fi-hint{font-size:10.5px;color:var(--muted);margin-top:3px}
+
+.radio-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:12.5px}
+.radio-row input[type=radio]{accent-color:var(--p)}
+.check-row{display:flex;align-items:flex-start;gap:8px;margin-bottom:10px;font-size:12.5px}
+.check-row input[type=checkbox]{margin-top:2px;accent-color:var(--p)}
+
+.pb{height:5px;background:var(--border);border-radius:3px;overflow:hidden}
+.pb-fill{height:100%;background:var(--p);border-radius:3px;transition:width .5s}
+
+.uz{border:2px dashed var(--border);border-radius:8px;padding:18px 14px;text-align:center;
+  cursor:pointer;transition:all .18s;background:var(--surf)}
+.uz:hover{border-color:var(--p);background:#fdf4ff}
+.uz-icon{font-size:22px;margin-bottom:5px}
+.uz-lbl{font-size:12px;font-weight:600;color:var(--ink2)}
+.uz-sub{font-size:10.5px;color:var(--muted);margin-top:2px}
+</style>
+<script src="/config.js"></script>
+</head>
+<body>
+
+<div id="app-shell">
+  <div id="topbar"></div>
+
+  <header id="appbar">
+    <div class="alogo" onclick="showScreen('ce0')" title="Go to Billing Dashboard">Foqal <em>CareOS</em></div>
+    <div class="adiv"></div>
+    <span class="role-chip">Billing Staff</span>
+    <div class="aspace"></div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font-size:11.5px;color:var(--muted)" id="billing-name">Ravi Kumar</span>
+      <button class="abtn abtn-danger" onclick="doLogout()">Sign Out</button>
+    </div>
+  </header>
+
+  <div id="body-row">
+    <div id="content">
+      <div id="bil-notif-bar" style="display:none"></div>
+      <div id="main"></div>
+    </div>
+  </div>
+</div>
+
+<div id="modal-overlay" onclick="closeModal()">
+  <div id="modal-box" onclick="event.stopPropagation()"></div>
+</div>
+
+<script>
+function doLogout() {
+  sessionStorage.removeItem('foqal_token');
+  sessionStorage.removeItem('foqal_user');
+  window.location.href = '/';
+}
+
+/* ── Deterministic synthetic patient name (same seed as doctor-dashboard & upload) ── */
+function _bilSeeded(id, max) {
+  let h = parseInt(id) || 0;
+  h = ((h >> 16) ^ h) * 0x45d9f3b;
+  h = ((h >> 16) ^ h) * 0x45d9f3b;
+  h = (h >> 16) ^ h;
+  return Math.abs(h) % max;
+}
+function _bilSeeded2(id, salt, max) { return _bilSeeded(id * 31 + salt, max); }
+const _BIL_M = ['Rajesh','Mohan','Dinesh','Arun','Suresh','Vijay','Sanjay','Ramesh','Deepak','Nitin',
+                'Ashok','Prakash','Anil','Manoj','Rakesh','Vinod','Sunil','Ravi','Ajay','Amit'];
+const _BIL_F = ['Priya','Kavita','Sunita','Anjali','Leela','Rekha','Suman','Anita','Meena','Geeta',
+                'Pooja','Neha','Divya','Shalini','Radha','Usha','Lata','Nisha','Swati','Kiran'];
+const _BIL_LAST = ['Kumar','Singh','Joshi','Verma','Patel','Malhotra','Gupta','Sharma','Rao','Jain',
+                    'Iyer','Menon','Nair','Desai','Varma','Devi','Reddy','Chatterjee','Mehta','Kapoor',
+                    'Choudhary','Pillai','Krishnan','Bose','Agarwal','Bhatia','Saxena','Trivedi','Bhosale','Kulkarni'];
+
+// Tracks hadm_ids already shown as signed-off so we only toast genuinely new ones
+let _bilKnown = new Set();
+let _bilPollStarted = false;
+let _bilToastReady = false; // gate: no toasts until 6s after first dashboard load
+
+// Persistent acknowledgement — once Riya clicks Reconcile or × the card won't reappear
+const _bilAcked = new Set(JSON.parse(localStorage.getItem('bil_notif_acked') || '[]'));
+let _bilLastPending = [];
+
+function _bilAck(hadmId) {
+  _bilAcked.add(String(hadmId));
+  localStorage.setItem('bil_notif_acked', JSON.stringify([..._bilAcked]));
+  _bilRenderNotifBar(_bilLastPending);
+}
+
+function _bilRenderNotifBar(pending) {
+  _bilLastPending = pending;
+  const bar = document.getElementById('bil-notif-bar');
+  if (!bar) return;
+  // Only show on the billing dashboard — on a patient screen (e.g. CE4) it would
+  // sit on top of / push down the form the user is actively working on.
+  if (CURRENT !== 'ce0') { bar.style.display = 'none'; bar.innerHTML = ''; return; }
+  const unacked = pending.filter(p => !_bilAcked.has(String(p.hadm_id)));
+  if (!unacked.length) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
+  bar.style.display = 'block';
+  const plural = unacked.length > 1 ? `${unacked.length} patients awaiting` : '1 patient awaiting';
+  bar.innerHTML = `
+    <div style="border:1.5px solid #f59e0b;border-radius:10px;background:#fffbeb;padding:14px 18px;margin:14px 20px 0">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:${unacked.length ? '12px' : '0'}">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700;color:#92400e">Reconciliation Required</div>
+          <div style="font-size:11.5px;color:#78350f;margin-top:1px">${plural} reconciliation — summary signed by attending</div>
+        </div>
+      </div>
+      ${unacked.map(p => {
+        const name   = p.patient_name || _bilName(p.hadm_id) || fmtPid(p.hadm_id, p.display_id);
+        const doctor = p.signed_by_name ? 'Dr. ' + p.signed_by_name : 'Attending';
+        return `<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:#fff8e1;border-radius:7px;border:1px solid #fde68a;margin-bottom:6px">
+          <div style="flex:1;min-width:0">
+            <span style="font-size:13px;font-weight:700;color:#111827">${name}</span>
+            <span style="font-size:11.5px;color:#78350f;margin-left:10px">Signed off by ${doctor}</span>
+            ${p.billing_phase === 'amendment_pending'
+              ? '<span style="font-size:11px;color:#7c3aed;margin-left:6px;font-weight:700">· Amendment Requested — Awaiting New Summary</span>'
+              : '<span style="font-size:11px;color:#92400e;margin-left:6px">· Ready for final bill</span>'}
+          </div>
+          <button onclick="event.stopPropagation();_bilAck(${p.hadm_id});_ceSelectPatient(${p.hadm_id},'discharge')"
+            style="flex-shrink:0;padding:6px 14px;background:#d97706;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">
+            Open Reconciliation →
+          </button>
+          <button onclick="event.stopPropagation();_bilAck(${p.hadm_id})"
+            title="Dismiss"
+            style="flex-shrink:0;background:none;border:none;color:#92400e;font-size:18px;cursor:pointer;line-height:1;padding:2px 6px;opacity:.7">×</button>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+function _bilSignedToast(p) {
+  const name = p.patient_name || _bilName(p.hadm_id);
+  const isAmendment = p.billing_phase === 'amendment_pending';
+  const msg  = isAmendment
+    ? `📝 Amendment requested for ${name} — awaiting revised summary`
+    : `✅ ${name} signed off — ready for reconciliation`;
+  const bg   = isAmendment ? '#7c3aed' : '#d97706';
+  // Was its own ad-hoc top-right toast, which collided visually with the
+  // "Reconciliation Required" bar (also anchored near the top of the page)
+  // whenever both fired for the same event. Bottom-right stack, same as
+  // every other billing toast, avoids the collision entirely.
+  _showBillingToast(msg, bg);
+}
+
+async function _bilPoll() {
+  try {
+    const base = window.FOQAL_API_BASE || 'http://localhost:6010';
+    const d = await (await fetch(base + '/api/billing/dashboard')).json();
+    const rows = (d.pending_actions || []).concat(d.post_discharge || []);
+    let changed = false;
+    rows.forEach(function(p) {
+      const key = p.hadm_id + ':' + (p.billing_phase || '');
+      if (!_bilKnown.has(key)) {
+        _bilKnown.add(key);
+        if (_bilToastReady && p.phase === 'discharge') { _bilSignedToast(p); changed = true; }
+      }
+    });
+    // Also re-render notification bar with current discharge patients
+    const dischargePending = rows.filter(p => p.phase === 'discharge');
+    _bilRenderNotifBar(dischargePending);
+    if (changed) _loadBillingDashboard();
+  } catch(e) {}
+}
+function _bilName(hadmId) {
+  const isMale = _bilSeeded(hadmId, 2) === 0;
+  const first   = isMale ? _BIL_M[_bilSeeded(hadmId, _BIL_M.length)]
+                         : _BIL_F[_bilSeeded2(hadmId, 7, _BIL_F.length)];
+  const last    = _BIL_LAST[_bilSeeded2(hadmId, 17, _BIL_LAST.length)];
+  return `${first} ${last}`;
+}
+let CURRENT = 'ce0';
+
+/* ── CE state — persists selected patient + form data across screens ── */
+const _CE = {
+  cost:          'expected',
+  hadm_id:       null,
+  mrn:           null,
+  subjectId:     null,
+  patientName:   null,
+  age:           null,
+  gender:        null,
+  diagnosis:     null,
+  diagnosisCode: null,
+  admitDate:     null,
+  dischargeDate: null,   // expected discharge (actual MIMIC ± offset) — NOT the real discharge
+  actualDischargeDate: null,  // real MIMIC discharge — used only in CE4
+  losDays:       null,
+  dischargeType: 'Standard',
+  encounterId:   null,
+  syncing:       false,  // true while the early Patient-ID-blur admit+sync is in flight
+  wardType:      'Semi-private Ward',
+  // CE1 → CE2 estimate data (from generate-estimate API)
+  estimateData:  null,
+  // CE4/CE5
+  actualCharges: null,
+  advancePaid:   null,
+  balanceDue:    null,
+};
+
+function _ceReset() {
+  const keep = { cost: _CE.cost, wardType: _CE.wardType };
+  Object.keys(_CE).forEach(k => { _CE[k] = null; });
+  Object.assign(_CE, { cost: keep.cost, wardType: keep.wardType,
+    dischargeType: 'Standard', estimateData: null, syncing: false });
+  _liveData = null;
+  _ce4Data  = null;
+}
+
+// MIMIC-IV de-identifies real dates by shifting each patient a DIFFERENT,
+// random number of years into the future (some ~50y, others 150y+) --
+// the backend always returns these RAW (the ML models are trained on the
+// real values, so nothing shifts them server-side). For display only, we
+// anchor this admission's own admit_time onto the real moment we started
+// tracking it (estimate_generated_at) and shift every other date for this
+// same patient by that exact same delta -- guarantees the shown admission
+// date is never in the future, while preserving the true day-gaps between
+// admission/discharge/events.
+function _mimicShiftDelta(admitRaw, anchorRaw) {
+  if (!admitRaw || !anchorRaw) return 0;
+  const admit = new Date(admitRaw), anchor = new Date(anchorRaw);
+  if (isNaN(admit) || isNaN(anchor)) return 0;
+  return anchor.getTime() - admit.getTime();
+}
+function _mimicShiftDate(rawDateStr, deltaMs) {
+  if (!rawDateStr) return '';
+  const d = new Date(rawDateStr);
+  if (isNaN(d)) return rawDateStr;
+  return new Date(d.getTime() + (deltaMs || 0)).toISOString().slice(0, 10);
+}
+function _fmtDateDisplay(isoDateStr) {
+  if (!isoDateStr) return '';
+  const d = new Date(isoDateStr + 'T00:00:00');
+  if (isNaN(d)) return isoDateStr;
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function _applyPatientDetails(d) {
+  if (!d) return;
+  _CE.hadm_id       = d.hadm_id;
+  // Patient ID = hadm_id (the actual key used everywhere in this app) --
+  // NOT subject_id, which is a different MIMIC-level identifier that was
+  // confusingly swapping into this same field once real data synced.
+  _CE.mrn           = String(d.hadm_id);
+  _CE.subjectId     = d.subject_id ? String(d.subject_id) : '';
+  _CE.patientName   = _bilName(d.hadm_id);
+  _CE.age           = d.anchor_age;
+  _CE.gender        = d.gender;
+  _CE.diagnosis     = d.primary_diagnosis_title || '';
+  _CE.diagnosisCode = d.primary_diagnosis_code || '';
+  const _delta = _mimicShiftDelta(d.admit_time, d.estimate_generated_at);
+  _CE.admitDate     = d.admit_time ? _mimicShiftDate(d.admit_time, _delta) : '';
+  // Use expected_discharge (LOS-model prediction, or a staff-saved override) — NOT the real MIMIC discharge
+  _CE.dischargeDate      = d.expected_discharge ? _mimicShiftDate(d.expected_discharge, _delta)
+                            : (d.discharge_time ? _mimicShiftDate(d.discharge_time, _delta) : '');
+  _CE.actualDischargeDate = d.discharge_time ? _mimicShiftDate(d.discharge_time, _delta) : '';
+  _CE.losDays       = d.expected_los || d.los_days || null;
+  _CE.dischargeType = d.discharge_type || 'Standard';
+  _CE.encounterId   = d.encounter_id;
+  // Actuals/settlements only meaningful once billing has progressed
+  if (d.billing_phase) {
+    _CE.actualCharges = d.actual_charges;
+    _CE.advancePaid   = d.advance_paid;
+    _CE.balanceDue    = d.balance_due;
+  }
+}
+
+async function _refetchPatientDetails() {
+  if (!_CE.hadm_id) return null;
+  const base = window.FOQAL_API_BASE || 'http://localhost:6010';
+  try {
+    const r = await fetch(`${base}/api/billing/patient/${_CE.hadm_id}`);
+    const d = r.ok ? await r.json() : null;
+    _applyPatientDetails(d);
+    return d;
+  } catch (e) {
+    return null;
+  }
+}
+
+function _ceSelectPatient(hadm_id, phase) {
+  _ce4Data = null;   // reset CE4 cache when switching patient
+  _ce4Fetching = false;
+  const base = window.FOQAL_API_BASE || 'http://localhost:6010';
+  fetch(`${base}/api/billing/patient/${hadm_id}`)
+    .then(r => r.ok ? r.json() : null)
+    .then(d => {
+      if (!d) return;
+      _applyPatientDetails(d);
+      if (phase === 'discharge') {
+        showScreen('ce4');
+      } else if (d.billing_phase || d.expected_est > 0 || d.floor_est > 0) {
+        // Admission patient already has a generated estimate — show live bill tracker,
+        // not the generate-estimate form again. Matches the same "has estimate" signal
+        // the CE0 dashboard row already used to decide its "Live Bill →" button label.
+        showScreen('ce_live');
+      } else {
+        showScreen('ce1');
+      }
+    })
+    .catch(() => showScreen(phase === 'discharge' ? 'ce4' : 'ce1'));
+}
+
+async function _ceSaveRecord(fields) {
+  const base = window.FOQAL_API_BASE || 'http://localhost:6010';
+  if (!_CE.hadm_id) return;
+  try {
+    await fetch(`${base}/api/billing/records/${_CE.hadm_id}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(fields),
+    });
+  } catch (_) {}
+}
+
+let _ce4Data = null;
+let _ce4Fetching = false;
+
+function showScreen(id) {
+  if (CURRENT === 'ce_live' && id !== 'ce_live') _liveStop();
+  if (CURRENT === 'ce2' && id !== 'ce2') _ce2StopAutoPoll();
+  CURRENT = id;
+  const fn = SCREENS[id];
+  document.getElementById('main').innerHTML = fn ? fn() : '<div style="padding:40px;color:var(--muted)">Screen not found.</div>';
+  if (id === 'ce0') _loadBillingDashboard();
+  if (id === 'ce4' && !_ce4Fetching) _ce4Load();
+}
+
+async function _loadBillingDashboard() {
+  const user = JSON.parse(sessionStorage.getItem('foqal_user') || '{}');
+  const nameEl = document.getElementById('ce0-staff-name');
+  if (nameEl && user.full_name) nameEl.textContent = user.full_name + ' · Billing Staff';
+
+  const statsEl   = document.getElementById('ce0-stats');
+  const tableEl   = document.getElementById('ce0-table');
+  if (!statsEl || !tableEl) return;
+
+  try {
+    const base = window.FOQAL_API_BASE || 'http://localhost:6010';
+    const res  = await fetch(`${base}/api/billing/dashboard`);
+    if (!res.ok) throw new Error(res.status);
+    const data = await res.json();
+    const { stats, pending_actions, post_discharge = [] } = data;
+
+    statsEl.innerHTML = `
+      <div style="border:1px solid var(--border);border-radius:8px;padding:16px;text-align:center;background:#fff;cursor:pointer" onclick="_scrollTo('ce0-table')">
+        <div style="font-size:28px;font-weight:700;color:var(--t2)">${(() => {
+          const cache = JSON.parse(sessionStorage.getItem('billing_phase_cache') || '{}');
+          const shared = Object.values(cache).filter(v => v === 'estimate_shared').length;
+          return Math.max(0, (stats.pending_estimates || 0) - shared);
+        })()}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">Pending Estimates</div>
+      </div>
+      ${_ce0PatientEntryCard()}`;
+
+    const pendingPts = pending_actions;
+
+    // ── Pending Actions table (Phase 1/2 + Phase 4) — filterable by HADM ID + status ──
+    _ce0PendingRaw = pendingPts;
+    _ce0FilterPending();
+
+    // ── Completed Reconciliations tab — all post_discharge patients ──
+    _ce0ReconciledRaw = post_discharge;
+    const reconciledEl = document.getElementById('ce0-reconciled-table');
+    if (reconciledEl) {
+      if (!post_discharge.length) {
+        reconciledEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);font-size:12px">No completed reconciliations yet. Reconciliations appear here after the final bill is generated.</div>';
+      } else {
+        const reconRows = post_discharge.map(p => {
+          const name = p.patient_name || _bilName(p.hadm_id);
+          const estTotal = p.expected_est || 0;
+          const actTotal = p.actual_charges || 0;
+          const variance = estTotal && actTotal ? ((actTotal - estTotal) / estTotal * 100).toFixed(1) : null;
+          const varStr   = variance != null ? (variance >= 0 ? '+' : '') + variance + '%' : '—';
+          const varColor = variance == null ? 'var(--muted)' : parseFloat(variance) > 15 ? 'var(--t1)' : parseFloat(variance) > 0 ? 'var(--t2)' : 'var(--t3)';
+          const actionBtns = `<button class="btn btn-sec btn-sm" onclick="_ceViewSignedSummary(${p.hadm_id})">📄 Discharge Summary</button>`;
+          return `<tr>
+            <td><b>${name}</b></td>
+            <td class="mono" style="font-size:11.5px">${p.mrn}</td>
+            <td>${p.admit_time_raw ? _fmtDateDisplay(_mimicShiftDate(p.admit_time_raw, _mimicShiftDelta(p.admit_time_raw, p.estimate_generated_at))) : (p.admit_date || '—')}</td>
+            <td style="font-weight:700">${estTotal ? '₹' + Math.round(estTotal).toLocaleString('en-IN') : '—'}</td>
+            <td style="font-weight:700">${actTotal ? '₹' + Math.round(actTotal).toLocaleString('en-IN') : '—'}</td>
+            <td style="font-weight:700;color:${varColor}">${varStr}</td>
+            <td><span class="bd bd-ok">Reconciled</span></td>
+            <td><div style="display:flex;gap:6px;flex-wrap:wrap">${actionBtns}</div></td>
+          </tr>`;
+        }).join('');
+        reconciledEl.innerHTML = `<div class="tw"><table>
+          <thead><tr><th>Patient</th><th>MRN</th><th>Admitted</th><th>Estimated</th><th>Actual</th><th>Variance</th><th>Status</th><th>Action</th></tr></thead>
+          <tbody>${reconRows}</tbody>
+        </table></div>`;
+      }
+    }
+
+    // Restore active tab
+    if (_ce0Tab === 'reconciled') _switchCe0Tab('reconciled');
+
+    // Seed known patients on first load so they don't fire toasts immediately
+    (pending_actions || []).forEach(function(p) {
+      _bilKnown.add(p.hadm_id + ':' + (p.billing_phase || ''));
+    });
+    // Start polling once (30-second interval)
+    if (!_bilPollStarted) {
+      _bilPollStarted = true;
+      setTimeout(() => { _bilToastReady = true; }, 6000);
+      setInterval(_bilPoll, 8000);
+    }
+
+    // Show persistent notification bar for unacknowledged reconciliation_pending patients
+    const _notifPending = (pending_actions || []).filter(p =>
+      p.phase === 'discharge' && (p.billing_phase === 'reconciliation_pending' || p.billing_phase === 'amendment_pending')
+    );
+    _bilRenderNotifBar(_notifPending);
+
+  } catch (e) {
+    tableEl.innerHTML = `<div class="alert al-warn" style="margin:0">⚠ Could not load patients: ${e.message}. Ensure backend is running.</div>`;
+  }
+}
+
+function _scrollTo(id) { document.getElementById(id)?.scrollIntoView({behavior:'smooth'}); }
+
+/* ── PM-JAY logic removed entirely -- ML model (cost_predictor.py) is now
+   the only source of cost estimates. See _fetchMlEstimate(). ── */
+
+let _ce0Tab = 'pending';
+let _ce0PendingRaw = [];
+let _ce0ReconciledRaw = [];
+
+// Entry point into CE1. Sized to match the stat cards next to it so the row
+// reads as one strip -- this replaced the small "+ Manual New Estimate"
+// button that used to sit above the pending table.
+function _ce0PatientEntryCard() {
+  return `
+  <div onclick="_ceReset();showScreen('ce1')"
+       style="border:1px solid var(--p);border-radius:8px;padding:16px;text-align:center;background:#fff;cursor:pointer;transition:background .15s"
+       onmouseover="this.style.background='#faf5ff'" onmouseout="this.style.background='#fff'">
+    <div style="font-size:28px;font-weight:700;color:var(--p);line-height:1.15">+</div>
+    <div style="font-size:11px;color:var(--p);font-weight:700;margin-top:4px">Patient Entry</div>
+  </div>`;
+}
+
+function _ce0StatusText(p) {
+  const isDischarge = p.phase === 'discharge';
+  return p.billing_status
+    || (isDischarge ? 'Reconciliation Due' : 'Estimate Pending');
+}
+
+function _ce0BuildRow(p) {
+  const name        = p.patient_name || _bilName(p.hadm_id);
+  const isDischarge = p.phase === 'discharge';
+  const phaseBadge  = isDischarge
+    ? `<span class="bd bd-t2">Discharge</span>`
+    : `<span class="bd bd-blue">Admission</span>`;
+  const statusText  = _ce0StatusText(p);
+  const statusColor = statusText === 'Reconciliation Due'  ? 'bd-t1'
+                    : statusText === 'Amendment Requested' ? 'bd-purple'
+                    : 'bd-t2';
+  const statusBadge = `<span class="bd ${statusColor}">${statusText}</span>`;
+  const hasEstimate = !!(p.billing_phase || p.expected_est);
+  const rowClick    = `_ceSelectPatient(${p.hadm_id},'${p.phase}')`;
+  const actionBtn   = isDischarge
+    ? `<button class="btn btn-warn btn-sm" onclick="event.stopPropagation();_ceSelectPatient(${p.hadm_id},'discharge')">Reconcile →</button>`
+    : hasEstimate
+      ? `<button class="btn btn-pri btn-sm" onclick="event.stopPropagation();_ceSelectPatient(${p.hadm_id},'admission')">Live Bill →</button>`
+      : `<button class="btn btn-pri btn-sm" onclick="event.stopPropagation();_ceSelectPatient(${p.hadm_id},'admission')">New Estimate →</button>`;
+  return `<tr style="cursor:pointer" onclick="${rowClick}">
+    <td><b>${name}</b></td>
+    <td class="mono" style="font-size:11.5px">${p.mrn}</td>
+    <td>${(() => { const d = _ce0AdmitISO(p); return d ? _fmtDateDisplay(d) : (p.admit_date || '—'); })()}</td>
+    <td>${p.hospital_day == null ? '—'
+      : (!isDischarge)
+        ? `<span class="bd bd-blue">Day ${p.hospital_day}</span>`
+        : `<span class="bd bd-gray">LOS ${p.hospital_day}d</span>`}</td>
+    <td>${phaseBadge}</td>
+    <td>${statusBadge}</td>
+    <td>${actionBtn}</td>
+  </tr>`;
+}
+
+// The admitted date a row actually SHOWS, as YYYY-MM-DD -- MIMIC's raw
+// admit_time is de-identified into the far future (e.g. 2146), so the table
+// displays it shifted onto real time. The date filter has to compare against
+// that same shifted value or it would silently match nothing.
+function _ce0AdmitISO(p) {
+  if (p.admit_time_raw) {
+    return _mimicShiftDate(p.admit_time_raw, _mimicShiftDelta(p.admit_time_raw, p.estimate_generated_at));
+  }
+  if (p.admit_date) {
+    // Local calendar parts, NOT toISOString() -- that converts to UTC and
+    // rolls "18 Jul" back to the 17th for any timezone east of Greenwich.
+    const d = new Date(p.admit_date);
+    if (!isNaN(d)) {
+      const pad = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    }
+  }
+  return null;
+}
+
+function _ce0ClearFilters() {
+  ['ce0-search','ce0-status-filter','ce0-admit-date']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  _ce0FilterPending();
+}
+
+function _ce0FilterPending() {
+  const tableEl = document.getElementById('ce0-table');
+  if (!tableEl) return;
+  const q       = (document.getElementById('ce0-search')?.value || '').trim().toLowerCase();
+  const statusF = document.getElementById('ce0-status-filter')?.value || '';
+  const admitF  = document.getElementById('ce0-admit-date')?.value || '';
+
+  let list = _ce0PendingRaw;
+  if (q) list = list.filter(p => String(p.hadm_id).toLowerCase().includes(q));
+  if (statusF) list = list.filter(p => _ce0StatusText(p) === statusF);
+
+  // Admitted on this exact date. Rows with no admission date drop out once a
+  // date is picked.
+  if (admitF) list = list.filter(p => _ce0AdmitISO(p) === admitF);
+
+  if (!_ce0PendingRaw.length) {
+    tableEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px">No patients pending billing action.</div>';
+  } else if (!list.length) {
+    tableEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px">No patients match the current filters.</div>';
+  } else {
+    tableEl.innerHTML = `<div class="tw"><table>
+      <thead><tr>
+        <th>Patient</th><th>MRN</th><th>Admitted</th><th>Day</th><th>Phase</th><th>Status</th><th>Action</th>
+      </tr></thead>
+      <tbody>${list.map(_ce0BuildRow).join('')}
+      </tbody>
+    </table></div>`;
+  }
+}
+
+function _switchCe0Tab(tab) {
+  _ce0Tab = tab;
+  ['pending','reconciled'].forEach(t => {
+    const el  = document.getElementById('ce0-tab-' + t);
+    const btn = document.getElementById('ce0-btn-' + t);
+    if (el)  el.style.display  = t === tab ? '' : 'none';
+    if (btn) { btn.style.borderBottomColor = t===tab?'var(--p)':'transparent'; btn.style.color = t===tab?'var(--p)':'var(--muted)'; btn.style.fontWeight = t===tab?'700':'600'; }
+  });
+}
+
+function _ce1UpdateLos() {
+  const admit = document.getElementById('ce1-admit')?.value;
+  const disc  = document.getElementById('ce1-disc')?.value;
+  if (!admit || !disc) return;
+  const days = Math.round((new Date(disc) - new Date(admit)) / 86400000);
+  if (days > 0) {
+    const losEl = document.getElementById('ce1-los');
+    if (losEl) losEl.value = days;
+  }
+}
+
+// Click handler for CE1's "Fetch Patient" button (New Entry mode, before
+// "Generate Cost Estimate" is clicked). Just validates the typed HADM ID and
+// opens a confirm modal -- the actual sync only starts once the user
+// confirms, so a mistyped ID never silently kicks off a fetch.
+function _ce1SyncClick() {
+  const val = document.getElementById('ce1-mrn')?.value?.trim();
+  const hid = parseInt(val);
+  if (!hid || hid <= 0) { alert('Enter a valid HADM ID.'); return; }
+  openModal('ce1-hadm-confirm', { hid, val });
+}
+
+// Provisions + kicks off the BigQuery sync early so Admission Date / Primary
+// Diagnosis / Expected Discharge can populate live while the rest of the
+// form is still being filled in, instead of only starting once Save is
+// clicked. Runs after the user confirms the HADM ID in the modal.
+async function _ce1ConfirmSync(hid, val) {
+  closeModal();
+  _CE.hadm_id     = hid;
+  _CE.mrn         = val;
+  _CE.patientName = _bilName(hid);
+  _CE.syncing     = true;
+  showScreen('ce1');
+
+  const base = window.FOQAL_API_BASE || `http://${location.hostname}:6010`;
+  try {
+    const resp = await fetch(`${base}/api/billing/generate-estimate`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ hadm_id: hid, ward_type: 'Semi-private Ward', los_days: 7, patient_name: _CE.patientName }),
+    });
+    const data = resp.ok ? await resp.json() : null;
+    if (data?.ward_admitted) {
+      const _dataBase = window.FOQAL_DATA_BASE || `http://${location.hostname}:6020`;
+      const pf = await fetch(`${_dataBase}/api/patient/${hid}/prefetch-all`, { method: 'POST' });
+      const pfData = pf.ok ? await pf.json() : null;
+      if (pfData?.status === 'fetched') {
+        await _refetchPatientDetails();
+        _fetchMlEstimate();
+      }
+    }
+  } catch (e) {
+    console.warn('early patient sync failed:', e);
+  } finally {
+    _CE.syncing = false;
+    if (CURRENT === 'ce1') showScreen('ce1');
+  }
+}
+
+// "✕ Change" button next to a synced Patient ID -- lets the biller correct a
+// mistyped HADM ID instead of being stuck with a readonly field.
+function _ce1ClearPatientId() {
+  _CE.hadm_id             = null;
+  _CE.mrn                 = '';
+  _CE.subjectId           = null;
+  _CE.patientName         = null;
+  _CE.age                 = null;
+  _CE.gender              = null;
+  _CE.diagnosis           = null;
+  _CE.diagnosisCode       = null;
+  _CE.admitDate           = null;
+  _CE.dischargeDate       = null;
+  _CE.actualDischargeDate = null;
+  _CE.losDays             = null;
+  _CE.encounterId         = null;
+  _CE.syncing             = false;
+  _CE.estimateData        = null;
+  showScreen('ce1');
+}
+
+// _ce2Recalc() removed -- was dead code (unreferenced anywhere in the UI),
+// and ward_type/los_days don't feed the ML model anyway, so "recalculating"
+// off those inputs no longer means anything. To refresh the ML estimate
+// itself (e.g. new clinical data has posted since the page loaded), call
+// _fetchMlEstimate() again -- see the "Refresh Estimate" button on CE2.
+
+async function _ce1Save() {
+  _CE.losDays          = parseInt(document.getElementById('ce1-los')?.value)  || _CE.losDays || 7;
+  // Ward/bed picker removed from CE1 -- that's a clinical/nursing placement
+  // call, not billing's, and every real admission in this cohort ends up in
+  // CCU/ICU anyway. _CE.wardType stays fixed at its default (still routes
+  // ward provisioning to the CCU board, same as before).
+  _CE.dischargeDate    = document.getElementById('ce1-disc')?.value  || _CE.dischargeDate || '';
+  if (!_CE.mrn) _CE.mrn = document.getElementById('ce1-mrn')?.value || '';
+  // If no hadm_id yet but MRN field has a pure number, treat it as hadm_id for ward provision
+  if (!_CE.hadm_id) {
+    const _mrnVal = parseInt(_CE.mrn);
+    if (_mrnVal > 0) _CE.hadm_id = _mrnVal;
+  }
+
+  // Admit the patient (ward provisioning + triggers BigQuery clinical-data
+  // fetch). Cost estimate is NOT computed here -- the ML model needs the
+  // real fetched clinical data, which doesn't exist until the prefetch-all
+  // call below completes. See _fetchMlEstimate().
+  const base = window.FOQAL_API_BASE || `http://${location.hostname}:6010`;
+  const genBtn = document.querySelector('button[onclick="_ce1Save()"]');
+  if (genBtn) { genBtn.disabled = true; genBtn.textContent = 'Generating…'; }
+
+  if (_CE.hadm_id) {
+    try {
+      const resp = await fetch(`${base}/api/billing/generate-estimate`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          hadm_id:           _CE.hadm_id,
+          ward_type:         _CE.wardType,
+          los_days:          _CE.losDays,
+          patient_name:      _CE.patientName || null,
+        }),
+      });
+      if (resp.ok) {
+        _CE.estimateData = await resp.json();
+        if (_CE.estimateData?.ward_admitted) {
+          const _wardLabel = _CE.estimateData.ward_type === 'General Ward' ? 'General Ward' : 'Ward 4B – CCU';
+          _showBillingToast(
+            `🏥 Patient admitted to <strong>${_wardLabel}</strong>.<br>` +
+            '<span style="font-size:11px;font-weight:400">Syncing clinical data from MIMIC… Ward board shows "Data Loading" until complete.</span>',
+            '#16a34a'
+          );
+          // Fire single prefetch-all — runs full BQ ETL, writes all tabs to Cloud SQL,
+          // then marks data_fetch_status='fetched'. Ward board and upload.html read Cloud SQL after.
+          const _dataBase = window.FOQAL_DATA_BASE || `http://${location.hostname}:6020`;
+          const _wardBase = window.FOQAL_WARD_BASE || `http://${location.hostname}:6030`;
+          fetch(`${_dataBase}/api/patient/${_CE.hadm_id}/prefetch-all`, { method: 'POST' })
+            .then(r => r.ok ? r.json() : null)
+            .then(d => {
+              if (d?.status === 'fetched') {
+                // Only NOW does real clinical data exist -- safe to ask the
+                // ML model for a prediction, and to pull the real admission
+                // date / primary procedure (CE1 was rendered before this
+                // sync completed, so those fields were still placeholders).
+                // Fire-and-forget: re-render CE1/CE2 if the user is still on
+                // one of those screens when it lands.
+                _refetchPatientDetails().then(() => { if (CURRENT === 'ce1') showScreen('ce1'); });
+                _fetchMlEstimate().then(() => { if (CURRENT === 'ce2') showScreen('ce2'); });
+                // Immediately trigger vitals sync on ward backend so NEWS2 shows without waiting 15 min
+                return fetch(`${_wardBase}/api/patients/${_CE.hadm_id}/sync-vitals`, { method: 'POST' });
+              }
+            })
+            .then(r => r ? r.json() : null)
+            .then(d => {
+              if (d) {
+                _showBillingToast('✅ Clinical data synced. Ward board updated with latest vitals.', '#2563eb');
+              }
+            })
+            .catch(() => {});
+        }
+      }
+    } catch(e) {
+      console.warn('generate-estimate API error:', e);
+    }
+  }
+
+  await _ceSaveRecord({
+    encounter_id:    _CE.encounterId,
+    ward_type:       _CE.wardType,
+    // Migration 017 — expected discharge
+    expected_discharge_date: _CE.dischargeDate || null,
+    expected_los_days:       _CE.losDays || null,
+    billing_phase:   'initial_estimate',
+  });
+  // Try once immediately too (covers the case where data was already
+  // fetched previously, e.g. re-visiting an existing admission's CE1 flow).
+  await _fetchMlEstimate();
+  showScreen('ce2');
+}
+
+// ML-predicted range (P10/P50/P90) + real cost breakdown -- the only cost
+// estimate source now (PM-JAY removed). Best-effort: silently skipped if
+// unavailable (e.g. clinical data hasn't finished syncing yet).
+async function _fetchMlEstimate() {
+  if (!_CE.hadm_id) { _CE.mlEstimateData = null; return; }
+  const base = window.FOQAL_API_BASE || `http://${location.hostname}:6010`;
+  try {
+    const resp = await fetch(`${base}/api/billing/ml-estimate/${_CE.hadm_id}`);
+    _CE.mlEstimateData = resp.ok ? await resp.json() : null;
+  } catch (e) {
+    console.warn('ml-estimate fetch failed', e);
+    _CE.mlEstimateData = null;
+  }
+}
+
+// "Refresh Estimate" button on CE2 -- re-pulls the ML prediction using
+// whatever clinical data has posted since the page loaded (the model
+// naturally gives a different, usually tighter, answer with more days
+// of real data behind it -- see cost_ml_model's convergence findings).
+async function _ce2Refresh() {
+  const btn = document.getElementById('ce2-refresh-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Refreshing…'; }
+  await _fetchMlEstimate();
+  showScreen('ce2');
+}
+
+// Auto-poll while CE2 is waiting on the first ML estimate (clinical data
+// still syncing from MIMIC) -- so it resolves on its own instead of
+// requiring a manual "Check Again" click every time.
+let _ce2AutoPollTimer = null;
+function _ce2StopAutoPoll() { clearInterval(_ce2AutoPollTimer); _ce2AutoPollTimer = null; }
+function _ce2StartAutoPoll() {
+  _ce2StopAutoPoll();
+  _ce2AutoPollTimer = setInterval(async () => {
+    if (CURRENT !== 'ce2') { _ce2StopAutoPoll(); return; }
+    await _fetchMlEstimate();
+    if (_CE.mlEstimateData) { _ce2StopAutoPoll(); showScreen('ce2'); }
+  }, 5000);
+}
+
+/* ── Read-only view of the attending doctor's signed discharge summary ── */
+function _bilSectionsHTML(content) {
+  return (content || '').split(/\n\n(?=\*\*)/).filter(Boolean).map(chunk => {
+    const lines  = chunk.split('\n');
+    const header = lines[0].replace(/\*\*/g, '').trim();
+    const body   = lines.slice(1).join('\n').trim()
+      .replace(/\s*\[Doctor Edited\]/g, '')
+      .replace(/\n/g, '<br>');
+    if (!header) return '';
+    return `<div style="margin-bottom:18px">
+      <div style="font-size:11px;font-weight:800;color:#800080;text-transform:uppercase;letter-spacing:.05em;border-left:3px solid #800080;padding-left:9px;margin-bottom:6px">${header}</div>
+      <div style="font-size:13px;line-height:1.7;color:#1f2937;padding-left:12px">${body || '<em style="color:#9ca3af">—</em>'}</div>
+    </div>`;
+  }).join('');
+}
+
+async function _ceViewSignedSummary(hadmId) {
+  const modal = document.getElementById('ds-summary-modal');
+  const body  = document.getElementById('ds-summary-modal-body');
+  body.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted)">Loading discharge summary…</div>';
+  modal.style.display = 'flex';
+  const base = window.FOQAL_API_BASE || `http://${location.hostname}:6010`;
+  const name = _bilName(hadmId);
+  try {
+    const patient = await fetch(`${base}/api/billing/patient/${hadmId}`).then(r => r.ok ? r.json() : null);
+    if (!patient || !patient.encounter_id) throw new Error('No encounter found');
+    const summary = await fetch(`${base}/api/encounters/${patient.encounter_id}/summary`).then(r => r.ok ? r.json() : null);
+    const mrn = String(hadmId);
+
+    if (!summary || !summary.content) {
+      body.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <div style="font-size:15px;font-weight:800;color:var(--ink)">Discharge Summary — ${name}</div>
+          <button class="btn btn-sec btn-sm" onclick="_closeDsSummaryModal()">✕ Close</button>
+        </div>
+        <div style="padding:30px;text-align:center;color:var(--muted);font-size:13px">No signed discharge summary available.</div>`;
+      return;
+    }
+
+    let sig = {};
+    try { sig = JSON.parse(summary.signature_data || '{}'); } catch (_) {}
+    const rawDoc = summary.saved_by_name || sig.full_name || 'Doctor';
+    const doctorName = /^Dr\.?\s/i.test(rawDoc) ? rawDoc : `Dr. ${rawDoc}`;
+    const mci      = sig.mci || '—';
+    const signedAt = summary.signed_at
+      ? new Date(summary.signed_at).toLocaleString('en-IN', {day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})
+      : '—';
+    const version = `v${summary.doc_version || 1}.0`;
+    const sectionsHtml = _bilSectionsHTML(summary.content);
+
+    body.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;gap:12px">
+        <div>
+          <div style="font-size:15px;font-weight:800;color:var(--ink)">Discharge Summary — ${name}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">${mrn} · Signed by ${doctorName} (MCI ${mci}) · ${signedAt} · ${version}</div>
+        </div>
+        <button class="btn btn-sec btn-sm" onclick="_closeDsSummaryModal()">✕ Close</button>
+      </div>
+      <div style="max-height:60vh;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:20px;background:#fafafa">
+        ${sectionsHtml || '<div style="color:var(--muted);font-style:italic;text-align:center;padding:30px">No content available.</div>'}
+      </div>`;
+  } catch (e) {
+    body.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div style="font-size:15px;font-weight:800;color:var(--ink)">Discharge Summary — ${name}</div>
+        <button class="btn btn-sec btn-sm" onclick="_closeDsSummaryModal()">✕ Close</button>
+      </div>
+      <div style="padding:30px;text-align:center;color:var(--muted);font-size:13px">Could not load discharge summary.</div>`;
+  }
+}
+
+function _closeDsSummaryModal() {
+  document.getElementById('ds-summary-modal').style.display = 'none';
+}
+
+function _openCe2bModal() {
+  const est  = _CE.estimateData;
+  const floor   = est?.floor_est    || 320000;
+  const expected= est?.expected_est || 480000;
+  const ceiling = est?.ceiling_est  || 650000;
+  const fmt = n => '₹' + (n||0).toLocaleString('en-IN');
+  const band = _CE.cost || 'expected';
+  const bandAmt = band === 'floor' ? floor : band === 'ceiling' ? ceiling : expected;
+  const bandLabel = band.charAt(0).toUpperCase() + band.slice(1);
+  const user = JSON.parse(sessionStorage.getItem('foqal_user') || '{}');
+
+  document.getElementById('ce2b-patient').textContent    = _CE.patientName ? `${_CE.mrn || '—'} — ${_CE.patientName}` : (_CE.mrn || '—');
+  document.getElementById('ce2b-band').textContent       = `${bandLabel} — ${fmt(bandAmt)}`;
+  document.getElementById('ce2b-enteredby').textContent  = user.full_name || 'Billing Staff';
+  document.getElementById('ce2b-ts').textContent         = new Date().toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+
+  document.getElementById('ce2b-modal').style.display = 'flex';
+}
+
+function _closeCe2bModal() {
+  document.getElementById('ce2b-modal').style.display = 'none';
+}
+
+function _ce2bSave() {
+  const band = _CE.cost;
+  const est  = _CE.estimateData;
+  const floor   = est?.floor_est    || 320000;
+  const expected= est?.expected_est || 480000;
+  const ceiling = est?.ceiling_est  || 650000;
+  _ceSaveRecord({
+    selected_band: band,
+    floor_est:     floor,
+    expected_est:  expected,
+    ceiling_est:   ceiling,
+    billing_phase: 'estimate_shared',
+  });
+  // Cache phase locally so CE0 dashboard shows updated status immediately
+  const _phcache = JSON.parse(sessionStorage.getItem('billing_phase_cache') || '{}');
+  const _cacheKey = _CE.hadm_id || ('manual_' + Date.now());
+  _phcache[_cacheKey] = 'estimate_shared';
+  sessionStorage.setItem('billing_phase_cache', JSON.stringify(_phcache));
+
+  _closeCe2bModal();
+  showScreen('ce3');
+}
+
+// Multiple toasts can legitimately fire in quick succession (e.g. "patient
+// admitted" followed a few seconds later by "clinical data synced") -- stack
+// them vertically instead of dropping each new one on top of the last.
+let _billingToasts = [];
+function _billingRestackToasts() {
+  let bottom = 24;
+  for (const el of _billingToasts) {
+    el.style.bottom = bottom + 'px';
+    bottom += el.offsetHeight + 12;
+  }
+}
+function _showBillingToast(html, color) {
+  color = color || '#2563eb';
+  const t = document.createElement('div');
+  t.style.cssText = `position:fixed;right:24px;z-index:9999;background:${color};color:#fff;` +
+    `padding:14px 20px;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.25);` +
+    `max-width:340px;font-size:13px;line-height:1.5;transition:opacity .4s,bottom .3s;`;
+  t.innerHTML = html;
+  document.body.appendChild(t);
+  _billingToasts.push(t);
+  _billingRestackToasts();
+  setTimeout(() => {
+    t.style.opacity = '0';
+    setTimeout(() => {
+      t.remove();
+      _billingToasts = _billingToasts.filter(el => el !== t);
+      _billingRestackToasts();
+    }, 450);
+  }, 4500);
+}
+
+/* ── CE4 — Reconciliation Logic ── */
+
+
+async function _ce4Load() {
+  if (!_CE.hadm_id) return;
+  _ce4Fetching = true;
+  const base = window.FOQAL_API_BASE || `http://${location.hostname}:6010`;
+  try {
+    const resp = await fetch(`${base}/api/billing/reconciliation/${_CE.hadm_id}`);
+    if (!resp.ok) throw new Error(resp.status);
+    _ce4Data = await resp.json();
+    // Sync saved actuals back into _CE for CE5
+    if (_ce4Data.actuals_saved) {
+      const s = _ce4Data.actuals_saved;
+      if (s.actual_charges != null) _CE.actualCharges = s.actual_charges;
+      if (s.advance_paid    != null) _CE.advancePaid    = s.advance_paid;
+    }
+  } catch(e) {
+    console.warn('CE4 reconciliation load failed:', e);
+  } finally {
+    _ce4Fetching = false;
+  }
+  if (CURRENT === 'ce4') {
+    document.getElementById('main').innerHTML = SCREENS.ce4();
+    _ce4ComputeVariance();  // pre-compute if actuals already saved
+    _ce4Distill();          // async AI distillation of diagnosis/procedures/meds
+  }
+}
+
+async function _ce4Distill() {
+  if (!_CE.hadm_id) return;
+  const base = window.FOQAL_API_BASE || `http://${location.hostname}:6010`;
+  // Show loading state in the three text fields
+  const dxEl   = document.getElementById('ce4-final-dx');
+  const procEl = document.getElementById('ce4-procedures');
+  const medEl  = document.getElementById('ce4-meds');
+  if (dxEl)   dxEl.value   = 'Summarising with AI…';
+  if (procEl) procEl.value = 'Summarising with AI…';
+  if (medEl)  medEl.value  = 'Summarising with AI…';
+  try {
+    const resp = await fetch(`${base}/api/billing/ce4-distill/${_CE.hadm_id}`);
+    if (!resp.ok) throw new Error(resp.status);
+    const d = await resp.json();
+    if (dxEl   && d.final_diagnosis) dxEl.value   = d.final_diagnosis;
+    if (procEl && d.procedures)      procEl.value  = d.procedures;
+    if (medEl  && d.discharge_meds)  medEl.value   = d.discharge_meds;
+  } catch(e) {
+    console.warn('CE4 distill failed:', e);
+    if (dxEl)   dxEl.value   = dxEl.dataset.original   || dxEl.value;
+    if (procEl) procEl.value = procEl.dataset.original  || procEl.value;
+    if (medEl)  medEl.value  = medEl.dataset.original   || medEl.value;
+  }
+}
+
+function _ce4ComputeVariance() {
+  if (!_ce4Data) return;
+  const reconItems = _ce4Data.reconciliation?.computed_actual_items || [];
+  const _hasRealEst = !!(_ce4Data.estimate.line_items?.length || _ce4Data.reconciliation?.computed_estimate_items?.length);
+  const _estT  = _ce4Data.estimate.est_total || 0;
+  const _actS  = reconItems.reduce((s, it) => s + (it.amount || 0), 0);
+  const lineItems  = _hasRealEst
+    ? (_ce4Data.estimate.line_items?.length ? _ce4Data.estimate.line_items : _ce4Data.reconciliation.computed_estimate_items)
+    : (_actS > 0 && _estT > 0
+        ? reconItems.map(it => ({ name: it.name, amount: Math.round((it.amount / _actS) * _estT) }))
+        : reconItems);
+  let estTotal = 0, actTotal = 0, allFilled = true;
+  const fmt = n => '₹' + Math.round(n).toLocaleString('en-IN');
+
+  lineItems.forEach((item, i) => {
+    const est = item.amount || 0;
+    estTotal += est;
+    const inp = document.getElementById(`ce4-act-${i}`);
+    const raw = inp ? inp.value.trim() : '';
+    if (raw === '') { allFilled = false; return; }
+    const actVal = parseFloat(raw);
+    if (isNaN(actVal)) { allFilled = false; return; }
+    actTotal += actVal;
+    const diff = actVal - est;
+    const varEl = document.getElementById(`ce4-var-${i}`);
+    if (varEl) {
+      const sign = diff > 0 ? '+' : '';
+      varEl.textContent = diff === 0 ? '₹0'
+        : `${sign}₹${Math.abs(Math.round(diff)).toLocaleString('en-IN')}`;
+      varEl.style.color = diff > 0 ? 'var(--t2)' : diff < 0 ? 'var(--t3)' : 'var(--muted)';
+      varEl.style.fontWeight = diff !== 0 ? '700' : '400';
+    }
+  });
+
+  const totalRow = document.getElementById('ce4-total-row');
+  const alertEl  = document.getElementById('ce4-variance-alert');
+
+  if (!allFilled) {
+    if (totalRow) totalRow.innerHTML = `<td colspan="4" style="padding:8px 4px;color:var(--muted);font-style:italic">Enter all actual amounts above to see totals</td>`;
+    if (alertEl)  { alertEl.className = 'alert al-info'; alertEl.textContent = 'Enter actual charges for each line item above to compute variance.'; }
+    return;
+  }
+
+  const diff = actTotal - estTotal;
+  const pct  = estTotal > 0 ? (diff / estTotal * 100) : 0;
+  const sign = diff >= 0 ? '+' : '';
+
+  if (totalRow) {
+    totalRow.innerHTML = `
+      <td style="padding:8px 4px;font-weight:800">Total</td>
+      <td style="padding:8px 4px;text-align:right;font-weight:700">${fmt(estTotal)}</td>
+      <td style="padding:8px 4px;text-align:right;font-weight:700;color:${diff>0?'var(--t2)':'var(--ink)'}">${fmt(actTotal)}</td>
+      <td style="padding:8px 4px;text-align:right;font-weight:800;color:${diff>0?'var(--t2)':diff<0?'var(--t3)':'var(--muted)'}">
+        ${diff===0?'₹0':`${sign}₹${Math.abs(Math.round(diff)).toLocaleString('en-IN')}`} (${sign}${pct.toFixed(1)}%)
+      </td>`;
+  }
+
+  if (alertEl) {
+    const absPct = Math.abs(pct);
+    if (absPct <= 15) {
+      alertEl.className = 'alert al-ok';
+      alertEl.innerHTML = `✅ Actual charges ${diff>=0?'exceed estimate':'below estimate'} by ₹${Math.abs(Math.round(diff)).toLocaleString('en-IN')} (${sign}${pct.toFixed(1)}%). Within variance threshold (≤15%). No additional authorisation required.`;
+    } else if (absPct <= 30) {
+      alertEl.className = 'alert al-warn';
+      alertEl.innerHTML = `⚠️ Variance of ${sign}${pct.toFixed(1)}% exceeds 15% threshold. Senior billing supervisor approval recommended before generating final bill.`;
+    } else {
+      alertEl.className = 'alert al-err';
+      alertEl.innerHTML = `🔴 Significant variance: ${sign}${pct.toFixed(1)}%. Exceeds 30% threshold. Medical director authorisation required before generating final bill.`;
+    }
+  }
+
+  _CE.actualCharges = Math.round(actTotal);
+}
+
+async function _ce4Save() {
+  if (!_ce4Data) return;
+  const lineItems = (_ce4Data.estimate.line_items?.length)
+    ? _ce4Data.estimate.line_items
+    : (_ce4Data.reconciliation?.computed_estimate_items || _ce4Data.reconciliation?.computed_actual_items || []);
+  const actualLineItems = lineItems.map((item, i) => {
+    const inp = document.getElementById(`ce4-act-${i}`);
+    const amount = Math.round(parseFloat(inp?.value || '0') || 0);
+    return { name: item.name, amount };
+  });
+  const actualTotal = actualLineItems.reduce((s, x) => s + x.amount, 0);
+  const notes = document.getElementById('ce4-notes')?.value || '';
+
+  if (actualTotal === 0 && lineItems.length > 0) {
+    alert('Please enter actual charges before generating the final bill.');
+    return;
+  }
+
+  _CE.actualCharges = actualTotal;
+  const saveBtn = document.getElementById('ce4-save-btn');
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving…'; }
+
+  // No separate payment-gateway/release step anymore -- generating the final
+  // bill settles the patient immediately (billing_phase goes straight to
+  // 'paid'), so the row disappears from every pending bucket and shows up in
+  // Final Bill Completed right away. Bill Actions are still reachable
+  // read-only from there via the "🧾 Bill" button (CE5).
+  const _recon = _ce4Data?.reconciliation || {};
+  await _ceSaveRecord({
+    actual_line_items:    actualLineItems,
+    actual_charges:       actualTotal,
+    reconciliation_notes: notes || null,
+    actual_los_days:      _recon.actual_los || null,
+    billing_phase:        'paid',
+  });
+
+  _showBillingToast('✅ Final bill generated — moved to Final Bill Completed.', '#16a34a');
+  _ce0Tab = 'reconciled';
+  showScreen('ce0');
+}
+
+function openModal(id, extra) {
+  const box = document.getElementById('modal-box');
+  box.innerHTML = MODALS[id] ? MODALS[id](extra) : '';
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+}
+
+/* ── STEP FLOW HELPER ── */
+function stepFlow(cur) { return ''; }
+
+/* ─── SCREENS ─── */
+const SCREENS = {
+
+/* ════════════════════════════════════
+   CE0 — BILLING DASHBOARD
+════════════════════════════════════ */
+ce0: () => `
+<div class="bc">
+  <span>Module B — Billing</span>
+  <span class="bc-sep">/</span><span>Dashboard</span>
+</div>
+<div class="sh">
+  <h1 class="sh-title">Billing Dashboard</h1>
+  <span class="sh-id">CE0</span>
+</div>
+<div id="ce0-stats" style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:16px">
+  <div style="border:1px solid var(--border);border-radius:8px;padding:16px;text-align:center;background:#fff">
+    <div style="font-size:28px;font-weight:700;color:var(--t2)">—</div>
+    <div style="font-size:11px;color:var(--muted);margin-top:4px">Pending Estimates</div>
+  </div>
+  ${_ce0PatientEntryCard()}
+</div>
+<div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:14px">
+  <button id="ce0-btn-pending" onclick="_switchCe0Tab('pending')" style="padding:9px 20px;font-size:13px;font-weight:700;border:none;background:none;cursor:pointer;border-bottom:2px solid var(--p);margin-bottom:-2px;color:var(--p)">Pending Estimates</button>
+  <button id="ce0-btn-reconciled" onclick="_switchCe0Tab('reconciled')" style="padding:9px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--muted)">Final Bill Completed</button>
+</div>
+<div id="ce0-tab-pending">
+  <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+    <input id="ce0-search" class="fi" style="max-width:240px" placeholder="Search by HADM ID…" oninput="_ce0FilterPending()">
+    <select id="ce0-status-filter" class="fi" style="max-width:200px" onchange="_ce0FilterPending()">
+      <option value="">All Statuses</option>
+      <option value="Estimate Pending">Estimate Pending</option>
+      <option value="Reconciliation Due">Reconciliation Due</option>
+      <option value="Amendment Requested">Amendment Requested</option>
+    </select>
+    <div style="display:flex;gap:6px;align-items:center">
+      <span style="font-size:11px;color:var(--muted);white-space:nowrap">Admitted</span>
+      <input id="ce0-admit-date" class="fi" type="date" style="max-width:160px" title="Admitted on this date" onchange="_ce0FilterPending()">
+    </div>
+    <button class="btn btn-sec btn-sm" onclick="_ce0ClearFilters()">Clear</button>
+  </div>
+  <div id="ce0-table" style="color:var(--muted);padding:16px;font-size:12px">Loading patients…</div>
+</div>
+<div id="ce0-tab-reconciled" style="display:none">
+  <div id="ce0-reconciled-table" style="color:var(--muted);padding:16px;font-size:12px">Loading…</div>
+</div>`,
+
+/* ════════════════════════════════════
+   CE1 — COST ESTIMATOR INPUT FORM
+════════════════════════════════════ */
+ce1: () => {
+  const hasPatient = !!_CE.hadm_id;
+  const ageSex = [_CE.age ? _CE.age + 'Y' : null, _CE.gender || null].filter(Boolean).join(' · ');
+  return `
+<div class="bc">
+  <span class="bc-link" onclick="showScreen('ce0')">Module B</span>
+  <span class="bc-sep">/</span><span>CE Input Form</span>
+</div>
+${stepFlow('ce1')}
+<div class="sh">
+  <h1 class="sh-title">${hasPatient ? 'Cost Estimator — ' + _CE.patientName : 'Cost Estimator — New Entry'}</h1>
+  <span class="sh-id">CE1</span>
+  <div class="sh-actions">
+    ${hasPatient ? `<span class="bd bd-blue">Auto-filled from admission</span>` : `<span class="bd bd-gray">Manual Entry</span>`}
+  </div>
+</div>
+<div>
+  <div>
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-title">Patient &amp; Clinical Details</div>
+      <div class="fg">
+        <label class="fl">Patient ID</label>
+        <div style="display:flex;gap:8px">
+          <input class="fi ${hasPatient ? 'valid' : ''}" id="ce1-mrn" style="flex:1" value="${_CE.mrn || ''}" ${hasPatient ? 'readonly style="background:var(--surf);flex:1"' : 'placeholder="Enter HADM ID"'}>
+          ${hasPatient
+            ? `<button type="button" class="btn btn-sec" style="white-space:nowrap" onclick="_ce1ClearPatientId()">✕ Change</button>`
+            : `<button type="button" class="btn btn-pri" style="white-space:nowrap" onclick="_ce1SyncClick()">Fetch Patient</button>`}
+        </div>
+        ${hasPatient
+          ? `<div class="fi-hint">✓ ${_CE.patientName}${ageSex ? ' · ' + ageSex : ''}${_CE.subjectId ? ' · Subject: ' + _CE.subjectId : ''}</div>`
+          : `<div class="fi-hint">Enter the HADM ID, then click "Fetch Patient" — Admission Date, Diagnosis, and Expected Discharge below will auto-populate once confirmed.</div>`}
+      </div>
+      <div class="frow">
+        <div class="fg">
+          <label class="fl">Admission Date</label>
+          ${_CE.syncing && !_CE.admitDate
+            ? `<div class="fi" style="display:flex;align-items:center;gap:8px;color:var(--muted)"><span style="animation:livePulse 1.4s ease-in-out infinite">⏳</span> Syncing…</div>`
+            : `<input class="fi ${hasPatient?'valid':''}" id="ce1-admit" type="date" value="${_CE.admitDate || ''}" ${hasPatient?'readonly style="background:var(--surf)"':''} onchange="_ce1UpdateLos()">`}
+          ${hasPatient && !_CE.syncing ?'<div class="fi-hint">✓ From MIMIC admissions</div>':''}
+        </div>
+        <div class="fg">
+          <label class="fl">Expected Discharge</label>
+          ${_CE.syncing && !_CE.dischargeDate
+            ? `<div class="fi" style="display:flex;align-items:center;gap:8px;color:var(--muted)"><span style="animation:livePulse 1.4s ease-in-out infinite">⏳</span> Predicting…</div>`
+            : `<input class="fi" id="ce1-disc" type="date" value="${_CE.dischargeDate || ''}" onchange="_ce1UpdateLos()">`}
+          ${hasPatient && !_CE.syncing ? '<div class="fi-hint">ML LOS-model prediction — edit if clinical team expects different date</div>' : ''}
+        </div>
+      </div>
+      <div class="fg">
+        <label class="fl">Primary Diagnosis</label>
+        ${_CE.syncing && !_CE.diagnosis
+          ? `<div class="fi" style="display:flex;align-items:center;gap:8px;color:var(--muted)"><span style="animation:livePulse 1.4s ease-in-out infinite">⏳</span> Syncing clinical data from MIMIC…</div>`
+          : `<input class="fi" value="${_CE.diagnosisCode ? _CE.diagnosisCode + ' — ' + (_CE.diagnosis || '') : (_CE.diagnosis || 'Auto-fetched by ML model from patient data')}" readonly style="background:var(--surf)">`}
+      </div>
+      <div class="fg">
+        <label class="fl">Expected LOS (days)</label>
+        ${_CE.syncing && !_CE.losDays
+          ? `<div class="fi" style="display:flex;align-items:center;gap:8px;color:var(--muted)"><span style="animation:livePulse 1.4s ease-in-out infinite">⏳</span> Calculating…</div>`
+          : `<input class="fi" id="ce1-los" type="number" value="${_CE.losDays || ''}" readonly style="background:var(--surf)">`}
+      </div>
+    </div>
+  </div>
+</div>
+<div class="divider"></div>
+<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px">
+  <button class="btn btn-sec" onclick="_CE.hadm_id=null;showScreen('ce0')">← Back</button>
+  <button class="btn btn-pri" onclick="_ce1Save()">Generate Cost Estimate →</button>
+</div>`;
+},
+
+/* ════════════════════════════════════
+   CE2 — COST BANDS
+════════════════════════════════════ */
+ce2: () => {
+  const fmt = n => '₹' + (n||0).toLocaleString('en-IN');
+  const ml  = _CE.mlEstimateData;
+
+  // No estimate yet -- clinical data is still syncing (see _ce1Save's
+  // prefetch-all chain) or this hadm_id genuinely has no data available.
+  if (!ml) {
+    setTimeout(_ce2StartAutoPoll, 0);
+    return `
+<div class="bc">
+  <span class="bc-link" onclick="showScreen('ce0')">Module B</span>
+  <span class="bc-sep">/</span>
+  <span class="bc-link" onclick="showScreen('ce1')">CE Input</span>
+  <span class="bc-sep">/</span><span>Cost Estimate</span>
+</div>
+${stepFlow('ce2')}
+<div class="sh">
+  <h1 class="sh-title">Cost Estimate — ${_CE.mrn || 'Patient'}</h1>
+  <span class="sh-id">CE2</span>
+</div>
+<div class="card" style="padding:40px;text-align:center">
+  <div style="font-size:32px;margin-bottom:12px;animation:livePulse 2s ease-in-out infinite">⏳</div>
+  <div style="font-size:14px;font-weight:700;margin-bottom:8px">Syncing clinical data from MIMIC…</div>
+  <div style="font-size:13px;color:var(--muted);margin-bottom:16px">This usually takes a few moments after admission. The estimate will appear automatically once ready — no need to keep clicking.</div>
+  <div style="display:flex;justify-content:center;gap:6px;margin-bottom:20px">
+    <span style="width:8px;height:8px;border-radius:50%;background:#d1d5db;animation:liveDot 1.4s ease-in-out infinite"></span>
+    <span style="width:8px;height:8px;border-radius:50%;background:#d1d5db;animation:liveDot 1.4s ease-in-out .2s infinite"></span>
+    <span style="width:8px;height:8px;border-radius:50%;background:#d1d5db;animation:liveDot 1.4s ease-in-out .4s infinite"></span>
+  </div>
+  <button class="btn btn-sec" id="ce2-refresh-btn" onclick="_ce2Refresh()">↻ Check Now</button>
+</div>`;
+  }
+
+  const floor = ml.predicted_final_bill_p10;
+  const exp   = ml.predicted_final_bill_p50;
+  const ceil  = ml.predicted_final_bill_p90;
+  const bd    = ml.cost_breakdown || {};
+
+  // Predictions are estimates -- showing paise on them is false precision, and
+  // toLocaleString drops trailing zeros so some bands showed decimals and others
+  // didn't. Round the band figures; the charged-so-far table keeps exact `fmt`.
+  const fmtR = n => '₹' + Math.round(n || 0).toLocaleString('en-IN');
+  // True position of the P50 within the P10-P90 band, clamped only enough to keep
+  // the centred label from overflowing the card at extreme skews.
+  const expPct = Math.max(6, Math.min(94, (exp - floor) / ((ceil - floor) || 1) * 100));
+
+  const breakdownRows = [
+    ['Ward Charges', bd.ward], ['ICU / CCU Charges', bd.icu],
+    ['Procedures', bd.procedures], ['Medicines & Consumables', bd.medicines],
+    ['Labs & Diagnostics', bd.labs],
+  ].filter(([, amt]) => amt);
+  const breakdownTotal = breakdownRows.reduce((s, [, a]) => s + a, 0);
+
+  const lineTable = breakdownRows.length
+    ? `<table style="width:100%;font-size:12.5px">
+      <thead><tr>
+        <th style="background:none;font-size:10px;padding:6px 0">Line Item</th>
+        <th style="background:none;font-size:10px;padding:6px 0;text-align:right">Amount</th>
+      </tr></thead>
+      <tbody>
+        ${breakdownRows.map(([name, amt]) => `<tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:7px 0;color:var(--ink2)">${name}</td>
+          <td style="padding:7px 0;text-align:right;font-weight:600">${fmt(amt)}</td>
+        </tr>`).join('')}
+        <tr style="border-top:2px solid var(--border)">
+          <td style="padding:8px 0;font-weight:800">Charged So Far (Day ${ml.hospital_day})</td>
+          <td style="padding:8px 0;text-align:right;font-weight:900;color:var(--p);font-size:15px">${fmt(breakdownTotal)}</td>
+        </tr>
+      </tbody>
+    </table>`
+    : `<div style="color:var(--muted);font-size:12px;padding:12px 0">No charges recorded yet (Day ${ml.hospital_day}).</div>`;
+
+  // Patient pays the full estimated bill -- there is no third-party payer in
+  // this flow, so the selected band amount IS the patient's liability.
+  const selBand   = _CE.cost || 'expected';
+  const bandLabel = selBand === 'floor' ? 'Low' : selBand === 'ceiling' ? 'High' : 'Typical';
+  const ptLiable  = selBand === 'floor' ? floor : selBand === 'ceiling' ? ceil : exp;
+
+  return `
+<div class="bc">
+  <span class="bc-link" onclick="showScreen('ce0')">Module B</span>
+  <span class="bc-sep">/</span>
+  <span class="bc-link" onclick="showScreen('ce1')">CE Input</span>
+  <span class="bc-sep">/</span><span>Cost Estimate</span>
+</div>
+${stepFlow('ce2')}
+<div class="sh">
+  <h1 class="sh-title">Cost Estimate — ${_CE.mrn || 'Patient'}</h1>
+  <span class="sh-id">CE2</span>
+  <div class="sh-actions">
+    <span class="muted small">${[_CE.patientName, _CE.age ? _CE.age+'Y' : null, _CE.gender, _CE.diagnosis].filter(Boolean).join(' · ')} · ML prediction, Day ${ml.hospital_day} (${ml.source === 'live' ? 'live data' : 'demo data'})</span>
+  </div>
+</div>
+<div class="cb-range">
+  <div class="cb-range-label">Predicted Final Bill Range</div>
+  <div class="cb-range-value">${fmtR(floor)}<span class="dash">–</span>${fmtR(ceil)}</div>
+  <div class="cb-range-sub">80% of similar admissions land inside this range, per the ML model — click a point below to select it.</div>
+  <div class="cb-scale">
+  <div class="cb-range-track-wrap">
+    <div class="cb-range-track" style="background:linear-gradient(90deg,var(--pl) 0%,#e6c4e6 ${expPct}%,var(--pl) 100%)"></div>
+    <div class="cb-stop${_CE.cost==='floor'?' sel':''}" style="left:0%" onclick="_CE.cost='floor';showScreen('ce2')">
+      <div class="cb-stop-dot"></div>
+      <div class="cb-stop-label" style="left:0;text-align:left">
+        <div class="cb-stop-tag">Low · P10</div>
+        <div class="cb-stop-amt">${fmtR(floor)}</div>
+      </div>
+    </div>
+    <div class="cb-stop${_CE.cost==='expected'||!_CE.cost?' sel':''}" style="left:${expPct}%" onclick="_CE.cost='expected';showScreen('ce2')">
+      <div class="cb-stop-chip">Recommended</div>
+      <div class="cb-stop-dot"></div>
+      <div class="cb-stop-label" style="left:50%;transform:translateX(-50%);text-align:center">
+        <div class="cb-stop-tag">Typical · P50</div>
+        <div class="cb-stop-amt">${fmtR(exp)}</div>
+      </div>
+    </div>
+    <div class="cb-stop${_CE.cost==='ceiling'?' sel':''}" style="left:100%" onclick="_CE.cost='ceiling';showScreen('ce2')">
+      <div class="cb-stop-dot"></div>
+      <div class="cb-stop-label" style="right:0;left:auto;text-align:right">
+        <div class="cb-stop-tag">High · P90</div>
+        <div class="cb-stop-amt">${fmtR(ceil)}</div>
+      </div>
+    </div>
+  </div>
+  </div>
+</div>
+
+<div class="grid2">
+  <div class="card">
+    <div class="card-title">Cost Breakdown (charged so far)</div>
+    ${lineTable}
+    <div style="font-size:10px;color:var(--muted);margin-top:8px">XGBoost quantile model, trained on real DCM admissions. The P10–P90 range projects the FULL stay; this breakdown shows only what's been charged through Day ${ml.hospital_day} — future days aren't itemized yet.</div>
+  </div>
+  <div>
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-title">Estimated Patient Liability</div>
+      <table style="width:100%;font-size:12.5px"><tbody>
+        <tr style="border-bottom:1px solid var(--border)"><td style="padding:7px 0;color:var(--muted)">Selected band</td><td style="padding:7px 0;text-align:right;font-weight:700">${bandLabel}</td></tr>
+        <tr style="border-top:2px solid var(--border)"><td style="padding:7px 0;font-weight:800">Estimated Patient Liability</td><td style="padding:7px 0;text-align:right;font-weight:900;font-size:15px;color:var(--p)">${fmt(ptLiable)}</td></tr>
+      </tbody></table>
+      <div style="font-size:10px;color:var(--muted);margin-top:8px">ML prediction for the full stay. Actual charges are reconciled at discharge.</div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end">
+      <button class="btn btn-sec" onclick="showScreen('ce1')">← Back</button>
+      <button class="btn btn-pri" onclick="_openCe2bModal()">Confirm →</button>
+    </div>
+  </div>
+</div>`;
+},
+
+/* ════════════════════════════════════
+   CE3 — PRINT / EMAIL / PDF
+════════════════════════════════════ */
+ce3: () => {
+  const ml   = _CE.mlEstimateData;
+  const fmt  = n => '₹' + (n||0).toLocaleString('en-IN');
+  const band = _CE.cost || 'expected';
+  const bandAmt = band === 'floor' ? (ml?.predicted_final_bill_p10||0) : band === 'ceiling' ? (ml?.predicted_final_bill_p90||0) : (ml?.predicted_final_bill_p50||0);
+  const bandLabel = band === 'floor' ? 'Low' : band === 'ceiling' ? 'High' : 'Typical';
+  const now  = new Date().toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  return `
+<div class="bc">
+  <span class="bc-link" onclick="showScreen('ce0')">Module B</span>
+  <span class="bc-sep">/</span>
+  <span class="bc-link" onclick="showScreen('ce2')">Cost Estimate</span>
+  <span class="bc-sep">/</span><span>Share Estimate</span>
+</div>
+${stepFlow('ce3')}
+<div class="sh">
+  <h1 class="sh-title">Share Estimate — ${_CE.mrn || 'Patient'}</h1>
+  <span class="sh-id">CE3</span>
+</div>
+<div class="alert al-ok" style="margin-bottom:20px">Estimate saved · ${fmt(bandAmt)} (${bandLabel}) · ${now}</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:20px;align-items:stretch">
+
+  <!-- Print -->
+  <div class="card" style="display:flex;flex-direction:column;align-items:center;text-align:center;padding:32px 20px;gap:0">
+    <div style="width:52px;height:52px;background:#f3f0ff;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:26px;margin-bottom:14px">🖨️</div>
+    <div style="font-weight:800;font-size:14px;margin-bottom:20px">Print Estimate</div>
+    <button class="btn btn-pri" style="width:100%;justify-content:center;margin-top:auto" onclick="_ce3Print()">Print Now</button>
+  </div>
+
+  <!-- Email / SMS -->
+  <div class="card" style="display:flex;flex-direction:column;align-items:center;text-align:center;padding:32px 20px;gap:0">
+    <div style="width:52px;height:52px;background:#f3f0ff;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:26px;margin-bottom:14px">📧</div>
+    <div style="font-weight:800;font-size:14px;margin-bottom:14px">Notify Patient / Family</div>
+    <input id="ce3-email" class="fi" placeholder="family@email.com" style="margin-bottom:8px;text-align:left">
+    <input id="ce3-mobile" class="fi" placeholder="Mobile (+91...)" style="margin-bottom:14px;text-align:left">
+    <button class="btn btn-pri" style="width:100%;justify-content:center;margin-top:auto" onclick="_ce3Notify()">Send Email &amp; SMS</button>
+    <div id="ce3-notify-ok" style="display:none;color:#16a34a;font-size:12px;font-weight:700;margin-top:10px">Sent successfully!</div>
+  </div>
+
+  <!-- Download PDF -->
+  <div class="card" style="display:flex;flex-direction:column;align-items:center;text-align:center;padding:32px 20px;gap:0">
+    <div style="width:52px;height:52px;background:#f3f0ff;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:26px;margin-bottom:14px">📄</div>
+    <div style="font-weight:800;font-size:14px;margin-bottom:20px">Download PDF</div>
+    <button class="btn btn-pri" style="width:100%;justify-content:center;margin-top:auto" onclick="_ce3Pdf()">Download PDF</button>
+  </div>
+
+</div>
+
+<div style="display:flex;gap:8px;margin-top:4px">
+  <button class="btn btn-pri" onclick="showScreen('ce0')">← Back to Dashboard</button>
+</div>`;
+},
+
+/* ════════════════════════════════════
+   CE4 — CE RECONCILIATION
+════════════════════════════════════ */
+ce4: () => {
+  const hdr = `
+<div class="bc">
+  <span class="bc-link" onclick="showScreen('ce0')">Module B</span>
+  <span class="bc-sep">/</span><span>Reconciliation</span>
+</div>
+${stepFlow('ce4')}
+<div class="sh">
+  <h1 class="sh-title">Cost Reconciliation</h1>
+  <span class="sh-id">CE4</span>
+</div>`;
+
+  if (!_ce4Data) {
+    return hdr + `<div style="padding:48px;text-align:center;color:var(--muted)">Loading reconciliation data…</div>`;
+  }
+
+  const { patient, discharge, estimate, actuals_saved, reconciliation } = _ce4Data;
+  const reconItems   = reconciliation?.computed_actual_items || [];
+  // computed_estimate_items is always empty by design (the ML model predicts
+  // a total range, not a per-category future breakdown -- no real
+  // "estimated per line item" ever existed to show). Scale the real actual
+  // breakdown's category MIX to the ML's quoted total instead: "if the bill
+  // had come in at what was estimated, this is roughly how it would have
+  // split by category." Keeps the Estimated column honest (a real, distinct
+  // number) rather than just duplicating the Actual column with an always-0%
+  // variance, which silently implied every estimate was perfect.
+  const _estTotal  = estimate.est_total || 0;
+  const _actualSum = reconItems.reduce((s, it) => s + (it.amount || 0), 0);
+  const _hasRealEstimateItems = !!(estimate.line_items?.length || reconciliation?.computed_estimate_items?.length);
+  const lineItems = _hasRealEstimateItems
+    ? (estimate.line_items?.length ? estimate.line_items : reconciliation.computed_estimate_items)
+    : (_actualSum > 0 && _estTotal > 0
+        ? reconItems.map(it => ({ name: it.name, amount: Math.round((it.amount / _actualSum) * _estTotal) }))
+        : reconItems);
+  const savedActuals = actuals_saved ? (actuals_saved.actual_line_items || []) : [];
+  const fmt = n => '₹' + Math.round(n || 0).toLocaleString('en-IN');
+
+  const signedBadge = discharge.signed_at
+    ? `✅ Signed by <b>${discharge.signed_by || 'Doctor'}</b> on ${discharge.signed_at}`
+    : `⏳ <b>Pending signature</b> — Discharge summary not yet signed off`;
+  const alertClass = discharge.signed_at ? 'al-ok' : 'al-warn';
+
+  const losStr = (() => {
+    const actual = discharge.actual_los || 0;
+    const expected = reconciliation?.expected_los;
+    const diff = reconciliation?.los_diff;
+    const losDates = [discharge.admit_date, discharge.discharge_date].filter(Boolean).join(' – ');
+    if (expected && diff !== undefined) {
+      const diffStr = diff > 0 ? `+${diff} days longer than estimated` : diff < 0 ? `${diff} days shorter than estimated` : 'matched estimate';
+      return `Actual: ${actual} days (${losDates}) · Estimated: ${expected} days · ${diffStr}`;
+    }
+    const parts = [actual + ' day' + (actual !== 1 ? 's' : '')];
+    if (losDates) parts.push(losDates);
+    return parts.join(' ');
+  })();
+
+  const bandLabel = { floor: 'Low', expected: 'Typical', ceiling: 'High' }[estimate.selected_band] || 'Typical';
+  const estBandDisplay = `ML estimate, ${bandLabel} — ${fmt(estimate.est_total)}`;
+
+  const varRows = lineItems.map((item, i) => {
+    const est      = item.amount || 0;
+    const saved    = savedActuals[i]?.amount;
+    // Pre-fill with MIMIC-derived actual estimate if not yet manually entered
+    const computed = reconItems[i]?.amount;
+    const preVal   = saved != null ? saved : (computed != null ? computed : '');
+    return `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:6px 4px;font-size:12px">${item.name}</td>
+      <td style="padding:6px 4px;text-align:right;font-size:12px;color:var(--ink2)">${fmt(est)}</td>
+      <td style="padding:6px 4px;text-align:right">
+        <input type="number" id="ce4-act-${i}" data-est="${est}" value="${preVal}"
+          placeholder="0"
+          style="width:110px;text-align:right;padding:4px 6px;border:1px solid var(--border);border-radius:4px;font-size:12px;font-family:inherit"
+          oninput="_ce4ComputeVariance()">
+      </td>
+      <td id="ce4-var-${i}" style="padding:6px 4px;text-align:right;font-size:12px;color:var(--muted)">—</td>
+    </tr>`;
+  }).join('');
+
+  const _patientFinal = reconciliation?.patient_pay_final;
+  const payableBlock  = _patientFinal != null
+    ? `<div class="alert al-info" style="margin-bottom:12px">💰 <b>Patient payable: ${fmt(_patientFinal)}</b></div>`
+    : '';
+
+  // Primary diagnosis for display — must match CE1
+  const primaryDxBlock = reconciliation?.primary_diagnosis_code ? `
+    <div class="fg">
+      <label class="fl">Primary Diagnosis (same as CE1)</label>
+      <input class="fi" value="${reconciliation.primary_diagnosis_code} — ${reconciliation.primary_diagnosis_title || ''}" readonly style="background:var(--surf)">
+      <div class="fi-hint">✓ From MIMIC diagnoses (seq_num=1) — consistent with cost estimator</div>
+    </div>` : '';
+
+  const losHighlight = reconciliation?.los_diff
+    ? (reconciliation.los_diff > 0 ? `style="color:var(--err)"` : `style="color:var(--ok)"`)
+    : '';
+  const complexityNote = reconciliation?.actual_complexity
+    ? `Complexity: ×${reconciliation.actual_complexity} (ICU: ${reconciliation.icu_days}d, procedures: ${reconciliation.procedure_count})`
+    : '';
+
+  return hdr + `
+<div class="alert ${alertClass}" style="margin-bottom:16px">${signedBadge}</div>
+<div class="grid2">
+  <div class="card">
+    <div class="card-title">Auto-filled from Signed Discharge Summary</div>
+    ${primaryDxBlock}
+    <div class="fg">
+      <label class="fl">Final Diagnosis (§13 — discharge summary) <span style="font-size:10px;color:var(--muted);font-weight:400">· AI-summarised for billing</span></label>
+      <textarea class="fi" id="ce4-final-dx" rows="3" readonly style="background:var(--surf)" data-original="${(discharge.final_diagnosis || '').replace(/"/g,'&quot;')}">${discharge.final_diagnosis || 'Not documented'}</textarea>
+      <div class="fi-hint">✓ From signed discharge summary — AI picks most billing-relevant diagnoses</div>
+    </div>
+    <div class="fg">
+      <label class="fl">Procedures Performed (§10) <span style="font-size:10px;color:var(--muted);font-weight:400">· AI-summarised</span></label>
+      <textarea class="fi" id="ce4-procedures" rows="4" readonly style="background:var(--surf)" data-original="${(discharge.procedures || '').replace(/"/g,'&quot;')}">${discharge.procedures || 'Not documented'}</textarea>
+    </div>
+    <div class="fg">
+      <label class="fl">Length of Stay</label>
+      <input class="fi" value="${losStr}" readonly style="background:var(--surf)" ${losHighlight}>
+      ${complexityNote ? `<div class="fi-hint">${complexityNote}</div>` : ''}
+    </div>
+    <div class="fg">
+      <label class="fl">Discharge Medications (§11) <span style="font-size:10px;color:var(--muted);font-weight:400">· AI-summarised</span></label>
+      <textarea class="fi" id="ce4-meds" rows="4" readonly style="background:var(--surf)" data-original="${(discharge.discharge_meds || '').replace(/"/g,'&quot;')}">${discharge.discharge_meds || 'Not documented'}</textarea>
+    </div>
+    <div class="fg">
+      <label class="fl">Signed by</label>
+      <input class="fi" value="${discharge.signed_by ? discharge.signed_by + (discharge.signed_at ? ' · ' + discharge.signed_at : '') : 'Not yet signed'}" readonly style="background:var(--surf)">
+    </div>
+    <div class="fg" style="margin-top:8px">
+      <label class="fl">Estimate reference</label>
+      <input class="fi" value="${estBandDisplay}" readonly style="background:var(--surf);font-size:11px">
+    </div>
+  </div>
+  <div>
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-title">Variance Analysis — actual vs. estimated charges</div>
+      ${reconItems.length ? `<div class="fi-hint" style="margin-bottom:8px">Actuals pre-filled from MIMIC data (actual LOS × real complexity). Edit any line item if charges differ.</div>` : ''}
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="border-bottom:2px solid var(--border)">
+          <th style="padding:6px 4px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Item</th>
+          <th style="padding:6px 4px;text-align:right;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Estimated</th>
+          <th style="padding:6px 4px;text-align:right;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Actual (₹)</th>
+          <th style="padding:6px 4px;text-align:right;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Variance</th>
+        </tr></thead>
+        <tbody>${varRows}</tbody>
+        <tfoot><tr id="ce4-total-row" style="border-top:2px solid var(--border)">
+          <td colspan="4" style="padding:8px 4px;color:var(--muted);font-style:italic">Enter all actual amounts above to see totals</td>
+        </tr></tfoot>
+      </table>
+    </div>
+    ${payableBlock}
+    <div id="ce4-variance-alert" class="alert al-info" style="margin-bottom:12px">Enter actual charges for each line item above to compute variance.</div>
+    <div class="fg" style="margin-bottom:12px">
+      <label class="fl">Reconciliation Notes (optional)</label>
+      <textarea class="fi" id="ce4-notes" rows="2" placeholder="Any remarks on cost differences…">${actuals_saved?.reconciliation_notes || ''}</textarea>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-sec" onclick="showScreen('ce0')">← Dashboard</button>
+      <button id="ce4-save-btn" class="btn btn-pri" onclick="_ce4Save()">Generate Final Bill →</button>
+    </div>
+  </div>
+</div>`;
+},
+
+};
+
+/* ─── MODALS ─── */
+const MODALS = {
+  'ce1-hadm-confirm': ({ hid, val }) => `
+<div class="modal-t">Confirm HADM ID?</div>
+<div class="modal-b">You entered <b style="color:var(--t1)">${hid}</b>. Recheck it's correct — clinical data auto-fetch will start for this patient once confirmed.</div>
+<div class="modal-f">
+  <button class="btn btn-sec" onclick="closeModal()">Cancel</button>
+  <button class="btn btn-pri" onclick="_ce1ConfirmSync(${hid}, '${val.replace(/'/g, "\\'")}')">Confirm &amp; Start Sync</button>
+</div>`,
+};
+
+/* ─── INIT ─── */
+(function init() {
+  const token = sessionStorage.getItem('foqal_token');
+  const user  = JSON.parse(sessionStorage.getItem('foqal_user') || '{}');
+  if (!token || user.role !== 'billing') {
+    window.location.href = '/';
+    return;
+  }
+  const nameEl = document.getElementById('billing-name');
+  if (nameEl && user.full_name) nameEl.textContent = user.full_name;
+  showScreen('ce0');
+})();
+
+/* ════════════════════════════════════════════════════════════════════
+   CE_LIVE — Live Bill Tracker (Admission Phase)
+   Polls /api/billing/live-charges/{hadm_id} every 20s.
+   When billing_phase becomes reconciliation_pending → auto-switches to CE4.
+════════════════════════════════════════════════════════════════════ */
+let _liveData       = null;
+let _liveMl         = null;  // ML prediction as of today (GET /api/billing/ml-estimate)
+let _liveShown      = 0;   // how many charges have been "revealed" so far
+let _liveTimer      = null;
+let _livePhaseTimer = null;
+let _liveMlTimer    = null;
+const _LIVE_REVEAL_INTERVAL  = 900000; // ms between charges appearing (15 min)
+const _LIVE_DAY_GAP_INTERVAL = 900000; // ms pause when the next charge crosses into a new calendar day (15 min)
+const _LIVE_ML_POLL_MS       = 30000; // ML prediction refresh cadence -- picks up new hospital_day automatically
+
+let _liveWaiting = false; // true = no charges yet, polling fast
+
+async function _liveFetchMl() {
+  if (!_CE.hadm_id) return;
+  const base = window.FOQAL_API_BASE || 'http://localhost:6010';
+  try {
+    const res = await fetch(`${base}/api/billing/ml-estimate/${_CE.hadm_id}`);
+    _liveMl = res.ok ? await res.json() : null;
+  } catch (e) {
+    _liveMl = null;
+  }
+  if (CURRENT === 'ce_live') _liveRenderMl();
+}
+
+function _liveRenderMl() {
+  const dayBadge = document.getElementById('live-day-badge');
+  const rangeBox = document.getElementById('live-ml-range');
+  const bdBox    = document.getElementById('live-ml-breakdown');
+  const todayBox = document.getElementById('live-today-breakdown');
+  const todayDayNum = document.getElementById('live-today-day-num');
+  if (!dayBadge && !rangeBox && !bdBox && !todayBox) return;
+  const fmt = n => '₹' + (n||0).toLocaleString('en-IN');
+
+  if (!_liveMl) {
+    if (dayBadge) dayBadge.textContent = '';
+    if (rangeBox) rangeBox.innerHTML = `
+      <div style="text-align:center;padding:12px 0">
+        <div style="font-size:24px;margin-bottom:6px;animation:livePulse 2s ease-in-out infinite">⏳</div>
+        <div style="color:var(--muted);font-size:12px">Syncing clinical data from MIMIC — prediction will appear automatically (checking every 30s)…</div>
+      </div>`;
+    if (bdBox) bdBox.innerHTML = '';
+    if (todayBox) todayBox.innerHTML = `<div style="color:var(--muted);font-size:12px;padding:8px 0">Loading today's activity…</div>`;
+    _liveUpdateHeader();
+    return;
+  }
+
+  if (dayBadge) dayBadge.textContent = `Day ${_liveMl.hospital_day}`;
+  if (todayDayNum) todayDayNum.textContent = _liveMl.hospital_day;
+
+  if (rangeBox) {
+    rangeBox.innerHTML = `
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <div style="flex:1;min-width:120px;background:#f7edf7;border:1px solid #c060c0;border-radius:8px;padding:10px 14px">
+          <div style="font-size:10px;color:#800080;font-weight:700;text-transform:uppercase">Floor</div>
+          <div style="font-size:17px;font-weight:800;color:#111827">${fmt(_liveMl.predicted_final_bill_p10)}</div>
+        </div>
+        <div style="flex:1;min-width:120px;background:#f7edf7;border:2px solid #800080;border-radius:8px;padding:10px 14px">
+          <div style="font-size:10px;color:#800080;font-weight:700;text-transform:uppercase">Most Likely</div>
+          <div style="font-size:17px;font-weight:800;color:#111827">${fmt(_liveMl.predicted_final_bill_p50)}</div>
+        </div>
+        <div style="flex:1;min-width:120px;background:#f7edf7;border:1px solid #c060c0;border-radius:8px;padding:10px 14px">
+          <div style="font-size:10px;color:#800080;font-weight:700;text-transform:uppercase">Ceiling</div>
+          <div style="font-size:17px;font-weight:800;color:#111827">${fmt(_liveMl.predicted_final_bill_p90)}</div>
+        </div>
+      </div>`;
+  }
+
+  if (bdBox) {
+    const bd = _liveMl.cost_breakdown || {};
+    const rows = [
+      ['Ward Charges', bd.ward], ['ICU / CCU Charges', bd.icu], ['Procedures', bd.procedures],
+      ['Medicines & Consumables', bd.medicines], ['Labs & Diagnostics', bd.labs],
+    ];
+    bdBox.innerHTML = `<table style="width:100%;font-size:12.5px">
+          <tbody>${rows.map(([name, amt]) => `<tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:6px 0;color:var(--ink2)">${name}</td>
+            <td style="padding:6px 0;text-align:right;font-weight:600">${fmt(amt || 0)}</td>
+          </tr>`).join('')}</tbody>
+        </table>`;
+  }
+
+  if (todayBox) {
+    const td = _liveMl.today_breakdown || {};
+    const todayRows = [
+      ['Labs (today)', td.labs], ['Medicines (today)', td.medicines], ['Procedures (today)', td.procedures],
+      ['Ward Charge (today)', td.ward], ['ICU / CCU Charge (today)', td.icu],
+    ];
+    const todayTable = `<table style="width:100%;font-size:12.5px">
+          <tbody>${todayRows.map(([name, amt]) => `<tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:6px 0;color:var(--ink2)">${name}</td>
+            <td style="padding:6px 0;text-align:right;font-weight:600">${fmt(amt || 0)}</td>
+          </tr>`).join('')}
+          <tr><td style="padding:8px 0 2px;font-weight:700;color:var(--ink)">Today's Total</td>
+              <td style="padding:8px 0 2px;text-align:right;font-weight:800;color:var(--ink)">${fmt(td.total)}</td></tr>
+          </tbody>
+        </table>`;
+
+    todayBox.innerHTML = `
+      ${todayTable}
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+        <div style="font-size:12px;color:var(--ink2)">Cumulative Cost So Far</div>
+        <div style="font-size:16px;font-weight:800;color:var(--ink)">${fmt(_liveMl.cumulative_cost_so_far)}</div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
+        <div style="font-size:12px;color:var(--ink2)">Predicted Final Cost (Most Likely)</div>
+        <div style="font-size:16px;font-weight:800;color:#800080">${fmt(_liveMl.predicted_final_bill_p50)}</div>
+      </div>`;
+  }
+
+  // The header total depends on _liveMl -- refresh it here now that this
+  // function is the only remaining path that updates when real ML data
+  // arrives (the old trigger, _liveRevealNext, no longer fires now that
+  // the random-cost activity feed it drove has been removed).
+  _liveUpdateHeader();
+}
+
+async function _liveFetch() {
+  if (!_CE.hadm_id) return;
+  const base = window.FOQAL_API_BASE || 'http://localhost:6010';
+  try {
+    const res = await fetch(`${base}/api/billing/live-charges/${_CE.hadm_id}`);
+    if (!res.ok) return;
+    const fresh = await res.json();
+    const hadCharges = (_liveData?.charges || []).length > 0;
+    const nowHasCharges = (fresh.charges || []).length > 0;
+    _liveData = fresh;
+
+    if (CURRENT !== 'ce_live') return;
+
+    const feed = document.getElementById('live-feed');
+
+    if (!nowHasCharges) {
+      // Still waiting — show "no activity yet" placeholder and poll fast
+      if (feed && !feed.querySelector('[data-waiting]')) {
+        feed.innerHTML = `<div data-waiting="1" style="padding:48px 24px;text-align:center">
+          <div style="font-size:32px;margin-bottom:12px;animation:livePulse 2s ease-in-out infinite">🏥</div>
+          <div style="font-size:14px;font-weight:600;color:#374151;margin-bottom:6px">No procedures recorded yet</div>
+          <div style="font-size:12px;color:#9ca3af">Charges will appear here as activity is logged</div>
+          <div style="margin-top:16px;display:flex;justify-content:center;gap:6px">
+            <span style="width:8px;height:8px;border-radius:50%;background:#d1d5db;animation:liveDot 1.4s ease-in-out infinite"></span>
+            <span style="width:8px;height:8px;border-radius:50%;background:#d1d5db;animation:liveDot 1.4s ease-in-out .2s infinite"></span>
+            <span style="width:8px;height:8px;border-radius:50%;background:#d1d5db;animation:liveDot 1.4s ease-in-out .4s infinite"></span>
+          </div>
+        </div>`;
+      }
+      _liveWaiting = true;
+      _liveSchedulePoll(5000); // poll every 5s while waiting
+    } else {
+      if (_liveWaiting || !hadCharges) {
+        // Charges just appeared — clear placeholder, kick off reveal
+        _liveWaiting = false;
+        _liveShown = 0;
+        if (feed) feed.innerHTML = '';
+        clearTimeout(_liveTimer);
+        _liveRevealNext();
+        _liveSchedulePoll(20000); // back to slow poll
+      } else {
+        // Normal refresh — just update header
+        _liveRevealNext();
+      }
+    }
+
+    _liveUpdateHeader();
+
+    // Auto-transition if reconciliation is ready
+    if (_liveData.billing_phase === 'reconciliation_pending') {
+      clearTimeout(_liveTimer);
+      clearInterval(_livePhaseTimer);
+      setTimeout(() => showScreen('ce4'), 1200);
+    }
+  } catch(e) {}
+}
+
+function _liveSchedulePoll(ms) {
+  clearInterval(_livePhaseTimer);
+  _livePhaseTimer = setInterval(_liveFetch, ms);
+}
+
+function _liveStart() {
+  _liveShown   = 0;
+  _liveWaiting = false;
+  clearTimeout(_liveTimer);
+  clearInterval(_livePhaseTimer);
+  clearInterval(_liveMlTimer);
+  _liveFetch();
+  _liveSchedulePoll(20000);
+  _liveFetchMl();
+  _liveMlTimer = setInterval(_liveFetchMl, _LIVE_ML_POLL_MS);
+}
+
+function _liveStop() {
+  clearTimeout(_liveTimer);
+  clearInterval(_livePhaseTimer);
+  clearInterval(_liveMlTimer);
+}
+
+function _liveUpdateHeader() {
+  if (!_liveData) return;
+  const totalEl = document.getElementById('live-running-total');
+  const barEl   = document.getElementById('live-progress-bar');
+  const phaseEl = document.getElementById('live-phase-badge');
+  if (!totalEl) return;
+
+  // Only ever show the ML model's real cumulative cost here -- never the
+  // legacy random per-event tally. Showing a fabricated number (even
+  // briefly, before _liveMl loads) is worse than showing "loading", since
+  // it looks like a real charge and can't be told apart from one.
+  if (!_liveMl) {
+    totalEl.textContent = 'Loading…';
+    const barWrap = barEl?.parentElement;
+    if (barWrap) barWrap.style.display = 'none';
+  } else {
+    const charged = _liveMl.cumulative_cost_so_far;
+    const est     = _liveMl.predicted_final_bill_p50 || 0;
+    totalEl.textContent = '₹' + charged.toLocaleString('en-IN');
+    const barWrap = barEl?.parentElement;
+    if (barWrap) barWrap.style.display = est > 0 ? '' : 'none';
+    if (barEl && est > 0) {
+      const pct = Math.min(100, Math.round(charged / est * 100));
+      barEl.style.width = pct + '%';
+      barEl.style.background = pct > 90 ? '#dc2626' : pct > 70 ? '#d97706' : '#059669';
+    }
+  }
+  if (phaseEl) {
+    const phase = _liveData.billing_phase || 'initial_estimate';
+    const phaseMap = { initial_estimate:'Estimate Saved', estimate_shared:'Estimate Shared', reconciliation_pending:'Ready for Reconciliation' };
+    phaseEl.textContent = phaseMap[phase] || phase;
+    phaseEl.style.background = phase === 'reconciliation_pending' ? '#059669' : '#0369a1';
+  }
+}
+
+function _liveNextDelay(prevTime, curTime) {
+  // Same-day charges reveal at a steady clip; crossing into a new calendar
+  // day adds a long pause so the tracker reads as days actually passing,
+  // not the whole admission dumping out in a few seconds.
+  if (!prevTime) return _LIVE_REVEAL_INTERVAL;
+  return prevTime.slice(0, 10) === curTime.slice(0, 10)
+    ? _LIVE_REVEAL_INTERVAL
+    : _LIVE_DAY_GAP_INTERVAL;
+}
+
+function _liveRevealNext() {
+  if (!_liveData) return;
+  const charges = _liveData.charges || [];
+  clearTimeout(_liveTimer);
+  if (_liveShown >= charges.length) return;
+
+  const prevTime = _liveShown > 0 ? charges[_liveShown - 1].time : null;
+  const c    = charges[_liveShown];
+  _liveShown++;
+  const feed = document.getElementById('live-feed');
+  if (!feed) return;
+
+  const icons = { medication:'💊', procedure:'🔬', procedure_event:'⚕️' };
+  const colors = { medication:'#0369a1', procedure:'#7c3aed', procedure_event:'#059669' };
+  const ic   = icons[c.type]  || '📋';
+  const col  = colors[c.type] || '#374151';
+
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;align-items:center;gap:12px;padding:10px 14px;background:#fff;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:8px;animation:fadeSlideIn .4s ease;border-left:3px solid ' + col;
+  row.innerHTML = `
+    <span style="font-size:18px;flex-shrink:0">${ic}</span>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:13px;font-weight:700;color:#111827">${c.name}</div>
+      <div style="font-size:11px;color:#6b7280;margin-top:1px">${c.detail || ''} · ${(c.time||'').slice(0,16)}</div>
+    </div>
+    <div style="text-align:right;flex-shrink:0">
+      <div style="font-size:10px;color:#9ca3af;font-weight:700;text-transform:uppercase">${c.category || c.type || 'Logged'}</div>
+    </div>`;
+  feed.prepend(row);
+  _liveUpdateHeader();
+
+  if (_liveShown < charges.length) {
+    _liveTimer = setTimeout(_liveRevealNext, _liveNextDelay(prevTime, c.time));
+  }
+}
+
+// Add fadeSlideIn keyframe once
+(function() {
+  if (!document.getElementById('live-style')) {
+    const s = document.createElement('style');
+    s.id = 'live-style';
+    s.textContent = '@keyframes fadeSlideIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}} @keyframes livePulse{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:1;transform:scale(1.12)}} @keyframes liveDot{0%,80%,100%{transform:scale(0);background:#d1d5db}40%{transform:scale(1);background:#6366f1}}';
+    document.head.appendChild(s);
+  }
+})();
+
+SCREENS['ce_live'] = function() {
+  const name  = _liveData?.patient_name || _CE.patientName || '—';
+  const diag  = _liveData?.diagnosis    || _CE.diagnosis   || '—';
+  const admit = (_liveData?.admit_time
+    ? _mimicShiftDate(_liveData.admit_time, _mimicShiftDelta(_liveData.admit_time, _liveData.estimate_generated_at))
+    : _CE.admitDate) || '—';
+  const phase = _liveData?.billing_phase || '—';
+  const isReconcReady = phase === 'reconciliation_pending';
+
+  setTimeout(_liveStart, 0);
+
+  return `
+<div class="sh" style="margin-bottom:12px">
+  <div>
+    <h1 class="sh-title" style="margin-bottom:2px">Live Bill — ${name}</h1>
+    <div style="font-size:12px;color:var(--muted)">Admitted ${admit} (Day 0) <span id="live-day-badge" class="bd bd-blue" style="margin-left:6px"></span></div>
+  </div>
+  <div class="sh-actions">
+    <span id="live-phase-badge" style="padding:4px 12px;border-radius:12px;font-size:11px;font-weight:700;color:#fff;background:#0369a1">${phase}</span>
+    ${isReconcReady ? `<button class="btn btn-warn" onclick="_bilAck(${_CE.hadm_id});_ceSelectPatient(${_CE.hadm_id},'discharge')">Open Reconciliation →</button>` : ''}
+  </div>
+</div>
+
+<!-- Running total + progress bar -->
+<div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:18px 22px;margin-bottom:16px">
+  <div style="display:flex;align-items:flex-end;gap:24px;margin-bottom:12px;flex-wrap:wrap">
+    <div>
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Charges Accrued (real, ML-priced)</div>
+      <div id="live-running-total" style="font-size:34px;font-weight:900;color:var(--ink);font-variant-numeric:tabular-nums">₹0</div>
+    </div>
+  </div>
+  <div style="background:#f3f4f6;border-radius:99px;height:8px;overflow:hidden">
+    <div id="live-progress-bar" style="height:100%;width:0%;background:#059669;border-radius:99px;transition:width .6s ease,background .3s"></div>
+  </div>
+</div>
+
+<!-- ML predicted final-bill range, as of today's hospital day -->
+<div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:18px 22px;margin-bottom:16px">
+  <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Predicted Final Bill (as of today)</div>
+  <div id="live-ml-range">
+    <div style="color:var(--muted);font-size:12px;padding:8px 0">Loading ML prediction…</div>
+  </div>
+</div>
+
+<!-- Real cost breakdown by category (ML features), charged through today -->
+<div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:18px 22px;margin-bottom:16px">
+  <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Cost Breakdown (charged so far)</div>
+  <div id="live-ml-breakdown"></div>
+</div>
+
+<!-- Today's day-wise breakdown -- exactly the inputs the ML model is using -->
+<div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:18px 22px;margin-bottom:16px">
+  <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Today's Breakdown (Day <span id="live-today-day-num">–</span>)</div>
+  <div style="font-size:11px;color:#9ca3af;margin-bottom:10px">What the ML model is seeing for today, on top of everything charged so far</div>
+  <div id="live-today-breakdown"></div>
+</div>`;
+};
+
+function _ce3PrintHtml() {
+  const ml    = _CE.mlEstimateData;
+  const fmt   = n => '₹' + (n||0).toLocaleString('en-IN');
+  const band  = _CE.cost || 'expected';
+  const bandAmt = band==='floor' ? (ml?.predicted_final_bill_p10||0) : band==='ceiling' ? (ml?.predicted_final_bill_p90||0) : (ml?.predicted_final_bill_p50||0);
+  const bandLabel = band === 'floor' ? 'Low' : band === 'ceiling' ? 'High' : 'Typical';
+  const bd = ml?.cost_breakdown || {};
+  const lineRows = [
+    ['Ward Charges', bd.ward], ['ICU / CCU Charges', bd.icu], ['Procedures', bd.procedures],
+    ['Medicines & Consumables', bd.medicines], ['Labs & Diagnostics', bd.labs],
+  ].filter(([, amt]) => amt).map(([name, amt]) =>
+    `<tr><td>${name}</td><td style="text-align:right">${fmt(amt)}</td></tr>`
+  ).join('');
+  const now = new Date().toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  return `<!DOCTYPE html><html><head><title>Cost Estimate — ${_CE.mrn||''}</title>
+<style>
+  body{font-family:Arial,sans-serif;font-size:13px;color:#111;margin:32px 40px}
+  h1{font-size:20px;margin:0 0 4px}
+  .sub{color:#555;font-size:12px;margin-bottom:24px}
+  .section{margin-bottom:20px}
+  .label{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px}
+  .val{font-size:18px;font-weight:900;color:#6d28d9}
+  table{width:100%;border-collapse:collapse;margin-top:8px}
+  th,td{padding:7px 6px;border-bottom:1px solid #e5e7eb;text-align:left;font-size:12px}
+  th{background:#f5f3ff;font-weight:700;font-size:11px}
+  .footer{margin-top:32px;font-size:10px;color:#999;border-top:1px solid #eee;padding-top:12px}
+  @media print{body{margin:16px 24px}}
+</style></head><body>
+<h1>Foqal CareOS — Cost Estimate</h1>
+<div class="sub">Generated: ${now} &nbsp;|&nbsp; Billing Staff: ${JSON.parse(sessionStorage.getItem('foqal_user')||'{}').full_name||'—'}</div>
+<table style="margin-bottom:20px;width:auto"><tbody>
+  <tr><td class="label" style="padding-right:24px">Patient</td><td><b>${_CE.mrn||'—'} — ${_CE.patientName||'—'}</b></td></tr>
+  <tr><td class="label">Diagnosis</td><td>${_CE.diagnosis||'—'}</td></tr>
+  <tr><td class="label">Admission</td><td>${_CE.admitDate||'—'} &nbsp;(${_CE.losDays||'—'} days)</td></tr>
+  <tr><td class="label">Ward / Bed</td><td>${_CE.wardType||'—'}</td></tr>
+</tbody></table>
+<div class="section">
+  <div class="label">Selected Estimate</div>
+  <div class="val">${fmt(bandAmt)} (${bandLabel})</div>
+  <div style="font-size:11px;color:#555;margin-top:4px">Low: ${fmt(ml?.predicted_final_bill_p10||0)} &nbsp;·&nbsp; Typical: ${fmt(ml?.predicted_final_bill_p50||0)} &nbsp;·&nbsp; High: ${fmt(ml?.predicted_final_bill_p90||0)}</div>
+</div>
+<div class="section">
+  <b style="font-size:12px">Cost Breakdown (charged through Day ${ml?.hospital_day ?? '—'})</b>
+  <table><thead><tr><th>Line Item</th><th style="text-align:right">Amount</th></tr></thead>
+  <tbody>${lineRows}</tbody></table>
+</div>
+<div class="footer">⚠ This is an ML-predicted estimate (XGBoost quantile model, trained on real DCM admissions), not a fixed quote. Actual charges may vary at discharge (reconciliation).</div>
+</body></html>`;
+}
+
+function _ce3Print() {
+  const w = window.open('','_blank','width=800,height=900');
+  w.document.write(_ce3PrintHtml());
+  w.document.close();
+  w.focus();
+  setTimeout(() => w.print(), 400);
+}
+
+function _ce3Pdf() {
+  const w = window.open('','_blank','width=800,height=900');
+  const html = _ce3PrintHtml().replace(
+    '</body>',
+    `<div style="background:#fef3c7;border:1px solid #fbbf24;border-radius:6px;padding:10px 14px;margin-top:20px;font-size:12px;color:#92400e">
+      <b>To save as PDF:</b> In the print dialog, set <b>Destination → Save as PDF</b>, then click Save.
+    </div></body>`
+  );
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  setTimeout(() => w.print(), 400);
+}
+
+function _ce3Notify() {
+  const email  = document.getElementById('ce3-email')?.value?.trim();
+  const mobile = document.getElementById('ce3-mobile')?.value?.trim();
+  if (!email && !mobile) {
+    alert('Enter at least an email address or mobile number.');
+    return;
+  }
+
+  const ml       = _CE.mlEstimateData;
+  const fmt      = n => 'Rs.' + (n||0).toLocaleString('en-IN');
+  const band     = _CE.cost || 'expected';
+  const bandAmt  = band==='floor' ? (ml?.predicted_final_bill_p10||0) : band==='ceiling' ? (ml?.predicted_final_bill_p90||0) : (ml?.predicted_final_bill_p50||0);
+  const bandLabel= band === 'floor' ? 'Low' : band === 'ceiling' ? 'High' : 'Typical';
+  const now      = new Date().toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+
+  const bd = ml?.cost_breakdown || {};
+  const lineText = [
+    ['Ward Charges', bd.ward], ['ICU / CCU Charges', bd.icu], ['Procedures', bd.procedures],
+    ['Medicines & Consumables', bd.medicines], ['Labs & Diagnostics', bd.labs],
+  ].filter(([, amt]) => amt).map(([name, amt]) => `  ${name}: ${fmt(amt)}`).join('\n');
+
+  const subject = encodeURIComponent(`Cost Estimate — ${_CE.mrn||'Patient'} | Foqal CareOS`);
+  const body = encodeURIComponent(
+`Dear Patient / Family,
+
+Please find below the cost estimate for your hospitalisation at our facility.
+
+━━━━━━━━━━━━━━━━━━━━━━
+PATIENT DETAILS
+━━━━━━━━━━━━━━━━━━━━━━
+Patient MRN  : ${_CE.mrn||'—'}
+Name         : ${_CE.patientName||'—'}
+Diagnosis    : ${_CE.diagnosis||'—'}
+Admission    : ${_CE.admitDate||'—'} (${_CE.losDays||'—'} days)
+Ward / Bed   : ${_CE.wardType||'—'}
+
+━━━━━━━━━━━━━━━━━━━━━━
+COST ESTIMATE
+━━━━━━━━━━━━━━━━━━━━━━
+Selected Estimate : ${bandLabel} — ${fmt(bandAmt)}
+Low     : ${fmt(ml?.predicted_final_bill_p10||0)}
+Typical : ${fmt(ml?.predicted_final_bill_p50||0)}
+High    : ${fmt(ml?.predicted_final_bill_p90||0)}
+
+COST BREAKDOWN
+${lineText}
+
+━━━━━━━━━━━━━━━━━━━━━━
+Note: This is an ML-predicted estimate (XGBoost quantile model, trained on real DCM admissions), not a fixed quote. Actual charges may vary at discharge during reconciliation.
+
+Generated: ${now}
+Foqal CareOS — Billing Department
+`);
+
+  if (email) {
+    // Open Gmail compose in new tab — works on any browser without a mail client
+    const gmailUrl = `https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(email)}&su=${subject}&body=${body}`;
+    window.open(gmailUrl, '_blank');
+  }
+
+  const btn = document.querySelector('[onclick="_ce3Notify()"]');
+  const ok  = document.getElementById('ce3-notify-ok');
+  if (btn) { btn.textContent = 'Gmail opened!'; btn.style.background = '#16a34a'; btn.disabled = true; }
+  if (ok)  { ok.textContent = email ? `Compose window opened for ${email} — click Send in Gmail` : 'Check your browser'; ok.style.display = 'block'; }
+}
+</script>
+
+<!-- CE2b modal -->
+<div id="ce2b-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:9999;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:12px;width:100%;max-width:460px;padding:28px 28px 24px;box-shadow:0 20px 60px rgba(0,0,0,0.25);position:relative">
+    <div style="font-size:15px;font-weight:800;color:var(--ink);margin-bottom:18px">Confirm Estimate Save</div>
+    <table style="width:100%;font-size:13px;border-collapse:collapse;margin-bottom:16px"><tbody>
+      <tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 0;color:var(--muted);width:110px">Patient</td><td id="ce2b-patient" style="padding:9px 0;font-weight:700"></td></tr>
+      <tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 0;color:var(--muted)">Selected band</td><td id="ce2b-band" style="padding:9px 0;font-weight:700"></td></tr>
+      <tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 0;color:var(--muted)">Entered by</td><td id="ce2b-enteredby" style="padding:9px 0"></td></tr>
+      <tr><td style="padding:9px 0;color:var(--muted)">Timestamp</td><td id="ce2b-ts" style="padding:9px 0;font-family:var(--mono);font-size:11.5px"></td></tr>
+    </tbody></table>
+    <div class="alert al-warn" style="margin-bottom:18px">⚠️ This estimate will be shared with the patient. Actual charges may vary at discharge (reconciliation).</div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-sec" onclick="_closeCe2bModal()">← Back</button>
+      <button class="btn btn-pri" onclick="_ce2bSave()">Save &amp; Proceed →</button>
+    </div>
+  </div>
+</div>
+
+<!-- Signed discharge summary modal (read-only, Final Bill Completed tab) -->
+<div id="ds-summary-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:9999;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:12px;width:100%;max-width:760px;max-height:85vh;padding:28px 28px 24px;box-shadow:0 20px 60px rgba(0,0,0,0.25);position:relative;overflow:auto">
+    <div id="ds-summary-modal-body"></div>
+  </div>
+</div>
+</body>
+</html>

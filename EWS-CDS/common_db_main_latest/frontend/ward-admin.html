@@ -1,0 +1,1385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>Foqal CareOS · Ward Admin</title>
+<style>
+/* ── VARIABLES ── */
+:root{
+  --p:#800080;--pl:#f7edf7;--pm:#c060c0;
+  --t1:#dc2626;--t1b:#fef2f2;
+  --t2:#d97706;--t2b:#fffbeb;
+  --t3:#059669;--t3b:#ecfdf5;
+  --ink:#111827;--ink2:#374151;--muted:#6b7280;
+  --border:#e5e7eb;--surf:#f9fafb;
+  --font:system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'SF Mono','Menlo','Consolas',monospace;
+  --sb:220px;--ab:56px;--tb:38px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:var(--font);color:var(--ink);background:#fff;font-size:13px}
+button{cursor:pointer;font-family:inherit;font-size:inherit}
+input,select,textarea{font-family:inherit;font-size:inherit}
+a{color:inherit;text-decoration:none}
+
+/* ── APP SHELL ── */
+#app-shell{display:flex;flex-direction:column;height:100%}
+
+/* ── TOPBAR ── */
+#topbar{height:4px;background:var(--p);flex-shrink:0}
+
+/* ── APP BAR ── */
+#appbar{
+  height:var(--ab);background:#fff;border-bottom:1px solid var(--border);
+  flex-shrink:0;display:flex;align-items:center;padding:0 18px;gap:10px;
+}
+.alogo{font-size:15px;font-weight:800;color:var(--p);letter-spacing:-.4px;white-space:nowrap;cursor:pointer;transition:opacity .15s}
+.alogo:hover{opacity:.7}
+.alogo em{color:var(--ink);font-style:normal;font-weight:400}
+.adiv{width:1px;height:20px;background:var(--border)}
+.aspace{flex:1}
+.role-chip{padding:3px 10px;border-radius:12px;font-size:10px;font-weight:700;
+  letter-spacing:.5px;text-transform:uppercase;background:#fffbeb;color:#92400e;white-space:nowrap}
+.abtn{padding:5px 11px;border:1px solid var(--border);background:#fff;border-radius:6px;
+  font-size:11px;font-weight:500;color:var(--muted);transition:all .12s}
+.abtn:hover{background:var(--surf);color:var(--ink)}
+.abtn-danger{border-color:#fca5a5;color:var(--t1)}
+.abtn-danger:hover{background:var(--t1b)}
+
+/* ── BODY ROW ── */
+#body-row{display:flex;flex:1;overflow:hidden}
+
+/* ── SIDEBAR ── */
+#sidebar{
+  width:var(--sb);background:#fafafa;border-right:1px solid var(--border);
+  overflow-y:auto;overflow-x:hidden;flex-shrink:0;display:flex;flex-direction:column;gap:0;
+  transition:width .18s ease;
+}
+.sb-sec{padding:14px 0 6px;border-bottom:1px solid var(--border)}
+.sb-sec:last-child{border-bottom:none;flex:1}
+.sb-lbl{padding:0 16px 6px;font-size:9px;font-weight:800;text-transform:uppercase;
+  letter-spacing:1px;color:#b0b8c4;white-space:nowrap}
+.sb-item{
+  display:flex;align-items:center;gap:10px;padding:9px 16px;
+  font-size:12.5px;color:#52586b;cursor:pointer;
+  border-left:3px solid transparent;transition:background .1s,color .1s;
+  border-radius:0;user-select:none;white-space:nowrap;
+}
+.sb-item:hover{background:#f2f4f7;color:var(--ink)}
+.sb-item.active{background:var(--pl);color:var(--p);border-left-color:var(--p);font-weight:700}
+.sb-item.active .sb-icon{color:var(--p)}
+.sb-icon{width:16px;height:16px;flex-shrink:0;color:#9aa3b0;transition:color .1s}
+
+/* ── SIDEBAR COLLAPSE ── */
+#sidebar.collapsed{width:var(--sb-collapsed,56px)}
+#sidebar.collapsed .sb-lbl,
+#sidebar.collapsed .sb-text,
+#sidebar.collapsed .sb-collapsible{display:none}
+#sidebar.collapsed .sb-item{justify-content:center;padding:9px 0}
+
+/* Hover-preview: widen the collapsed rail on hover */
+#sidebar.collapsed:hover{width:var(--sb)}
+#sidebar.collapsed:hover .sb-lbl{display:block}
+#sidebar.collapsed:hover .sb-text{display:inline}
+#sidebar.collapsed:hover .sb-collapsible{display:block}
+#sidebar.collapsed:hover .sb-item{justify-content:flex-start;padding:9px 16px}
+
+/* ── SIDEBAR TOGGLE BUTTON ── */
+.sb-toggle{
+  width:30px;height:30px;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--border);background:#fff;border-radius:6px;color:var(--muted);
+  transition:all .12s;
+}
+.sb-toggle:hover{background:var(--surf);color:var(--ink)}
+.sb-toggle svg{width:16px;height:16px}
+
+/* ── CONTENT ── */
+#content{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+
+/* ── TAB BAR ── */
+#tabbar{
+  height:var(--tb);background:#fff;border-bottom:1px solid var(--border);
+  display:flex;align-items:stretch;padding:0 12px;overflow-x:auto;flex-shrink:0;
+}
+#tabbar::-webkit-scrollbar{height:0}
+.tb{
+  padding:0 14px;border:none;background:none;font-size:11.5px;font-weight:500;
+  color:var(--muted);white-space:nowrap;border-bottom:2px solid transparent;
+  margin-bottom:-1px;cursor:pointer;transition:all .12s;
+}
+.tb:hover{color:var(--ink)}
+.tb.active{color:var(--p);border-bottom-color:var(--p);font-weight:600}
+
+/* ── MAIN ── */
+#main{flex:1;overflow-y:auto;padding:20px 24px;background:var(--surf)}
+
+/* ── BREADCRUMB ── */
+.bc{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);margin-bottom:14px;flex-wrap:wrap}
+.bc-link{color:var(--p);cursor:pointer}.bc-link:hover{text-decoration:underline}
+.bc-sep{color:var(--border)}
+
+/* ── SCREEN HEADER ── */
+.sh{display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap}
+.sh-title{font-size:17px;font-weight:800;color:var(--ink);flex:1}
+.sh-id{font-family:var(--mono);font-size:10px;padding:2px 8px;background:var(--p);color:#fff;border-radius:4px;font-weight:700;white-space:nowrap}
+.sh-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+
+/* ── STATS BAR ── */
+.stats{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap}
+.stat{flex:1;min-width:120px;background:#fff;border:1px solid var(--border);border-radius:8px;padding:12px 16px}
+.stat-v{font-size:28px;font-weight:800;line-height:1;color:var(--ink)}
+.stat-l{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:3px}
+.stat.c-p .stat-v{color:var(--p)}
+.stat.c-a .stat-v{color:var(--t2)}
+.stat.c-g .stat-v{color:var(--t3)}
+.stat.c-r .stat-v{color:var(--t1)}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:6px;
+  font-size:12.5px;font-weight:500;border:1px solid transparent;cursor:pointer;
+  transition:all .12s;white-space:nowrap}
+.btn-pri{background:var(--p);color:#fff;border-color:var(--p)}
+.btn-pri:hover{background:#5c0060}
+.btn-sec{background:#fff;color:var(--ink);border-color:var(--border)}
+.btn-sec:hover{background:var(--surf)}
+.btn-danger{background:var(--t1);color:#fff;border-color:var(--t1)}
+.btn-danger:hover{background:#b91c1c}
+.btn-warn{background:var(--t2b);color:#92400e;border-color:#fcd34d}
+.btn-sm{padding:5px 10px;font-size:11.5px}
+.btn-xs{padding:3px 8px;font-size:11px}
+
+/* ── BADGES ── */
+.bd{display:inline-flex;align-items:center;padding:2px 7px;border-radius:10px;font-size:10.5px;font-weight:700}
+.bd-t1{background:var(--t1b);color:var(--t1)}
+.bd-t2{background:var(--t2b);color:var(--t2)}
+.bd-t3{background:var(--t3b);color:var(--t3)}
+.bd-p{background:var(--pl);color:var(--p)}
+.bd-blue{background:#eff6ff;color:#1e40af}
+.bd-gray{background:#f3f4f6;color:#4b5563}
+
+/* ── TABLE ── */
+.tw{background:#fff;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+table{width:100%;border-collapse:collapse}
+th{padding:9px 14px;text-align:left;font-size:10.5px;font-weight:700;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.4px;background:var(--surf);
+  border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:10px 14px;border-bottom:1px solid var(--border);color:var(--ink2);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fcfcfc}
+tr.breach{background:var(--t1b)}
+tr.breach td:first-child{border-left:3px solid var(--t1)}
+
+/* ── CARD ── */
+.card{background:#fff;border:1px solid var(--border);border-radius:8px;padding:16px}
+.card-title{font-size:12px;font-weight:700;color:var(--ink);margin-bottom:10px}
+
+/* ── ALERT ── */
+.alert{padding:10px 14px;border-radius:6px;display:flex;align-items:flex-start;gap:8px;
+  font-size:12px;margin-bottom:12px;line-height:1.5}
+.alert b{font-weight:700}
+.al-err{background:var(--t1b);color:var(--t1);border:1px solid #fca5a5}
+.al-warn{background:var(--t2b);color:#92400e;border:1px solid #fcd34d}
+.al-ok{background:var(--t3b);color:#065f46;border:1px solid #6ee7b7}
+.al-info{background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe}
+
+/* ── MODAL ── */
+#modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300;
+  align-items:center;justify-content:center}
+#modal-overlay.open{display:flex}
+#modal-box{background:#fff;border-radius:10px;padding:24px;width:480px;max-width:90vw;
+  box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.modal-t{font-size:15px;font-weight:800;color:var(--ink);margin-bottom:8px}
+.modal-b{font-size:12.5px;color:var(--ink2);margin-bottom:20px;line-height:1.6}
+.modal-f{display:flex;justify-content:flex-end;gap:8px}
+
+/* ── KANBAN ── */
+.kb{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;align-items:start}
+.kc{background:var(--surf);border:1px solid var(--border);border-radius:8px;padding:10px}
+.kc-hd{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.kc-lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--ink2)}
+.kc-cnt{font-size:10px;background:var(--border);color:var(--muted);padding:1px 6px;border-radius:8px}
+.kcard{background:#fff;border:1px solid var(--border);border-radius:6px;padding:9px;margin-bottom:7px;font-size:11.5px}
+.kcard:last-child{margin-bottom:0}
+.kcard.breach{border-color:var(--t1);background:var(--t1b)}
+.kcard-id{font-family:var(--mono);font-size:9.5px;color:var(--muted)}
+.kcard-name{font-weight:700;color:var(--ink);margin:2px 0}
+.kcard-meta{font-size:10.5px;color:var(--muted);margin-top:2px}
+.kcard-breach{color:var(--t1);font-weight:700;font-size:10.5px;margin-top:3px}
+
+/* ── PROGRESS BAR ── */
+.pb{height:5px;background:var(--border);border-radius:3px;overflow:hidden}
+.pb-fill{height:100%;background:var(--p);border-radius:3px;transition:width .5s}
+
+/* ── TIMELINE ── */
+.tl{padding:4px 0}
+.tl-item{display:flex;gap:12px;padding:10px 0;position:relative}
+.tl-item:not(:last-child)::before{content:'';position:absolute;left:15px;top:32px;bottom:-10px;width:1px;background:var(--border)}
+.tl-dot{width:30px;height:30px;border-radius:50%;background:var(--pl);border:2px solid var(--p);
+  display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0}
+.tl-dot.ok{background:var(--t3b);border-color:var(--t3)}
+.tl-dot.err{background:var(--t1b);border-color:var(--t1)}
+.tl-body{flex:1}
+.tl-title{font-size:12.5px;font-weight:700;color:var(--ink)}
+.tl-time{font-size:10.5px;color:var(--muted)}
+.tl-detail{font-size:11.5px;color:var(--ink2);margin-top:3px}
+
+/* ── HEALTH DOT ── */
+.health-dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:6px;vertical-align:middle}
+.hd-ok{background:var(--t3)}.hd-warn{background:var(--t2)}.hd-err{background:var(--t1)}
+
+/* ── MISC ── */
+.divider{height:1px;background:var(--border);margin:16px 0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.mono{font-family:var(--mono)}
+.muted{color:var(--muted)}
+.small{font-size:11px}
+.bold{font-weight:700}
+.flex-r{display:flex;align-items:center;gap:8px}
+.flex-sb{display:flex;align-items:center;justify-content:space-between}
+
+/* ── FORM (used inside screens) ── */
+.fg{margin-bottom:13px}
+.fl{display:block;font-size:11px;font-weight:600;color:var(--ink2);margin-bottom:4px}
+.fi{width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;color:var(--ink);background:#fff;transition:border-color .12s;outline:none}
+.fi:focus{border-color:var(--p);box-shadow:0 0 0 2px rgba(128,0,128,.1)}
+</style>
+<script src="/config.js"></script>
+</head>
+<body>
+
+<!-- ═══════════════ APP SHELL ═══════════════ -->
+<div id="app-shell" style="display:flex;flex-direction:column;height:100%">
+  <div id="topbar"></div>
+
+  <header id="appbar">
+    <button class="sb-toggle" id="sidebar-toggle" onclick="toggleSidebar()" title="Toggle sidebar" aria-label="Toggle sidebar">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <rect x="1.5" y="3" width="13" height="10" rx="1.5"/><path d="M6 3v10"/>
+      </svg>
+    </button>
+    <div class="alogo" onclick="showScreen('a1')" title="Go to Dashboard">Foqal <em>CareOS</em></div>
+    <div class="adiv"></div>
+    <span class="role-chip">Ward Admin</span>
+    <div class="aspace"></div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font-size:11.5px;color:var(--muted)" id="admin-name">Arun Pillai</span>
+      <button class="abtn abtn-danger" onclick="doLogout()">Sign Out</button>
+    </div>
+  </header>
+
+  <div id="body-row">
+    <!-- SIDEBAR -->
+    <nav id="sidebar" class="collapsed">
+      <div class="sb-sec">
+        <div class="sb-lbl">Admin &amp; Leadership</div>
+        <div class="sb-item" id="nav-a1" onclick="showScreen('a1')" title="Kanban Pipeline">
+          <svg class="sb-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="1" y="3" width="4" height="10" rx="1"/><rect x="6" y="3" width="4" height="7" rx="1"/><rect x="11" y="3" width="4" height="5" rx="1"/>
+          </svg>
+          <span class="sb-text">Kanban Pipeline</span>
+        </div>
+        <div class="sb-item" id="nav-a2" onclick="showScreen('a2')" title="Audit Log">
+          <svg class="sb-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M2 4h12M2 8h8M2 12h10"/><circle cx="13" cy="12" r="1.5" fill="currentColor" stroke="none"/>
+          </svg>
+          <span class="sb-text">Audit Log</span>
+        </div>
+        <div class="sb-item" id="nav-a2b" onclick="showScreen('a2b')" title="Version Compare">
+          <svg class="sb-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="1" y="2" width="6" height="8" rx="1"/><rect x="9" y="6" width="6" height="8" rx="1"/><path d="M7 6h2M7 8h2"/>
+          </svg>
+          <span class="sb-text">Version Compare</span>
+        </div>
+        <div class="sb-item" id="nav-a3" onclick="showScreen('a3')" title="Module Health">
+          <svg class="sb-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M8 2C5 2 2 4.5 2 7.5c0 2 1 3.5 2 4.5h8c1-1 2-2.5 2-4.5C14 4.5 11 2 8 2z"/><path d="M5.5 8l1.5 1.5L10 6.5"/>
+          </svg>
+          <span class="sb-text">Module Health</span>
+        </div>
+      </div>
+      <div class="sb-sec">
+        <div class="sb-lbl">Quick Stats</div>
+        <div class="sb-collapsible" style="padding:10px 14px">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Ward 4B / 4C · Today</div>
+          <div style="display:flex;flex-direction:column;gap:5px">
+            <div class="flex-sb"><span style="font-size:11.5px;color:var(--ink2)">In Review</span><span class="bd bd-t2">3</span></div>
+            <div class="flex-sb"><span style="font-size:11.5px;color:var(--ink2)">Signed Today</span><span class="bd bd-t3">5</span></div>
+            <div class="flex-sb"><span style="font-size:11.5px;color:var(--ink2)">SLA Breaches</span><span class="bd bd-t1">1</span></div>
+            <div class="flex-sb"><span style="font-size:11.5px;color:var(--ink2)">Rejected</span><span class="bd bd-gray">1</span></div>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <!-- CONTENT -->
+    <div id="content">
+      <!-- TAB BAR (hidden — single screen, no tabs needed) -->
+      <div id="tabbar" style="display:none"></div>
+      <!-- MAIN AREA -->
+      <div id="main"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ MODAL ═══════════════ -->
+<div id="modal-overlay" onclick="closeModal()">
+  <div id="modal-box" onclick="event.stopPropagation()"></div>
+</div>
+
+<script>
+/* ─── SIDEBAR TOGGLE ─── */
+function toggleSidebar() {
+  const sb = document.getElementById('sidebar');
+  if (!sb) return;
+  const collapsed = sb.classList.toggle('collapsed');
+  localStorage.setItem('foqal_sidebar_collapsed', collapsed ? '1' : '0');
+}
+(function initSidebarState() {
+  const saved = localStorage.getItem('foqal_sidebar_collapsed');
+  const sb = document.getElementById('sidebar');
+  if (sb && saved !== null) sb.classList.toggle('collapsed', saved === '1');
+})();
+
+/* ─── AUTH ─── */
+function doLogout() {
+  sessionStorage.removeItem('foqal_token');
+  sessionStorage.removeItem('foqal_user');
+  window.location.href = '/';
+}
+
+/* ─── API STATE ─── */
+const _BASE = window.FOQAL_API_BASE || `http://${location.hostname}:6010`;
+const _WA = {
+  kanban: null, audit: null, rejLogs: null, health: null, errorStats: null, loading: {},
+  compareEncId: null, compareVersions: null, compareVersionsLoading: false,
+  compareVersionsError: null, compareSelA: null, compareSelB: null,
+  compareDataA: null, compareDataB: null, compareLoading: false,
+  _autoRefreshTimer: null,
+  _prevStatuses: {},
+  _filesReadyToasts: [],
+};
+async function _waFetch(path, opts) {
+  const r = await fetch(_BASE + path, opts);
+  if (!r.ok) { const e = await r.json().catch(()=>({detail:r.statusText})); throw new Error(e.detail||r.statusText); }
+  return r.json();
+}
+async function waRegenPreflight(hadmId, rejectionLogId, encId) {
+  const box = document.getElementById('modal-box');
+  const overlay = document.getElementById('modal-overlay');
+  box.innerHTML = `<div style="padding:24px 28px;color:var(--muted);font-size:13px">Checking uploaded files…</div>`;
+  overlay.classList.add('open');
+
+  let files = [];
+  try {
+    const resp = await _waFetch(`/api/encounters/${encId}/files`);
+    files = Array.isArray(resp) ? resp : (Array.isArray(resp?.files) ? resp.files : []);
+  } catch(_) {}
+
+  // Filter to only files uploaded AFTER the rejection/amendment was requested --
+  // otherwise the original pre-review upload set (used for the very first
+  // summary) shows up here as if the resident had just resubmitted it.
+  let cutoffAt = null;
+  if (rejectionLogId) {
+    // Revision/rejection flow: match the exact rejection_log row by ID --
+    // no hadm_id fallback, since a patient can have older, unrelated
+    // rejections whose timestamp has nothing to do with this one.
+    const rejLogs = Array.isArray(_WA.rejLogs) ? _WA.rejLogs : [];
+    const rl = rejLogs.find(r => String(r.id) === String(rejectionLogId));
+    cutoffAt = rl?.rejected_at ? new Date(rl.rejected_at) : null;
+  } else {
+    // Amendment flow — there's no rejection_log row at all; the cutoff is
+    // the amendment request's own timestamp.
+    try {
+      const amdResp = await _waFetch(`/api/amendments/${encId}`);
+      if (amdResp?.amendment?.created_at) cutoffAt = new Date(amdResp.amendment.created_at);
+    } catch(_) {}
+  }
+  if (cutoffAt) {
+    files = files.filter(f => new Date(f.uploaded_at || f.upload_date || 0) >= cutoffAt);
+  }
+
+  if (!files.length) {
+    box.innerHTML = `
+      <div style="padding:24px 28px;max-width:380px">
+        <div style="font-size:15px;font-weight:700;color:#dc2626;margin-bottom:10px">No New Files Uploaded Yet</div>
+        <p style="font-size:13px;color:#374151;margin:0 0 18px 0">
+          The resident has not uploaded any files since the rejection for <strong>${hadmId}</strong>.<br>
+          Ask them to upload corrected documents before triggering regeneration.
+        </p>
+        <div style="display:flex;justify-content:flex-end">
+          <button class="btn btn-sec" onclick="closeModal()">OK</button>
+        </div>
+      </div>`;
+    return;
+  }
+
+  const fileRows = files.map(f =>
+    `<li style="margin:3px 0;font-size:12px;color:#374151">${f.file_name||'Unnamed file'} <span style="color:var(--muted)">(${f.file_type||'file'})</span></li>`
+  ).join('');
+  const safeRejId = rejectionLogId || 'null';
+  box.innerHTML = `
+    <div style="padding:24px 28px;max-width:420px">
+      <div style="font-size:15px;font-weight:700;color:#1e3a5f;margin-bottom:10px">Confirm Regeneration</div>
+      <p style="font-size:13px;color:#374151;margin:0 0 8px 0">
+        Resident-uploaded files for <strong>${hadmId}</strong>:
+      </p>
+      <ul style="margin:0 0 14px 18px;padding:0">${fileRows}</ul>
+      <p style="font-size:12px;color:#6b7280;margin:0 0 20px 0">
+        This will re-run the AI summary using these files and notify the doctor when complete.
+      </p>
+      <div style="display:flex;justify-content:flex-end;gap:8px">
+        <button class="btn btn-sec" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-pri" onclick="closeModal();waTriggerRegen(${hadmId},${safeRejId},'${encId}')">↻ Yes, Regenerate</button>
+      </div>
+    </div>`;
+}
+
+async function waTriggerRegen(hadmId, rejectionLogId, encId) {
+  // Optimistically move to "Processing" (Generating column) while LLM runs
+  if (Array.isArray(_WA.kanban)) {
+    const enc = _WA.kanban.find(e => String(e.hadm_id) === String(hadmId));
+    if (enc) enc.status = 'Processing';
+    if (CURRENT === 'a1') showScreen('a1');
+  }
+  localStorage.setItem('wa_regen_' + hadmId, Date.now());
+  try {
+    await _waFetch(`/api/encounters/${hadmId}/trigger_regeneration`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ rejection_log_id: rejectionLogId || null }),
+    });
+    const _notifyUrl = `/api/encounters/${hadmId}/notify_doctor` + (rejectionLogId ? `?rejection_log_id=${rejectionLogId}` : '');
+    await _waFetch(_notifyUrl, { method: 'POST', headers: {'Content-Type':'application/json'} });
+    waLoadKanban();
+    if (CURRENT === 'a2') { _WA.audit = null; _WA.rejLogs = null; waLoadAudit(); }
+  } catch(e) {
+    const msg = (typeof e?.message === 'string') ? e.message : JSON.stringify(e);
+    alert('Regeneration failed: ' + msg);
+    // Revert optimistic status
+    if (Array.isArray(_WA.kanban)) {
+      const enc = _WA.kanban.find(x => String(x.hadm_id) === String(hadmId));
+      if (enc) enc.status = 'Files Ready';
+      if (CURRENT === 'a1') showScreen('a1');
+    }
+  }
+}
+
+async function waLoadErrorStats() {
+  try {
+    _WA.errorStats = await _waFetch('/api/errors/stats');
+    if (CURRENT === 'a1') renderScreen('a1', true);
+  } catch(_) { _WA.errorStats = { tier3_count:0, total_errors:0, tier3_rate_pct:0, total_summaries:0, by_tier:[] }; }
+}
+
+async function waLoadKanban(silent = false) {
+  if (_WA.loading.a1) return;
+  _WA.loading.a1 = true;
+  if (!silent) {
+    _WA.kanban = null;
+    _WA.errorStats = null; // reset so gate re-fetches fresh data
+    if (CURRENT === 'a1') document.getElementById('main').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:200px;color:var(--muted)">Loading pipeline…</div>';
+  }
+  // Fire errorStats fetch eagerly in background (does not block kanban load)
+  if (!_WA.errorStats) waLoadErrorStats();
+  try {
+    const [kanban, rejLogs] = await Promise.all([
+      _waFetch('/api/encounters'),
+      _waFetch('/api/rejection_logs?limit=30').catch(() => []),
+    ]);
+    _WA.kanban = kanban; _WA.rejLogs = rejLogs;
+    // Fetch amendment details for Amendment Requested + Files Ready (amendment path)
+    _WA.amendments = _WA.amendments || {};
+    const _amdEncs = Array.isArray(kanban) ? kanban.filter(e => {
+      if (e.status === 'Amendment Requested') return true;
+      if (e.status === 'Files Ready') {
+        // Use amendment_count as primary signal; fall back to no-rejection-log heuristic
+        if (e.amendment_count > 0) return true;
+        return !rejLogs.some(rl => String(rl.hadm_id||rl.hadm_id_enc) === String(e.hadm_id));
+      }
+      return false;
+    }) : [];
+    if (_amdEncs.length) {
+      Promise.allSettled(_amdEncs.map(e => _waFetch(`/api/amendments/${e.id}`).catch(() => null)))
+        .then(results => {
+          _amdEncs.forEach((e, i) => {
+            const d = results[i].status === 'fulfilled' ? results[i].value : null;
+            if (d && d.amendment) _WA.amendments[e.id] = d.amendment;
+          });
+          renderScreen(CURRENT, true);
+        });
+    }
+    // Detect newly Files-Ready encounters for yellow toast notification
+    if (Array.isArray(_WA.kanban)) {
+      let waDismissed = {};
+      try { waDismissed = JSON.parse(localStorage.getItem('wa_files_notified') || '{}'); } catch(_) {}
+      for (const enc of _WA.kanban) {
+        const prev = _WA._prevStatuses[enc.hadm_id];
+        if (enc.status === 'Files Ready' && prev !== 'Files Ready' && !waDismissed[enc.hadm_id]) {
+          if (!_WA._filesReadyToasts.find(t => t.hadm_id === enc.hadm_id)) {
+            _WA._filesReadyToasts.push({ hadm_id: enc.hadm_id, enc });
+          }
+        }
+        _WA._prevStatuses[enc.hadm_id] = enc.status;
+      }
+    }
+  } catch(e) { if (!silent) _WA.kanban = { _error: e.message }; }
+  _WA.loading.a1 = false;
+  if (CURRENT === 'a1') showScreen('a1');
+}
+
+function _waDismissFilesReadyToast(idx) {
+  const t = _WA._filesReadyToasts[idx];
+  if (!t) return;
+  let d = {};
+  try { d = JSON.parse(localStorage.getItem('wa_files_notified') || '{}'); } catch(_) {}
+  d[t.hadm_id] = true;
+  try { localStorage.setItem('wa_files_notified', JSON.stringify(d)); } catch(_) {}
+  _WA._filesReadyToasts.splice(idx, 1);
+  showScreen(CURRENT);
+}
+async function waLoadAudit() {
+  if (_WA.loading.a2) return;
+  _WA.loading.a2 = true; _WA.audit = null; _WA.rejLogs = null;
+  if (CURRENT === 'a2') document.getElementById('main').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:200px;color:var(--muted)">Loading audit log…</div>';
+  try {
+    [_WA.audit, _WA.rejLogs] = await Promise.all([
+      _waFetch('/api/audit_log?limit=50'),
+      _waFetch('/api/rejection_logs?limit=30').catch(() => []),
+    ]);
+  } catch(e) { _WA.audit = { _error: e.message }; }
+  _WA.loading.a2 = false;
+  if (CURRENT === 'a2') showScreen('a2');
+}
+function _waEncIdForHadm(hadmId) {
+  const encs = Array.isArray(_WA.kanban) ? _WA.kanban : [];
+  return encs.find(e => String(e.hadm_id) === String(hadmId))?.id || null;
+}
+async function waLoadVersions(hadmId) {
+  const encId = _waEncIdForHadm(hadmId);
+  if (!encId) return;
+  _WA.compareEncId = encId;
+  _WA.compareVersions = null;
+  _WA.compareVersionsLoading = true;
+  _WA.compareVersionsError = null;
+  _WA.compareSelA = _WA.compareSelB = null;
+  _WA.compareDataA = _WA.compareDataB = null;
+  showScreen('a2b');
+  try {
+    _WA.compareVersions = await _waFetch(`/api/summaries/${encId}/versions`);
+  } catch(e) {
+    _WA.compareVersionsError = e.message;
+    _WA.compareVersions = [];
+  }
+  _WA.compareVersionsLoading = false;
+  showScreen('a2b');
+}
+function waToggleCompare(vid) {
+  if (_WA.compareSelA === vid)      { _WA.compareSelA = null; }
+  else if (_WA.compareSelB === vid) { _WA.compareSelB = null; }
+  else if (!_WA.compareSelA)        { _WA.compareSelA = vid; }
+  else if (!_WA.compareSelB)        { _WA.compareSelB = vid; }
+  else { alert('Uncheck one version first.'); return; }
+  showScreen('a2b');
+}
+async function waDoCompare() {
+  if (!_WA.compareSelA || !_WA.compareSelB) return;
+  _WA.compareLoading = true; _WA.compareDataA = null; _WA.compareDataB = null;
+  showScreen('a2b');
+  try {
+    [_WA.compareDataA, _WA.compareDataB] = await Promise.all([
+      _waFetch(`/api/summaries/versions/${_WA.compareSelA}`),
+      _waFetch(`/api/summaries/versions/${_WA.compareSelB}`),
+    ]);
+    if (_WA.compareDataA.version_num > _WA.compareDataB.version_num)
+      [_WA.compareDataA, _WA.compareDataB] = [_WA.compareDataB, _WA.compareDataA];
+  } catch(e) { alert('Failed to load versions: ' + e.message); }
+  _WA.compareLoading = false;
+  showScreen('a2b');
+}
+function _waLCS(a, b) {
+  const m=Math.min(a.length,500), n=Math.min(b.length,500);
+  const dp=new Int32Array((m+1)*(n+1));
+  for(let i=1;i<=m;i++) for(let j=1;j<=n;j++)
+    dp[i*(n+1)+j]=a[i-1]===b[j-1]?dp[(i-1)*(n+1)+(j-1)]+1:Math.max(dp[(i-1)*(n+1)+j],dp[i*(n+1)+(j-1)]);
+  const out=[];let i=m,j=n;
+  while(i>0||j>0){
+    if(i>0&&j>0&&a[i-1]===b[j-1]){out.unshift({type:'same',text:a[i-1]});i--;j--;}
+    else if(j>0&&(i===0||dp[i*(n+1)+(j-1)]>=dp[(i-1)*(n+1)+j])){out.unshift({type:'ins',text:b[j-1]});j--;}
+    else{out.unshift({type:'del',text:a[i-1]});i--;}
+  }
+  return out;
+}
+function _waWordDiff(o, n) { return _waLCS(o.split(/(\s+)/).slice(0,500), n.split(/(\s+)/).slice(0,500)); }
+function _waRenderDiff(toks) {
+  return toks.map(t => {
+    const e = t.text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    if (t.type==='del') return `<span style="background:#fee2e2;text-decoration:line-through;color:#b91c1c;padding:1px 2px">${e}</span>`;
+    if (t.type==='ins') return `<span style="background:#dcfce7;color:#15803d;padding:1px 2px">${e}</span>`;
+    return e;
+  }).join('');
+}
+function _waParseSections(content) {
+  if (!content) return [];
+  const lines = content.split('\n'), sects = []; let cur = null;
+  for (const line of lines) {
+    const hm = line.match(/^\*\*([^*]+)\*\*$/);
+    if (hm) {
+      if (cur) sects.push(cur);
+      const rawTitle = hm[1].trim().replace(/:\s*$/, '');
+      const nm = rawTitle.match(/^(S\d+)\s*[—–-]\s*(.+)$/i);
+      const id = nm ? nm[1].toLowerCase() : rawTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      const title = nm ? nm[2].trim() : rawTitle;
+      cur = { id, title, text: '' };
+    } else if (cur) {
+      cur.text += (cur.text ? '\n' : '') + line;
+    }
+  }
+  if (cur) sects.push(cur);
+  return sects.filter(s => s.text.trim());
+}
+async function waLoadHealth() {
+  if (_WA.loading.a3) return;
+  _WA.loading.a3 = true; _WA.health = null;
+  if (CURRENT === 'a3') document.getElementById('main').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:200px;color:var(--muted)">Loading module health…</div>';
+  try { _WA.health = await _waFetch('/api/dashboard'); }
+  catch(e) { _WA.health = { _error: e.message }; }
+  _WA.loading.a3 = false;
+  if (CURRENT === 'a3') showScreen('a3');
+}
+
+/* ─── NAVIGATION ─── */
+let CURRENT = 'a1';
+
+function showScreen(id) {
+  CURRENT = id;
+  ['a1','a2','a2b','a3'].forEach(s => {
+    document.getElementById('nav-'+s).classList.toggle('active', s === id);
+  });
+  const fn = SCREENS[id];
+  document.getElementById('main').innerHTML = fn ? fn() : '<div style="padding:40px;color:var(--muted)">Screen not found.</div>';
+  // Trigger data load on first visit
+  if (id === 'a1' && !_WA.kanban && !_WA.loading.a1) waLoadKanban();
+  else if (id === 'a2' && !_WA.audit && !_WA.loading.a2) waLoadAudit();
+  else if (id === 'a2b' && !_WA.kanban && !_WA.loading.a1) waLoadKanban();
+  else if (id === 'a3' && !_WA.health && !_WA.loading.a3) waLoadHealth();
+  // Auto-refresh Kanban every 60s while on A1; clear when navigating away
+  clearInterval(_WA._autoRefreshTimer);
+  _WA._autoRefreshTimer = null;
+  if (id === 'a1') {
+    _WA._autoRefreshTimer = setInterval(() => { if (CURRENT === 'a1') waLoadKanban(true); }, 8000);
+  }
+}
+
+/* ─── MODAL ─── */
+function openModal(id, extra, extra2, extra3) {
+  const box = document.getElementById('modal-box');
+  box.innerHTML = MODALS[id] ? MODALS[id](extra, extra2, extra3) : '';
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+let _waToastEls = [];
+function _showWaToast(html, color) {
+  color = color || '#dc2626';
+  const t = document.createElement('div');
+  t.style.cssText = `position:fixed;right:24px;bottom:${24 + _waToastEls.length * 66}px;z-index:9999;background:${color};color:#fff;` +
+    `padding:14px 20px;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.25);` +
+    `max-width:340px;font-size:13px;line-height:1.5;transition:opacity .4s`;
+  t.innerHTML = html;
+  document.body.appendChild(t);
+  _waToastEls.push(t);
+  setTimeout(() => {
+    t.style.opacity = '0';
+    setTimeout(() => { t.remove(); _waToastEls = _waToastEls.filter(el => el !== t); }, 450);
+  }, 4500);
+}
+
+async function waSendSlaAlert(hadmId, btn, doctorName) {
+  doctorName = doctorName || 'the assigned doctor';
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+  try {
+    await _waFetch(`/api/encounters/${hadmId}/sla_alert`, { method: 'POST' });
+    const box = document.getElementById('modal-box');
+    if (box) {
+      box.innerHTML = `<div style="padding:28px;text-align:center">
+        <div style="width:44px;height:44px;border-radius:50%;background:var(--t3b);display:flex;align-items:center;justify-content:center;margin:0 auto 12px;color:var(--t3);font-size:22px">✓</div>
+        <div style="font-weight:700;color:var(--ink)">Alert sent to ${doctorName}</div>
+      </div>`;
+    }
+    _showWaToast(`⚠️ SLA breach alert sent to <b>${doctorName}</b> for <b>PT-${hadmId}</b>.`);
+    setTimeout(closeModal, 1200);
+  } catch (e) {
+    if (btn) { btn.disabled = false; btn.textContent = `Send Alert to ${doctorName}`; }
+    alert('Failed to send alert: ' + (e?.message || e));
+  }
+}
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+}
+
+/* ─── SCREENS ─── */
+const SCREENS = {
+
+/* ════════════════════════════════════
+   A1 — KANBAN PIPELINE
+════════════════════════════════════ */
+a1: () => {
+  if (!_WA.kanban) return '<div style="display:flex;align-items:center;justify-content:center;height:200px;color:var(--muted)">Loading pipeline…</div>';
+  if (_WA.kanban._error) return `<div class="alert al-err" style="margin:16px 0">⚠ Failed to load: ${_WA.kanban._error} <button class="btn btn-sec btn-xs" style="margin-left:8px" onclick="waLoadKanban()">Retry</button></div>`;
+  const encs = Array.isArray(_WA.kanban) ? _WA.kanban : [];
+  const _releasedPhases = new Set(['paid','claim_submitted','tpa_settled','final_bill_generated']);
+  const col = { up:[], gen:[], rev:[], sig:[], amd:[], rej:[] };
+  for (const e of encs) {
+    const s = e.status||'';
+    if (s==='Pending Ingestion') col.up.push(e);
+    else if (s==='Processing') col.gen.push(e);
+    else if (s==='Ready for Review') col.rev.push(e);   // merge with In Review
+    else if (s==='Awaiting Review') col.rev.push(e);    // sent to doctor, doctor reviewing
+    else if (s==='Signed Off' && !_releasedPhases.has(e.billing_phase)) col.sig.push(e);
+    else if (s==='Amendment Requested') col.amd.push(e);  // waiting for resident files
+    else if (s==='Revision Requested'||s==='revision_requested') col.rej.push(e);
+    else if (s==='Files Ready') {
+      // amendment_count > 0 means doctor requested amendment (even if a prior rejection log exists)
+      if (e.amendment_count > 0) {
+        col.amd.push(e);
+      } else {
+        const rejLogs = Array.isArray(_WA.rejLogs) ? _WA.rejLogs : [];
+        const hasRejLog = rejLogs.some(rl => String(rl.hadm_id||rl.hadm_id_enc) === String(e.hadm_id));
+        (hasRejLog ? col.rej : col.amd).push(e);
+      }
+    }
+    // other statuses (Data Incomplete, etc.) go to uploading column
+    else col.up.push(e);
+  }
+  const now = Date.now();
+  const ago = iso => { if(!iso) return '—'; const m=Math.floor((now-new Date(iso))/60000); if(m<1) return 'just now'; if(m<60) return m+'m ago'; if(m<1440) return Math.floor(m/60)+'h ago'; return new Date(iso).toLocaleDateString('en-IN',{day:'numeric',month:'short'}); };
+  const breaches = col.rev.filter(e => { const t=e.updated_at||e.created_at; return t&&(now-new Date(t))>4*3600000; });
+  const noCase = '<div class="kcard" style="opacity:.45;font-size:11px;color:var(--muted);text-align:center;padding:14px">No cases</div>';
+  return `
+<div class="sh">
+  <h1 class="sh-title">Summary Pipeline</h1>
+  <div class="sh-actions">
+    <button class="btn btn-sec btn-sm" onclick="waLoadKanban()">↻ Refresh</button>
+  </div>
+</div>
+<div class="stats">
+  <div class="stat c-a"><div class="stat-v">${col.up.length}</div><div class="stat-l">Uploaded</div></div>
+  <div class="stat c-p"><div class="stat-v">${col.gen.length}</div><div class="stat-l">Generating</div></div>
+  <div class="stat c-a"><div class="stat-v">${col.rev.length}</div><div class="stat-l">In Review</div></div>
+  <div class="stat c-g"><div class="stat-v">${col.sig.length}</div><div class="stat-l">Signed</div></div>
+  <div class="stat" style="flex:1;min-width:120px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:12px 16px"><div class="stat-v" style="color:#d97706">${col.amd.length}</div><div class="stat-l">Amendment</div></div>
+  <div class="stat c-r"><div class="stat-v">${col.rej.length}</div><div class="stat-l">Rejected</div></div>
+</div>
+${breaches.length ? `<div class="alert al-err" style="margin-bottom:16px">⚠ <span><b>${breaches.length} SLA Breach${breaches.length>1?'es':''}</b> — ${breaches.map(e=>fmtPid(e.hadm_id,e.display_id)).join(', ')} in review &gt;4h.</span></div>` : ''}
+<div class="kb">
+  <div class="kc">
+    <div class="kc-hd"><span class="kc-lbl">Uploaded</span><span class="kc-cnt">${col.up.length}</span></div>
+    ${col.up.length ? col.up.map(e => `<div class="kcard">
+      <div class="kcard-id">${fmtPid(e.hadm_id, e.display_id)}</div>
+      <div class="kcard-meta">${ago(e.updated_at||e.created_at)}</div>
+      <div style="margin-top:5px"><span class="bd bd-gray" style="font-size:10px">Awaiting generation</span></div>
+    </div>`).join('') : noCase}
+  </div>
+  <div class="kc">
+    <div class="kc-hd"><span class="kc-lbl">Generating</span><span class="kc-cnt">${col.gen.length}</span></div>
+    ${col.gen.length ? col.gen.map(e => `<div class="kcard">
+      <div class="kcard-id">${fmtPid(e.hadm_id, e.display_id)}</div>
+      <div class="kcard-meta">${ago(e.updated_at||e.created_at)}</div>
+      <div class="pb" style="margin-top:8px"><div class="pb-fill" style="width:68%"></div></div>
+      <div style="font-size:10px;color:var(--p);font-weight:600;margin-top:3px">AI Processing…</div>
+    </div>`).join('') : noCase}
+  </div>
+  <div class="kc">
+    <div class="kc-hd"><span class="kc-lbl">In Review</span><span class="kc-cnt">${col.rev.length}</span></div>
+    ${col.rev.length ? col.rev.map(e => { const br=breaches.includes(e); return `<div class="kcard${br?' breach':''}">
+      <div class="kcard-id">${fmtPid(e.hadm_id, e.display_id)}</div>
+      <div class="kcard-meta">${ago(e.updated_at||e.created_at)}</div>
+      ${br?'<div class="kcard-breach">⚠ SLA BREACH</div>':''}
+      ${br?`<div style="margin-top:6px;display:flex;gap:4px"><button class="btn btn-danger btn-xs" onclick="openModal('follow-up','${fmtPid(e.hadm_id, e.display_id)}',${e.hadm_id},'${(e.assigned_doctor_name||'the assigned doctor').replace(/'/g,"\\'")}')">Follow Up</button></div>`:''}
+    </div>`; }).join('') : noCase}
+  </div>
+  <div class="kc">
+    <div class="kc-hd"><span class="kc-lbl">Signed</span><span class="kc-cnt">${col.sig.length}</span></div>
+    ${col.sig.length ? col.sig.map(e => `<div class="kcard">
+      <div class="kcard-id">${fmtPid(e.hadm_id, e.display_id)}</div>
+      <div class="kcard-meta">${ago(e.updated_at)}</div>
+      <div style="margin-top:5px"><span class="bd bd-t3" style="font-size:10px">✓ Signed</span></div>
+    </div>`).join('') : noCase}
+  </div>
+  <div class="kc" style="border:1px solid #fde68a;background:#fffdf0">
+    <div class="kc-hd"><span class="kc-lbl" style="color:#d97706">Amendment</span><span class="kc-cnt" style="background:#fde68a;color:#92400e">${col.amd.length}</span></div>
+    ${col.amd.length ? col.amd.map(e => {
+      const amd = (_WA.amendments && _WA.amendments[e.id]) || null;
+      const _amdReasonLabel = { factual:'Factual correction', diagnosis:'Diagnosis update', medication:'Medication dose change', procedure:'Procedure clarification', other:'Other' };
+      const amdDoctor  = amd?.submitted_by_name || '';
+      const amdSection = amd?.section || '';
+      const amdReason  = _amdReasonLabel[amd?.reason] || amd?.reason || '';
+      const amdDetails = (amd?.details || '').slice(0, 100);
+      const amdFilesReady = !!amd?.files_ready_at || e.status === 'Files Ready';
+      const amdRegenDone  = !!amd?.regenerated_at;
+      const amdNotifDone  = !!amd?.notification_sent_at;
+      return `<div class="kcard" style="border-left:3px solid #f59e0b">
+        <div class="kcard-id">${fmtPid(e.hadm_id, e.display_id)}</div>
+        <div class="kcard-meta">${ago(e.updated_at||e.created_at)}</div>
+        <div style="margin-top:5px"><span class="bd" style="font-size:10px;background:#fef3c7;color:#92400e;border:1px solid #fde68a;border-radius:10px;padding:2px 8px;font-weight:600">✎ Amendment Req.</span></div>
+        ${amdDoctor ? `<div style="font-size:9.5px;color:#92400e;font-weight:600;margin-top:5px">By ${amdDoctor}${amdSection ? ' · ' + amdSection : ''}${amdReason ? ' · ' + amdReason : ''}</div>` : ''}
+        ${amdDetails ? `<div style="font-size:10px;color:#374151;margin-top:3px;line-height:1.4;font-style:italic">"${amdDetails}${amd.details.length > 100 ? '…' : ''}"</div>` : ''}
+        <div style="margin-top:6px;font-size:9.5px;color:var(--muted);display:flex;gap:8px">
+          <span style="color:${amdFilesReady?'#059669':'#d1d5db'}">${amdFilesReady?'✓':'○'} Files</span>
+          <span style="color:${amdRegenDone?'#059669':'#d1d5db'}">${amdRegenDone?'✓':'○'} Regen</span>
+          <span style="color:${amdNotifDone?'#059669':'#d1d5db'}">${amdNotifDone?'✓':'○'} Notified</span>
+        </div>
+        <div style="margin-top:7px">
+          ${!amdRegenDone ? `<button class="btn ${amdFilesReady?'btn-pri':'btn-sec'} btn-xs" onclick="waRegenPreflight(${e.hadm_id},null,'${e.id}')">${amdFilesReady?'↻ Trigger Regen + Notify':'⏳ Waiting for Files'}</button>` : `<span style="font-size:10px;color:#059669;font-weight:600">✓ Regenerated &amp; Notified</span>`}
+        </div>
+      </div>`;
+    }).join('') : noCase}
+  </div>
+  <div class="kc" style="border:1px solid #fca5a5;background:#fff5f5">
+    <div class="kc-hd"><span class="kc-lbl" style="color:#dc2626">Rejected</span><span class="kc-cnt" style="background:#fca5a5;color:#fff">${col.rej.length}</span></div>
+    ${col.rej.length ? col.rej.map(e => {
+      const isAmd   = e.status === 'Amendment Requested' || (e.amendment_count > 0 && e.status === 'Files Ready');
+      // Only resolve a rejection_log row for true rejections -- an amendment
+      // card landing in this column has no rejection_log row of its own, and
+      // matching by hadm_id alone can grab an unrelated older rejection from
+      // the same patient's history, feeding waRegenPreflight the wrong cutoff.
+      const rejLogs = Array.isArray(_WA.rejLogs) ? _WA.rejLogs : [];
+      const rl = isAmd ? null : rejLogs.find(r => String(r.hadm_id||r.hadm_id_enc) === String(e.hadm_id));
+      const rejLogId = rl ? rl.id : null;
+      const rejAt   = e.revision_at || e.updated_at;
+      const slaMs   = rejAt ? now - new Date(rejAt) : 0;
+      const slaH    = Math.floor(slaMs / 3600000);
+      const slaBreach = slaMs > 4*3600000;
+      const reason  = isAmd
+        ? (e.amendment_reason || e.revision_reason || 'Amendment requested by doctor')
+        : (rl?.rejection_reason || e.revision_reason || 'Reason not captured');
+      const regenDone = !!rl?.regenerated_at;
+      const notifDone = !!rl?.notification_sent_at;
+      const filesReady = !!rl?.files_ready_at || e.status === 'Files Ready';
+      const borderColor = filesReady ? '#f59e0b' : (isAmd ? '#d97706' : '#dc2626');
+      const typeLabel = isAmd ? '📝 Amendment' : '✕ Rejected';
+      const typeColor = isAmd ? '#92400E' : '#dc2626';
+      return `<div class="kcard" style="border-left:3px solid ${borderColor};background:${slaBreach?'#fef2f2':'#fff'}">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
+          <div class="kcard-id">${fmtPid(e.hadm_id, e.display_id)}</div>
+          ${filesReady ? `<span style="font-size:9.5px;font-weight:700;color:#92400e;background:#fef3c7;border:1px solid #f59e0b;border-radius:4px;padding:2px 7px">✓ Files Ready</span>` : ''}
+        </div>
+        <div class="kcard-meta" style="color:${filesReady?'#92400e':typeColor};font-weight:600">${filesReady?'⏳ Awaiting Regen':typeLabel} — ${ago(rejAt)}</div>
+        ${slaBreach ? `<div class="kcard-breach">⚠ SLA BREACH — ${slaH}h pending</div>` : ''}
+        <div style="font-size:10.5px;color:#374151;margin-top:4px;line-height:1.4;font-style:italic">"${reason.slice(0,80)}${reason.length>80?'…':''}"</div>
+        ${!isAmd && rl?.rejected_by_name ? `<div style="font-size:9.5px;color:#6b7280;margin-top:2px">Rejected by <b>${rl.rejected_by_name}</b></div>` : ''}
+        <div style="margin-top:6px;font-size:9.5px;color:var(--muted);display:flex;gap:8px">
+          <span style="color:${filesReady?'#059669':'#d1d5db'}">${filesReady?'✓':'○'} Files</span>
+          <span style="color:${regenDone?'#059669':'#d1d5db'}">${regenDone?'✓':'○'} Regen</span>
+          <span style="color:${notifDone?'#059669':'#d1d5db'}">${notifDone?'✓':'○'} Notified</span>
+        </div>
+        <div style="margin-top:7px;display:flex;gap:4px;flex-wrap:wrap">
+          ${!regenDone ? `<button class="btn ${filesReady?'btn-pri':'btn-sec'} btn-xs" onclick="waRegenPreflight(${e.hadm_id},${rejLogId||'null'},'${e.id}')">${filesReady?'↻ Trigger Regen + Notify':'⏳ Waiting for Files'}</button>` : `<span style="font-size:10px;color:#059669;font-weight:600">✓ Regenerated &amp; Notified</span>`}
+        </div>
+      </div>`;
+    }).join('') : noCase}
+  </div>
+</div>
+${_WA._filesReadyToasts.length > 0 ? `
+<div style="position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:10px;max-width:340px">
+  ${_WA._filesReadyToasts.map((t,i) => `
+    <div style="background:#FFFBEB;border:1.5px solid #F59E0B;border-left:4px solid #D97706;border-radius:10px;padding:14px 16px;box-shadow:0 4px 20px rgba(245,158,11,.3);display:flex;align-items:flex-start;gap:10px;animation:slideInRight .25s ease">
+      <span style="font-size:20px;flex-shrink:0;line-height:1">📁</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:700;color:#92400E">Files Ready — ${fmtPid(t.hadm_id, t.display_id)}</div>
+        <div style="font-size:12px;color:#78350F;margin-top:3px">Resident has uploaded corrected files. Trigger regeneration when ready.</div>
+      </div>
+      <button onclick="_waDismissFilesReadyToast(${i})" style="background:none;border:none;cursor:pointer;padding:0 2px;color:#D97706;font-size:15px;line-height:1;flex-shrink:0">✕</button>
+    </div>
+  `).join('')}
+</div>` : ''}`;
+},
+
+/* ════════════════════════════════════
+   A2 — AUDIT LOG
+════════════════════════════════════ */
+a2: () => {
+  if (!_WA.audit) return '<div style="display:flex;align-items:center;justify-content:center;height:200px;color:var(--muted)">Loading audit log…</div>';
+  if (_WA.audit._error) return `<div class="alert al-err" style="margin:16px 0">⚠ Failed to load: ${_WA.audit._error} <button class="btn btn-sec btn-xs" style="margin-left:8px" onclick="waLoadAudit()">Retry</button></div>`;
+  const events = Array.isArray(_WA.audit) ? _WA.audit : [];
+  const rejLogs = Array.isArray(_WA.rejLogs) ? _WA.rejLogs : [];
+  const fmtTs = iso => { if(!iso) return null; const d=new Date(iso); return d.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'2-digit'})+' '+d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:false}); };
+  const actLabel = a => (a||'—').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+  const actCls = a => {
+    if (!a) return '';
+    const u = a.toUpperCase();
+    // Red X — explicit failure / rejection
+    if (u.includes('ERROR') || u.includes('FAIL') || u.includes('REJECT') || u.includes('BREACH') || u.includes('DENIED')) return 'err';
+    // Green tick — something was completed / accepted / generated
+    if (u.includes('GENERAT') || u.includes('ACCEPTED') || u.includes('APPROVED') || u.includes('SIGNED') || u.includes('RESOLVED') || u.includes('COMPLETE') || u.includes('VERIFIED')) return 'ok';
+    // Purple dot — everything else (upload, triggered, queued, viewed, notified, consent, comment, send…)
+    return '';
+  };
+
+  // Rejection flow tracker cards
+  const _openRejLogs = rejLogs.filter(rl => !rl.signed_at);
+  const rejTrackerHtml = _openRejLogs.length ? `
+    <div style="margin-bottom:24px">
+      <div style="font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px">Rejection Workflow Tracker</div>
+      ${_openRejLogs.map(rl => {
+        const hadm = rl.hadm_id || rl.hadm_id_enc || '—';
+        const steps = [
+          { n:1, label:'Doctor Rejected',         ts: fmtTs(rl.rejected_at),                  detail: rl.rejection_reason ? `"${rl.rejection_reason.slice(0,80)}${rl.rejection_reason.length>80?'…':''}"` : null },
+          { n:2, label:'Reason Captured in DB',   ts: fmtTs(rl.rejected_at),                  detail: `rejection_log #${rl.id}` },
+          { n:3, label:'Admin Queue (Kanban)',     ts: fmtTs(rl.rejected_at),                  detail: 'Moved to Rejected column' },
+          { n:4, label:'Regeneration Triggered',  ts: fmtTs(rl.regeneration_triggered_at),    detail: rl.regenerated_at ? `Completed ${fmtTs(rl.regenerated_at)}` : null },
+          { n:5, label:'Doctor Notified',         ts: fmtTs(rl.notification_sent_at),         detail: 'Non-PHI push notification sent' },
+          { n:6, label:'Doctor Re-reviewed',      ts: fmtTs(rl.re_reviewed_at),               detail: null },
+          { n:7, label:'Signed Off',              ts: fmtTs(rl.signed_at),                    detail: null },
+        ];
+        const done = steps.filter(s => s.ts).length;
+        if (done === 7) return ''; // all steps complete — hide tracker card
+        return `
+          <div style="background:#fff;border:1px solid var(--border);border-radius:8px;padding:14px 16px;margin-bottom:12px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:8px;flex-wrap:wrap">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="background:#fef2f2;border:1px solid #fca5a5;color:#dc2626;font-weight:700;font-size:10px;padding:2px 8px;border-radius:4px">REJ</span>
+                <span style="font-weight:700;font-size:13px">${fmtPid(hadm, rl.display_id)}</span>
+                ${rl.rejected_by_name ? `<span style="color:var(--muted);font-size:11.5px">· Rejected by ${rl.rejected_by_name}</span>` : ''}
+              </div>
+              <div style="font-size:11px;color:var(--muted)">${done}/7 steps complete${done===7?' · ✅ Closed':''}</div>
+            </div>
+            <div style="display:flex;gap:0;overflow-x:auto">
+              ${steps.map((s,i) => {
+                const isDone = !!s.ts;
+                const dotBg = isDone ? '#059669' : '#e5e7eb';
+                const dotClr = isDone ? '#fff' : '#9ca3af';
+                return `
+                  <div style="flex:1;min-width:90px;text-align:center;padding:8px 4px;position:relative${i<6?';border-right:1px solid var(--border)':''}">
+                    <div style="width:24px;height:24px;border-radius:50%;background:${dotBg};color:${dotClr};font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;margin:0 auto 5px">${isDone?'✓':s.n}</div>
+                    <div style="font-size:10px;font-weight:600;color:${isDone?'var(--ink)':'var(--muted)'};line-height:1.3;margin-bottom:2px">${s.label}</div>
+                    <div style="font-size:9.5px;color:${isDone?'#059669':'#d1d5db'}">${s.ts || 'Pending'}</div>
+                    ${s.detail&&isDone ? `<div style="font-size:9px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100px;margin-left:auto;margin-right:auto" title="${s.detail}">${s.detail}</div>` : ''}
+                  </div>`;
+              }).join('')}
+            </div>
+          </div>`;
+      }).join('')}
+    </div>` : '';
+
+  return `
+<div class="sh">
+  <h1 class="sh-title">Audit Log</h1>
+  <div class="sh-actions">
+    <button class="btn btn-sec btn-sm" onclick="waLoadAudit()">↻ Refresh</button>
+  </div>
+</div>
+${rejTrackerHtml}
+<div style="font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">System Events</div>
+<div class="tl">
+${events.map(ev => {
+  const cls = actCls(ev.action);
+  const icon = cls==='ok' ? '✓' : cls==='err' ? '✕' : '●';
+  const iconColor = cls==='ok' ? 'var(--t3)' : cls==='err' ? 'var(--t1)' : 'var(--p)';
+  const det = ev.details ? Object.entries(ev.details).filter(([,v])=>v!=null).slice(0,3).map(([k,v])=>`<b>${k.replace(/_/g,' ')}:</b> ${typeof v==='number'&&v%1!==0?v.toFixed(1):v}`).join(' · ') : '';
+  const ts = fmtTs(ev.created_at)||'—';
+  return `<div class="tl-item"><div class="tl-dot ${cls}" style="color:${iconColor};font-size:${cls===''?'14px':'11px'};font-weight:700">${icon}</div><div class="tl-body"><div class="tl-title">${actLabel(ev.action)}</div><div class="tl-time">${ts} · ${fmtPid(ev.hadm_id, ev.display_id)||'—'}</div>${det?`<div class="tl-detail">${det}</div>`:''}</div></div>`;
+}).join('')}
+${events.length===0?'<div style="padding:24px;text-align:center;color:var(--muted)">No audit events found</div>':''}
+</div>`;
+},
+
+/* ════════════════════════════════════
+   A2b — DS VERSION HISTORY & COMPARE
+════════════════════════════════════ */
+a2b: () => {
+  const encs = Array.isArray(_WA.kanban) ? _WA.kanban : [];
+  const encOpts = encs.length
+    ? encs.map(e => {
+        const eid = e.hadm_id || e.id;
+        const curEncId = _WA.compareEncId;
+        const isSelected = curEncId ? (e.id === curEncId) : false;
+        return `<option value="${eid}" ${isSelected?'selected':''}>${e.patient_name||'Patient'} · ${fmtPid(e.hadm_id, e.display_id)}</option>`;
+      }).join('')
+    : '<option value="">Loading encounters…</option>';
+
+  // ── Version list section ──────────────────────────────────────────────────
+  let versionsHtml = '';
+  if (!_WA.compareEncId) {
+    versionsHtml = `<div style="padding:32px;text-align:center;color:var(--muted);font-size:13px">Select a patient above to load their version history.</div>`;
+  } else if (_WA.compareVersionsLoading) {
+    versionsHtml = `<div style="padding:32px;display:flex;align-items:center;justify-content:center;gap:10px;color:var(--muted)">
+      <div style="width:16px;height:16px;border:2.5px solid rgba(124,58,237,0.25);border-top-color:#7c3aed;border-radius:50%;animation:spin 0.7s linear infinite"></div>
+      Loading versions…
+    </div>`;
+  } else if (_WA.compareVersionsError) {
+    versionsHtml = `<div class="alert al-err">⚠ ${_WA.compareVersionsError} <button class="btn btn-sec btn-xs" style="margin-left:8px" onclick="waLoadVersions(document.getElementById('cmp-enc').value)">Retry</button></div>`;
+  } else if (!_WA.compareVersions || _WA.compareVersions.length === 0) {
+    versionsHtml = `<div style="padding:32px;text-align:center;color:var(--muted);font-size:13px">No versions saved yet for this encounter.<br><span style="font-size:11px">Versions are created when doctors save a draft or sign off.</span></div>`;
+  } else {
+    const versions = _WA.compareVersions;
+    const fmtTs = iso => { try { return new Date(iso).toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}); } catch(_){ return iso; } };
+    const rows = versions.map((v, i) => {
+      const isCurrent = i === 0;
+      const isCheckedA = _WA.compareSelA === v.id;
+      const isCheckedB = _WA.compareSelB === v.id;
+      const isChecked  = isCheckedA || isCheckedB;
+      const typePill = v.save_type === 'signed'
+        ? `<span style="font-size:10px;font-weight:700;background:#ede9fe;color:#6d28d9;border-radius:4px;padding:2px 7px">Signed</span>`
+        : `<span style="font-size:10px;font-weight:600;background:#f3f4f6;color:#6b7280;border-radius:4px;padding:2px 7px">Draft</span>`;
+      const currentPill = isCurrent ? `<span style="font-size:10px;font-weight:700;background:#dcfce7;color:#15803d;border-radius:4px;padding:2px 7px">Current</span>` : '';
+      return `
+      <div onclick="waToggleCompare('${v.id}')" style="display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:8px;cursor:pointer;margin-bottom:6px;border:1.5px solid ${isChecked?'#7c3aed':'var(--border)'};background:${isChecked?'#faf5ff':'#fff'};transition:all .1s">
+        <input type="checkbox" ${isChecked?'checked':''} onclick="event.stopPropagation();waToggleCompare('${v.id}')" style="width:15px;height:15px;accent-color:#7c3aed;flex-shrink:0">
+        <span style="font-size:12px;font-weight:800;font-family:monospace;background:#ede9fe;color:#5b21b6;border-radius:5px;padding:3px 8px;flex-shrink:0">V${v.version_num}</span>
+        ${currentPill}
+        ${typePill}
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;font-weight:600;color:var(--ink2)">${v.saved_by_name || 'Doctor'}</div>
+          <div style="font-size:11px;color:var(--muted)">${fmtTs(v.created_at)}</div>
+        </div>
+      </div>`;
+    }).join('');
+
+    const sel2 = _WA.compareSelA && _WA.compareSelB;
+    const vA = sel2 ? versions.find(v=>v.id===_WA.compareSelA) : null;
+    const vB = sel2 ? versions.find(v=>v.id===_WA.compareSelB) : null;
+    const compareBtn = sel2
+      ? `<div style="padding:12px 0 0">
+           <button onclick="waDoCompare()" class="btn btn-pri" style="width:100%">
+             Compare V${Math.min(vA?.version_num,vB?.version_num)} vs V${Math.max(vA?.version_num,vB?.version_num)}
+           </button>
+         </div>`
+      : `<div style="font-size:11.5px;color:var(--muted);padding:10px 0 2px;text-align:center">Select 2 versions to compare</div>`;
+
+    versionsHtml = `
+    <div style="font-size:12px;font-weight:600;color:var(--ink2);margin-bottom:10px">${versions.length} version${versions.length!==1?'s':''} saved</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:12px">Click a row or checkbox to select up to 2 versions, then compare.</div>
+    ${rows}
+    ${compareBtn}`;
+  }
+
+  // ── Compare result section ────────────────────────────────────────────────
+  let compareHtml = '';
+  if (_WA.compareLoading) {
+    compareHtml = `<div class="card" style="margin-top:20px;padding:32px;display:flex;align-items:center;justify-content:center;gap:10px;color:var(--muted)">
+      <div style="width:16px;height:16px;border:2.5px solid rgba(124,58,237,0.25);border-top-color:#7c3aed;border-radius:50%;animation:spin 0.7s linear infinite"></div>
+      Loading diff…
+    </div>`;
+  } else if (_WA.compareDataA && _WA.compareDataB) {
+    const dA = _WA.compareDataA, dB = _WA.compareDataB;
+    const fmtTs = iso => { try { return new Date(iso).toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}); } catch(_){ return iso; } };
+    const sectsA = _waParseSections(dA.content);
+    const sectsB = _waParseSections(dB.content);
+    // Match sections by id, fall back to index
+    const allIds = [...new Set([...sectsA.map(s=>s.id), ...sectsB.map(s=>s.id)])];
+    let changed = 0, unchanged = 0;
+    const sectBlocks = allIds.map(sid => {
+      const sA = sectsA.find(s=>s.id===sid);
+      const sB = sectsB.find(s=>s.id===sid);
+      const textA = (sA?.text||'').trim();
+      const textB = (sB?.text||'').trim();
+      const title = sB?.title || sA?.title || sid.toUpperCase();
+      if (textA === textB) {
+        unchanged++;
+        const safe = textA.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        return `<details style="margin-bottom:8px;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+          <summary style="padding:10px 14px;font-size:12.5px;font-weight:600;color:var(--muted);cursor:pointer;background:#fafafa;list-style:none;display:flex;align-items:center;gap:8px">
+            <span style="font-size:10px;background:#f3f4f6;color:#9ca3af;border-radius:4px;padding:2px 6px">=${sid.toUpperCase()}</span>
+            ${title} <span style="font-weight:400;font-size:11px">— No changes</span>
+          </summary>
+          <div style="padding:12px 14px;font-size:12px;line-height:1.7;color:var(--ink2);white-space:pre-wrap">${safe}</div>
+        </details>`;
+      } else {
+        changed++;
+        const diff = _waWordDiff(textA, textB);
+        const rendered = _waRenderDiff(diff);
+        return `<div style="margin-bottom:12px;border:1.5px solid #c4b5fd;border-radius:8px;overflow:hidden">
+          <div style="padding:10px 14px;background:#f5f3ff;display:flex;align-items:center;gap:8px">
+            <span style="font-size:10px;font-weight:700;background:#ede9fe;color:#5b21b6;border-radius:4px;padding:2px 6px">${sid.toUpperCase()}</span>
+            <span style="font-size:12.5px;font-weight:600;color:#3b0764">${title}</span>
+          </div>
+          <div style="padding:13px 14px;font-size:12px;line-height:1.9;color:var(--ink2);white-space:pre-wrap;background:#fff">${rendered}</div>
+        </div>`;
+      }
+    }).join('');
+
+    compareHtml = `
+    <div class="card" style="margin-top:22px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+        <div>
+          <div class="card-title" style="margin-bottom:3px">V${dA.version_num} vs V${dB.version_num}</div>
+          <div style="font-size:11px;color:var(--muted)">${fmtTs(dA.created_at)} · ${dA.saved_by_name||'Doctor'} &nbsp;→&nbsp; ${fmtTs(dB.created_at)} · ${dB.saved_by_name||'Doctor'}</div>
+        </div>
+        <div style="display:flex;gap:8px;font-size:11px">
+          <span style="background:#fee2e2;color:#b91c1c;border-radius:4px;padding:2px 8px;text-decoration:line-through">Removed</span>
+          <span style="background:#dcfce7;color:#15803d;border-radius:4px;padding:2px 8px">Added</span>
+          <span style="background:#f3f4f6;color:#6b7280;border-radius:4px;padding:2px 8px">Unchanged</span>
+        </div>
+      </div>
+      <div style="font-size:11.5px;color:var(--muted);margin-bottom:14px">${changed} section${changed!==1?'s':''} changed · ${unchanged} unchanged (collapsed)</div>
+      ${sectBlocks}
+    </div>`;
+  }
+
+  return `
+<div class="sh">
+  <h1 class="sh-title">DS Version History</h1>
+  <span class="sh-id">A2b</span>
+</div>
+
+<div class="card" style="margin-bottom:18px">
+  <label class="fl" style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px;display:block">Patient / Encounter</label>
+  <select class="fi" id="cmp-enc" style="min-width:260px" onchange="waLoadVersions(this.value)">
+    <option value="" disabled ${!_WA.compareEncId?'selected':''}>— Select patient —</option>
+    ${encOpts}
+  </select>
+  <div style="margin-top:10px;font-size:11.5px;color:var(--muted)">Select a patient to view all discharge summary versions saved by the doctor.</div>
+</div>
+
+<div class="card">
+  ${versionsHtml}
+</div>
+
+${compareHtml}`;
+},
+
+/* ════════════════════════════════════
+   A3 — MODULE HEALTH
+════════════════════════════════════ */
+a3: () => {
+  if (!_WA.health) return '<div style="display:flex;align-items:center;justify-content:center;height:200px;color:var(--muted)">Loading module health…</div>';
+  if (_WA.health._error) return `<div class="alert al-err" style="margin:16px 0">⚠ Failed to load: ${_WA.health._error} <button class="btn btn-sec btn-xs" style="margin-left:8px" onclick="waLoadHealth()">Retry</button></div>`;
+  const h=(_WA.health.system_health||[])[0]||{};
+  const lu=h.last_updated?new Date(h.last_updated).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}):'<1 min';
+  // [name, status, lastRefresh, uptime, version]
+  // Real timestamps from backend
+  const _relTime = iso => {
+    if (!iso) return '—';
+    const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+    if (diff < 60)  return '<1 min ago';
+    if (diff < 3600) return `${Math.floor(diff/60)} min ago`;
+    if (diff < 86400) return `${Math.floor(diff/3600)}h ago`;
+    return `${Math.floor(diff/86400)}d ago`;
+  };
+  const _dbSt  = h.cloud_sql_status === 'error' ? 'degraded' : 'ok';
+  const _dbPing = h.db_ping_ms != null ? `${h.db_ping_ms} ms ago` : '<1 min ago';
+  const _dsLast = _relTime(h.ds_last_generated_at);
+  const _ds7d   = h.ds_count_7d ?? 0;
+  const _aud7d  = h.audit_event_count_7d ?? 0;
+  const _up7d   = h.upload_count_7d ?? 0;
+  const _checkedAt = _relTime(h.last_updated);
+  // Only real system components — no hardcoded uptimes or fake versions
+  // [name, status, activity (computed), notes]
+  const mods=[
+    ['Discharge Summary AI',  'ok',    _dsLast,    `${_ds7d} summaries generated (7d)`],
+    ['Database (PostgreSQL)', _dbSt,   _dbPing,    _dbSt==='ok'?'Connection healthy':'Connection error'],
+    ['Upload Pipeline',       'ok',    _checkedAt, `${_up7d} file uploads (7d)`],
+    ['Audit Log',             'ok',    _checkedAt, `${_aud7d} events recorded (7d)`],
+    ['Backend API',           'ok',    _checkedAt, 'Responding normally'],
+  ];
+  const statusCell = st => st === 'degraded'
+    ? '<span style="display:inline-flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:50%;background:#d97706;display:inline-block"></span><span style="color:#92400e;font-weight:600">Degraded</span></span>'
+    : '<span style="display:inline-flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:50%;background:var(--t3);display:inline-block"></span><span style="color:var(--t3);font-weight:600">Healthy</span></span>';
+  return `
+<div class="sh"><h1 class="sh-title">Module Health &amp; System Status</h1><span class="sh-id">A3</span></div>
+<div class="tw"><table>
+  <thead><tr>
+    <th style="width:32%">COMPONENT</th>
+    <th>STATUS</th>
+    <th>LAST ACTIVITY</th>
+    <th>NOTES</th>
+  </tr></thead>
+  <tbody>${mods.map(([m,st,lr,notes])=>`<tr>
+    <td class="bold">${m}</td>
+    <td>${statusCell(st)}</td>
+    <td class="muted small">${lr}</td>
+    <td class="muted small">${notes}</td>
+  </tr>`).join('')}</tbody>
+</table></div>`;
+},
+};
+
+/* ─── MODALS ─── */
+const MODALS = {
+  'follow-up': (name, hadmId, doctorName) => `
+<div class="modal-t">Follow Up — ${name}</div>
+<div class="modal-b">${name} has breached the 4-hour SLA in the In Review stage. Send a follow-up notification to ${doctorName}?</div>
+<div style="background:var(--surf);border:1px solid var(--border);border-radius:6px;padding:12px 14px;margin-bottom:16px;font-size:12px">
+  <div class="bold" style="margin-bottom:4px">📱 Draft Notification (Non-PHI)</div>
+  <div style="color:var(--ink2)">A discharge summary assigned to you has been in review for over 4 hours and has breached the SLA. Please complete your review at the earliest. Case ref: ${name}.</div>
+</div>
+<div class="modal-f">
+  <button class="btn btn-sec" onclick="closeModal()">Cancel</button>
+  <button class="btn btn-danger" onclick="waSendSlaAlert(${hadmId}, this, '${doctorName.replace(/'/g,"\\'")}')">Send Alert to ${doctorName}</button>
+</div>`,
+
+  'regen': (name) => `
+<div class="modal-t">Regenerate Summary — ${name}</div>
+<div class="modal-b">Trigger LLM regeneration for PT-24-0088? The rejection reason will be attached to the LLM prompt so the model can address the specific issue.</div>
+<div class="card" style="background:var(--surf);margin-bottom:16px">
+  <div class="card-title">Rejection Reason on File</div>
+  <div style="font-size:12px;color:var(--ink2)">§6 Diagnosis inconsistency — Dr. Priya Mehta flagged incorrect primary diagnosis. Expected DCM but summary lists unspecified cardiomyopathy.</div>
+</div>
+<div class="modal-f">
+  <button class="btn btn-sec" onclick="closeModal()">Cancel</button>
+  <button class="btn btn-pri" onclick="closeModal()">Trigger Regeneration</button>
+</div>`,
+
+  'reject-detail': (name) => `
+<div class="modal-t">Rejection Details — ${name}</div>
+<div class="modal-b">Rejection recorded on 01 Jun 2026, 11:32 by Dr. Priya Mehta.</div>
+<div class="tw" style="margin-bottom:16px">
+  <table><tbody>
+    <tr><td class="muted" style="padding:7px 12px">Rejected by</td><td style="padding:7px 12px" class="bold">Dr. Priya Mehta</td></tr>
+    <tr><td class="muted" style="padding:7px 12px">Timestamp</td><td style="padding:7px 12px" class="mono">01 Jun 2026, 11:32:17</td></tr>
+    <tr><td class="muted" style="padding:7px 12px">Sections flagged</td><td style="padding:7px 12px">§6 Primary Diagnosis</td></tr>
+    <tr><td class="muted" style="padding:7px 12px">Reason</td><td style="padding:7px 12px">Primary diagnosis listed as unspecified cardiomyopathy — should be DCM based on echo and cath findings.</td></tr>
+    <tr><td class="muted" style="padding:7px 12px">T1 at rejection</td><td style="padding:7px 12px"><span class="bd bd-t1">2 T1</span></td></tr>
+  </tbody></table>
+</div>
+<div class="modal-f">
+  <button class="btn btn-sec" onclick="closeModal()">Close</button>
+  <button class="btn btn-warn" onclick="closeModal()">Regenerate Now</button>
+</div>`,
+
+  'restart-modal': (m) => `
+<div class="modal-t">⚠ Restart Module</div>
+<div class="modal-b">Restart <b>${m}</b>? This will temporarily interrupt service for approximately 30 seconds. All active sessions will receive a brief connectivity warning.</div>
+<div class="alert al-warn" style="margin-bottom:16px">⚠ Active nurse vitals entries may need to be re-submitted after restart.</div>
+<div class="modal-f">
+  <button class="btn btn-sec" onclick="closeModal()">Cancel</button>
+  <button class="btn btn-danger" onclick="closeModal()">Restart Now</button>
+</div>`,
+
+  'export-modal': () => `
+<div class="modal-t">Export Audit Log — PT-24-0087</div>
+<div class="modal-b">Choose export format. The log will include all 20 events with full timestamps and user attribution.</div>
+<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px">
+  <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;cursor:pointer"><input type="radio" name="fmt" checked> PDF Report (A4, NABH letterhead)</label>
+  <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;cursor:pointer"><input type="radio" name="fmt"> CSV (spreadsheet)</label>
+  <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;cursor:pointer"><input type="radio" name="fmt"> JSON (integration export)</label>
+</div>
+<div class="modal-f">
+  <button class="btn btn-sec" onclick="closeModal()">Cancel</button>
+  <button class="btn btn-pri" onclick="closeModal()">⬇ Download</button>
+</div>`,
+
+  'refresh-modal': () => `
+<div class="modal-t">Refresh Module Health</div>
+<div class="modal-b">Checking all module status endpoints…</div>
+<div class="pb" style="margin-bottom:8px"><div class="pb-fill" style="width:100%"></div></div>
+<div style="font-size:11px;color:var(--p);font-weight:600;margin-bottom:16px">All systems checked · 02 Jun 2026, 14:32</div>
+<div class="modal-f"><button class="btn btn-pri" onclick="closeModal()">Done</button></div>`,
+
+  'logs-modal': (m) => `
+<div class="modal-t">System Logs — ${m}</div>
+<div style="background:#111;border-radius:6px;padding:14px;font-family:var(--mono);font-size:11px;color:#4ade80;max-height:240px;overflow-y:auto;margin-bottom:16px;line-height:1.8">
+[14:32:07] INFO  Module health check passed<br>
+[14:28:03] INFO  Summary generation complete PT-24-0103<br>
+[14:20:11] INFO  LLM API response time: 3.9s<br>
+[14:12:45] INFO  PDF sealed PT-24-0087_v1.0<br>
+[14:02:01] INFO  Reconciliation triggered<br>
+[13:40:22] INFO  Regeneration complete — PT-24-0087<br>
+[13:22:10] INFO  Regeneration queued — Admin: A.Pillai<br>
+[11:45:33] WARN  Summary rejected — PT-24-0087<br>
+[11:18:55] INFO  LLM revision accepted — §5<br>
+[10:34:12] INFO  Generation complete — 15 sections
+</div>
+<div class="modal-f"><button class="btn btn-sec" onclick="closeModal()">Close</button><button class="btn btn-pri" onclick="closeModal()">⬇ Download Full Logs</button></div>`,
+};
+
+/* ─── INIT ─── */
+(function init() {
+  const token = sessionStorage.getItem('foqal_token');
+  const user  = JSON.parse(sessionStorage.getItem('foqal_user') || '{}');
+  if (!token || user.role !== 'ward-admin') {
+    window.location.href = '/';
+    return;
+  }
+  // Show user name in appbar
+  const nameEl = document.getElementById('admin-name');
+  if (nameEl && user.full_name) nameEl.textContent = user.full_name;
+  // Start on A1
+  showScreen('a1');
+
+  // ── FILES-READY POLLING ──────────────────────────────────────────────────
+  // Every 15 s, poll the audit log for recent resident resubmissions (revision or amendment).
+  // Shows a notification toast so ward admin knows the case is back in the doctor queue.
+  _WA.notified = new Set();
+
+  async function _waPollFilesReady() {
+    const encs = Array.isArray(_WA.kanban) ? _WA.kanban : [];
+    const rls  = Array.isArray(_WA.rejLogs) ? _WA.rejLogs : [];
+
+    const filesReady = encs.filter(e => e.status === 'Files Ready');
+    if (!filesReady.length) return;
+
+    // Fetch audit log once to detect amendment vs revision for each Files Ready encounter
+    let amdHadmIds = new Set();
+    try {
+      const events = await _waFetch('/api/audit_log?limit=100');
+      if (Array.isArray(events)) {
+        for (const ev of events) {
+          if (ev.action === 'AMENDMENT_FILES_SUBMITTED' || ev.action === 'AMENDMENT_SUBMITTED') {
+            amdHadmIds.add(String(ev.hadm_id));
+          }
+        }
+      }
+    } catch(_) {}
+
+    for (const enc of filesReady) {
+      const key = 'fr_' + enc.hadm_id;
+      if (_WA.notified.has(key)) continue;
+      _WA.notified.add(key);
+      const isAmd = amdHadmIds.has(String(enc.hadm_id));
+      // Same rule as the kanban cards: only resolve a rejection_log row for
+      // true rejections. An amendment's cutoff comes from its own record
+      // (fetched inside waRegenPreflight), not an unrelated old rejection.
+      const rl = isAmd ? null : (rls.find(r => String(r.hadm_id || r.hadm_id_enc) === String(enc.hadm_id)) || null);
+      if (CURRENT === 'a1') showScreen('a1');
+      _waShowFilesNotif(enc.hadm_id, rl ? rl.id : null, enc.id, rl?.rejection_reason || '', enc.display_id, isAmd);
+    }
+  }
+
+  function _waShowFilesNotif(hadmId, rejLogId, encId, reason, displayId, isAmendment) {
+    const _pid = fmtPid(hadmId, displayId);
+    const nid = 'fn-' + hadmId;
+    document.getElementById(nid)?.remove();
+    const el = document.createElement('div');
+    el.id = nid;
+    el.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:9999;background:#fff;border:2px solid ' + (isAmendment ? '#d97706' : '#f59e0b') + ';border-radius:14px;padding:18px 20px;box-shadow:0 12px 40px rgba(0,0,0,.18);max-width:340px;animation:waSlideUp .25s ease';
+    el.innerHTML = `
+      <div style="display:flex;align-items:flex-start;gap:12px">
+        <div style="font-size:26px;flex-shrink:0;line-height:1">${isAmendment ? '📝' : '📂'}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13.5px;font-weight:800;color:#92400e;margin-bottom:4px">${isAmendment ? 'Amendment Files Submitted' : 'Revision Files Submitted'} — ${_pid}</div>
+          <div style="font-size:12px;color:#78350f;margin-bottom:8px;line-height:1.5">${isAmendment ? 'Resident uploaded amendment docs. Trigger regeneration to send to doctor.' : 'Resident uploaded corrected files. Trigger regeneration when ready.'}</div>
+          <div style="display:flex;gap:8px;margin-top:4px">
+            ${isAmendment
+              ? `<button onclick="document.getElementById('${nid}')?.remove();waRegenPreflight(${hadmId},${rejLogId||'null'},'${encId}')"
+                    style="flex:1;padding:8px 14px;background:#d97706;border:none;border-radius:8px;font-size:12.5px;font-weight:700;color:#fff;cursor:pointer">
+                  ↻ Trigger Regeneration
+                </button>`
+              : `<button onclick="showScreen('a1');document.getElementById('${nid}')?.remove()"
+                    style="flex:1;padding:8px 14px;background:#f59e0b;border:none;border-radius:8px;font-size:12.5px;font-weight:700;color:#fff;cursor:pointer">
+                  View Pipeline
+                </button>`}
+            <button onclick="document.getElementById('${nid}')?.remove()"
+                    style="padding:8px 14px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;font-size:12px;color:#6b7280;cursor:pointer">
+              Dismiss
+            </button>
+          </div>
+        </div>
+      </div>`;
+    if (isAmendment) {
+      document.body.appendChild(el);
+      setTimeout(() => document.getElementById(nid)?.remove(), 30000);
+    }
+  }
+
+  const _waStyle = document.createElement('style');
+  _waStyle.textContent = '@keyframes waSlideUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}';
+  document.head.appendChild(_waStyle);
+
+  _waPollFilesReady();           // fire immediately on load
+  setInterval(_waPollFilesReady, 8000);
+})();
+</script>
+</body>
+</html>

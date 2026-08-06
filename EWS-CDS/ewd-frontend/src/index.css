@@ -1,0 +1,173 @@
+@import "tailwindcss";
+
+@theme {
+  /* ── Dark mode tokens (existing) ── */
+  --color-obsidian: #0f172a;
+  --color-obsidianCard: #1e293b;
+
+  /* ── Status colours (shared across both modes) ── */
+  --color-criticalRed: #dc2626;
+  --color-warningAmber: #d97706;
+  --color-stableTeal: #0d9488;
+  --color-stableGreen: #16a34a;
+
+  /* ── Foqal CareOS Purple brand (light mode) ── */
+  --color-brand: #800080;
+  --color-brandLight: #f5f0ff;
+  --color-brandMid: #d8b4fe;
+  --color-brandDark: #5b0059;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   GLOBAL — Hide all scrollbars (both modes)
+══════════════════════════════════════════════════════════════ */
+html, body {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  overflow: hidden;
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none;
+}
+
+*::-webkit-scrollbar {
+  display: none;
+}
+
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   DARK MODE (default — existing design)
+══════════════════════════════════════════════════════════════ */
+@layer base {
+  body {
+    @apply bg-obsidian text-slate-200 antialiased;
+  }
+
+  /* Hide scrollbars (utility class) */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   LIGHT MODE — Purple (#800080) + White
+   Applied when <body> or <html> has class="light"
+══════════════════════════════════════════════════════════════ */
+.light {
+  background-color: #ffffff;
+  color: #1a1a2e;
+}
+
+/* Page background */
+.light .page-bg       { background-color: #ffffff; }
+.light .card-bg       { background-color: #faf5ff; border-color: #e9d5ff; }
+.light .header-bg     { background-color: #800080; color: #ffffff; }
+.light .nav-bg        { background-color: #800080; }
+.light .sidebar-bg    { background-color: #f5f0ff; border-color: #ddd6fe; }
+.light .row-bg        { background-color: #ffffff; border-color: #e9d5ff; }
+.light .row-hover     { background-color: #faf5ff; }
+
+/* Text */
+.light .text-primary  { color: #1a1a2e; }
+.light .text-muted    { color: #6b21a8; }
+.light .text-accent   { color: #800080; }
+.light .text-on-brand { color: #ffffff; }
+
+/* Inputs */
+.light .input-bg      { background-color: #faf5ff; border-color: #c084fc; color: #1a1a2e; }
+.light .input-focus   { border-color: #800080; }
+
+/* Buttons */
+.light .btn-primary   { background-color: #800080; color: #ffffff; }
+.light .btn-primary:hover { background-color: #6b0070; }
+.light .btn-ghost     { background-color: #f5f0ff; border-color: #ddd6fe; color: #800080; }
+
+/* Status colours adjusted for light backgrounds */
+.light .status-critical { background-color: #fef2f2; border-color: #dc2626; }
+.light .status-warning  { background-color: #fffbeb; border-color: #d97706; }
+.light .status-stable   { background-color: #f0fdf4; border-color: #16a34a; }
+
+/* Chart/sparkline backgrounds */
+.light .chart-bg      { background-color: #faf5ff; }
+.light .chart-grid    { stroke: #e9d5ff; }
+
+/* Drug-lab alert badge in light mode */
+.light .drug-alert-badge {
+  background-color: #fdf4ff;
+  border: 1px solid #a855f7;
+  color: #7e22ce;
+}
+
+/* ── Ward/Select dropdown fix — force purple styling in light mode ── */
+.light select,
+.light select option {
+  background-color: #200427 !important;
+  color: #ffffff !important;
+}
+
+/* Dark mode select fix */
+select option {
+  background-color: #0f172a;
+  color: #e2e8f0;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   ANIMATIONS (shared)
+══════════════════════════════════════════════════════════════ */
+
+/* Critical row border pulse — dark mode */
+@keyframes critical-border-pulse {
+  0%, 100% {
+    box-shadow:
+      0 0  4px 1px rgba(220, 38, 38, 0.30),
+      inset 0 0  0px 0px rgba(220, 38, 38, 0);
+  }
+  50% {
+    box-shadow:
+      0 0 18px 4px rgba(220, 38, 38, 0.90),
+      inset 0 0  6px 0px rgba(220, 38, 38, 0.20);
+  }
+}
+
+.row-critical-blink {
+  animation: critical-border-pulse 3s ease-in-out infinite;
+  border: 1px solid #dc2626 !important;
+}
+
+/* Critical row border pulse — light mode (purple tint) */
+.light .row-critical-blink {
+  animation: critical-border-pulse-light 3s ease-in-out infinite;
+  border: 1px solid #dc2626 !important;
+}
+
+@keyframes critical-border-pulse-light {
+  0%, 100% {
+    box-shadow:
+      0 0  4px 1px rgba(220, 38, 38, 0.20),
+      inset 0 0  0px 0px rgba(220, 38, 38, 0);
+  }
+  50% {
+    box-shadow:
+      0 0 14px 3px rgba(220, 38, 38, 0.60),
+      inset 0 0  4px 0px rgba(220, 38, 38, 0.10);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MOBILE RESPONSIVE UTILITIES
+══════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  .sidebar-mobile-hidden {
+    display: none;
+  }
+}

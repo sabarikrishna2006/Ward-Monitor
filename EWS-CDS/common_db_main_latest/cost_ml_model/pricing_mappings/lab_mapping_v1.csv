@@ -1,0 +1,745 @@
+us_lab_itemid,us_lab_label,fluid,indian_lab_equivalent,price_in_rupees,pricing_source
+50971,Potassium,Blood,Potassium,450.0,Kaggle Lab Dataset Match
+50983,Sodium,Blood,Sodium,450.0,Kaggle Lab Dataset Match
+50902,Chloride,Blood,Chloride,450.0,Kaggle Lab Dataset Match
+50912,Creatinine,Blood,Creatinine,450.0,Kaggle Lab Dataset Match
+51006,Urea Nitrogen,Blood,Urea Nitrogen,450.0,Kaggle Lab Dataset Match
+50882,Bicarbonate,Blood,Bicarbonate,450.0,Kaggle Lab Dataset Match
+50868,Anion Gap,Blood,Anion Gap,350.0,Kaggle Lab Dataset Match
+50931,Glucose,Blood,Glucose,350.0,Kaggle Lab Dataset Match
+50960,Magnesium,Blood,Magnesium,450.0,Kaggle Lab Dataset Match
+51221,Hematocrit,Blood,Hematocrit,350.0,Kaggle Lab Dataset Match
+50970,Phosphate,Blood,Phosphate,350.0,Kaggle Lab Dataset Match
+50893,"Calcium, Total",Blood,"Calcium, Total",450.0,Kaggle Lab Dataset Match
+51265,Platelet Count,Blood,Platelet Count,350.0,Kaggle Lab Dataset Match
+51222,Hemoglobin,Blood,Hemoglobin,350.0,Kaggle Lab Dataset Match
+51301,White Blood Cells,Blood,White Blood Cells,350.0,Kaggle Lab Dataset Match
+51249,MCHC,Blood,MCHC,350.0,Kaggle Lab Dataset Match
+51250,MCV,Blood,MCV,350.0,Kaggle Lab Dataset Match
+51248,MCH,Blood,MCH,350.0,Kaggle Lab Dataset Match
+51279,Red Blood Cells,Blood,Red Blood Cells,350.0,Kaggle Lab Dataset Match
+51277,RDW,Blood,RDW,350.0,Kaggle Lab Dataset Match
+51275,PTT,Blood,PT,350.0,Kaggle Lab Dataset Match
+51237,INR(PT),Blood,INR(PT),350.0,Kaggle Lab Dataset Match
+51274,PT,Blood,PT,350.0,Kaggle Lab Dataset Match
+52033,Specimen Type,Blood,Specimen Type,350.0,Kaggle Lab Dataset Match
+50820,pH,Blood,pH,350.0,Kaggle Lab Dataset Match
+51678,L,Blood,L,350.0,Kaggle Lab Dataset Match
+50934,H,Blood,H,350.0,Kaggle Lab Dataset Match
+50947,I,Blood,I,350.0,Kaggle Lab Dataset Match
+50821,pO2,Blood,pO2,350.0,Kaggle Lab Dataset Match
+50802,Base Excess,Blood,Base Excess,350.0,Kaggle Lab Dataset Match
+50804,Calculated Total CO2,Blood,Calculated Total CO2,350.0,Kaggle Lab Dataset Match
+50818,pCO2,Blood,pCO2,350.0,Kaggle Lab Dataset Match
+52172,RDW-SD,Blood,RDW-SD,350.0,Kaggle Lab Dataset Match
+50885,"Bilirubin, Total",Blood,"Bilirubin, Total",350.0,Kaggle Lab Dataset Match
+50813,Lactate,Blood,Lactate,350.0,Kaggle Lab Dataset Match
+50878,Asparate Aminotransferase (AST),Blood,Asparate Aminotransferase (AST),350.0,Kaggle Lab Dataset Match
+50861,Alanine Aminotransferase (ALT),Blood,Asparate Aminotransferase (AST),350.0,Kaggle Lab Dataset Match
+50863,Alkaline Phosphatase,Blood,Alkaline Phosphatase,350.0,Kaggle Lab Dataset Match
+50817,Oxygen Saturation,Blood,Oxygen Saturation,350.0,Kaggle Lab Dataset Match
+50808,Free Calcium,Blood,Free Calcium,450.0,Kaggle Lab Dataset Match
+50954,Lactate Dehydrogenase (LD),Blood,Lactate Dehydrogenase (LD),350.0,Kaggle Lab Dataset Match
+51003,Troponin T,Blood,Troponin T,1500.0,Kaggle Lab Dataset Match
+51256,Neutrophils,Blood,Neutrophils,350.0,Kaggle Lab Dataset Match
+51146,Basophils,Blood,Basophils,350.0,Kaggle Lab Dataset Match
+51254,Monocytes,Blood,Monocytes,350.0,Kaggle Lab Dataset Match
+51200,Eosinophils,Blood,Eosinophils,350.0,Kaggle Lab Dataset Match
+51244,Lymphocytes,Blood,Lymphocytes,350.0,Kaggle Lab Dataset Match
+50862,Albumin,Blood,Albumin,350.0,Kaggle Lab Dataset Match
+50809,Glucose,Blood,Glucose,350.0,Kaggle Lab Dataset Match
+50911,"Creatine Kinase, MB Isoenzyme",Blood,"Creatine Kinase, MB Isoenzyme",350.0,Kaggle Lab Dataset Match
+50822,"Potassium, Whole Blood",Blood,Potassium,450.0,Kaggle Lab Dataset Match
+50910,Creatine Kinase (CK),Blood,Creatine Kinase (CK),350.0,Kaggle Lab Dataset Match
+50920,Estimated GFR (MDRD equation),Blood,Estimated GFR (CKD- EPI Refit),350.0,Kaggle Lab Dataset Match
+50812,Intubated,Blood,Intubated,350.0,Kaggle Lab Dataset Match
+50811,Hemoglobin,Blood,Hemoglobin,350.0,Kaggle Lab Dataset Match
+50810,"Hematocrit, Calculated",Blood,"Hematocrit, Calculated",350.0,Kaggle Lab Dataset Match
+51487,Nitrite,Urine,Nitrite,250.0,Kaggle Lab Dataset Match
+51508,Urine Color,Urine,Urine Color,250.0,Kaggle Lab Dataset Match
+51506,Urine Appearance,Urine,Voided Specimen,350.0,Kaggle Lab Dataset Match
+51492,Protein,Urine,Protein,250.0,Kaggle Lab Dataset Match
+51498,Specific Gravity,Urine,Specific Gravity,250.0,Kaggle Lab Dataset Match
+51466,Blood,Urine,Blood,250.0,Kaggle Lab Dataset Match
+51484,Ketone,Urine,Ketone,250.0,Kaggle Lab Dataset Match
+51464,Bilirubin,Urine,Bilirubin,250.0,Kaggle Lab Dataset Match
+51478,Glucose,Urine,Glucose,350.0,Kaggle Lab Dataset Match
+51514,Urobilinogen,Urine,Urobilinogen,250.0,Kaggle Lab Dataset Match
+51486,Leukocytes,Urine,Leukocytes,250.0,Kaggle Lab Dataset Match
+51491,pH,Urine,pH,350.0,Kaggle Lab Dataset Match
+50825,Temperature,Blood,Temperature,350.0,Kaggle Lab Dataset Match
+51087,Length of Urine Collection,Urine,Total Collection Time,250.0,Kaggle Lab Dataset Match
+51493,RBC,Urine,RBC,250.0,Kaggle Lab Dataset Match
+51463,Bacteria,Urine,Bacteria,250.0,Kaggle Lab Dataset Match
+51476,Epithelial Cells,Urine,Epithelial Cells,250.0,Kaggle Lab Dataset Match
+51519,Yeast,Urine,Yeast,250.0,Kaggle Lab Dataset Match
+51516,WBC,Urine,WBC,250.0,Kaggle Lab Dataset Match
+51009,Vancomycin,Blood,Vancomycin,350.0,Kaggle Lab Dataset Match
+51266,Platelet Smear,Blood,Platelet Smear,350.0,Kaggle Lab Dataset Match
+50816,Oxygen,Blood,Oxygen,350.0,Kaggle Lab Dataset Match
+51267,Poikilocytosis,Blood,Poikilocytosis,350.0,Kaggle Lab Dataset Match
+51144,Bands,Blood,Bands,350.0,Kaggle Lab Dataset Match
+51137,Anisocytosis,Blood,Anisocytosis,350.0,Kaggle Lab Dataset Match
+51268,Polychromasia,Blood,Polychromasia,350.0,Kaggle Lab Dataset Match
+51246,Macrocytes,Blood,Macrocytes,350.0,Kaggle Lab Dataset Match
+50824,"Sodium, Whole Blood",Blood,Sodium,450.0,Kaggle Lab Dataset Match
+51252,Microcytes,Blood,Microcytes,350.0,Kaggle Lab Dataset Match
+51233,Hypochromia,Blood,Hypochromia,350.0,Kaggle Lab Dataset Match
+51251,Metamyelocytes,Blood,Metamyelocytes,350.0,Kaggle Lab Dataset Match
+51255,Myelocytes,Blood,Myelocytes,350.0,Kaggle Lab Dataset Match
+51143,Atypical Lymphocytes,Blood,Atypical Lymphocytes,350.0,Kaggle Lab Dataset Match
+50819,PEEP,Blood,PEEP,350.0,Kaggle Lab Dataset Match
+51512,Urine Mucous,Urine,"Glucose, Body Fluid",250.0,Kaggle Lab Dataset Match
+50827,Ventilation Rate,Blood,Ventilation Rate,350.0,Kaggle Lab Dataset Match
+51214,"Fibrinogen, Functional",Blood,"Fibrinogen, Functional",350.0,Kaggle Lab Dataset Match
+51082,"Creatinine, Urine",Urine,"Creatinine, Serum",450.0,Kaggle Lab Dataset Match
+50828,Ventilator,Blood,Ventilator,350.0,Kaggle Lab Dataset Match
+50826,Tidal Volume,Blood,Tidal Volume,350.0,Kaggle Lab Dataset Match
+52075,Absolute Neutrophil Count,Blood,Absolute Neutrophil Count,350.0,Kaggle Lab Dataset Match
+52069,Absolute Basophil Count,Blood,Absolute Basophil Count,350.0,Kaggle Lab Dataset Match
+51133,Absolute Lymphocyte Count,Blood,Absolute Lymphocyte Count,350.0,Kaggle Lab Dataset Match
+52073,Absolute Eosinophil Count,Blood,Absolute Eosinophil Count,350.0,Kaggle Lab Dataset Match
+52074,Absolute Monocyte Count,Blood,Absolute Monocyte Count,350.0,Kaggle Lab Dataset Match
+50956,Lipase,Blood,Lipase,350.0,Kaggle Lab Dataset Match
+51100,"Sodium, Urine",Urine,Sodium,450.0,Kaggle Lab Dataset Match
+50806,"Chloride, Whole Blood",Blood,Chloride,450.0,Kaggle Lab Dataset Match
+50993,Thyroid Stimulating Hormone,Blood,Thyroid Stimulating Hormone,350.0,Kaggle Lab Dataset Match
+51482,Hyaline Casts,Urine,Hyaline Casts,250.0,Kaggle Lab Dataset Match
+52135,Immature Granulocytes,Blood,Immature Granulocytes,350.0,Kaggle Lab Dataset Match
+51260,Ovalocytes,Blood,Ovalocytes,350.0,Kaggle Lab Dataset Match
+50867,Amylase,Blood,Amylase,350.0,Kaggle Lab Dataset Match
+50924,Ferritin,Blood,Ferritin,350.0,Kaggle Lab Dataset Match
+51093,"Osmolality, Urine",Urine,"Osmolality, Measured",350.0,Kaggle Lab Dataset Match
+50963,NTproBNP,Blood,NTproBNP,1500.0,Kaggle Lab Dataset Match
+50952,Iron,Blood,Iron,350.0,Kaggle Lab Dataset Match
+51104,"Urea Nitrogen, Urine",Urine,Urea Nitrogen,450.0,Kaggle Lab Dataset Match
+50998,Transferrin,Blood,Transferrin,350.0,Kaggle Lab Dataset Match
+50953,"Iron Binding Capacity, Total",Blood,"Iron Binding Capacity, Total",350.0,Kaggle Lab Dataset Match
+51228,Heparin,Blood,Heparin,350.0,Kaggle Lab Dataset Match
+51097,"Potassium, Urine",Urine,Potassium,450.0,Kaggle Lab Dataset Match
+51078,"Chloride, Urine",Urine,Chloride,450.0,Kaggle Lab Dataset Match
+51007,Uric Acid,Blood,Uric Acid,350.0,Kaggle Lab Dataset Match
+50917,Digoxin,Blood,Digoxin,350.0,Kaggle Lab Dataset Match
+51000,Triglycerides,Blood,Triglycerides,350.0,Kaggle Lab Dataset Match
+52023,Assist/Control,Blood,Assist/Control,350.0,Kaggle Lab Dataset Match
+50852,% Hemoglobin A1c,Blood,% Hemoglobin A1c,350.0,Kaggle Lab Dataset Match
+51257,Nucleated Red Cells,Blood,Nucleated Red Cells,350.0,Kaggle Lab Dataset Match
+51287,Schistocytes,Blood,Schistocytes,350.0,Kaggle Lab Dataset Match
+50935,Haptoglobin,Blood,Haptoglobin,350.0,Kaggle Lab Dataset Match
+50933,Green Top Hold (plasma),Blood,Light Green Top Hold,350.0,Kaggle Lab Dataset Match
+51296,Teardrop Cells,Blood,Teardrop Cells,350.0,Kaggle Lab Dataset Match
+51613,eAG,Blood,eAG,350.0,Kaggle Lab Dataset Match
+50908,CK-MB Index,Blood,CK-MB Index,1500.0,Kaggle Lab Dataset Match
+50979,Red Top Hold,Blood,Red Top Hold,350.0,Kaggle Lab Dataset Match
+50883,"Bilirubin, Direct",Blood,"Bilirubin, Direct",350.0,Kaggle Lab Dataset Match
+50887,Blue Top Hold,Blood,Blue Top Hold,350.0,Kaggle Lab Dataset Match
+51107,"Urine tube, held",Urine,Light Green Top Hold,350.0,Kaggle Lab Dataset Match
+50907,"Cholesterol, Total",Blood,"Cholesterol, Total",350.0,Kaggle Lab Dataset Match
+50986,tacroFK,Blood,tacroFK,350.0,Kaggle Lab Dataset Match
+50904,"Cholesterol, HDL",Blood,"Cholesterol, HDL",350.0,Kaggle Lab Dataset Match
+50903,Cholesterol Ratio (Total/HDL),Blood,Cholesterol Ratio (Total/HDL),350.0,Kaggle Lab Dataset Match
+50884,"Bilirubin, Indirect",Blood,"Bilirubin, Indirect",350.0,Kaggle Lab Dataset Match
+50905,"Cholesterol, LDL, Calculated",Blood,"Cholesterol, LDL, Calculated",350.0,Kaggle Lab Dataset Match
+50976,"Protein, Total",Blood,"Protein, Total",350.0,Kaggle Lab Dataset Match
+51218,Granulocyte Count,Blood,Granulocyte Count,350.0,Kaggle Lab Dataset Match
+51283,"Reticulocyte Count, Automated",Blood,"Reticulocyte Count, Automated",350.0,Kaggle Lab Dataset Match
+50889,C-Reactive Protein,Blood,C-Reactive Protein,350.0,Kaggle Lab Dataset Match
+51010,Vitamin B12,Blood,Vitamin B12,350.0,Kaggle Lab Dataset Match
+52111,Echinocytes,Blood,Echinocytes,350.0,Kaggle Lab Dataset Match
+51102,"Total Protein, Urine",Urine,"Protein, Total",350.0,Kaggle Lab Dataset Match
+50919,EDTA Hold,Blood,EDTA Hold,350.0,Kaggle Lab Dataset Match
+50909,Cortisol,Blood,Cortisol,350.0,Kaggle Lab Dataset Match
+50941,Hepatitis B Surface Antigen,Blood,Hepatitis B Surface Antigen,350.0,Kaggle Lab Dataset Match
+50943,Hepatitis C Virus Antibody,Blood,Hepatitis C Virus Antibody,350.0,Kaggle Lab Dataset Match
+50964,"Osmolality, Measured",Blood,"Osmolality, Measured",350.0,Kaggle Lab Dataset Match
+50967,Phenytoin,Blood,Phenytoin,350.0,Kaggle Lab Dataset Match
+53153,HIV Screen,Blood,HIV Screen,350.0,Kaggle Lab Dataset Match
+50940,Hepatitis B Surface Antibody,Blood,Hepatitis B Surface Antibody,350.0,Kaggle Lab Dataset Match
+50942,Hepatitis B Virus Core Antibody,Blood,Hepatitis B Virus Core Antibody,350.0,Kaggle Lab Dataset Match
+51501,Transitional Epithelial Cells,Urine,Transitional Epithelial Cells,250.0,Kaggle Lab Dataset Match
+51103,Uhold,Urine,Uhold,250.0,Kaggle Lab Dataset Match
+50995,"Thyroxine (T4), Free",Blood,"Thyroxine (T4), Free",350.0,Kaggle Lab Dataset Match
+50823,Required O2,Blood,Required O2,350.0,Kaggle Lab Dataset Match
+50801,Alveolar-arterial Gradient,Blood,Alveolar-arterial Gradient,350.0,Kaggle Lab Dataset Match
+50975,Protein Electrophoresis,Blood,Protein Electrophoresis,350.0,Kaggle Lab Dataset Match
+50955,Light Green Top Hold,Blood,Light Green Top Hold,350.0,Kaggle Lab Dataset Match
+50925,Folate,Blood,Folate,350.0,Kaggle Lab Dataset Match
+51099,Protein/Creatinine Ratio,Urine,Protein/Creatinine Ratio,450.0,Kaggle Lab Dataset Match
+51462,Amorphous Crystals,Urine,Amorphous Crystals,250.0,Kaggle Lab Dataset Match
+51079,"Cocaine, Urine",Urine,"Cocaine, Urine",250.0,Kaggle Lab Dataset Match
+51071,"Amphetamine Screen, Urine",Urine,"Amphetamine Screen, Urine",250.0,Kaggle Lab Dataset Match
+51075,"Benzodiazepine Screen, Urine",Urine,Benzodiazepine Screen,350.0,Kaggle Lab Dataset Match
+51092,"Opiate Screen, Urine",Urine,"Opiate Screen, Urine",250.0,Kaggle Lab Dataset Match
+51074,"Barbiturate Screen, Urine",Urine,Barbiturate Screen,350.0,Kaggle Lab Dataset Match
+51090,"Methadone, Urine",Urine,"Methadone, Urine",250.0,Kaggle Lab Dataset Match
+51479,Granular Casts,Urine,Granular Casts,250.0,Kaggle Lab Dataset Match
+50914,Cyclosporin,Blood,Cyclosporin,350.0,Kaggle Lab Dataset Match
+50994,Thyroxine (T4),Blood,Thyroxine (T4),350.0,Kaggle Lab Dataset Match
+50873,Anti-Nuclear Antibody,Blood,Anti-Nuclear Antibody,350.0,Kaggle Lab Dataset Match
+51288,Sedimentation Rate,Blood,Sedimentation Rate,350.0,Kaggle Lab Dataset Match
+50815,O2 Flow,Blood,O2 Flow,350.0,Kaggle Lab Dataset Match
+51098,"Prot. Electrophoresis, Urine",Urine,Protein Electrophoresis,350.0,Kaggle Lab Dataset Match
+51292,Spherocytes,Blood,Spherocytes,350.0,Kaggle Lab Dataset Match
+51294,Target Cells,Blood,Target Cells,350.0,Kaggle Lab Dataset Match
+52425,XUCU,Urine,XUCU,250.0,Kaggle Lab Dataset Match
+50930,Globulin,Blood,Globulin,350.0,Kaggle Lab Dataset Match
+50981,Salicylate,Blood,Salicylate,350.0,Kaggle Lab Dataset Match
+50856,Acetaminophen,Blood,Acetaminophen,350.0,Kaggle Lab Dataset Match
+50966,Phenobarbital,Blood,Phenobarbital,350.0,Kaggle Lab Dataset Match
+50999,Tricyclic Antidepressant Screen,Blood,Tricyclic Antidepressant Screen,350.0,Kaggle Lab Dataset Match
+53161,Estimated GFR (CKD- EPI Refit),Blood,Estimated GFR (CKD- EPI Refit),350.0,Kaggle Lab Dataset Match
+51474,Eosinophils,Urine,Eosinophils,350.0,Kaggle Lab Dataset Match
+51706,Problem Specimen,Blood,Problem Specimen,350.0,Kaggle Lab Dataset Match
+50922,Ethanol,Blood,Ethanol,350.0,Kaggle Lab Dataset Match
+50950,Immunoglobulin G,Blood,Immunoglobulin G,350.0,Kaggle Lab Dataset Match
+51008,Valproic Acid,Blood,Valproic Acid,350.0,Kaggle Lab Dataset Match
+51148,Blasts,Blood,Blasts,350.0,Kaggle Lab Dataset Match
+51001,Triiodothyronine (T3),Blood,Triiodothyronine (T3),350.0,Kaggle Lab Dataset Match
+51282,"Reticulocyte Count, Absolute",Blood,"Reticulocyte Count, Absolute",350.0,Kaggle Lab Dataset Match
+51564,ARCH-1,Blood,ARCH-1,350.0,Kaggle Lab Dataset Match
+51657,HPE1,Blood,HPE1,350.0,Kaggle Lab Dataset Match
+50880,Benzodiazepine Screen,Blood,Benzodiazepine Screen,350.0,Kaggle Lab Dataset Match
+51752,Voided Specimen,Blood,Voided Specimen,350.0,Kaggle Lab Dataset Match
+50803,"Calculated Bicarbonate, Whole Blood",Blood,Bicarbonate,450.0,Kaggle Lab Dataset Match
+50937,Hepatitis A Virus Antibody,Blood,Hepatitis A Virus Antibody,350.0,Kaggle Lab Dataset Match
+51145,Basophilic Stippling,Blood,Basophilic Stippling,350.0,Kaggle Lab Dataset Match
+50879,Barbiturate Screen,Blood,Barbiturate Screen,350.0,Kaggle Lab Dataset Match
+50949,Immunoglobulin A,Blood,Immunoglobulin A,350.0,Kaggle Lab Dataset Match
+51658,HPE2,Blood,HPE2,350.0,Kaggle Lab Dataset Match
+50951,Immunoglobulin M,Blood,Immunoglobulin M,350.0,Kaggle Lab Dataset Match
+51197,Elliptocytes,Blood,Elliptocytes,350.0,Kaggle Lab Dataset Match
+51659,HPE3,Blood,HPE3,350.0,Kaggle Lab Dataset Match
+51663,HPE7,Blood,HPE7,350.0,Kaggle Lab Dataset Match
+50965,Parathyroid Hormone,Blood,Parathyroid Hormone,350.0,Kaggle Lab Dataset Match
+52171,RBC Morphology,Blood,RBC Morphology,350.0,Kaggle Lab Dataset Match
+52036,Voided Specimen,Blood,Voided Specimen,350.0,Kaggle Lab Dataset Match
+51134,Acanthocytes,Blood,Acanthocytes,350.0,Kaggle Lab Dataset Match
+51450,Monos,Pleural,Monos,250.0,Kaggle Lab Dataset Match
+52391,"Total Nucleated Cells, Pleural",Pleural,"Total Nucleated Cells, Pleural",250.0,Kaggle Lab Dataset Match
+51455,Polys,Pleural,Polys,250.0,Kaggle Lab Dataset Match
+51446,Lymphocytes,Pleural,Lymphocytes,350.0,Kaggle Lab Dataset Match
+51427,Lymphocytes,Other Body Fluid,Lymphocytes,350.0,Kaggle Lab Dataset Match
+51431,Monos,Other Body Fluid,Monos,250.0,Kaggle Lab Dataset Match
+51436,Polys,Other Body Fluid,Polys,250.0,Kaggle Lab Dataset Match
+51236,Inpatient Hematology/Oncology Smear,Blood,Inpatient Hematology/Oncology Smear,350.0,Kaggle Lab Dataset Match
+51054,"Lactate Dehydrogenase, Pleural",Pleural,"Lactate Dehydrogenase, Pleural",250.0,Kaggle Lab Dataset Match
+51059,"Total Protein, Pleural",Pleural,"Total Protein, Pleural",250.0,Kaggle Lab Dataset Match
+51213,Fibrin Degradation Products,Blood,Fibrin Degradation Products,350.0,Kaggle Lab Dataset Match
+50915,D-Dimer,Blood,D-Dimer,350.0,Kaggle Lab Dataset Match
+51457,"RBC, Pleural",Pleural,"RBC, Pleural",250.0,Kaggle Lab Dataset Match
+51518,WBC Clumps,Urine,WBC Clumps,250.0,Kaggle Lab Dataset Match
+51053,"Glucose, Pleural",Pleural,"Glucose, Pleural",250.0,Kaggle Lab Dataset Match
+51196,D-Dimer,Blood,D-Dimer,350.0,Kaggle Lab Dataset Match
+51125,Polys,Ascites,Polys,250.0,Kaggle Lab Dataset Match
+52065,"Total Nucleated Cells, Ascites",Ascites,"Total Nucleated Cells, Ascites",250.0,Kaggle Lab Dataset Match
+51120,Monocytes,Ascites,Monocytes,350.0,Kaggle Lab Dataset Match
+51116,Lymphocytes,Ascites,Lymphocytes,350.0,Kaggle Lab Dataset Match
+51127,"RBC, Ascites",Ascites,"RBC, Ascites",250.0,Kaggle Lab Dataset Match
+51447,Macrophages,Pleural,Macrophages,250.0,Kaggle Lab Dataset Match
+51865,Influenza A by PCR,Other Body Fluid,Influenza A by PCR,250.0,Kaggle Lab Dataset Match
+51873,Influenza B by PCR,Other Body Fluid,Influenza B by PCR,250.0,Kaggle Lab Dataset Match
+51989,Oxycodone,Urine,Oxycodone,250.0,Kaggle Lab Dataset Match
+51428,Macrophage,Other Body Fluid,Macrophage,250.0,Kaggle Lab Dataset Match
+51240,Large Platelets,Blood,Large Platelets,350.0,Kaggle Lab Dataset Match
+51108,Urine Volume,Urine,Urine Volume,250.0,Kaggle Lab Dataset Match
+50978,Rapamycin,Blood,Rapamycin,350.0,Kaggle Lab Dataset Match
+50853,25-OH Vitamin D,Blood,25-OH Vitamin D,350.0,Kaggle Lab Dataset Match
+51094,pH,Urine,pH,350.0,Kaggle Lab Dataset Match
+50927,Gamma Glutamyltransferase,Blood,Gamma Glutamyltransferase,350.0,Kaggle Lab Dataset Match
+50831,pH,Other Body Fluid,pH,350.0,Kaggle Lab Dataset Match
+51625,Free Kappa,Blood,Free Kappa,350.0,Kaggle Lab Dataset Match
+51627,Free Lambda,Blood,Free Lambda,350.0,Kaggle Lab Dataset Match
+51626,Free Kappa/Free Lambda Ratio,Blood,Free Kappa/Free Lambda Ratio,350.0,Kaggle Lab Dataset Match
+51269,Promyelocytes,Blood,Promyelocytes,350.0,Kaggle Lab Dataset Match
+50872,Anti-Neutrophil Cytoplasmic Antibody,Blood,Anti-Neutrophil Cytoplasmic Antibody,350.0,Kaggle Lab Dataset Match
+52286,"Total Nucleated Cells, CSF",Cerebrospinal Fluid,Metamyelocytes,350.0,Kaggle Lab Dataset Match
+52272,Monocytes,Cerebrospinal Fluid,Monocytes,350.0,Kaggle Lab Dataset Match
+52285,"RBC, CSF",Cerebrospinal Fluid,RBC Morphology,350.0,Kaggle Lab Dataset Match
+52281,Polys,Cerebrospinal Fluid,Polys,250.0,Kaggle Lab Dataset Match
+52264,Lymphs,Cerebrospinal Fluid,Lymphs,250.0,Kaggle Lab Dataset Match
+51147,Bite Cells,Blood,Bite Cells,350.0,Kaggle Lab Dataset Match
+52008,UTX5,Urine,UTX5,250.0,Kaggle Lab Dataset Match
+50929,Gentamicin,Blood,Gentamicin,350.0,Kaggle Lab Dataset Match
+52007,UTX4,Urine,UTX4,250.0,Kaggle Lab Dataset Match
+51259,Other Cells,Blood,Other Cells,350.0,Kaggle Lab Dataset Match
+52006,UTX3,Urine,UTX3,250.0,Kaggle Lab Dataset Match
+50974,Prostate Specific Antigen,Blood,Prostate Specific Antigen,350.0,Kaggle Lab Dataset Match
+52004,UTX1,Urine,UTX1,250.0,Kaggle Lab Dataset Match
+52005,UTX2,Urine,UTX2,250.0,Kaggle Lab Dataset Match
+50948,Immunofixation,Blood,Immunofixation,350.0,Kaggle Lab Dataset Match
+52009,UTX6,Urine,UTX6,250.0,Kaggle Lab Dataset Match
+51067,24 hr Creatinine,Urine,24 hr Creatinine,450.0,Kaggle Lab Dataset Match
+52010,UTX7,Urine,UTX7,250.0,Kaggle Lab Dataset Match
+51448,Mesothelial Cells,Pleural,Mesothelial Cells,250.0,Kaggle Lab Dataset Match
+51660,HPE4,Blood,HPE4,350.0,Kaggle Lab Dataset Match
+51117,Macrophage,Ascites,Macrophage,250.0,Kaggle Lab Dataset Match
+50906,"Cholesterol, LDL, Measured",Blood,"Cholesterol, LDL, Measured",350.0,Kaggle Lab Dataset Match
+51046,"Albumin, Pleural",Pleural,"Albumin, Pleural",250.0,Kaggle Lab Dataset Match
+50938,Hepatitis A Virus IgM Antibody,Blood,Hepatitis A Virus IgM Antibody,350.0,Kaggle Lab Dataset Match
+52424,RFXUCU,Urine,RFXUCU,250.0,Kaggle Lab Dataset Match
+50890,C3,Blood,C3,350.0,Kaggle Lab Dataset Match
+50997,Tobramycin,Blood,Tobramycin,350.0,Kaggle Lab Dataset Match
+51051,"Cholesterol, Pleural",Pleural,"Cholesterol, Pleural",250.0,Kaggle Lab Dataset Match
+50891,C4,Blood,C4,350.0,Kaggle Lab Dataset Match
+50835,"Albumin, Ascites",Ascites,"Albumin, Ascites",250.0,Kaggle Lab Dataset Match
+50980,Rheumatoid Factor,Blood,Rheumatoid Factor,350.0,Kaggle Lab Dataset Match
+50849,"Total Protein, Ascites",Ascites,"Total Protein, Ascites",250.0,Kaggle Lab Dataset Match
+51216,Fragmented Cells,Blood,Fragmented Cells,350.0,Kaggle Lab Dataset Match
+51802,"Total Protein, CSF",Cerebrospinal Fluid,"Protein, Total",350.0,Kaggle Lab Dataset Match
+51118,Mesothelial Cell,Ascites,Mesothelial Cell,250.0,Kaggle Lab Dataset Match
+51086,"Immunofixation, Urine",Urine,Immunofixation,350.0,Kaggle Lab Dataset Match
+50874,"Anti-Nuclear Antibody, Titer",Blood,"Anti-Nuclear Antibody, Titer",350.0,Kaggle Lab Dataset Match
+51790,"Glucose, CSF",Cerebrospinal Fluid,Glucose,350.0,Kaggle Lab Dataset Match
+51734,STX3,Blood,STX3,350.0,Kaggle Lab Dataset Match
+51732,STX1,Blood,STX1,350.0,Kaggle Lab Dataset Match
+51737,STX6,Blood,STX6,350.0,Kaggle Lab Dataset Match
+50866,Ammonia,Blood,Ammonia,350.0,Kaggle Lab Dataset Match
+51076,"Bicarbonate, Urine",Urine,Bicarbonate,450.0,Kaggle Lab Dataset Match
+50876,Anti-Smooth Muscle Antibody,Blood,Anti-Smooth Muscle Antibody,350.0,Kaggle Lab Dataset Match
+51893,Staph aureus PCR,Other Body Fluid,Staph aureus PCR,250.0,Kaggle Lab Dataset Match
+51095,"Phosphate, Urine",Urine,Phosphate,350.0,Kaggle Lab Dataset Match
+51877,MRSA PCR,Other Body Fluid,MRSA PCR,250.0,Kaggle Lab Dataset Match
+51733,STX2,Blood,STX2,350.0,Kaggle Lab Dataset Match
+51176,"CD3 Cells, Percent",Blood,"CD3 Cells, Percent",350.0,Kaggle Lab Dataset Match
+51150,Blood Parasite Smear,Blood,Blood Parasite Smear,350.0,Kaggle Lab Dataset Match
+50805,Carboxyhemoglobin,Blood,Carboxyhemoglobin,350.0,Kaggle Lab Dataset Match
+51180,"CD4 Cells, Percent",Blood,"CD4 Cells, Percent",350.0,Kaggle Lab Dataset Match
+51194,"CD8 Cells, Percent",Blood,"CD8 Cells, Percent",350.0,Kaggle Lab Dataset Match
+51219,H/O Smear,Blood,H/O Smear,350.0,Kaggle Lab Dataset Match
+51453,Other,Pleural,Other,250.0,Kaggle Lab Dataset Match
+52369,"Total Nucleated Cells, Other",Other Body Fluid,"Total Nucleated Cells, Other",250.0,Kaggle Lab Dataset Match
+52195,Voided Specimen,Blood,Voided Specimen,350.0,Kaggle Lab Dataset Match
+51068,24 hr Protein,Urine,24 hr Protein,250.0,Kaggle Lab Dataset Match
+50814,Methemoglobin,Blood,Methemoglobin,350.0,Kaggle Lab Dataset Match
+51434,Other Cell,Other Body Fluid,Other Cell,250.0,Kaggle Lab Dataset Match
+50939,"Hepatitis B Core Antibody, IgM",Blood,"Hepatitis B Core Antibody, IgM",350.0,Kaggle Lab Dataset Match
+51933,C. diff PCR,Stool,C. diff PCR,250.0,Kaggle Lab Dataset Match
+51956,CDT027,Stool,CDT027,250.0,Kaggle Lab Dataset Match
+51300,WBC Count,Blood,WBC Count,350.0,Kaggle Lab Dataset Match
+52769,Absolute Lymphocyte Count,Blood,Absolute Lymphocyte Count,350.0,Kaggle Lab Dataset Match
+51245,"Lymphocytes, Percent",Blood,"Lymphocytes, Percent",350.0,Kaggle Lab Dataset Match
+51130,Absolute CD3 Count,Blood,Absolute CD3 Count,350.0,Kaggle Lab Dataset Match
+51438,"RBC, Other Fluid",Other Body Fluid,"RBC, Other Fluid",250.0,Kaggle Lab Dataset Match
+51181,CD4/CD8 Ratio,Blood,CD4/CD8 Ratio,350.0,Kaggle Lab Dataset Match
+51131,Absolute CD4 Count,Blood,Absolute CD4 Count,350.0,Kaggle Lab Dataset Match
+51132,Absolute CD8 Count,Blood,Absolute CD8 Count,350.0,Kaggle Lab Dataset Match
+52024,"Creatinine, Whole Blood",Blood,"Creatinine, Serum",450.0,Kaggle Lab Dataset Match
+53174,COV8MC,Other Body Fluid,COV8MC,250.0,Kaggle Lab Dataset Match
+51069,"Albumin, Urine",Urine,Albumin,350.0,Kaggle Lab Dataset Match
+51070,"Albumin/Creatinine, Urine",Urine,"Albumin/Creatinine, Urine",450.0,Kaggle Lab Dataset Match
+50843,"Lactate Dehydrogenase, Ascites",Ascites,"Lactate Dehydrogenase, Ascites",250.0,Kaggle Lab Dataset Match
+53173,COV8IC,Other Body Fluid,COV8IC,250.0,Kaggle Lab Dataset Match
+53105,E GENE CT,Other Body Fluid,E GENE CT,250.0,Kaggle Lab Dataset Match
+53112,N2 GENE ENDPT,Other Body Fluid,N2 GENE ENDPT,250.0,Kaggle Lab Dataset Match
+51382,Polys,Joint Fluid,Polys,250.0,Kaggle Lab Dataset Match
+52312,"Total Nucleated Cells, Joint",Joint Fluid,"Total Nucleated Cells, Joint",250.0,Kaggle Lab Dataset Match
+50842,"Glucose, Ascites",Ascites,"Glucose, Ascites",250.0,Kaggle Lab Dataset Match
+53106,E GENE ENDPT,Other Body Fluid,E GENE ENDPT,250.0,Kaggle Lab Dataset Match
+51375,Lymphocytes,Joint Fluid,Lymphocytes,350.0,Kaggle Lab Dataset Match
+53111,N2 GENE CT,Other Body Fluid,N2 GENE CT,250.0,Kaggle Lab Dataset Match
+51379,Monocytes,Joint Fluid,Monocytes,350.0,Kaggle Lab Dataset Match
+50871,Anti-Mitochondrial Antibody,Blood,Anti-Mitochondrial Antibody,350.0,Kaggle Lab Dataset Match
+51398,CD19,Other Body Fluid,CD19,250.0,Kaggle Lab Dataset Match
+51419,Eosinophils,Other Body Fluid,Eosinophils,350.0,Kaggle Lab Dataset Match
+51105,"Uric Acid, Urine",Urine,Uric Acid,350.0,Kaggle Lab Dataset Match
+51243,Lupus Anticoagulant,Blood,Lupus Anticoagulant,350.0,Kaggle Lab Dataset Match
+51497,Renal Epithelial Cells,Urine,Renal Epithelial Cells,250.0,Kaggle Lab Dataset Match
+51005,Uptake Ratio,Blood,Uptake Ratio,350.0,Kaggle Lab Dataset Match
+50996,"Tissue Transglutaminase Ab, IgA",Blood,"Tissue Transglutaminase Ab, IgA",350.0,Kaggle Lab Dataset Match
+50895,Calculated TBG,Blood,Calculated TBG,350.0,Kaggle Lab Dataset Match
+51383,"RBC, Joint Fluid",Joint Fluid,"RBC, Joint Fluid",250.0,Kaggle Lab Dataset Match
+51424,Immunophenotyping,Other Body Fluid,Immunophenotyping,250.0,Kaggle Lab Dataset Match
+51411,CD45,Other Body Fluid,CD45,250.0,Kaggle Lab Dataset Match
+50896,Calculated Thyroxine (T4) Index,Blood,Calculated Thyroxine (T4) Index,350.0,Kaggle Lab Dataset Match
+51373,"Joint Crystals, Number",Joint Fluid,"Joint Crystals, Number",250.0,Kaggle Lab Dataset Match
+51749,Treponema pallidum (syphilis) value,Blood,Treponema pallidum (Syphilis) Ab,350.0,Kaggle Lab Dataset Match
+50918,Double Stranded DNA,Blood,Double Stranded DNA,350.0,Kaggle Lab Dataset Match
+51748,Treponema pallidum (Syphilis) Ab,Blood,Treponema pallidum (Syphilis) Ab,350.0,Kaggle Lab Dataset Match
+51297,Thrombin,Blood,Thrombin,350.0,Kaggle Lab Dataset Match
+51085,"HCG, Urine, Qualitative",Urine,"HCG, Urine, Qualitative",250.0,Kaggle Lab Dataset Match
+51469,Calcium Oxalate Crystals,Urine,Calcium Oxalate Crystals,450.0,Kaggle Lab Dataset Match
+51505,Uric Acid Crystals,Urine,Uric Acid Crystals,250.0,Kaggle Lab Dataset Match
+51586,CMV IgG Ab,Blood,CMV IgG Ab,350.0,Kaggle Lab Dataset Match
+51587,CMV IgG Ab Value,Blood,CMV IgG Ab Value,350.0,Kaggle Lab Dataset Match
+51077,"Calcium, Urine",Urine,"Calcium, Total",450.0,Kaggle Lab Dataset Match
+50961,Methotrexate,Blood,Methotrexate,350.0,Kaggle Lab Dataset Match
+51140,Antithrombin,Blood,Antithrombin,350.0,Kaggle Lab Dataset Match
+51444,Eosinophils,Pleural,Eosinophils,350.0,Kaggle Lab Dataset Match
+51231,Howell-Jolly Bodies,Blood,Howell-Jolly Bodies,350.0,Kaggle Lab Dataset Match
+50900,Carcinoembyronic Antigen (CEA),Blood,Carcinoembyronic Antigen (CEA),350.0,Kaggle Lab Dataset Match
+50864,Alpha-Fetoprotein,Blood,Alpha-Fetoprotein,350.0,Kaggle Lab Dataset Match
+50946,Human Chorionic Gonadotropin,Blood,Human Chorionic Gonadotropin,350.0,Kaggle Lab Dataset Match
+51284,"Reticulocyte Count, Manual",Blood,"Reticulocyte Count, Manual",350.0,Kaggle Lab Dataset Match
+51429,Mesothelial cells,Other Body Fluid,Mesothelial Cells,250.0,Kaggle Lab Dataset Match
+51229,"Heparin, LMW",Blood,"Heparin, LMW",350.0,Kaggle Lab Dataset Match
+51047,"Amylase, Pleural",Pleural,"Amylase, Pleural",250.0,Kaggle Lab Dataset Match
+51614,Epstein-Barr Virus  EBNA IgG Ab,Blood,Epstein-Barr Virus EBNA IgG Ab,350.0,Kaggle Lab Dataset Match
+52132,HIT-Ab Numerical Result,Blood,HIT-Ab Numerical Result,350.0,Kaggle Lab Dataset Match
+51618,Epstein-Barr Virus Interpretation,Blood,Epstein-Barr Virus Interpretation,350.0,Kaggle Lab Dataset Match
+51616,Epstein-Barr Virus IgG Ab Value,Blood,Epstein-Barr Virus IgG Ab Value,350.0,Kaggle Lab Dataset Match
+51617,Epstein-Barr Virus IgM Ab Value,Blood,Epstein-Barr Virus IgM Ab Value,350.0,Kaggle Lab Dataset Match
+51619,Epstein-Barr Virus VCA IgG Ab,Blood,Epstein-Barr Virus VCA IgG Ab,350.0,Kaggle Lab Dataset Match
+51620,Epstein-Barr Virus VCA IgM Ab,Blood,Epstein-Barr Virus VCA IgM Ab,350.0,Kaggle Lab Dataset Match
+51404,CD3,Other Body Fluid,CD3,250.0,Kaggle Lab Dataset Match
+52026,Estimated GFR (MDRD equation),Blood,Estimated GFR (CKD- EPI Refit),350.0,Kaggle Lab Dataset Match
+51615,Epstein-Barr Virus EBNA IgG Ab,Blood,Epstein-Barr Virus EBNA IgG Ab,350.0,Kaggle Lab Dataset Match
+52131,HIT-Ab Interpreted Result,Blood,HIT-Ab Interpreted Result,350.0,Kaggle Lab Dataset Match
+51262,Pencil Cells,Blood,Pencil Cells,350.0,Kaggle Lab Dataset Match
+51426,Lambda,Other Body Fluid,Lambda,250.0,Kaggle Lab Dataset Match
+51425,Kappa,Other Body Fluid,Kappa,250.0,Kaggle Lab Dataset Match
+51123,Other,Ascites,Other,250.0,Kaggle Lab Dataset Match
+50836,"Amylase, Ascites",Ascites,"Amylase, Ascites",250.0,Kaggle Lab Dataset Match
+50881,Beta-2 Microglobulin,Blood,Beta-2 Microglobulin,350.0,Kaggle Lab Dataset Match
+50913,Cryoglobulin,Blood,Cryoglobulin,350.0,Kaggle Lab Dataset Match
+51342,Wright Giemsa,Bone Marrow,Wright Giemsa,250.0,Kaggle Lab Dataset Match
+53113,Rapid Respiratory Syncytial Virus,Other Body Fluid,Rapid Respiratory Syncytial Virus,250.0,Kaggle Lab Dataset Match
+52427,UCU2,Urine,UCU2,250.0,Kaggle Lab Dataset Match
+50841,"Creatinine, Ascites",Ascites,"Creatinine, Ascites",450.0,Kaggle Lab Dataset Match
+51374,"Joint Crystals, Shape",Joint Fluid,"Joint Crystals, Shape",250.0,Kaggle Lab Dataset Match
+51372,"Joint Crystals, Location",Joint Fluid,"Joint Crystals, Location",250.0,Kaggle Lab Dataset Match
+51198,Envelope Cells,Blood,Envelope Cells,350.0,Kaggle Lab Dataset Match
+51338,Immunophenotyping,Bone Marrow,Immunophenotyping,250.0,Kaggle Lab Dataset Match
+51139,Anticardiolipin Antibody IgM,Blood,Anticardiolipin Antibody IgM,350.0,Kaggle Lab Dataset Match
+51088,"Magnesium, Urine",Urine,Magnesium,450.0,Kaggle Lab Dataset Match
+51371,"Joint Crystals, Comment",Joint Fluid,"Joint Crystals, Comment",250.0,Kaggle Lab Dataset Match
+51654,HIV 1 Viral Load,Blood,HIV 1 Viral Load,350.0,Kaggle Lab Dataset Match
+53098,COV11,Other Body Fluid,COV11,250.0,Kaggle Lab Dataset Match
+51370,"Joint Crystals, Birefringence",Joint Fluid,"Joint Crystals, Birefringence",250.0,Kaggle Lab Dataset Match
+51742,Toxoplasma IgG Ab Value,Blood,Toxoplasma IgG Ab Value,350.0,Kaggle Lab Dataset Match
+52014,Voided Specimen,Urine,Voided Specimen,350.0,Kaggle Lab Dataset Match
+51741,Toxoplasma IgG Ab,Blood,Toxoplasma IgG Ab,350.0,Kaggle Lab Dataset Match
+53097,COV10,Other Body Fluid,COV10,250.0,Kaggle Lab Dataset Match
+51138,Anticardiolipin Antibody IgG,Blood,Anticardiolipin Antibody IgG,350.0,Kaggle Lab Dataset Match
+51745,Toxoplasma Interpretation,Blood,Toxoplasma Interpretation,350.0,Kaggle Lab Dataset Match
+51445,"Hematocrit, Pleural",Pleural,"Hematocrit, Pleural",250.0,Kaggle Lab Dataset Match
+51694,Mumps IgG Ab Value,Blood,Mumps IgG Ab Value,350.0,Kaggle Lab Dataset Match
+53169,Ceph-IC,Other Body Fluid,Ceph-IC,250.0,Kaggle Lab Dataset Match
+51753,VZV IgG Ab,Blood,VZV IgG Ab,350.0,Kaggle Lab Dataset Match
+51693,Mumps IgG Ab,Blood,Mumps IgG Ab,350.0,Kaggle Lab Dataset Match
+50968,"Phenytoin, Free",Blood,"Phenytoin, Free",350.0,Kaggle Lab Dataset Match
+51754,VZV IgG Ab Value,Blood,VZV IgG Ab Value,350.0,Kaggle Lab Dataset Match
+50969,"Phenytoin, Percent Free",Blood,"Phenytoin, Percent Free",350.0,Kaggle Lab Dataset Match
+51662,HPE6,Blood,HPE6,350.0,Kaggle Lab Dataset Match
+51726,Rubeola IgG Ab Value,Blood,Rubeola IgG Ab Value,350.0,Kaggle Lab Dataset Match
+51261,Pappenheimer Bodies,Blood,Pappenheimer Bodies,350.0,Kaggle Lab Dataset Match
+51725,Rubeola IgG Ab,Blood,Rubeola IgG Ab,350.0,Kaggle Lab Dataset Match
+51234,Immunophenotyping,Blood,Immunophenotyping,250.0,Kaggle Lab Dataset Match
+51460,"Blood, Occult",Stool,"Blood, Occult",250.0,Kaggle Lab Dataset Match
+51839,Anat Path Hold,Other Body Fluid,Anat Path Hold,250.0,Kaggle Lab Dataset Match
+50992,Thyroid Peroxidase Antibodies,Blood,Thyroid Peroxidase Antibodies,350.0,Kaggle Lab Dataset Match
+51388,CD10,Other Body Fluid,CD10,250.0,Kaggle Lab Dataset Match
+51724,Rubella IgG Ab,Blood,Rubella IgG Ab,350.0,Kaggle Lab Dataset Match
+51060,"Triglycerides, Pleural",Pleural,"Triglycerides, Pleural",250.0,Kaggle Lab Dataset Match
+51769,RUBIgGV,Blood,RUBIgGV,350.0,Kaggle Lab Dataset Match
+51376,Macrophage,Joint Fluid,Macrophage,250.0,Kaggle Lab Dataset Match
+52266,Macrophage,Cerebrospinal Fluid,Macrophage,250.0,Kaggle Lab Dataset Match
+51400,CD20,Other Body Fluid,CD20,250.0,Kaggle Lab Dataset Match
+50957,Lithium,Blood,Lithium,350.0,Kaggle Lab Dataset Match
+51325,CD45,Bone Marrow,CD45,250.0,Kaggle Lab Dataset Match
+50857,Acetone,Blood,Acetone,350.0,Kaggle Lab Dataset Match
+51412,CD5,Other Body Fluid,CD5,250.0,Kaggle Lab Dataset Match
+50973,Prolactin,Blood,Prolactin,350.0,Kaggle Lab Dataset Match
+51423,HLA-DR,Other Body Fluid,HLA-DR,250.0,Kaggle Lab Dataset Match
+51420,FMC-7,Other Body Fluid,FMC-7,250.0,Kaggle Lab Dataset Match
+51235,Inhibitor Screen,Blood,Inhibitor Screen,350.0,Kaggle Lab Dataset Match
+51402,CD23,Other Body Fluid,CD23,250.0,Kaggle Lab Dataset Match
+53170,CephIC Endpt,Other Body Fluid,CephIC Endpt,250.0,Kaggle Lab Dataset Match
+50865,Amikacin,Blood,Amikacin,350.0,Kaggle Lab Dataset Match
+51735,STX4,Blood,STX4,350.0,Kaggle Lab Dataset Match
+51276,Quantitative G6PD,Blood,Quantitative G6PD,350.0,Kaggle Lab Dataset Match
+51321,CD34,Bone Marrow,CD34,250.0,Kaggle Lab Dataset Match
+51056,"Miscellaneous, Pleural",Pleural,"Miscellaneous, Pleural",250.0,Kaggle Lab Dataset Match
+51736,STX5,Blood,STX5,350.0,Kaggle Lab Dataset Match
+51406,CD34,Other Body Fluid,CD34,250.0,Kaggle Lab Dataset Match
+51263,Plasma Cells,Blood,Other Cell,250.0,Kaggle Lab Dataset Match
+51313,CD19,Bone Marrow,CD19,250.0,Kaggle Lab Dataset Match
+51247,MacroOvalocytes,Blood,MacroOvalocytes,350.0,Kaggle Lab Dataset Match
+51598,Cytomegalovirus Viral Load,Blood,Cytomegalovirus Viral Load,350.0,Kaggle Lab Dataset Match
+51772,PAN3,Blood,PAN3,350.0,Kaggle Lab Dataset Match
+51588,CMV IgM Ab,Blood,CMV IgM Ab,350.0,Kaggle Lab Dataset Match
+51590,CMV Interpretation,Blood,CMV Interpretation,350.0,Kaggle Lab Dataset Match
+50838,"Bilirubin, Total, Ascites",Ascites,"Bilirubin, Total, Ascites",250.0,Kaggle Lab Dataset Match
+52426,UCU1,Urine,UCU1,250.0,Kaggle Lab Dataset Match
+51183,CD45,Blood,CD45,250.0,Kaggle Lab Dataset Match
+51921,"proBNP, Pleural",Pleural,"proBNP, Pleural",1500.0,Kaggle Lab Dataset Match
+51164,CD19,Blood,CD19,250.0,Kaggle Lab Dataset Match
+51114,Eosinophils,Ascites,Eosinophils,350.0,Kaggle Lab Dataset Match
+51795,"Lactate Dehydrogenase, CSF",Cerebrospinal Fluid,Lactate Dehydrogenase (LD),350.0,Kaggle Lab Dataset Match
+51481,Hemosiderin,Urine,Hemosiderin,250.0,Kaggle Lab Dataset Match
+51307,CD13,Bone Marrow,CD13,250.0,Kaggle Lab Dataset Match
+52955,CD10,Bone Marrow,CD10,250.0,Kaggle Lab Dataset Match
+51689,Lyme G and M Value,Blood,Lyme G and M Value,350.0,Kaggle Lab Dataset Match
+50932,Gray Top Hold (plasma),Blood,Light Green Top Hold,350.0,Kaggle Lab Dataset Match
+51052,"Creatinine, Pleural",Pleural,"Creatinine, Pleural",450.0,Kaggle Lab Dataset Match
+51271,"Protein C, Functional",Blood,"Protein C, Functional",350.0,Kaggle Lab Dataset Match
+51305,CD117,Bone Marrow,CD117,250.0,Kaggle Lab Dataset Match
+51152,CD10,Blood,CD10,250.0,Kaggle Lab Dataset Match
+51648,Hepatitis B Viral Load,Blood,Hepatitis B Viral Load,350.0,Kaggle Lab Dataset Match
+51315,CD20,Bone Marrow,CD20,250.0,Kaggle Lab Dataset Match
+51273,"Protein S, Functional",Blood,"Protein S, Functional",350.0,Kaggle Lab Dataset Match
+51026,"Amylase, Body Fluid",Other Body Fluid,"Amylase, Body Fluid",250.0,Kaggle Lab Dataset Match
+52256,Eosinophils,Cerebrospinal Fluid,Eosinophils,350.0,Kaggle Lab Dataset Match
+51337,HLA-DR,Bone Marrow,HLA-DR,250.0,Kaggle Lab Dataset Match
+51422,"Hematocrit, Other Fluid",Other Body Fluid,"Hematocrit, Other Fluid",250.0,Kaggle Lab Dataset Match
+51184,CD5,Blood,CD5,250.0,Kaggle Lab Dataset Match
+51319,CD3,Bone Marrow,CD3,250.0,Kaggle Lab Dataset Match
+51168,CD20,Blood,CD20,250.0,Kaggle Lab Dataset Match
+51206,Factor VIII,Blood,Factor VIII,350.0,Kaggle Lab Dataset Match
+50877,Anti-Thyroglobulin Antibodies,Blood,Anti-Thyroglobulin Antibodies,350.0,Kaggle Lab Dataset Match
+51310,CD15,Bone Marrow,CD15,250.0,Kaggle Lab Dataset Match
+51239,Lambda,Blood,Lambda,250.0,Kaggle Lab Dataset Match
+52358,Lining Cell,Other Body Fluid,Lining Cell,250.0,Kaggle Lab Dataset Match
+51340,Kappa,Bone Marrow,Kappa,250.0,Kaggle Lab Dataset Match
+51567,Beta Hydroxybutyrate,Blood,Beta Hydroxybutyrate,350.0,Kaggle Lab Dataset Match
+51326,CD5,Bone Marrow,CD5,250.0,Kaggle Lab Dataset Match
+51651,Hepatitis C Viral Load,Blood,Hepatitis C Viral Load,350.0,Kaggle Lab Dataset Match
+51341,Lambda,Bone Marrow,Lambda,250.0,Kaggle Lab Dataset Match
+51238,Kappa,Blood,Kappa,250.0,Kaggle Lab Dataset Match
+51227,Hemogloblin S,Blood,Hemogloblin S,350.0,Kaggle Lab Dataset Match
+51230,HLA-DR,Blood,HLA-DR,250.0,Kaggle Lab Dataset Match
+51224,Hemoglobin C,Blood,Hemoglobin C,350.0,Kaggle Lab Dataset Match
+51953,Voided Specimen,Stool,Voided Specimen,350.0,Kaggle Lab Dataset Match
+51661,HPE5,Blood,HPE5,350.0,Kaggle Lab Dataset Match
+51226,Hemogloblin A,Blood,Hemogloblin A,350.0,Kaggle Lab Dataset Match
+52278,Other,Cerebrospinal Fluid,Other,250.0,Kaggle Lab Dataset Match
+51332,CD7,Bone Marrow,CD7,250.0,Kaggle Lab Dataset Match
+51043,"Total Protein, Body Fluid",Other Body Fluid,"Total Protein, Body Fluid",250.0,Kaggle Lab Dataset Match
+51225,Hemoglobin F,Blood,Hemoglobin F,350.0,Kaggle Lab Dataset Match
+51215,FMC-7,Blood,FMC-7,250.0,Kaggle Lab Dataset Match
+52123,"G6PD, Qualitative",Blood,"G6PD, Qualitative",350.0,Kaggle Lab Dataset Match
+51172,CD23,Blood,CD23,250.0,Kaggle Lab Dataset Match
+51314,CD2,Bone Marrow,CD2,250.0,Kaggle Lab Dataset Match
+51416,CD7,Other Body Fluid,CD7,250.0,Kaggle Lab Dataset Match
+51499,Sperm,Urine,Sperm,250.0,Kaggle Lab Dataset Match
+51688,Lyme C6 Ab,Blood,Lyme C6 Ab,350.0,Kaggle Lab Dataset Match
+50892,CA-125,Blood,CA-125,350.0,Kaggle Lab Dataset Match
+51034,"Glucose, Body Fluid",Other Body Fluid,"Glucose, Body Fluid",250.0,Kaggle Lab Dataset Match
+52992,Iron Stain,Bone Marrow,Iron Stain,250.0,Kaggle Lab Dataset Match
+51035,"LD, Body Fluid",Other Body Fluid,"LD, Body Fluid",250.0,Kaggle Lab Dataset Match
+51901,Voided Specimen,Other Body Fluid,Voided Specimen,350.0,Kaggle Lab Dataset Match
+51025,"Albumin, Body Fluid",Other Body Fluid,"Albumin, Body Fluid",250.0,Kaggle Lab Dataset Match
+50850,"Triglycerides, Ascites",Ascites,"Triglycerides, Ascites",250.0,Kaggle Lab Dataset Match
+51399,CD2,Other Body Fluid,CD2,250.0,Kaggle Lab Dataset Match
+51091,"Myoglobin, Urine",Urine,CK-MB Index,1500.0,Kaggle Lab Dataset Match
+52223,Bands,Cerebrospinal Fluid,Bands,350.0,Kaggle Lab Dataset Match
+51517,WBC Casts,Urine,WBC Casts,250.0,Kaggle Lab Dataset Match
+51386,Bands,Other Body Fluid,Bands,350.0,Kaggle Lab Dataset Match
+51980,Fentanyl,Urine,Fentanyl,250.0,Kaggle Lab Dataset Match
+51331,CD64,Bone Marrow,CD64,250.0,Kaggle Lab Dataset Match
+51934,C Diff Toxin Antigen Assay,Stool,C Diff Toxin Antigen Assay,250.0,Kaggle Lab Dataset Match
+51946,Norovirus Genogroup II,Stool,Norovirus Genogroup II,250.0,Kaggle Lab Dataset Match
+51945,Norovirus Genogroup I,Stool,Norovirus Genogroup I,250.0,Kaggle Lab Dataset Match
+52020,UTX10,Urine,UTX10,250.0,Kaggle Lab Dataset Match
+51291,Sickle Cells,Blood,Sickle Cells,350.0,Kaggle Lab Dataset Match
+51513,Urine Specimen Type,Urine,Specimen Type,350.0,Kaggle Lab Dataset Match
+51454,Plasma Cells,Pleural,Other Cell,250.0,Kaggle Lab Dataset Match
+51320,CD33,Bone Marrow,CD33,250.0,Kaggle Lab Dataset Match
+51223,Hemoglobin A2,Blood,Hemoglobin A2,350.0,Kaggle Lab Dataset Match
+51369,"Hematocrit, Joint Fluid",Joint Fluid,"Hematocrit, Joint Fluid",250.0,Kaggle Lab Dataset Match
+51328,CD56,Bone Marrow,CD56,250.0,Kaggle Lab Dataset Match
+52109,dRVVT - Screen,Blood,dRVVT - Screen,350.0,Kaggle Lab Dataset Match
+53180,Estimated GFR (CKD- EPI 2021),Blood,Estimated GFR (CKD- EPI Refit),350.0,Kaggle Lab Dataset Match
+51503,Triple Phosphate Crystals,Urine,Triple Phosphate Crystals,250.0,Kaggle Lab Dataset Match
+51335,FMC-7,Bone Marrow,FMC-7,250.0,Kaggle Lab Dataset Match
+51334,CD8,Bone Marrow,CD8,250.0,Kaggle Lab Dataset Match
+51655,HIV 2 Ab Confirmation,Blood,HIV 2 Ab Confirmation,350.0,Kaggle Lab Dataset Match
+51317,CD23,Bone Marrow,CD23,250.0,Kaggle Lab Dataset Match
+51080,Creatinine Clearance,Urine,Creatinine Clearance,450.0,Kaggle Lab Dataset Match
+51309,CD14,Bone Marrow,CD14,250.0,Kaggle Lab Dataset Match
+51038,"Miscellaneous, Body Fluid",Other Body Fluid,"Miscellaneous, Body Fluid",250.0,Kaggle Lab Dataset Match
+51110,Atypical Lymphocytes,Ascites,Atypical Lymphocytes,350.0,Kaggle Lab Dataset Match
+51653,HIV 1 Ab Confirmation,Blood,HIV 1 Ab Confirmation,350.0,Kaggle Lab Dataset Match
+51106,Urine Creatinine,Urine,Creatinine,450.0,Kaggle Lab Dataset Match
+51323,CD4,Bone Marrow,CD4,250.0,Kaggle Lab Dataset Match
+51440,Atypical Lymphocytes,Pleural,Atypical Lymphocytes,350.0,Kaggle Lab Dataset Match
+53175,RdRP Ct,Other Body Fluid,RdRP Ct,250.0,Kaggle Lab Dataset Match
+51081,"Creatinine, Serum",Urine,"Creatinine, Serum",450.0,Kaggle Lab Dataset Match
+51124,Plasma,Ascites,Other,250.0,Kaggle Lab Dataset Match
+51433,NRBC,Other Body Fluid,NRBC,250.0,Kaggle Lab Dataset Match
+50991,Thyroglobulin,Blood,Thyroglobulin,350.0,Kaggle Lab Dataset Match
+51175,CD3 Absolute Count,Blood,CD3 Absolute Count,350.0,Kaggle Lab Dataset Match
+51507,"Urine Casts, Other",Urine,"Urine Casts, Other",250.0,Kaggle Lab Dataset Match
+51174,CD3 %,Blood,CD3 %,350.0,Kaggle Lab Dataset Match
+51232,Hypersegmented Neutrophils,Blood,Hypersegmented Neutrophils,350.0,Kaggle Lab Dataset Match
+52221,Atypical Lymphocytes,Cerebrospinal Fluid,Atypical Lymphocytes,350.0,Kaggle Lab Dataset Match
+53100,COV13,Other Body Fluid,COV13,250.0,Kaggle Lab Dataset Match
+50945,Homocysteine,Blood,Homocysteine,350.0,Kaggle Lab Dataset Match
+50901,Centromere,Blood,Centromere,350.0,Kaggle Lab Dataset Match
+51509,Urine Comments,Urine,Other,250.0,Kaggle Lab Dataset Match
+51385,Atypical Lymphocytes,Other Body Fluid,Atypical Lymphocytes,350.0,Kaggle Lab Dataset Match
+51109,"Urine Volume, Total",Urine,Urine Volume,250.0,Kaggle Lab Dataset Match
+53099,COV12,Other Body Fluid,COV12,250.0,Kaggle Lab Dataset Match
+51442,Basophils,Pleural,Basophils,350.0,Kaggle Lab Dataset Match
+51101,Total Collection Time,Urine,Total Collection Time,250.0,Kaggle Lab Dataset Match
+53176,RdRP Endpt,Other Body Fluid,RdRP Endpt,250.0,Kaggle Lab Dataset Match
+51199,Eosinophil Count,Blood,Eosinophil Count,350.0,Kaggle Lab Dataset Match
+51192,CD7,Blood,CD7,250.0,Kaggle Lab Dataset Match
+50958,Luteinizing Hormone,Blood,Luteinizing Hormone,350.0,Kaggle Lab Dataset Match
+51515,Waxy Casts,Urine,Waxy Casts,250.0,Kaggle Lab Dataset Match
+50982,Sex Hormone Binding Globulin,Blood,Sex Hormone Binding Globulin,350.0,Kaggle Lab Dataset Match
+51167,CD2,Blood,CD2,250.0,Kaggle Lab Dataset Match
+51368,Eosinophils,Joint Fluid,Eosinophils,350.0,Kaggle Lab Dataset Match
+53109,FLUB1,Other Body Fluid,FLUB1,250.0,Kaggle Lab Dataset Match
+53107,FLUA1,Other Body Fluid,FLUA1,250.0,Kaggle Lab Dataset Match
+53108,FLUA2,Other Body Fluid,FLUA2,250.0,Kaggle Lab Dataset Match
+53095,Lyme VsIE/PepC10 Antibody,Blood,Lyme VsIE/PepC10 Antibody,350.0,Kaggle Lab Dataset Match
+53115,RSV2,Other Body Fluid,RSV2,250.0,Kaggle Lab Dataset Match
+53110,FLUB2,Other Body Fluid,FLUB2,250.0,Kaggle Lab Dataset Match
+53094,HBV VL CT,Blood,HBV VL CT,350.0,Kaggle Lab Dataset Match
+51178,CD34,Blood,CD34,250.0,Kaggle Lab Dataset Match
+50894,Calculated Free Testosterone,Blood,Calculated Free Testosterone,350.0,Kaggle Lab Dataset Match
+51489,NonSquamous Epithelial Cell,Urine,NonSquamous Epithelial Cell,250.0,Kaggle Lab Dataset Match
+53114,RSV1,Other Body Fluid,RSV1,250.0,Kaggle Lab Dataset Match
+50988,Testosterone,Blood,Testosterone,350.0,Kaggle Lab Dataset Match
+51471,Cellular Cast,Urine,Cellular Cast,250.0,Kaggle Lab Dataset Match
+51163,CD16/56%,Blood,CD16/56%,350.0,Kaggle Lab Dataset Match
+51418,CD8,Other Body Fluid,CD8,250.0,Kaggle Lab Dataset Match
+51413,CD56,Other Body Fluid,CD56,250.0,Kaggle Lab Dataset Match
+51333,CD71,Bone Marrow,CD71,250.0,Kaggle Lab Dataset Match
+51032,"Creatinine, Body Fluid",Other Body Fluid,"Creatinine, Body Fluid",450.0,Kaggle Lab Dataset Match
+51289,Serum Viscosity,Blood,Serum Viscosity,350.0,Kaggle Lab Dataset Match
+51579,CA 19-9,Blood,CA 19-9,350.0,Kaggle Lab Dataset Match
+51306,CD11c,Bone Marrow,CD11c,250.0,Kaggle Lab Dataset Match
+51049,"Bilirubin, Total, Pleural",Pleural,"Bilirubin, Total, Pleural",250.0,Kaggle Lab Dataset Match
+51066,24 hr Calcium,Urine,24 hr Calcium,450.0,Kaggle Lab Dataset Match
+52179,SCT - Screen,Blood,SCT - Screen,350.0,Kaggle Lab Dataset Match
+51408,CD4,Other Body Fluid,CD4,250.0,Kaggle Lab Dataset Match
+52012,UTX9,Urine,UTX9,250.0,Kaggle Lab Dataset Match
+50926,Follicle Stimulating Hormone,Blood,Follicle Stimulating Hormone,350.0,Kaggle Lab Dataset Match
+51324,CD41,Bone Marrow,CD41,250.0,Kaggle Lab Dataset Match
+51089,Marijuana,Urine,Marijuana,250.0,Kaggle Lab Dataset Match
+51264,Platelet Clumps,Blood,Platelet Clumps,350.0,Kaggle Lab Dataset Match
+51298,Von Willebrand Factor Activity,Blood,Von Willebrand Factor Activity,350.0,Kaggle Lab Dataset Match
+51744,Toxoplasma IgM Ab Value,Blood,Toxoplasma IgM Ab Value,350.0,Kaggle Lab Dataset Match
+51028,"Bilirubin, Total, Body Fluid",Other Body Fluid,"Bilirubin, Total, Body Fluid",250.0,Kaggle Lab Dataset Match
+51270,"Protein C, Antigen",Blood,"Protein C, Antigen",350.0,Kaggle Lab Dataset Match
+51096,Porphobilinogen Screen,Urine,Porphobilinogen Screen,250.0,Kaggle Lab Dataset Match
+51743,Toxoplasma IgM Ab,Blood,Toxoplasma IgM Ab,350.0,Kaggle Lab Dataset Match
+51336,Glyco A,Bone Marrow,Glyco A,250.0,Kaggle Lab Dataset Match
+51162,CD16/56 Absolute Count,Blood,CD16/56 Absolute Count,350.0,Kaggle Lab Dataset Match
+51208,Factor X,Blood,Factor X,350.0,Kaggle Lab Dataset Match
+51111,Bands,Ascites,Bands,350.0,Kaggle Lab Dataset Match
+52087,CD15/56,Blood,CD15/56,350.0,Kaggle Lab Dataset Match
+51205,Factor VII,Blood,Factor VII,350.0,Kaggle Lab Dataset Match
+51188,CD56,Blood,CD56,250.0,Kaggle Lab Dataset Match
+51242,LUC,Blood,LUC,350.0,Kaggle Lab Dataset Match
+51986,Neisseria gonorrhoeae,Urine,Neisseria gonorrhoeae,250.0,Kaggle Lab Dataset Match
+52419,Voided Specimen,Urine,Voided Specimen,350.0,Kaggle Lab Dataset Match
+51972,Chlamydia trachomatis,Urine,Chlamydia trachomatis,250.0,Kaggle Lab Dataset Match
+51393,CD138,Other Body Fluid,CD138,250.0,Kaggle Lab Dataset Match
+52276,NRBC,Cerebrospinal Fluid,NRBC,250.0,Kaggle Lab Dataset Match
+52181,Stomatocyte,Blood,Stomatocyte,350.0,Kaggle Lab Dataset Match
+51204,Factor V,Blood,Factor V,350.0,Kaggle Lab Dataset Match
+50962,N-Acetylprocainamide (NAPA),Blood,N-Acetylprocainamide (NAPA),350.0,Kaggle Lab Dataset Match
+51272,"Protein S, Antigen",Blood,"Protein S, Antigen",350.0,Kaggle Lab Dataset Match
+51115,"Hematocrit, Ascites",Ascites,"Hematocrit, Ascites",250.0,Kaggle Lab Dataset Match
+52018,PAN1,Urine,PAN1,250.0,Kaggle Lab Dataset Match
+51488,Non-squamous Epithelial Cells,Urine,Non-squamous Epithelial Cells,250.0,Kaggle Lab Dataset Match
+50972,Procainamide,Blood,Procainamide,350.0,Kaggle Lab Dataset Match
+51220,Heinz Body Prep,Blood,Heinz Body Prep,350.0,Kaggle Lab Dataset Match
+52279,Plasma,Cerebrospinal Fluid,Other,250.0,Kaggle Lab Dataset Match
+51190,CD59,Blood,CD59,350.0,Kaggle Lab Dataset Match
+51470,Calcium Phosphate Crystals,Urine,Calcium Phosphate Crystals,450.0,Kaggle Lab Dataset Match
+51186,CD5 Absolute Count,Blood,CD5 Absolute Count,350.0,Kaggle Lab Dataset Match
+53171,COV12IC,Other Body Fluid,COV12IC,250.0,Kaggle Lab Dataset Match
+51435,Plasma,Other Body Fluid,Other,250.0,Kaggle Lab Dataset Match
+50898,Cancer Antigen 27.29,Blood,Cancer Antigen 27.29,350.0,Kaggle Lab Dataset Match
+51494,RBC Casts,Urine,RBC Casts,250.0,Kaggle Lab Dataset Match
+51397,CD16/56,Other Body Fluid,CD16/56,250.0,Kaggle Lab Dataset Match
+51159,CD15,Blood,CD15,250.0,Kaggle Lab Dataset Match
+51023,"LD, Joint Fluid",Joint Fluid,"LD, Joint Fluid",250.0,Kaggle Lab Dataset Match
+51156,CD13,Blood,CD13,250.0,Kaggle Lab Dataset Match
+53172,COV12MC,Other Body Fluid,COV12MC,250.0,Kaggle Lab Dataset Match
+51024,"Total Protein, Joint Fluid",Joint Fluid,"Total Protein, Joint Fluid",250.0,Kaggle Lab Dataset Match
+51381,Other,Joint Fluid,Other,250.0,Kaggle Lab Dataset Match
+52262,Immunophenotyping,Cerebrospinal Fluid,Immunophenotyping,250.0,Kaggle Lab Dataset Match
+51185,CD5 %,Blood,CD5 %,350.0,Kaggle Lab Dataset Match
+51666,H. pylori IgG Ab,Blood,H. pylori IgG Ab,350.0,Kaggle Lab Dataset Match
+51407,CD38,Other Body Fluid,CD38,250.0,Kaggle Lab Dataset Match
+51191,CD64,Blood,CD64,250.0,Kaggle Lab Dataset Match
+50869,Anti-DGP (IgA/IgG),Blood,Anti-DGP (IgA/IgG),350.0,Kaggle Lab Dataset Match
+50899,Carbamazepine,Blood,Carbamazepine,350.0,Kaggle Lab Dataset Match
+52274,Myelocytes,Cerebrospinal Fluid,Myelocytes,350.0,Kaggle Lab Dataset Match
+50990,Theophylline,Blood,Theophylline,350.0,Kaggle Lab Dataset Match
+51302,Young Cells,Blood,Young Cells,350.0,Kaggle Lab Dataset Match
+51664,HPE8,Blood,HPE8,350.0,Kaggle Lab Dataset Match
+51295,TdT,Blood,TdT,350.0,Kaggle Lab Dataset Match
+52270,Metamyelocytes,Cerebrospinal Fluid,Metamyelocytes,350.0,Kaggle Lab Dataset Match
+52043,Voided Specimen,Other Body Fluid,Voided Specimen,350.0,Kaggle Lab Dataset Match
+51452,NRBC,Pleural,NRBC,250.0,Kaggle Lab Dataset Match
+51441,Bands,Pleural,Bands,350.0,Kaggle Lab Dataset Match
+51366,Bands,Joint Fluid,Bands,350.0,Kaggle Lab Dataset Match
+51467,Broad Casts,Urine,Broad Casts,250.0,Kaggle Lab Dataset Match
+51299,Von Willebrand Factor Antigen,Blood,Von Willebrand Factor Antigen,350.0,Kaggle Lab Dataset Match
+51187,CD55,Blood,CD55,350.0,Kaggle Lab Dataset Match
+51122,Nucleated RBC,Ascites,Nucleated RBC,250.0,Kaggle Lab Dataset Match
+51154,CD117,Blood,CD117,250.0,Kaggle Lab Dataset Match
+53178,Helicobacter pylori Antigen,Stool,Helicobacter pylori Antigen,250.0,Kaggle Lab Dataset Match
+51022,"Glucose, Joint Fluid",Joint Fluid,"Glucose, Joint Fluid",250.0,Kaggle Lab Dataset Match
+51667,H. pylori IgG Ab Value,Blood,H. pylori IgG Ab Value,350.0,Kaggle Lab Dataset Match
+51510,"Urine Crystals, Other",Urine,Voided Specimen,350.0,Kaggle Lab Dataset Match
+51387,Basophils,Other Body Fluid,Basophils,350.0,Kaggle Lab Dataset Match
+51798,"PEP, CSF",Cerebrospinal Fluid,Protein Electrophoresis,350.0,Kaggle Lab Dataset Match
+51312,CD16/56,Bone Marrow,CD16/56,250.0,Kaggle Lab Dataset Match
+51182,CD41,Blood,CD41,250.0,Kaggle Lab Dataset Match
+51899,Trichomonas vaginalis,Other Body Fluid,Trichomonas vaginalis,250.0,Kaggle Lab Dataset Match
+51165,CD19 %,Blood,CD19 %,350.0,Kaggle Lab Dataset Match
+51155,CD11c,Blood,CD11c,250.0,Kaggle Lab Dataset Match
+53127,Voided Specimen,Ascites,Voided Specimen,350.0,Kaggle Lab Dataset Match
+51171,CD22,Blood,CD22,350.0,Kaggle Lab Dataset Match
+52108,dRVVT - Normalized Ratio,Blood,dRVVT - Normalized Ratio,350.0,Kaggle Lab Dataset Match
+51765,EE3,Blood,EE3,350.0,Kaggle Lab Dataset Match
+51722,RFXLDLM,Blood,RFXLDLM,350.0,Kaggle Lab Dataset Match
+51065,"Sodium, Stool",Stool,Sodium,450.0,Kaggle Lab Dataset Match
+51202,Factor II,Blood,Factor II,350.0,Kaggle Lab Dataset Match
+51193,CD71,Blood,CD71,250.0,Kaggle Lab Dataset Match
+51791,HIV 1 Viral Load,Cerebrospinal Fluid,HIV 1 Viral Load,350.0,Kaggle Lab Dataset Match
+51392,CD13,Other Body Fluid,CD13,250.0,Kaggle Lab Dataset Match
+52107,dRVVT - Confirmation,Blood,dRVVT - Confirmation,350.0,Kaggle Lab Dataset Match
+51904,PAN2,Other Body Fluid,PAN2,250.0,Kaggle Lab Dataset Match
+51924,Voided Specimen,Pleural,Voided Specimen,350.0,Kaggle Lab Dataset Match
+51762,EE1,Blood,EE1,350.0,Kaggle Lab Dataset Match
+53187,PAN,Stool,PAN,250.0,Kaggle Lab Dataset Match
+51045,"Urea Nitrogen, Body Fluid",Other Body Fluid,"Urea Nitrogen, Body Fluid",450.0,Kaggle Lab Dataset Match
+51169,CD20 %,Blood,CD20 %,350.0,Kaggle Lab Dataset Match
+51179,CD38,Blood,CD38,250.0,Kaggle Lab Dataset Match
+52220,wbcp,Blood,wbcp,350.0,Kaggle Lab Dataset Match
+51879,Neisseria gonorrhoeae,Other Body Fluid,Neisseria gonorrhoeae,250.0,Kaggle Lab Dataset Match
+51142,Arachadonic Acid,Blood,Arachadonic Acid,350.0,Kaggle Lab Dataset Match
+51846,Chlamydia trachomatis,Other Body Fluid,Chlamydia trachomatis,250.0,Kaggle Lab Dataset Match
+51511,Urine Fat Bodies,Urine,Urine Fat Bodies,250.0,Kaggle Lab Dataset Match
+51395,CD15,Other Body Fluid,CD15,250.0,Kaggle Lab Dataset Match
+51161,CD16,Blood,CD16,350.0,Kaggle Lab Dataset Match
+51652,High-Sensitivity CRP,Blood,High-Sensitivity CRP,350.0,Kaggle Lab Dataset Match
+51055,"Lipase, Pleural",Pleural,"Lipase, Pleural",250.0,Kaggle Lab Dataset Match
+51465,Bilirubin Crystals,Urine,Bilirubin Crystals,250.0,Kaggle Lab Dataset Match
+51166,CD19 Absolute Count,Blood,CD19 Absolute Count,350.0,Kaggle Lab Dataset Match
+51084,"Glucose, Urine",Urine,Glucose,350.0,Kaggle Lab Dataset Match
+51396,CD16,Other Body Fluid,CD16,350.0,Kaggle Lab Dataset Match
+51189,CD57,Blood,CD57,350.0,Kaggle Lab Dataset Match
+51401,CD22,Other Body Fluid,CD22,350.0,Kaggle Lab Dataset Match
+51414,CD57,Other Body Fluid,CD57,350.0,Kaggle Lab Dataset Match
+51177,CD33,Blood,CD33,250.0,Kaggle Lab Dataset Match
+51432,Myelocytes,Other Body Fluid,Myelocytes,350.0,Kaggle Lab Dataset Match
+52225,Basophils,Cerebrospinal Fluid,Basophils,350.0,Kaggle Lab Dataset Match
+51158,CD14,Blood,CD14,250.0,Kaggle Lab Dataset Match
+51203,Factor IX,Blood,Factor IX,350.0,Kaggle Lab Dataset Match
+50844,"Lipase, Ascites",Ascites,"Lipase, Ascites",250.0,Kaggle Lab Dataset Match
+50916,DHEA-Sulfate,Blood,DHEA-Sulfate,350.0,Kaggle Lab Dataset Match
+51903,PAN1,Other Body Fluid,PAN1,250.0,Kaggle Lab Dataset Match
+51063,"Osmolality, Stool",Stool,"Osmolality, Measured",350.0,Kaggle Lab Dataset Match
+51286,Ristocetin,Blood,Ristocetin,350.0,Kaggle Lab Dataset Match
+51472,Cholesterol Crystals,Urine,Cholesterol Crystals,250.0,Kaggle Lab Dataset Match
+51217,Glyco A,Blood,Glyco A,250.0,Kaggle Lab Dataset Match
+51490,Oval Fat Body,Urine,Oval Fat Body,250.0,Kaggle Lab Dataset Match
+51112,Basophils,Ascites,Basophils,350.0,Kaggle Lab Dataset Match
+51763,EE2,Blood,EE2,350.0,Kaggle Lab Dataset Match
+50989,"Testosterone, Free",Blood,"Testosterone, Free",350.0,Kaggle Lab Dataset Match
+52176,Rouleaux,Blood,Rouleaux,350.0,Kaggle Lab Dataset Match
+51316,CD22,Bone Marrow,CD22,350.0,Kaggle Lab Dataset Match
+51173,CD25,Blood,CD25,350.0,Kaggle Lab Dataset Match
+51209,Factor XI,Blood,Factor XI,350.0,Kaggle Lab Dataset Match
+51064,"Potassium, Stool",Stool,Potassium,450.0,Kaggle Lab Dataset Match
+52301,Lining Cell,Joint Fluid,Lining Cell,250.0,Kaggle Lab Dataset Match
+51170,CD20 Absolute Count,Blood,CD20 Absolute Count,350.0,Kaggle Lab Dataset Match
+51380,NRBC,Joint Fluid,NRBC,250.0,Kaggle Lab Dataset Match

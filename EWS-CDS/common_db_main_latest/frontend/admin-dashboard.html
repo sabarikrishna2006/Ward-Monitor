@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Foqal CareOS — Admin Dashboard</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#f9fafb;display:flex;align-items:center;justify-content:center;min-height:100vh;color:#111827}
+.box{background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:32px;text-align:center;max-width:360px}
+.logo{font-size:18px;font-weight:900;color:#800080;margin-bottom:6px}
+.name{font-size:14px;color:#374151;margin-bottom:20px}
+.role{display:inline-block;padding:3px 12px;border-radius:12px;background:#fffbeb;color:#92400e;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:20px}
+p{font-size:12.5px;color:#6b7280;line-height:1.6}
+.out{margin-top:20px;padding:7px 16px;border:1px solid #e5e7eb;border-radius:6px;background:#fff;cursor:pointer;font-size:12.5px;color:#374151}
+.out:hover{background:#f9fafb}
+</style>
+</head>
+<body>
+<div class="box">
+  <div class="logo">Foqal CareOS</div>
+  <div class="name" id="uname">Loading…</div>
+  <div class="role">Admin Staff</div>
+  <p>Signed in successfully. The Admin Dashboard screen is being built next.</p>
+  <button class="out" onclick="logout()">Sign Out</button>
+</div>
+<script>
+  const user = JSON.parse(sessionStorage.getItem('foqal_user') || '{}');
+  if (!user.email) { window.location.href = '/'; }
+  document.getElementById('uname').textContent = user.full_name || user.email || 'Admin';
+  function logout() { sessionStorage.clear(); window.location.href = '/'; }
+</script>
+</body>
+</html>

@@ -1,0 +1,2823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Foqal CareOS — Patient</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#f9fafb}
+body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:13px;color:#111827}
+button,select,input{font-family:inherit;font-size:inherit;cursor:pointer}
+
+:root{
+  --p:#800080;--pl:#f7edf7;
+  --blue:#1d4ed8;--blueb:#eff6ff;--bluebr:#bfdbfe;
+  --teal:#0d9488;--tealb:#f0fdfa;--tealbr:#99f6e4;
+  --ink:#111827;--ink2:#374151;--ink3:#6b7280;--ink4:#9ca3af;
+  --border:#e5e7eb;--surf:#f9fafb;
+  --red:#dc2626;--redb:#fef2f2;
+  --green:#059669;--greenb:#ecfdf5;--greenbr:#a7f3d0;
+  --amber:#d97706;--amberb:#fffbeb;--amberbr:#fde68a;
+  --mono:'SF Mono','Menlo','Consolas',monospace;
+  --shadow:0 1px 3px rgba(0,0,0,.08);
+}
+
+/* ── TOPBAR ── */
+.topbar{height:48px;background:#fff;border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 32px;gap:12px;position:sticky;top:0;z-index:200}
+.tlogo{font-size:15px;font-weight:900;color:var(--p);letter-spacing:-.3px;cursor:default}
+.tdiv{width:1px;height:18px;background:var(--border)}
+.tspace{flex:1}
+.tuser{font-size:12px;color:var(--ink3)}
+.tbtn{padding:5px 12px;border:1px solid var(--border);background:#fff;border-radius:6px;font-size:11.5px;font-weight:500;color:var(--ink3)}
+.tbtn:hover{background:var(--surf)}
+
+/* ── PAGE ── */
+.page{max-width:1200px;margin:0 auto;padding:24px 32px}
+
+
+/* ── PATIENT HEADER ── */
+.pat-head{display:flex;align-items:center;gap:18px;padding:14px 22px;background:var(--blueb);border:1px solid var(--bluebr);border-radius:10px;margin-bottom:16px}
+.pat-avatar{width:44px;height:44px;border-radius:50%;background:var(--blue);display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0}
+.pat-name{font-size:17px;font-weight:700;color:var(--ink)}
+.pat-hadm{font-size:16px;font-weight:700;font-family:var(--mono);color:var(--blue)}
+
+/* ── PILLS ── */
+.pill{display:inline-flex;align-items:center;font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:10px;white-space:nowrap}
+.pill-blue{background:var(--blueb);color:var(--blue);border:1px solid var(--bluebr)}
+.pill-slate{background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0}
+.pill-green{background:var(--greenb);color:var(--green);border:1px solid var(--greenbr)}
+.pill-red{background:var(--redb);color:var(--red);border:1px solid #fecaca}
+.pill-amber{background:var(--amberb);color:var(--amber);border:1px solid var(--amberbr)}
+.pill-teal{background:var(--tealb);color:var(--teal);border:1px solid var(--tealbr)}
+
+/* ── LOADING BANNER ── */
+
+/* ── CARD ── */
+.card{background:#fff;border:1px solid var(--border);border-radius:10px;margin-bottom:16px;box-shadow:var(--shadow)}
+
+/* ── TAB BAR ── */
+.tab-bar-wrap{position:relative}
+.tab-bar-wrap::after{content:'';position:absolute;right:0;top:0;bottom:1px;width:48px;background:linear-gradient(to left,#fff 60%,transparent);pointer-events:none;z-index:1;transition:opacity .2s}
+.tab-bar-wrap.at-end::after{opacity:0}
+#tab-bar{display:flex;border-bottom:1px solid var(--border);padding-left:4px;overflow-x:auto;scrollbar-width:none}
+#tab-bar::-webkit-scrollbar{display:none}
+.tab-btn{padding:11px 15px;font-size:12.5px;white-space:nowrap;background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;display:inline-flex;align-items:center;gap:5px;margin-bottom:-1px;color:var(--ink3);font-weight:400;flex-shrink:0}
+.tab-btn.active{color:var(--blue);border-bottom-color:var(--blue);font-weight:600}
+.tab-btn:hover:not(.active){color:var(--ink);background:#f9fafb}
+.tab-cnt{font-size:10px;font-weight:600;padding:1px 6px;border-radius:10px}
+.tab-btn.active .tab-cnt{background:var(--blue);color:#fff}
+.tab-btn:not(.active) .tab-cnt{background:var(--border);color:var(--ink3)}
+
+/* ── TAB CONTENT ── */
+.tab-body{padding:16px;max-height:400px;overflow-y:auto;overflow-x:auto}
+
+/* ── TABLE ── */
+.tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+.tbl th{text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--ink3);padding:7px 10px;border-bottom:1px solid var(--border);white-space:nowrap;background:#f9fafb}
+.tbl td{padding:7px 10px;border-bottom:1px solid #f3f4f6;vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:#f9fafb}
+.mono{font-family:var(--mono)}
+.muted{color:var(--ink3)}
+.bold{font-weight:600}
+.upl-badge{font-size:9px;padding:1px 5px;border-radius:99px;background:#ede9fe;color:#7c3aed;border:1px solid #ddd6fe;margin-left:4px;vertical-align:middle}
+
+/* ── UPLOAD GRID ── */
+.uz-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;padding:16px}
+.uz{border:1.5px dashed var(--border);border-radius:8px;padding:10px 12px;cursor:pointer;background:#fff;transition:border-color .15s}
+.uz:hover{border-color:var(--blue)}
+.uz.filled{border:1.5px solid var(--green);background:var(--greenb)}
+.uz.req-slot{border-color:#fca5a5;background:#fef9f9}
+.uz-inner{display:flex;align-items:center;gap:10px}
+.uz-ico{width:28px;height:28px;border-radius:6px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--ink3)}
+.uz.filled .uz-ico{background:#dcfce7;color:var(--green)}
+.uz-n{font-size:12px;font-weight:600;color:var(--ink);display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.uz-s{font-size:11px;color:var(--ink3);margin-top:2px}
+
+/* ── FOOT BAR ── */
+.foot-bar{display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:14px 16px;border-top:1px solid var(--border)}
+.btn-gen{display:inline-flex;align-items:center;gap:7px;padding:9px 22px;border:none;border-radius:8px;background:linear-gradient(135deg,#6d28d9,#1d4ed8);color:#fff;font-size:13.5px;font-weight:600;transition:opacity .15s}
+.btn-gen:hover{opacity:.88}
+.btn-gen:disabled{opacity:.4;cursor:not-allowed}
+
+/* ── SPINNER ── */
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(128,0,128,.2);border-top-color:var(--p);border-radius:50%;animation:spin .6s linear infinite}
+.spinner.white{border-color:rgba(255,255,255,.3);border-top-color:#fff}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── PULSE ── */
+.pulse-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--blue);animation:pulse 1.2s ease-in-out infinite;margin-right:2px}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ── PRINT ── */
+@media print {
+  .topbar, .foot-bar, .pat-head, .tab-bar-wrap, .card:not(.summary-card),
+  .err-banner, #summary-ready-container, button, .btn, .btn-gen,
+  [style*="position:sticky"] { display:none!important; }
+  body { background:#fff; font-size:12pt; }
+  .summary-card { border:none; box-shadow:none; margin:0; }
+  .summary-body pre { font-size:11pt; line-height:1.7; }
+  @page { margin:20mm; }
+}
+
+/* ── SUMMARY PANEL ── */
+.summary-card{background:#fff;border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-top:16px}
+.summary-head{display:flex;align-items:center;gap:10px;padding:12px 18px;background:var(--greenb);border-bottom:1px solid var(--greenbr);flex-wrap:wrap}
+.summary-title{font-weight:600;color:var(--green);font-size:14px;flex:1}
+.summary-body pre{padding:20px 24px;white-space:pre-wrap;font-family:inherit;font-size:13px;line-height:1.8;color:var(--ink);margin:0}
+
+/* ── BTNS ── */
+.btn-sec{padding:7px 14px;border:1px solid var(--border);background:#fff;border-radius:6px;font-size:12px;color:var(--ink2)}
+.btn-sec:hover{background:var(--surf)}
+.btn-pri{padding:7px 14px;border:none;border-radius:6px;background:var(--p);color:#fff;font-size:12px;font-weight:600}
+.btn-pri:hover{background:#5c0060}
+
+/* ── TOAST ── */
+.toast{position:fixed;top:18px;right:18px;z-index:9999;padding:11px 16px;border-radius:10px;font-size:13px;font-weight:600;display:none;align-items:center;gap:8px;max-width:360px;box-shadow:0 8px 28px rgba(0,0,0,.12);animation:slideIn .2s ease}
+.toast.ok{background:var(--greenb);color:var(--green);border:1.5px solid var(--greenbr)}
+.toast.err{background:var(--redb);color:var(--red);border:1.5px solid #fca5a5}
+@keyframes slideIn{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:translateX(0)}}
+
+/* ── ERR BANNER ── */
+.err-banner{display:none;padding:10px 14px;background:var(--redb);border:1px solid #fca5a5;border-radius:8px;font-size:12.5px;color:var(--red);margin-bottom:14px}
+
+/* ── BIG LOADING ── */
+.big-load{padding:60px 32px;text-align:center}
+.big-load-spinner{width:56px;height:56px;border-radius:18px;background:linear-gradient(135deg,var(--pl),var(--blueb));display:flex;align-items:center;justify-content:center;margin:0 auto 20px}
+
+@keyframes ee-bar{0%{transform:translateX(-100%)}100%{transform:translateX(250%)}}
+.ee-bar-fill{height:100%;width:40%;background:linear-gradient(90deg,var(--p),#c040c0);border-radius:99px;animation:ee-bar 1.8s ease-in-out infinite}
+
+/* ── GENERATION SCREENS ── */
+.gen-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:44px 40px;text-align:center;box-shadow:var(--shadow);max-width:580px;margin:0 auto}
+.gen-icon-box{width:72px;height:72px;border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 18px}
+.gen-icon-box.ok{background:var(--greenb);border:2px solid var(--greenbr)}
+.gen-icon-box.err{background:var(--redb);border:2px solid #fca5a5}
+.gen-prog-bar{height:8px;background:#f3e8ff;border-radius:99px;overflow:hidden;margin-bottom:8px}
+.gen-prog-fill{height:100%;background:var(--p);border-radius:99px;transition:width .3s ease}
+.gen-stat-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:22px}
+.gen-stat{border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center}
+.gen-stat-val{font-size:32px;font-weight:900;line-height:1}
+.gen-stat-lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink3);margin-top:5px}
+.gs-step{display:flex;align-items:flex-start;gap:14px;padding:11px 0;border-bottom:1px solid var(--border);text-align:left}
+.gs-step:last-child{border-bottom:none}
+.gs-icon{font-size:18px;flex-shrink:0;line-height:1.3;min-width:20px}
+.gs-title{font-size:13.5px;font-weight:600}
+.gs-detail{font-size:11.5px;margin-top:1px}
+.gen-bc{font-size:12px;color:var(--ink3);margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.gen-h{font-size:20px;font-weight:800;color:var(--ink);margin-bottom:16px}
+.gap-table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:24px;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.gap-table th{padding:10px 14px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--ink3);border-bottom:1px solid var(--border);background:var(--surf)}
+.gap-table td{padding:11px 14px;border-bottom:1px solid var(--border)}
+.gap-table tr:last-child td{border-bottom:none}
+.gen-btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:24px}
+.gen-btn-pri{padding:9px 20px;border:none;border-radius:8px;background:var(--p);color:#fff;font-size:13px;font-weight:600;cursor:pointer}
+.gen-btn-pri:hover{background:#5c0060}
+.gen-btn-warn{padding:9px 20px;border:1px solid var(--amberbr);border-radius:8px;background:var(--amberb);color:#92400e;font-size:13px;font-weight:600;cursor:pointer}
+</style>
+<script src="/config.js"></script>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <!-- Back / Prev / Next -->
+  <button class="tbtn" onclick="goBack()" style="display:inline-flex;align-items:center;gap:5px;padding:5px 10px">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    Dashboard
+  </button>
+  <div class="tdiv"></div>
+  <div class="tlogo">Foqal CareOS</div>
+  <div class="tspace"></div>
+  <span class="tuser" id="top-user"></span>
+  <button class="tbtn" onclick="signOut()">Sign Out</button>
+</div>
+
+<div class="page">
+
+  <div class="err-banner" id="err-banner"></div>
+
+  <!-- DYNAMIC CONTENT -->
+  <div id="main-content">
+    <div class="big-load">
+      <div class="big-load-spinner">
+        <div class="spinner" style="width:22px;height:22px;border-width:3px"></div>
+      </div>
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--ink3);margin-bottom:8px">Loading Patient Data</div>
+      <div style="font-size:26px;font-weight:800;color:var(--ink);font-family:var(--mono);margin-bottom:10px" id="loading-hadm">HADM …</div>
+      <div style="max-width:340px;margin:20px auto 0">
+        <div style="height:5px;background:var(--pl);border-radius:99px;overflow:hidden;border:1px solid #ddd6fe">
+          <div class="ee-bar-fill"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+/* ── Auth guard ── */
+const _user  = JSON.parse(sessionStorage.getItem('foqal_user') || '{}');
+if (!_user.email) window.location.href = '/';
+const _hadmId = parseInt(sessionStorage.getItem('foqal_hadm') || '0');
+if (!_hadmId) window.location.href = '/dashboard.html';
+const _displayId = sessionStorage.getItem('foqal_display_id_' + _hadmId) || null;
+const _pidLabel  = window.fmtPid ? fmtPid(_hadmId, _displayId) : ('HADM-' + _hadmId);
+
+document.getElementById('top-user').textContent     = _user.full_name || _user.email || '';
+document.getElementById('loading-hadm').textContent = _pidLabel;
+
+/* ── Seeded synthetic name (same algo as dashboard) ── */
+function seeded(id, max) {
+  let h = parseInt(id) || 0;
+  h = ((h >> 16) ^ h) * 0x45d9f3b;
+  h = ((h >> 16) ^ h) * 0x45d9f3b;
+  h = (h >> 16) ^ h;
+  return Math.abs(h) % max;
+}
+function seeded2(id, salt, max) { return seeded(id * 31 + salt, max); }
+const _NAMES_M = ['Rajesh Kumar','Mohan Singh','Dinesh Joshi','Arun Verma','Suresh Patel',
+                  'Vijay Malhotra','Sanjay Gupta','Ramesh Sharma','Deepak Rao','Nitin Jain'];
+const _NAMES_F = ['Priya Sharma','Kavita Patel','Sunita Rao','Anjali Desai','Leela Varma',
+                  'Rekha Devi','Suman Jain','Anita Gupta','Meena Singh','Geeta Mehta'];
+const _isMale    = seeded(_hadmId, 2) === 0;
+const _synthName = _isMale
+  ? _NAMES_M[seeded(_hadmId, _NAMES_M.length)]
+  : _NAMES_F[seeded2(_hadmId, 7, _NAMES_F.length)];
+
+/* ── DPDPA consent state ── */
+let _consented = false;
+function onConsentChange(cb) {
+  _consented = cb.checked;
+  const grid = document.getElementById('uz-grid');
+  if (grid) { grid.style.opacity = _consented ? '1' : '.45'; grid.style.pointerEvents = _consented ? '' : 'none'; }
+  const genBtn = document.getElementById('gen-btn');
+  if (genBtn) { genBtn.style.opacity = _consented ? '1' : '.45'; genBtn.style.pointerEvents = _consented ? '' : 'none'; }
+}
+
+/* ── DCM Checklist and NYHA state helpers ── */
+function onDcmChange(key, checked) {
+  S[key] = checked;
+  sessionStorage.setItem(key + '_' + _hadmId, checked ? 'true' : 'false');
+  render();
+}
+function onNyhaChange(val) {
+  S.nyhaClass = val;
+  sessionStorage.setItem('dcm_nyha_class_' + _hadmId, val);
+  render();
+}
+
+
+/* ── SVG icon helper ── */
+function svg(name, sz) {
+  sz = sz || 14;
+  const a = `width="${sz}" height="${sz}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"`;
+  const icons = {
+    upload:   `<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>`,
+    check:    `<polyline points="20 6 9 17 4 12"/>`,
+    user:     `<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>`,
+    chevR:    `<polyline points="9 18 15 12 9 6"/>`,
+    download: `<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>`,
+    alert:    `<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>`,
+    pulse:    `<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>`,
+  };
+  return `<svg ${a}>${icons[name]||''}</svg>`;
+}
+
+/* ── Indian drug name mapping (mirrors backend/app/cims_drug_map.py) ── */
+const _DRUG_MAP = {
+  "aspirin":"Ecosprin","acetylsalicylic acid":"Ecosprin",
+  "clopidogrel":"Clopivas","ticagrelor":"Brilinta","prasugrel":"Practi",
+  "aspirin-clopidogrel":"Ecosprin-Gold","aspirin/clopidogrel":"Ecosprin-Gold",
+  "heparin":"Heparin","enoxaparin":"Clexane","fondaparinux":"Arixtra",
+  "warfarin":"Warf","rivaroxaban":"Xarelto","apixaban":"Eliquis","dabigatran":"Pradaxa",
+  "metoprolol":"Metolar XR","metoprolol succinate":"Metolar XR","metoprolol tartrate":"Metolar",
+  "bisoprolol":"Concor","carvedilol":"Cardivas","atenolol":"Tenormin",
+  "propranolol":"Inderal","nebivolol":"Nebicard",
+  "ramipril":"Cardace","lisinopril":"Listril","enalapril":"Envas",
+  "perindopril":"Coversyl","captopril":"Capoten","trandolapril":"Gopten","fosinopril":"Fovas",
+  "losartan":"Cosart","valsartan":"Valzaar","candesartan":"Candesar","olmesartan":"Olsar",
+  "irbesartan":"Irbetan","telmisartan":"Telma","azilsartan":"Azilide",
+  "sacubitril":"Vymada","sacubitril/valsartan":"Vymada","sacubitril-valsartan":"Vymada","entresto":"Vymada",
+  "amlodipine":"Stamlo","diltiazem":"Dilzem","verapamil":"Calaptin","nifedipine":"Nicardia","felodipine":"Plendil",
+  "atorvastatin":"Atorva","rosuvastatin":"Rozavel","simvastatin":"Simvotin",
+  "pravastatin":"Pravator","pitavastatin":"Livalo","lovastatin":"Lova","fluvastatin":"Lescol",
+  "spironolactone":"Aldactone","eplerenone":"Inspra",
+  "furosemide":"Lasix","frusemide":"Lasix","torsemide":"Dytor","torasemide":"Dytor","bumetanide":"Burinex",
+  "hydrochlorothiazide":"Hydrochlorothiazide","indapamide":"Natrilix SR","metolazone":"Zaroxolyn",
+  "nitroglycerin":"Nitrocontin","glyceryl trinitrate":"Nitrocontin",
+  "isosorbide dinitrate":"Sorbitrate","isosorbide mononitrate":"Monotrate","isosorbide":"Sorbitrate",
+  "nicorandil":"Nikoran","trimetazidine":"Vastarel MR","ranolazine":"Ranolaz","ivabradine":"Coralan",
+  "empagliflozin":"Jardiance","dapagliflozin":"Forxiga","canagliflozin":"Invokana",
+  "amiodarone":"Cordarone","sotalol":"Sotalol","flecainide":"Flecaine","digoxin":"Lanoxin",
+  "adenosine":"Adenocor","lidocaine":"Xylocard","lignocaine":"Xylocard",
+  "hydralazine":"Nepresol","clonidine":"Catapres","prazosin":"Minipress","doxazosin":"Cardura",
+  "tirofiban":"Tirofiban","eptifibatide":"Integrilin","abciximab":"Reopro",
+  "streptokinase":"Streptokinase","alteplase":"Actilyse","tenecteplase":"Metalyse",
+  "metformin":"Glycomet","insulin glargine":"Basalog","insulin detemir":"Levemir",
+  "insulin aspart":"Novorapid","insulin lispro":"Humalog",
+  "sitagliptin":"Januvia","vildagliptin":"Galvus","saxagliptin":"Onglyza",
+  "pantoprazole":"Pan","omeprazole":"Omez","rabeprazole":"Razo","lansoprazole":"Lanzol","esomeprazole":"Nexpro",
+  "potassium chloride":"Potklor","potassium":"Potklor",
+  "paracetamol":"Calpol","acetaminophen":"Calpol","tramadol":"Ultracet",
+  "morphine":"Morphine","fentanyl":"Fentanyl","ketorolac":"Toradol",
+  "midazolam":"Dormicum","diazepam":"Calmpose","lorazepam":"Ativan",
+  "cefazolin":"Reflin","cephalexin":"Sporidex",
+  "amoxicillin-clavulanate":"Augmentin","amoxicillin/clavulanate":"Augmentin",
+};
+function _iDrug(name) {
+  if (!name || name === '—') return name;
+  const k = name.trim().toLowerCase();
+  if (_DRUG_MAP[k]) return _DRUG_MAP[k];
+  const first = k.split(' ')[0];
+  if (_DRUG_MAP[first]) return _DRUG_MAP[first];
+  for (const mk in _DRUG_MAP) { if (k.startsWith(mk)) return _DRUG_MAP[mk]; }
+  return name;
+}
+
+/* ── State ── */
+const S = {
+  patient: null, admission: null,
+  diagnoses:[], procedures:[], labs:[], meds:[], micro:[],
+  icuEvts:[], transfers:[], icuStays:[],
+  pharmacy:[], inputEvts:[], outputEvts:[], poe:[],
+  chartEvts:[], prevFiles:[],
+  lazyLoaded:{}, lazyLoading:{}, lazyFailed:{},
+  displayLoaded: false,
+  hasDCM: true,  // PM: every patient has DCM
+  tab:'Admissions',
+  uploads:{},        // k → [{id,name,status,rows,fileId,errMsg}]
+  uploadedFiles:{},  // k → {name}  (from prev uploaded files)
+  uploadedRows:{},   // file_type → [{...row}]  fetched after each upload
+  uploadingFor:{},   // tabName → true while a file for that tab is being ingested
+  encId: null, encStatus: null, revisionState: null, amendmentState: null,
+  generating: false, genDone: false, genError: null,
+  summary: null, tableLog: [], showLog: false, reviewSent: false, sentTo: null,
+  tabBarScroll: 0,
+  genScreen: null, genProgress: 0, gapRows: [],
+  doctorSelect: false,
+  doctors: [], doctorsLoading: false,
+  summaryView: false, summaryLoading: false, showSourceData: true,
+  genWarnPending: false,
+  dischargeType: null,
+  dcmLvef: sessionStorage.getItem('dcm_lvef_' + _hadmId) === 'true',
+  dcmNyha: sessionStorage.getItem('dcm_nyha_' + _hadmId) === 'true',
+  dcmDevice: sessionStorage.getItem('dcm_device_' + _hadmId) === 'true',
+  dcmBnp: sessionStorage.getItem('dcm_bnp_' + _hadmId) === 'true',
+  dcmAetiology: sessionStorage.getItem('dcm_aetiology_' + _hadmId) === 'true',
+  dcmMeds: sessionStorage.getItem('dcm_meds_' + _hadmId) === 'true',
+  nyhaClass: sessionStorage.getItem('dcm_nyha_class_' + _hadmId) || '',
+  errorStats: null,
+  genLatency: null,   // { pass1_s, pass2_s, total_s, ok }
+  genRouge: null,     // { rouge1, rouge2, rougeL } or null
+  summaryVersion: null,
+  summaryOnly: false, // true when opened from dashboard "View Summary" on Signed rows
+};
+
+const TABS = ['Admissions','Diagnoses','Procedures','Labs','Vitals','Medications','Pharmacy',
+              'Microbiology','ICU Events','Fluids I/O','Transfers','ICU Stays',
+              'Physician Orders','Uploaded Files'];
+
+const LAZY = {
+  Medications:'prescriptions', Pharmacy:'pharmacy', 'Physician Orders':'poe',
+  'Fluids I/O':'fluids', Labs:'labevents', Vitals:'chartevents',
+  'ICU Events':'procedureevents',
+};
+
+const FILE_SLOTS = [
+  {k:'labs',         title:'Labs & Investigations',  accepts:'.csv'},
+  {k:'meds',         title:'Medications',            accepts:'.csv'},
+  {k:'notes',        title:'Clinical Notes',         accepts:'.csv,.txt,.pdf'},
+  {k:'diagnoses',    title:'Diagnoses (ICD)',        accepts:'.csv'},
+  {k:'procedures',   title:'Procedures',             accepts:'.csv'},
+  {k:'vitals',       title:'Vitals / Chart Events',  accepts:'.csv'},
+  {k:'icu',          title:'ICU Events',             accepts:'.csv'},
+  {k:'fluids',       title:'Fluids I/O',             accepts:'.csv'},
+  {k:'microbiology', title:'Microbiology',           accepts:'.csv'},
+  {k:'transfers',    title:'Transfers',              accepts:'.csv'},
+  {k:'icustays',     title:'ICU Stays',              accepts:'.csv'},
+  {k:'poe',          title:'Physician Orders',        accepts:'.csv'},
+  {k:'pharmacy',     title:'Pharmacy',               accepts:'.csv'},
+];
+
+// Extra required slots per discharge type (appended to the base grid when that type is selected)
+const EXTRA_SLOTS = {
+  LAMA: [
+    {k:'ama_declar',   title:'AMA Refusal Declaration',  accepts:'.pdf',        required:true,  note:'Patient/relative signed — mandatory'},
+    {k:'risk_counsel', title:'Risk Counselling Note',     accepts:'.pdf,.txt',   required:true,  note:'Documented risks explained to patient'},
+  ],
+  DAMA: [
+    {k:'discharge_letter', title:'Hospital Discharge Letter', accepts:'.pdf',   required:true,  note:'Hospital-issued'},
+    {k:'admin_signoff',    title:'Administrator Sign-off',    accepts:'.pdf',   required:true,  note:'Required for DAMA'},
+  ],
+  Death: [
+    {k:'death_cert',  title:'Death Certificate Draft',         accepts:'.pdf',      required:true,  note:'Attending physician completes'},
+    {k:'cause_death', title:'Cause of Death Documentation',    accepts:'.pdf,.txt', required:true,  note:'Primary + contributing causes'},
+    {k:'nok_record',  title:'NOK Notification Record',         accepts:'.pdf,.txt', required:true,  note:'Next-of-Kin name, relationship, signature'},
+  ],
+  Referral: [
+    {k:'referral_letter',   title:'Referral Letter',                   accepts:'.pdf',      required:true,  note:'Addressed to receiving facility'},
+    {k:'facility_confirm',  title:'Receiving Facility Confirmation',    accepts:'.pdf',      required:true,  note:'Confirmation from receiving hospital'},
+    {k:'transport_doc',     title:'Transport Mode Documentation',       accepts:'.pdf,.txt', required:true,  note:'Ambulance/private — documented'},
+  ],
+};
+
+// Keys hidden for Death type (medication chart not applicable)
+const HIDDEN_SLOTS = { Death: new Set(['meds']) };
+// Keys marked optional (not required) per type
+const OPTIONAL_SLOTS = { LAMA: new Set(['meds']) };
+
+function activeSlots() {
+  const dt = S.dischargeType;
+  const hidden = dt ? (HIDDEN_SLOTS[dt] || new Set()) : new Set();
+  const optional = dt ? (OPTIONAL_SLOTS[dt] || new Set()) : new Set();
+  const base = FILE_SLOTS
+    .filter(s => !hidden.has(s.k))
+    .map(s => optional.has(s.k) ? {...s, optional: true} : s);
+  const extra = (dt && EXTRA_SLOTS[dt]) ? EXTRA_SLOTS[dt] : [];
+  return [...base, ...extra];
+}
+
+/* ── API calls ── */
+const H     = `http://${location.hostname}`;
+const _API  = window.FOQAL_API_BASE  || `${_API}`;
+const _DATA = window.FOQAL_DATA_BASE || `${_DATA}`;
+async function apiFetch(url) {
+  const r = await fetch(url);
+  if (!r.ok) { const b = await r.json().catch(()=>({})); throw new Error(b.detail || `HTTP ${r.status}`); }
+  return r.json();
+}
+
+/* ── Tab count ── */
+const _TAB_UPL_KEY = {
+  Labs:'labs', Vitals:'vitals', Medications:'meds', Pharmacy:'pharmacy',
+  Microbiology:'microbiology', 'ICU Events':'icu', Transfers:'transfers',
+  'ICU Stays':'icustays', 'Physician Orders':'poe', 'Fluids I/O':'fluids',
+  Diagnoses:'diagnoses', Procedures:'procedures',
+};
+function uplCount(t) { const k=_TAB_UPL_KEY[t]; return k&&S.uploadedRows[k]?S.uploadedRows[k].length:0; }
+
+function tabCount(t) {
+  const m = {
+    Admissions: S.admission?1:0,
+    Diagnoses:S.diagnoses.length+uplCount('Diagnoses'),
+    Procedures:S.procedures.length+uplCount('Procedures'),
+    Labs:S.labs.length+uplCount('Labs'),
+    Vitals:S.chartEvts.length+uplCount('Vitals'),
+    Medications:S.meds.length+uplCount('Medications'),
+    Pharmacy:S.pharmacy.length+uplCount('Pharmacy'),
+    Microbiology:S.micro.length+uplCount('Microbiology'),
+    'ICU Events':S.icuEvts.length+uplCount('ICU Events'),
+    'Fluids I/O':S.inputEvts.length+S.outputEvts.length+uplCount('Fluids I/O'),
+    Transfers:S.transfers.length+uplCount('Transfers'),
+    'ICU Stays':S.icuStays.length+uplCount('ICU Stays'),
+    'Physician Orders':S.poe.length+uplCount('Physician Orders'),
+    'Uploaded Files':S.prevFiles.length,
+  };
+  return m[t]||0;
+}
+
+/* ── Uploaded rows inline table ── */
+function _uplTable(key) {
+  const rows = S.uploadedRows[key];
+  if (!rows || !rows.length) return '';
+  const cols = Object.keys(rows[0]).filter(function(c){ return c !== '_id' && c !== 'hadm_id' && c !== 'file_id'; }).slice(0, 8);
+  return `<div style="border-top:1px solid var(--greenbr);margin-top:4px">
+    <div style="font-size:10px;font-weight:700;color:var(--green);padding:8px 14px 4px;display:flex;align-items:center;gap:5px;text-transform:uppercase;letter-spacing:.06em">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      Uploaded (${rows.length} rows)
+    </div>
+    <table class="tbl"><thead><tr>${cols.map(function(c){ return '<th>' + c + '</th>'; }).join('')}</tr></thead>
+    <tbody>${rows.slice(0,200).map(function(r){ return '<tr>'+cols.map(function(c){ return '<td>'+(r[c]!=null?r[c]:'—')+'</td>'; }).join('')+'</tr>'; }).join('')}</tbody></table>
+  </div>`;
+}
+
+/* ── Render helpers ── */
+const uplBadge = `<span class="upl-badge">↑ uploaded</span>`;
+
+function tabContent() {
+  const t = S.tab;
+  const uplKey = _TAB_UPL_KEY[t];
+  const hasUploadedRows = uplKey && S.uploadedRows[uplKey] && S.uploadedRows[uplKey].length > 0;
+  // Show upload-in-progress overlay when a file for this tab is being ingested
+  if (S.uploadingFor[t]) {
+    return `<div style="padding:40px;text-align:center">
+      <span class="spinner" style="width:22px;height:22px;border-width:3px"></span>
+      <div style="margin-top:12px;font-size:13px;font-weight:600;color:var(--ink)">Uploading & ingesting…</div>
+    </div>`;
+  }
+  if (LAZY[t] && S.lazyLoading[t])
+    return `<div style="padding:32px;text-align:center"><span class="spinner"></span> Loading ${t}…</div>`
+         + (hasUploadedRows ? _uplTableStandalone(uplKey) : '');
+  if (LAZY[t] && !S.lazyLoaded[t] && S.patient) {
+    setTimeout(() => { if (S.tab===t && !S.lazyLoaded[t] && !S.lazyLoading[t]) lazyLoad(t); }, 0);
+    return `<div style="padding:32px;text-align:center;color:var(--ink3)"><span class="spinner"></span> Loading ${t}…</div>`
+         + (hasUploadedRows ? _uplTableStandalone(uplKey) : '');
+  }
+  return _tabBody(t);
+}
+// Show uploaded rows even when the lazy tab hasn't loaded yet
+function _uplTableStandalone(key) {
+  const rows = S.uploadedRows[key];
+  if (!rows || !rows.length) return '';
+  const cols = Object.keys(rows[0]).filter(c => c !== '_id' && c !== 'hadm_id' && c !== 'file_id').slice(0, 8);
+  return `<div style="border-top:1px solid var(--greenbr);margin:0 16px 16px">
+    <div style="font-size:10px;font-weight:700;color:var(--green);padding:8px 0 4px;text-transform:uppercase;letter-spacing:.06em">
+      Uploaded (${rows.length} rows)
+    </div>
+    <table class="tbl"><thead><tr>${cols.map(c=>`<th>${c.replace(/_/g,' ')}</th>`).join('')}</tr></thead>
+    <tbody>${rows.map(r=>`<tr>${cols.map(c=>`<td>${r[c]??'—'}</td>`).join('')}</tr>`).join('')}</tbody></table>
+  </div>`;
+}
+const _DOCS_A = ['Dr. Anand Sharma','Dr. Ravi Menon','Dr. Suresh Iyer','Dr. Vikram Nair'];
+const _DOCS_R = ['Dr. Rekha Nair','Dr. Priya Venkatesan','Dr. Neha Joshi','Dr. Arun Pillai'];
+
+function _tabBody(t) {
+
+  if (t==='Admissions') {
+    const a = S.admission || {};
+    function _fmtDT(dt) {
+      if (!dt) return null;
+      try {
+        const d = new Date(dt);
+        return d.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})
+             + ', ' + d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+      } catch { return String(dt).slice(0,16).replace('T',' '); }
+    }
+    const admitFmt = _fmtDT(a.admittime || a.admit_time) || 'Not recorded';
+    const admType  = a.admission_type || 'URGENT';
+    const insurance= a.insurance || 'Star Health — TPA Direct';
+    const wardPath = (() => {
+      if (S.transfers && S.transfers.length > 1) {
+        const units = [...new Set(S.transfers.filter(tr=>tr.careunit).map(tr=>tr.careunit))];
+        if (units.length) return units.join(' → ');
+      }
+      return 'ED → CCU → Ward 4B';
+    })();
+    const _atIdx  = seeded(_hadmId, _DOCS_A.length);
+    const _resIdx = seeded2(_hadmId, 3, _DOCS_R.length);
+    const _fldTd  = k => `<td style="width:200px;font-size:11px;font-weight:600;color:var(--ink3);text-transform:uppercase;letter-spacing:.3px;padding:10px 14px">${k}</td>`;
+    const _valTd  = v => `<td style="font-size:13px;padding:10px 14px">${v}</td>`;
+    const fields = [
+      ['Admission ID',         `<span class="mono" style="font-weight:700;color:var(--blue)">${_pidLabel}-ADM-01</span>`],
+      ['Admission Type',       `<span class="pill ${admType==='EMERGENCY'||admType==='URGENT'?'pill-red':'pill-amber'}">${admType}</span>`],
+      ['Admission Date / Time', admitFmt],
+      ['Insurance / TPA',      insurance],
+      ['Admit Diagnosis',      '<span style="font-weight:600">Dilated Cardiomyopathy, acute decompensation</span>'],
+      ['Ward Path',            `<span style="font-weight:500">${wardPath}</span>`],
+    ];
+    return `<table class="tbl" style="border-radius:0">
+      <tbody>${fields.map(([k,v])=>`<tr>${_fldTd(k)}${_valTd(v)}</tr>`).join('')}</tbody>
+    </table>`;
+  }
+  if (t==='Diagnoses') {
+    const upl = _uplTable('diagnoses');
+    // Filter out any I42.x from MIMIC so we don't duplicate the injected primary row
+    const mimicRows = S.diagnoses.filter(d => d.icd_code && !/^I42/i.test(d.icd_code));
+    const seqBadge = (i) => i <= 2
+      ? `<span class="pill pill-amber" style="font-size:10px">Secondary</span>`
+      : `<span class="pill pill-slate" style="font-size:10px">Comorbidity</span>`;
+    return `<table class="tbl"><thead><tr><th>ICD-10</th><th>Description</th><th>Type</th></tr></thead><tbody>
+      <tr style="background:#eff6ff">
+        <td><span class="mono" style="color:var(--blue);font-weight:700">I42.0</span></td>
+        <td style="font-weight:600">Dilated Cardiomyopathy</td>
+        <td><span class="pill pill-blue" style="font-size:10px">Primary</span></td>
+      </tr>
+      ${mimicRows.map((d,i)=>`<tr>
+        <td><span class="mono" style="color:var(--ink2);font-weight:600">${d.icd_code}</span>${d._upl?uplBadge:''}</td>
+        <td>${d.long_title||'—'}</td>
+        <td>${seqBadge(i)}</td>
+      </tr>`).join('')}
+    </tbody></table>${upl}`;
+  }
+  if (t==='Procedures') {
+    const upl = _uplTable('procedures');
+    if (!S.procedures.length) return upl || `<div class="muted" style="padding:20px">No procedures on record.</div>`;
+    return `<table class="tbl"><thead><tr><th>ICD Code</th><th>Procedure</th><th>Version</th><th>Date</th></tr></thead><tbody>
+      ${S.procedures.map(p=>`<tr><td><span class="mono" style="color:var(--teal);font-weight:600">${p.icd_code}</span>${p._upl?uplBadge:''}</td><td>${p.long_title||'—'}</td><td><span class="pill pill-slate">ICD-${p.icd_version}</span></td><td class="muted">${p.chartdate||'—'}</td></tr>`).join('')}
+    </tbody></table>${upl}`;
+  }
+  if (t==='Labs') {
+    const upl = _uplTable('labs');
+    function _labFlag(l) {
+      if (l.flag === 'critical') return `<span class="pill pill-red" style="font-size:10px">↑↑ Critical</span>`;
+      if (l.flag === 'high')     return `<span class="pill pill-amber" style="font-size:10px">↑ High</span>`;
+      if (l.flag === 'low')      return `<span class="pill pill-amber" style="font-size:10px">↓ Low</span>`;
+      const v = parseFloat(l.valuenum ?? l.value);
+      const hi = parseFloat(l.ref_range_upper);
+      const lo = parseFloat(l.ref_range_lower);
+      if (!isNaN(v) && !isNaN(hi) && v > hi * 3)  return `<span class="pill pill-red"   style="font-size:10px">↑↑ Critical</span>`;
+      if (!isNaN(v) && !isNaN(hi) && v > hi)       return `<span class="pill pill-amber" style="font-size:10px">↑ High</span>`;
+      if (!isNaN(v) && !isNaN(lo) && v < lo)       return `<span class="pill pill-amber" style="font-size:10px">↓ Low</span>`;
+      if (l.flag && l.flag !== 'normal')            return `<span class="pill pill-amber" style="font-size:10px">↑ Abnormal</span>`;
+      return `<span class="pill pill-green" style="font-size:10px">✓ Normal</span>`;
+    }
+    function _refStr(l) {
+      if (l.ref_range_lower!=null && l.ref_range_upper!=null) return `${l.ref_range_lower}–${l.ref_range_upper}`;
+      if (l.ref_range_upper!=null) return `< ${l.ref_range_upper}`;
+      if (l.ref_range_lower!=null) return `> ${l.ref_range_lower}`;
+      return '—';
+    }
+    const _STATIC_LABS = [
+      {label:'BNP',        valuenum:1840, valueuom:'pg/mL', ref_range_lower:null, ref_range_upper:100,  flag:'critical', charttime:''},
+      {label:'Troponin I', valuenum:0.08, valueuom:'μg/L',  ref_range_lower:null, ref_range_upper:0.04, flag:'high',     charttime:''},
+      {label:'Creatinine', valuenum:1.9,  valueuom:'mg/dL', ref_range_lower:0.7,  ref_range_upper:1.3,  flag:'high',     charttime:''},
+      {label:'eGFR',       valuenum:44,   valueuom:'mL/min',ref_range_lower:60,   ref_range_upper:null, flag:'low',      charttime:''},
+      {label:'Potassium',  valuenum:4.1,  valueuom:'mEq/L', ref_range_lower:3.5,  ref_range_upper:5.0,  flag:null,       charttime:''},
+      {label:'Sodium',     valuenum:138,  valueuom:'mEq/L', ref_range_lower:135,  ref_range_upper:145,  flag:null,       charttime:''},
+      {label:'Haemoglobin',valuenum:10.8, valueuom:'g/dL',  ref_range_lower:12,   ref_range_upper:17,   flag:'low',      charttime:''},
+      {label:'INR',        valuenum:2.1,  valueuom:'',      ref_range_lower:0.8,  ref_range_upper:1.2,  flag:'high',     charttime:''},
+    ];
+    const rows = S.labs.length ? S.labs.slice(0,500) : _STATIC_LABS;
+    return `<table class="tbl"><thead><tr><th>Test</th><th>Value</th><th>Reference</th><th>Flag</th><th>Date</th></tr></thead><tbody>
+      ${rows.map(l=>`<tr>
+        <td class="bold">${l.label||l.itemid||'—'}${l._upl?uplBadge:''}</td>
+        <td><span class="mono" style="font-weight:600">${l.valuenum??l.value??'—'}</span> <span class="muted" style="font-size:11px">${l.valueuom||''}</span></td>
+        <td class="muted">${_refStr(l)}</td>
+        <td>${_labFlag(l)}</td>
+        <td class="muted">${(l.charttime||'').replace('T',' ').slice(0,10)||'—'}</td>
+      </tr>`).join('')}
+    </tbody></table>${upl}`;
+  }
+  if (t==='Vitals') {
+    const upl = _uplTable('vitals');
+    function _news2(spo2, hr, bpSys, rr, temp) {
+      let s = 0;
+      if (spo2  != null) s += spo2<=91?3:spo2<=93?2:spo2<=95?1:0;
+      if (hr    != null) s += hr<=40?3:hr<=50?1:hr<=90?0:hr<=110?1:hr<=130?2:3;
+      if (bpSys != null) s += bpSys<=90?3:bpSys<=100?2:bpSys<=110?1:bpSys<=219?0:3;
+      if (rr    != null) s += rr<=8?3:rr<=11?1:rr<=20?0:rr<=24?1:3;
+      if (temp  != null) s += temp<=35?3:temp<=36?1:temp<=38?0:temp<=39?1:2;
+      return s;
+    }
+    function _n2b(sc) {
+      const cls = sc>=7?'pill-red':sc>=5?'pill-amber':'pill-green';
+      return `<span class="pill ${cls}" style="font-size:10px;font-weight:700">${sc}</span>`;
+    }
+    const _lm = (lbl,...terms) => terms.some(trm => lbl.toLowerCase().includes(trm));
+    const _STATIC_VITALS = [
+      {dt:'Day 1 · 08:14', s2:'88%', hr:'112', bp:'88 / 60',  rr:'28', tm:'37.2', n2:11},
+      {dt:'Day 1 · 14:30', s2:'91%', hr:'104', bp:'96 / 64',  rr:'24', tm:'37.0', n2:7},
+      {dt:'Day 2 · 08:00', s2:'93%', hr:'96',  bp:'100 / 68', rr:'22', tm:'36.8', n2:6},
+      {dt:'Day 3 · 08:00', s2:'96%', hr:'88',  bp:'110 / 72', rr:'18', tm:'36.6', n2:1},
+    ];
+    if (!S.chartEvts.length) {
+      return `<table class="tbl"><thead><tr><th>Date / Time</th><th>SpO₂ (%)</th><th>HR (bpm)</th><th>BP (mmHg)</th><th>RR (/min)</th><th>Temp (°C)</th><th>NEWS2</th></tr></thead><tbody>
+        ${_STATIC_VITALS.map(r=>`<tr>
+          <td class="muted" style="font-size:11px;white-space:nowrap">${r.dt}</td>
+          <td class="mono">${r.s2}</td><td class="mono">${r.hr}</td>
+          <td class="mono">${r.bp}</td><td class="mono">${r.rr}</td>
+          <td class="mono">${r.tm}</td><td>${_n2b(r.n2)}</td>
+        </tr>`).join('')}
+      </tbody></table>${upl}`;
+    }
+    // Group by hour-truncated charttime
+    const byHour = {}, hourOrd = [];
+    for (const e of S.chartEvts) {
+      const hk = (e.charttime||'').slice(0,13);
+      if (!hk) continue;
+      if (!byHour[hk]) { byHour[hk] = []; hourOrd.push(hk); }
+      byHour[hk].push(e);
+    }
+    const vRows = [...new Set(hourOrd)].slice(0,60).map(hk => {
+      const evts = byHour[hk];
+      let s2=null,hr=null,bpS=null,bpD=null,rr=null,tp=null;
+      for (const e of evts) {
+        const lb=(e.label||'').toLowerCase(), v=parseFloat(e.valuenum??e.value);
+        if (isNaN(v)) continue;
+        if (_lm(lb,'spo2','o2 sat','peripheral o2')) s2=v;
+        else if (_lm(lb,'heart rate')) hr=v;
+        else if (_lm(lb,'blood pressure s','arterial bp s','non invasive blood pressure s')) bpS=v;
+        else if (_lm(lb,'blood pressure d','arterial bp d','non invasive blood pressure d')) bpD=v;
+        else if (_lm(lb,'respiratory rate')) rr=v;
+        else if (_lm(lb,'temperature')) tp=(e.valueuom||'').toLowerCase().includes('f')&&v>50?Math.round((v-32)*5/9*10)/10:v;
+      }
+      const sc = _news2(s2,hr,bpS,rr,tp);
+      const dtStr = hk.replace('T',' ')+':00';
+      return `<tr>
+        <td class="muted" style="font-size:11px;white-space:nowrap">${dtStr}</td>
+        <td class="mono">${s2!=null?s2+'%':'—'}</td>
+        <td class="mono">${hr!=null?hr:'—'}</td>
+        <td class="mono">${bpS!=null?(bpD!=null?bpS+' / '+bpD:bpS):'—'}</td>
+        <td class="mono">${rr!=null?rr:'—'}</td>
+        <td class="mono">${tp!=null?tp:'—'}</td>
+        <td>${_n2b(sc)}</td>
+      </tr>`;
+    });
+    return `<table class="tbl"><thead><tr><th>Date / Time</th><th>SpO₂ (%)</th><th>HR (bpm)</th><th>BP (mmHg)</th><th>RR (/min)</th><th>Temp (°C)</th><th>NEWS2</th></tr></thead><tbody>
+      ${vRows.join('')}
+    </tbody></table>${upl}`;
+  }
+  if (t==='Medications') {
+    const upl = _uplTable('meds');
+    const _SM = [
+      {brand:'Ecosprin 75',   salt:'Aspirin',          dose:'75 mg',  route:'Oral', freq:'OD', note:'—'},
+      {brand:'Clopivas 75',   salt:'Clopidogrel',      dose:'75 mg',  route:'Oral', freq:'OD', note:'—'},
+      {brand:'Atorva 40',     salt:'Atorvastatin',     dose:'40 mg',  route:'Oral', freq:'OD', note:'—'},
+      {brand:'Lasix 40',      salt:'Furosemide',       dose:'40 mg',  route:'Oral', freq:'BD', note:'—'},
+      {brand:'Metolar XR 25', salt:'Metoprolol Succ.', dose:'25 mg',  route:'Oral', freq:'OD', note:'—'},
+      {brand:'Aldactone 25',  salt:'Spironolactone',   dose:'25 mg',  route:'Oral', freq:'OD', note:'—'},
+      {brand:'Warf 5',        salt:'Warfarin',         dose:'5 mg',   route:'Oral', freq:'OD', note:'INR monitoring'},
+    ];
+    const medsToShow = S.meds.length ? null : _SM;
+    if (medsToShow) {
+      return `<table class="tbl"><thead><tr><th>Brand (Indian)</th><th>Salt / Generic</th><th>Dose</th><th>Route</th><th>Freq</th><th>Note</th></tr></thead><tbody>
+        ${medsToShow.map(m=>`<tr>
+          <td class="bold">${m.brand}</td>
+          <td class="muted">${m.salt}</td>
+          <td class="mono">${m.dose}</td>
+          <td><span class="pill pill-slate" style="font-size:10px">${m.route}</span></td>
+          <td class="muted">${m.freq}</td>
+          <td class="muted">${m.note}</td>
+        </tr>`).join('')}
+      </tbody></table>${upl}`;
+    }
+    return `<table class="tbl"><thead><tr><th>Brand (Indian)</th><th>Salt / Generic</th><th>Dose</th><th>Route</th><th>Freq</th><th>Note</th></tr></thead><tbody>
+      ${S.meds.map(m=>`<tr>
+        <td class="bold">${_iDrug(m.drug||m.formulary_drug_cd||'—')}${m._upl?uplBadge:''}</td>
+        <td class="muted">${m.drug||m.formulary_drug_cd||'—'}</td>
+        <td class="mono">${m.dosage||(m.dose_val_rx?(m.dose_val_rx+' '+(m.dose_unit_rx||'')).trim():'—')}</td>
+        <td><span class="pill pill-slate" style="font-size:10px">${m.route||'—'}</span></td>
+        <td class="muted">${m.frequency||(m.doses_per_24_hrs?m.doses_per_24_hrs+'×/day':'—')}</td>
+        <td class="muted">—</td>
+      </tr>`).join('')}
+    </tbody></table>${upl}`;
+  }
+  if (t==='Pharmacy') {
+    const upl = _uplTable('pharmacy');
+    if (!S.pharmacy.length) return upl || `<div class="muted" style="padding:20px">No pharmacy records.</div>`;
+    return `<table class="tbl"><thead><tr><th>Medication</th><th>Frequency</th><th>Doses/24h</th><th>Status</th><th>Start</th></tr></thead><tbody>
+      ${S.pharmacy.map(p=>`<tr><td class="bold">${_iDrug(p.medication||p.formulary_drug_cd||'—')}</td><td class="muted">${p.frequency||'—'}</td><td class="mono">${p.doses_per_24_hrs??'—'}</td><td><span class="pill pill-slate" style="font-size:10px">${p.status||'—'}</span></td><td class="muted">${(p.starttime||'').replace('T',' ').slice(0,16)||'—'}</td></tr>`).join('')}
+    </tbody></table>${upl}`;
+  }
+  if (t==='Microbiology') {
+    const upl = _uplTable('microbiology');
+    if (!S.micro.length) return upl || `<div class="muted" style="padding:20px">No microbiology results.</div>`;
+    return `<table class="tbl"><thead><tr><th>Specimen</th><th>Organism</th><th>Antibiotic</th><th>Interp.</th><th>Time</th></tr></thead><tbody>
+      ${S.micro.map(m=>`<tr><td class="bold">${m.spec_type_desc||'—'}</td><td style="color:var(--red)">${m.org_name||'—'}</td><td>${m.ab_name||'—'}</td><td><span class="pill ${m.interpretation==='S'?'pill-green':'pill-red'}">${m.interpretation||'—'}</span></td><td class="muted">${(m.charttime||'').replace('T',' ').slice(0,16)||'—'}</td></tr>`).join('')}
+    </tbody></table>${upl}`;
+  }
+  if (t==='ICU Events') {
+    const upl = _uplTable('icu');
+    if (!S.icuEvts.length) return upl || `<div class="muted" style="padding:20px">No ICU events recorded.</div>`;
+    return `<table class="tbl"><thead><tr><th>Event</th><th>Value</th><th>Status</th><th>Start</th><th>End</th></tr></thead><tbody>
+      ${S.icuEvts.map(e=>`<tr><td class="bold">${e.ordercategoryname||'—'}</td><td class="mono">${e.value||'—'} ${e.valueuom||''}</td><td><span class="pill pill-blue" style="font-size:10px">${e.statusdescription||'—'}</span></td><td class="muted">${(e.starttime||'').replace('T',' ').slice(0,16)||'—'}</td><td class="muted">${(e.endtime||'').replace('T',' ').slice(0,16)||'—'}</td></tr>`).join('')}
+    </tbody></table>${upl}`;
+  }
+  if (t==='Fluids I/O') {
+    const upl = _uplTable('fluids');
+    function _netSty(n) {
+      if (n < 0)    return 'color:var(--green);font-weight:700';
+      if (n > 2000) return 'color:var(--red);font-weight:700';
+      if (n > 1000) return 'color:var(--amber);font-weight:700';
+      return '';
+    }
+    const hdrs = `<thead><tr><th>Date</th><th>IV Intake (mL)</th><th>Oral Intake (mL)</th><th>Urine Output (mL)</th><th>Net Balance (mL)</th></tr></thead>`;
+    if (!S.inputEvts.length && !S.outputEvts.length) {
+      const _SF = [{d:'Day 1',iv:2800,ur:1200},{d:'Day 2',iv:2400,ur:1600},{d:'Day 3',iv:2000,ur:1900}];
+      const cumIV=_SF.reduce((a,r)=>a+r.iv,0), cumUr=_SF.reduce((a,r)=>a+r.ur,0);
+      return `<table class="tbl">${hdrs}<tbody>
+        ${_SF.map(r=>`<tr>
+          <td class="bold">${r.d}</td>
+          <td class="mono">${r.iv.toLocaleString()}</td>
+          <td class="muted">—</td>
+          <td class="mono">${r.ur.toLocaleString()}</td>
+          <td class="mono" style="${_netSty(r.iv-r.ur)}">+${(r.iv-r.ur).toLocaleString()}</td>
+        </tr>`).join('')}
+        <tr style="background:#f9fafb;font-weight:700">
+          <td>Cumulative</td>
+          <td class="mono">${cumIV.toLocaleString()}</td>
+          <td class="muted">—</td>
+          <td class="mono">${cumUr.toLocaleString()}</td>
+          <td class="mono" style="${_netSty(cumIV-cumUr)}">+${(cumIV-cumUr).toLocaleString()}</td>
+        </tr>
+      </tbody></table>${upl}`;
+    }
+    // Group MIMIC events by date
+    const byD = {}, dOrd = [];
+    for (const e of S.inputEvts) {
+      const d=(e.starttime||e.charttime||'').slice(0,10); if(!d) continue;
+      if(!byD[d]){byD[d]={iv:0,ur:0};dOrd.push(d);}
+      const a=parseFloat(e.amount??e.totalamount??0);
+      if(!isNaN(a)&&(e.amountuom||'').toLowerCase().includes('ml')) byD[d].iv+=a;
+    }
+    for (const e of S.outputEvts) {
+      const d=(e.charttime||'').slice(0,10); if(!d) continue;
+      if(!byD[d]){byD[d]={iv:0,ur:0};dOrd.push(d);}
+      const v=parseFloat(e.value??0);
+      if(!isNaN(v)&&(e.label||'').toLowerCase().includes('urine')) byD[d].ur+=v;
+    }
+    const dates=[...new Set(dOrd)].sort();
+    let cIV=0,cUr=0;
+    const dRows=dates.map(d=>{
+      const r=byD[d]; const net=Math.round(r.iv-r.ur); cIV+=r.iv; cUr+=r.ur;
+      return `<tr>
+        <td class="bold">${d}</td>
+        <td class="mono">${Math.round(r.iv).toLocaleString()}</td>
+        <td class="muted">—</td>
+        <td class="mono">${Math.round(r.ur).toLocaleString()}</td>
+        <td class="mono" style="${_netSty(net)}">${net>=0?'+':''}${net.toLocaleString()}</td>
+      </tr>`;
+    });
+    const cNet=Math.round(cIV-cUr);
+    return `<table class="tbl">${hdrs}<tbody>
+      ${dRows.join('')}
+      <tr style="background:#f9fafb;font-weight:700">
+        <td>Cumulative</td>
+        <td class="mono">${Math.round(cIV).toLocaleString()}</td>
+        <td class="muted">—</td>
+        <td class="mono">${Math.round(cUr).toLocaleString()}</td>
+        <td class="mono" style="${_netSty(cNet)}">${cNet>=0?'+':''}${cNet.toLocaleString()}</td>
+      </tr>
+    </tbody></table>${upl}`;
+  }
+  if (t==='Transfers') {
+    const upl = _uplTable('transfers');
+    if (!S.transfers.length) return upl || `<div class="muted" style="padding:20px">No transfers recorded.</div>`;
+    return `<table class="tbl"><thead><tr><th>Event</th><th>Care Unit</th><th>In</th><th>Out</th></tr></thead><tbody>
+      ${S.transfers.map(tr=>`<tr><td><span class="pill pill-slate">${tr.eventtype||'—'}</span></td><td class="bold">${tr.careunit||'—'}</td><td class="muted">${(tr.intime||'').replace('T',' ').slice(0,16)||'—'}</td><td class="muted">${(tr.outtime||'').replace('T',' ').slice(0,16)||'—'}</td></tr>`).join('')}
+    </tbody></table>${upl}`;
+  }
+  if (t==='ICU Stays') {
+    const upl = _uplTable('icustays');
+    if (!S.icuStays.length) return upl || `<div class="muted" style="padding:20px">No ICU stays recorded.</div>`;
+    return `<table class="tbl"><thead><tr><th>Stay ID</th><th>First Unit</th><th>Last Unit</th><th>In</th><th>Out</th><th>LOS</th></tr></thead><tbody>
+      ${S.icuStays.map(s=>`<tr><td class="mono">${s.stay_id}</td><td>${s.first_careunit||'—'}</td><td>${s.last_careunit||'—'}</td><td class="muted">${(s.intime||'').replace('T',' ').slice(0,16)||'—'}</td><td class="muted">${(s.outtime||'').replace('T',' ').slice(0,16)||'—'}</td><td class="mono">${s.los!=null?Number(s.los).toFixed(2):'—'}</td></tr>`).join('')}
+    </tbody></table>${upl}`;
+  }
+  if (t==='Physician Orders') {
+    const upl = _uplTable('poe');
+    if (!S.poe.length) return upl || `<div class="muted" style="padding:20px">No physician orders recorded.</div>`;
+    return `<table class="tbl"><thead><tr><th>Type</th><th>Subtype</th><th>Status</th><th>Time</th></tr></thead><tbody>
+      ${S.poe.slice(0,200).map(p=>`<tr><td class="bold">${p.order_type||'—'}</td><td class="muted">${p.order_subtype||'—'}</td><td><span class="pill pill-slate" style="font-size:10px">${p.order_status||'—'}</span></td><td class="muted">${(p.ordertime||'').replace('T',' ').slice(0,16)||'—'}</td></tr>`).join('')}
+    </tbody></table>${upl}`;
+  }
+  if (t==='Uploaded Files') {
+    if (!S.prevFiles.length) return `<div class="muted" style="padding:20px">No files uploaded yet.</div>`;
+    return `<table class="tbl"><thead><tr><th>File</th><th>Type</th><th>Date</th><th></th></tr></thead><tbody>
+      ${S.prevFiles.map(f=>`<tr>
+        <td class="mono" style="font-size:12px">${f.file_name||f.name||'—'}</td>
+        <td><span class="pill pill-slate" style="font-size:10px">${f.file_type||'—'}</span></td>
+        <td class="muted">${(f.upload_date||f.created_at||'—').slice(0,10)}</td>
+        <td><button onclick="deleteFile('${f.id||f.file_id||''}','${f.file_type||''}',this)" style="padding:3px 9px;border-radius:5px;border:1px solid #fca5a5;background:#fef2f2;color:#dc2626;font-size:11px;cursor:pointer">Delete</button></td>
+      </tr>`).join('')}
+    </tbody></table>`;
+  }
+  return '';
+}
+
+function fileSlotHTML(s) {
+  const entries   = S.uploads[s.k] || [];
+  const uploading = entries.some(e => e.status==='uploading');
+  const doneCount = entries.filter(e => e.status==='done').length;
+  const hasDone   = doneCount > 0 || !!S.uploadedFiles[s.k];
+  const fname     = S.uploadedFiles[s.k]?.name;
+
+  let pill = '';
+  if (uploading) pill = `<span class="pill pill-blue" style="font-size:10px"><span class="pulse-dot"></span>Ingesting…</span>`;
+  else if (doneCount>0) pill = `<span class="pill pill-green" style="font-size:10px">${svg('check',9)} ${doneCount} file${doneCount>1?'s':''}</span>`;
+  else if (fname) pill = `<span class="pill pill-green" style="font-size:10px">${svg('check',9)} Uploaded</span>`;
+
+  const reqBadge = s.required && !hasDone
+    ? `<span style="margin-left:4px;font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;vertical-align:middle">REQUIRED</span>`
+    : '';
+  const optBadge = s.optional && !hasDone
+    ? `<span style="margin-left:4px;font-size:9px;font-weight:600;padding:1px 5px;border-radius:3px;background:#f3f4f6;color:#6b7280;border:1px solid #e5e7eb;vertical-align:middle">OPTIONAL</span>`
+    : '';
+  const noteLine = s.note ? `<div style="font-size:9.5px;color:#6b7280;margin-top:2px">${s.note}</div>` : '';
+
+  return `
+    <label class="uz${hasDone?' filled':''}${s.required && !hasDone?' req-slot':''}">
+      <input type="file" accept="${s.accepts}" style="display:none" class="slot-inp" data-k="${s.k}">
+      <div class="uz-inner">
+        <div class="uz-ico">${svg('upload',13)}</div>
+        <div>
+          <div class="uz-n">${s.title}${pill}${reqBadge}${optBadge}</div>
+          <div class="uz-s">${fname||`Click to upload · ${s.accepts}`}</div>
+          ${noteLine}
+        </div>
+      </div>
+    </label>`;
+}
+
+/* ── Main render ── */
+function render() {
+  if (S.genScreen) {
+    document.getElementById('main-content').innerHTML = renderGenScreen();
+    return;
+  }
+  if (S.summary && S.summaryView) {
+    document.getElementById('main-content').innerHTML = renderSummaryView();
+    return;
+  }
+  if (S.summaryLoading) {
+    document.getElementById('main-content').innerHTML = `
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:100px 40px;gap:16px">
+        <span class="spinner" style="width:28px;height:28px;border-width:3px"></span>
+        <div style="font-size:14px;font-weight:600;color:var(--ink2)">Loading summary…</div>
+        <div style="font-size:12px;color:var(--ink3)">${_pidLabel}</div>
+      </div>`;
+    return;
+  }
+  if (!S.patient) return;
+
+  const p = S.patient;
+  const DISPLAY_TABS = ['Admissions','Diagnoses','Procedures','Microbiology','ICU Events','Transfers','ICU Stays'];
+  // Failed tabs count as done so the banner can clear (retry happens silently in background)
+  const lazyDone   = Object.keys(LAZY).filter(t => S.lazyLoaded[t] || S.lazyFailed[t]).length;
+  const dispDone   = S.displayLoaded ? DISPLAY_TABS.length : 0;
+  const total      = Object.keys(LAZY).length + DISPLAY_TABS.length;
+  const done       = lazyDone + dispDone;
+  const pct        = Math.round((done / total) * 100);
+  const pendingTabs = [
+    ...Object.keys(LAZY).filter(t => !S.lazyLoaded[t] && !S.lazyFailed[t]),
+    ...(S.displayLoaded ? [] : DISPLAY_TABS),
+  ];
+  const activeTabs = [
+    ...Object.keys(LAZY).filter(t => S.lazyLoading[t]),
+    ...(!S.displayLoaded && S.patient ? ['clinical data'] : []),
+  ];
+  const allDataLoaded = done === total;
+
+  // Tabs whose counts come from the display endpoint (not lazy)
+  const DISP_TABS = new Set(['Diagnoses','Procedures','Microbiology','ICU Stays','Transfers']);
+
+  const tabBar = TABS.map(t => {
+    const cnt = tabCount(t);
+    const isUploading = !!S.uploadingFor[t];
+    const isLoading = (LAZY[t] && S.lazyLoading[t]) || isUploading;
+    const notLoaded = LAZY[t] && !S.lazyLoaded[t] && !isUploading && S.patient;
+    const isDispLoading = DISP_TABS.has(t) && !S.displayLoaded && S.patient;
+    const uploadDot = isUploading
+      ? `<span style="width:6px;height:6px;border-radius:50%;background:#f59e0b;display:inline-block;animation:pulse 1s infinite" title="Uploading…"></span>`
+      : '';
+    const cntBadge = uploadDot || (cnt > 0
+      ? `<span class="tab-cnt">${cnt}</span>`
+      : (isLoading || isDispLoading)
+        ? `<span style="width:6px;height:6px;border-radius:50%;background:var(--amber);display:inline-block;animation:pulse 1s infinite"></span>`
+        : notLoaded
+          ? `<span style="width:6px;height:6px;border-radius:50%;background:var(--border);display:inline-block"></span>`
+          : '');
+    return `<button class="tab-btn${S.tab===t?' active':''}" data-tab="${t}">${t}${cntBadge}</button>`;
+  }).join('');
+
+  const _hasSummary = S.genDone || ['Awaiting Review','Ready for Review','Signed Off'].includes(S.encStatus);
+  const _isRegenScenario = ['revision_requested','Revision Requested','Amendment Requested'].includes(S.encStatus);
+  const genLabel = S.generating
+    ? `<span class="spinner white"></span> Generating…`
+    : _isRegenScenario ? `${svg('pulse',13)} Regenerate` : `Generate Summary ${svg('chevR',13)}`;
+
+  // Compute T1/T2 gap counts for summary header badge
+  const _gapBadge = (() => {
+    if (!S.genDone || !S.summary) return '';
+    const gr = computeGapRows();
+    const t1 = gr.filter(r => r.tier==='T1').length;
+    const t2 = gr.filter(r => r.tier==='T2').length;
+    if (!t1 && !t2) return '<span class="pill pill-green" style="font-size:11px">All sections OK</span>';
+    return (t1 ? `<span class="pill" style="background:#f3f4f6;color:var(--ink3);font-size:11px">${t1} T1</span>` : '')
+         + (t2 ? `<span class="pill" style="background:#fffbeb;color:#d97706;font-size:11px">${t2} T2</span>` : '');
+  })();
+
+  // Sticky DCM flag: once detected true it never flips back, so the checklist
+  // appears as soon as ANY data source (patient/admission/diagnoses) confirms it.
+  if (!S.hasDCM) {
+    S.hasDCM = (S.diagnoses || []).some(d => {
+      const t = (d.long_title || '').toLowerCase();
+      const c = (d.icd_code || '').toLowerCase();
+      return t.includes('dcm') || t.includes('dilated cardiomyopathy') || t.includes('cardiomyopathy') || t.includes('heart failure') || c.includes('i42') || c.includes('i50');
+    }) || (S.patient && (
+      (S.patient.admission_diagnosis || '').toLowerCase().includes('dcm') ||
+      (S.patient.admission_diagnosis || '').toLowerCase().includes('dilated cardiomyopathy') ||
+      (S.patient.admission_diagnosis || '').toLowerCase().includes('cardiomyopathy') ||
+      (S.patient.admission_diagnosis || '').toLowerCase().includes('heart failure')
+    )) || (S.admission && (
+      (S.admission.diagnosis || '').toLowerCase().includes('dcm') ||
+      (S.admission.diagnosis || '').toLowerCase().includes('dilated cardiomyopathy') ||
+      (S.admission.diagnosis || '').toLowerCase().includes('cardiomyopathy') ||
+      (S.admission.diagnosis || '').toLowerCase().includes('heart failure')
+    ));
+  }
+  // Persist so the next page-load (or dashboard navigation) picks it up instantly
+  if (S.hasDCM) sessionStorage.setItem('foqal_hasDCM_' + _hadmId, '1');
+  const _hasDCM = S.hasDCM;
+
+  const _dcmChecklistComplete = !_hasDCM || (S.dcmLvef && S.dcmNyha && S.dcmDevice && S.dcmBnp && S.dcmAetiology && S.dcmMeds);
+  const _nyhaSelected = !_hasDCM || S.dischargeType === 'Death' || (S.nyhaClass && S.nyhaClass !== '');
+
+  const _canGenerate = (_consented && S.dischargeType && _dcmChecklistComplete && _nyhaSelected) || S.genDone;
+
+  const _consentedAttr = _consented ? 'checked' : '';
+
+  /* ── Revision toast (red) + Amendment toast (amber) — shown at top of upload form ── */
+  const _revToast = (S.encStatus === 'Revision Requested') ? (() => {
+    const rs = S.revisionState;
+    const reason = rs?.rejection_reason || '';
+    const doctor = rs?.rejected_by_name || '';
+    const loading = !rs;
+    return `<div style="background:#fef2f2;border-left:4px solid #dc2626;border-radius:6px;padding:13px 16px;margin-bottom:16px;display:flex;align-items:flex-start;gap:10px">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <div style="flex:1">
+        <div style="font-size:12px;font-weight:700;color:#dc2626;margin-bottom:3px">Revision Requested${doctor ? ' by ' + doctor : ''}</div>
+        ${loading ? `<div style="font-size:11.5px;color:#b91c1c;display:flex;align-items:center;gap:6px"><span style="display:inline-block;width:10px;height:10px;border:1.5px solid #dc2626;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite"></span>Loading rejection details…</div>` : reason ? `<div style="font-size:12.5px;color:#7f1d1d;font-style:italic">"${reason.slice(0,250)}${reason.length>250?'…':''}"</div>` : ''}
+      </div>
+    </div>`;
+  })() : '';
+
+  const _amdToast = (S.encStatus === 'Amendment Requested') ? (() => {
+    const am = S.amendmentState;
+    const loading = !am;
+    const _amdReasonLabel = {
+      factual: 'Factual correction', diagnosis: 'Diagnosis update',
+      medication: 'Medication dose change', procedure: 'Procedure clarification', other: 'Other'
+    };
+    const reasonLabel = am ? (_amdReasonLabel[am.reason] || am.reason || '') : '';
+    const doctor = am?.submitted_by_name || '';
+    const section = am?.section ? ` · ${am.section}` : '';
+    const details = (am?.details || '').slice(0, 250);
+    return `<div style="background:#fffbeb;border-left:4px solid #f59e0b;border-radius:6px;padding:13px 16px;margin-bottom:16px;display:flex;align-items:flex-start;gap:10px">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      <div style="flex:1">
+        <div style="font-size:12px;font-weight:700;color:#d97706;margin-bottom:3px">Amendment Requested${doctor ? ' by ' + doctor : ''}${section}${reasonLabel ? ' · ' + reasonLabel : ''}</div>
+        ${loading ? `<div style="font-size:11.5px;color:#92400e;display:flex;align-items:center;gap:6px"><span style="display:inline-block;width:10px;height:10px;border:1.5px solid #f59e0b;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite"></span>Loading amendment details…</div>` : details ? `<div style="font-size:12.5px;color:#78350f;font-style:italic">"${details}${details.length >= 250 ? '…' : ''}"</div>` : ''}
+      </div>
+    </div>`;
+  })() : '';
+
+  document.getElementById('main-content').innerHTML = `
+    ${_revToast}
+    ${_amdToast}
+    <!-- DPDPA ALERT -->
+    <div style="display:flex;align-items:center;gap:10px;padding:12px 18px;border-radius:8px;background:#eff6ff;border:1px solid #bfdbfe;font-size:12.5px;color:#1e40af;margin-bottom:14px;line-height:1.5">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span><b>DPDPA 2023 Compliance:</b> Patient data will be processed digitally. Patient consent must be obtained and confirmed below before upload.</span>
+    </div>
+
+    <!-- CONSENT CHECKBOX -->
+    <div style="background:#fff;border:1px solid var(--border);border-radius:8px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:flex-start;gap:12px">
+      <input type="checkbox" id="dpdpa-chk" ${_consentedAttr} onchange="onConsentChange(this)" style="margin-top:2px;width:15px;height:15px;flex-shrink:0;accent-color:#1d4ed8;cursor:pointer">
+      <label for="dpdpa-chk" style="font-size:13px;line-height:1.6;cursor:pointer;color:#374151">
+        <b>I confirm that patient ${_pidLabel} (${_synthName}) has provided informed consent for digital processing of their health data under the Digital Personal Data Protection Act 2023.</b>
+        The original signed consent form is filed in the patient record.
+      </label>
+    </div>
+
+    <!-- PATIENT HEADER -->
+    ${(() => {
+      // Compute header NEWS2 from last batch of chartEvts
+      let _hn2 = null;
+      if (S.chartEvts.length) {
+        const last = S.chartEvts.slice(-40);
+        let s2=null,hr=null,bpS=null,rr=null,tp=null;
+        for (const e of last) {
+          const lb=(e.label||'').toLowerCase(), v=parseFloat(e.valuenum??e.value);
+          if(isNaN(v)) continue;
+          if(lb.includes('spo2')||lb.includes('o2 sat')) s2=v;
+          else if(lb.includes('heart rate')) hr=v;
+          else if(lb.includes('blood pressure s')||lb.includes('arterial bp s')) bpS=v;
+          else if(lb.includes('respiratory rate')) rr=v;
+          else if(lb.includes('temperature')) tp=(e.valueuom||'').toLowerCase().includes('f')&&v>50?Math.round((v-32)*5/9*10)/10:v;
+        }
+        let sc=0;
+        if(s2!=null)  sc+=s2<=91?3:s2<=93?2:s2<=95?1:0;
+        if(hr!=null)  sc+=hr<=40?3:hr<=50?1:hr<=90?0:hr<=110?1:hr<=130?2:3;
+        if(bpS!=null) sc+=bpS<=90?3:bpS<=100?2:bpS<=110?1:bpS<=219?0:3;
+        if(rr!=null)  sc+=rr<=8?3:rr<=11?1:rr<=20?0:rr<=24?1:3;
+        if(tp!=null)  sc+=tp<=35?3:tp<=36?1:tp<=38?0:tp<=39?1:2;
+        _hn2 = sc;
+      }
+      const n2cls  = _hn2===null?'pill-amber':_hn2>=7?'pill-red':_hn2>=5?'pill-amber':'pill-green';
+      const n2lbl  = _hn2===null?'NEWS2 —':`NEWS2 ${_hn2}`;
+      const _ward  = p.ward || ['Ward 4B','Ward 5A','CCU','Ward 3C'][seeded(_hadmId,4)];
+      const _atIdx = seeded(_hadmId, _DOCS_A.length);
+      const _riIdx = seeded2(_hadmId, 3, _DOCS_R.length);
+      const admDt  = S.admission?.admittime
+        ? new Date(S.admission.admittime).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})
+        : '—';
+      return `<div class="pat-head" style="flex-direction:column;align-items:flex-start;gap:10px;padding:16px 22px">
+        <div style="display:flex;align-items:flex-start;gap:12px;width:100%">
+          <div class="pat-avatar" style="flex-shrink:0">${svg('user',20)}</div>
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+              <span class="pat-name">${_synthName}</span>
+              <span class="pill pill-blue" style="font-size:11px;font-weight:700;font-family:var(--mono)">${_pidLabel}</span>
+              <span class="pill pill-blue">Dilated Cardiomyopathy</span>
+              <span class="pill ${n2cls}">${n2lbl}</span>
+            </div>
+            <div style="font-size:12px;color:var(--ink3);display:flex;align-items:center;gap:5px;flex-wrap:wrap">
+              <span>${(p.anchor_age||'?')}${p.gender==='M'?'M':p.gender==='F'?'F':''}</span>
+              <span style="color:var(--border)">·</span>
+              <span>${_ward}</span>
+              <span style="color:var(--border)">·</span>
+              <span>Admitted ${admDt}</span>
+            </div>
+          </div>
+          ${S.encStatus?`<span class="pill pill-amber" style="flex-shrink:0">${S.encStatus}</span>`:''}
+        </div>
+      </div>`;
+    })()}
+
+
+    ${!allDataLoaded ? `
+    <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:10px 16px;margin-bottom:14px;display:flex;align-items:center;gap:12px">
+      <span class="spinner" style="width:14px;height:14px;border-width:2px;flex-shrink:0"></span>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+          <span style="font-size:12px;font-weight:600;color:#0369a1">Loading clinical data…</span>
+          <span style="font-size:11px;color:#0284c7;font-weight:600">${done}/${total}</span>
+        </div>
+        <div style="height:4px;background:#e0f2fe;border-radius:99px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:#0ea5e9;border-radius:99px;transition:width .4s ease"></div>
+        </div>
+        ${activeTabs.length ? `<div style="font-size:11px;color:#0284c7;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Fetching: ${activeTabs.join(', ')}</div>` : ''}
+      </div>
+    </div>` : ''}
+
+    <div class="card">
+      <div class="tab-bar-wrap" id="tab-bar-wrap">
+        <div id="tab-bar">${tabBar}</div>
+      </div>
+      <div class="tab-body" id="tab-body">${tabContent()}</div>
+    </div>
+
+    <!-- DISCHARGE TYPE SELECTOR -->
+    <div class="card" style="padding:18px 20px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <span style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink3)">Select Discharge Type</span>
+        ${!S.dischargeType ? `<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:#fef2f2;color:var(--red);border:1px solid #fecaca">REQUIRED</span>` : ''}
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${['Standard','LAMA','DAMA','Death','Referral'].map(dt => `
+          <button onclick="S.dischargeType='${dt}';render()"
+            style="padding:7px 18px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;
+              ${S.dischargeType===dt
+                ? 'background:var(--blue);color:#fff;border:2px solid var(--blue)'
+                : 'background:#fff;color:var(--ink2);border:2px solid var(--border)'}">${dt}</button>
+        `).join('')}
+      </div>
+    </div>
+
+    <!-- DCM MANDATORY CHECKLIST -->
+    ${_hasDCM && !S.summaryView ? `
+    <div class="card" style="padding:18px 20px; border-left: 4px solid var(--brand); border-radius: 4px var(--r-md) var(--r-md) 4px; margin-bottom: 16px;">
+      <div style="font-size:12.5px; font-weight:700; color:var(--ink); margin-bottom:12px">
+        DCM Mandatory Checklist — NABH Required
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px 24px">
+        <!-- Left Column -->
+        <div style="display:flex; flex-direction:column; gap:10px">
+          <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--ink-2); cursor:pointer">
+            <input type="checkbox" id="dcm-lvef" ${S.dcmLvef ? 'checked' : ''} onchange="onDcmChange('dcmLvef', this.checked)" style="width:15px; height:15px; accent-color:var(--brand); cursor:pointer">
+            LVEF documented (echo report)
+          </label>
+          <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--ink-2); cursor:pointer">
+            <input type="checkbox" id="dcm-nyha" ${S.dcmNyha ? 'checked' : ''} onchange="onDcmChange('dcmNyha', this.checked)" style="width:15px; height:15px; accent-color:var(--brand); cursor:pointer">
+            NYHA Functional Class assigned
+          </label>
+          <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--ink-2); cursor:pointer">
+            <input type="checkbox" id="dcm-device" ${S.dcmDevice ? 'checked' : ''} onchange="onDcmChange('dcmDevice', this.checked)" style="width:15px; height:15px; accent-color:var(--brand); cursor:pointer">
+            Device therapy status (ICD/CRT)
+          </label>
+        </div>
+        <!-- Right Column -->
+        <div style="display:flex; flex-direction:column; gap:10px">
+          <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--ink-2); cursor:pointer">
+            <input type="checkbox" id="dcm-bnp" ${S.dcmBnp ? 'checked' : ''} onchange="onDcmChange('dcmBnp', this.checked)" style="width:15px; height:15px; accent-color:var(--brand); cursor:pointer">
+            BNP / NT-proBNP level recorded
+          </label>
+          <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--ink-2); cursor:pointer">
+            <input type="checkbox" id="dcm-aetiology" ${S.dcmAetiology ? 'checked' : ''} onchange="onDcmChange('dcmAetiology', this.checked)" style="width:15px; height:15px; accent-color:var(--brand); cursor:pointer">
+            Aetiology of DCM documented
+          </label>
+          <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--ink-2); cursor:pointer">
+            <input type="checkbox" id="dcm-meds" ${S.dcmMeds ? 'checked' : ''} onchange="onDcmChange('dcmMeds', this.checked)" style="width:15px; height:15px; accent-color:var(--brand); cursor:pointer">
+            Medication optimisation confirmed
+          </label>
+        </div>
+      </div>
+    </div>
+    ` : ''}
+
+    <!-- NYHA CLASS AT DISCHARGE -->
+    ${_hasDCM && !S.summaryView ? `
+    <div class="card" style="padding:18px 20px; margin-bottom:16px">
+      <div style="font-size:12.5px; font-weight:700; color:var(--ink3); text-transform:uppercase; letter-spacing:.5px; margin-bottom:10px">
+        NYHA Class at Discharge
+      </div>
+      <div style="position:relative; width:100%; max-width:480px">
+        <select onchange="onNyhaChange(this.value)" 
+          style="width:100%; padding:10px 14px; background:#fff; border:1.5px solid var(--brand); border-radius:8px; font-size:13px; color:var(--ink); cursor:pointer; appearance:none; -webkit-appearance:none; outline:none; transition: border-color .15s">
+          <option value="" ${!S.nyhaClass ? 'selected' : ''}>Select NYHA Class</option>
+          <option value="NYHA Class I" ${S.nyhaClass === 'NYHA Class I' ? 'selected' : ''}>Class I — No symptoms on ordinary activity</option>
+          <option value="NYHA Class II" ${S.nyhaClass === 'NYHA Class II' ? 'selected' : ''}>Class II — Slight limitation; symptoms on moderate exertion</option>
+          <option value="NYHA Class III" ${S.nyhaClass === 'NYHA Class III' ? 'selected' : ''}>Class III — Marked limitation; symptoms on mild exertion</option>
+          <option value="NYHA Class IV" ${S.nyhaClass === 'NYHA Class IV' ? 'selected' : ''}>Class IV — Symptoms at rest; unable to carry on any activity</option>
+        </select>
+        <div style="position:absolute; right:14px; top:50%; transform:translateY(-50%); pointer-events:none; color:var(--brand)">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+        </div>
+      </div>
+    </div>
+    ` : ''}
+
+    <!-- UPLOAD FILE SLOTS -->
+    <div class="card">
+      <div style="padding:14px 16px 8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink3)">Upload Documents</span>
+        ${S.dischargeType && S.dischargeType !== 'Standard' ? `
+          <span style="font-size:11px;color:#1d4ed8;background:#eff6ff;border:1px solid #bfdbfe;border-radius:4px;padding:2px 8px;font-weight:600">${S.dischargeType} — additional documents required below</span>
+        ` : ''}
+        ${!S.dischargeType ? `<span style="font-size:10.5px;color:#9ca3af">Select discharge type above to unlock</span>` : ''}
+      </div>
+      <div class="uz-grid" id="uz-grid" style="opacity:${_consented && S.dischargeType ?'1':'.45'};pointer-events:${_consented && S.dischargeType ?'':'none'};transition:opacity .25s">${activeSlots().map(fileSlotHTML).join('')}</div>
+    </div>
+
+    <!-- DATA-LOADING WARNING / GENERATE BUTTON -->
+    ${pendingTabs.length && S.genWarnPending ? `
+    <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:14px 18px;margin-bottom:10px;display:flex;align-items:flex-start;gap:12px">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:700;color:#92400e;margin-bottom:4px">${pendingTabs.length} tab${pendingTabs.length > 1 ? 's' : ''} still loading — summary may be incomplete</div>
+        <div style="font-size:12px;color:#b45309;margin-bottom:10px">Still fetching: <b>${pendingTabs.join(', ')}</b>. Waiting ensures all clinical data is included in the summary.</div>
+        <div style="display:flex;gap:8px">
+          <button class="btn-sec" onclick="S.genWarnPending=false;render()" style="font-size:12px">Wait for data</button>
+          <button style="padding:6px 14px;border-radius:6px;font-size:12px;font-weight:600;background:#d97706;color:#fff;border:none;cursor:pointer" onclick="S.genWarnPending=false;proceedGenerate()">Generate anyway →</button>
+        </div>
+      </div>
+    </div>` : ''}
+    <div class="foot-bar">
+      ${['Revision Requested','Amendment Requested'].includes(S.encStatus) && (S.summary || S.summaryLoading) ? `
+        <button class="btn-sec" onclick="toggleViewDraft()" style="display:inline-flex;align-items:center;gap:7px;padding:9px 18px;font-size:13px">
+          ${svg('pulse',13)} ${S.summaryLoading && !S.summary ? 'Loading draft…' : S.summaryView ? 'Hide Draft' : 'View Draft'}
+        </button>
+        <button class="btn-gen" id="submit-fix-btn" onclick="doSubmitFix()">
+          Submit Fix →
+        </button>
+      ` : `
+
+        ${(S.encStatus === 'Revision Requested' || S.encStatus === 'Files Ready') ? '' : `
+        <button class="btn-gen" id="gen-btn" onclick="handleGenerate()" ${S.generating || !_canGenerate ?'disabled':''}
+          style="opacity:${_canGenerate ?'1':'.45'};pointer-events:${_canGenerate ?'':'none'}">
+          ${genLabel}
+        </button>`}
+      `}
+    </div>
+
+    `;
+
+  bindEvents();
+}
+
+/* ── Bind events after render ── */
+function bindEvents() {
+  // Tab bar
+  const tabBarEl = document.getElementById('tab-bar');
+  const tabBarWrap = document.getElementById('tab-bar-wrap');
+  function _updateTabFade() {
+    if (!tabBarEl || !tabBarWrap) return;
+    const atEnd = tabBarEl.scrollLeft + tabBarEl.clientWidth >= tabBarEl.scrollWidth - 4;
+    tabBarWrap.classList.toggle('at-end', atEnd);
+  }
+  if (tabBarEl) {
+    if (S.tabBarScroll) tabBarEl.scrollLeft = S.tabBarScroll;
+    _updateTabFade();
+    // Scroll active tab into view without jumping the page
+    const activeBtn = tabBarEl.querySelector('.tab-btn.active');
+    if (activeBtn) {
+      const btnLeft = activeBtn.offsetLeft;
+      const btnRight = btnLeft + activeBtn.offsetWidth;
+      if (btnRight > tabBarEl.scrollLeft + tabBarEl.clientWidth)
+        tabBarEl.scrollLeft = btnRight - tabBarEl.clientWidth + 16;
+      else if (btnLeft < tabBarEl.scrollLeft)
+        tabBarEl.scrollLeft = btnLeft - 16;
+    }
+    tabBarEl.addEventListener('scroll', () => { S.tabBarScroll = tabBarEl.scrollLeft; _updateTabFade(); }, { passive:true });
+    tabBarEl.addEventListener('wheel', function(e) {
+      const delta = e.deltaX !== 0 ? e.deltaX : e.deltaY;
+      if (delta === 0) return;
+      e.preventDefault();
+      tabBarEl.scrollBy({ left: delta, behavior: 'auto' });
+    }, { passive: false });
+    tabBarEl.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        S.tab = btn.dataset.tab;
+        if (LAZY[S.tab] && !S.lazyLoaded[S.tab] && !S.lazyLoading[S.tab]) {
+          lazyLoad(S.tab);  // lazyLoad calls render() — handles badge + body
+        } else {
+          render();  // full re-render so badge counts are always current
+        }
+      });
+    });
+  }
+
+  // File slot inputs
+  document.querySelectorAll('.slot-inp').forEach(inp => {
+    inp.addEventListener('change', e => handleUpload(e.target.dataset.k, e.target));
+  });
+}
+
+/* ── Lazy load tab ── */
+const _inflight = {};
+async function lazyLoad(tab) {
+  const apiTab = LAZY[tab];
+  if (!apiTab || S.lazyLoaded[tab] || S.lazyLoading[tab]) return;
+  if (_inflight[tab]) return;
+  S.lazyLoading[tab] = true;
+  // Don't touch lazyFailed here — it stays true during retry so allDataLoaded isn't re-blocked
+  render();
+  _inflight[tab] = (async () => {
+    try {
+      const data = await apiFetch(`${_DATA}/api/patient/${_hadmId}/tab/${apiTab}`);
+      if (apiTab==='prescriptions')  S.meds = (data.prescriptions||[]).map(m=>({...m,drug:m.drug||m.formulary_drug_cd||'—',dosage:m.dose_val_rx?`${m.dose_val_rx} ${m.dose_unit_rx||''}`.trim():null}));
+      else if (apiTab==='pharmacy')  S.pharmacy = data.pharmacy||[];
+      else if (apiTab==='poe')       S.poe = data.poe||[];
+      else if (apiTab==='fluids')    { S.inputEvts = data.fluids||data.inputevents||[]; S.outputEvts = data.outputevents||[]; }
+      else if (apiTab==='labevents') S.labs = data.labevents||[];
+      else if (apiTab==='chartevents') S.chartEvts = data.chartevents||[];
+      else if (apiTab==='procedureevents') S.icuEvts = data.procedureevents||[];
+      S.lazyLoaded[tab] = true;
+      delete S.lazyFailed[tab];
+      // Clear ingestion spinner now that the tab data is ready
+      if (S.uploadingFor[tab]) delete S.uploadingFor[tab];
+      // Gap counts come from Pass 3 (set after generation) — no fallback to file-gap analysis
+    } catch(err) {
+      // ICU Events (procedureevents) is optional — non-ICU patients have no rows.
+      // Treat server errors as empty rather than failed so we don't retry forever.
+      if (apiTab === 'procedureevents') {
+        S.icuEvts = [];
+        S.lazyLoaded[tab] = true;
+        delete S.lazyFailed[tab];
+      } else {
+        S.lazyFailed[tab] = true;
+        // Retry silently in background without resetting lazyFailed (so allDataLoaded isn't blocked)
+        setTimeout(() => { delete _inflight[tab]; if (S.patient && !S.lazyLoaded[tab]) lazyLoad(tab); }, 15000);
+      }
+      // Clear ingestion spinner on error too so user isn't stuck
+      if (S.uploadingFor[tab]) delete S.uploadingFor[tab];
+    }
+    S.lazyLoading[tab] = false;
+    delete _inflight[tab];
+    render();
+  })();
+}
+
+/* ── File upload ── */
+async function handleUpload(k, inputEl) {
+  const files = Array.from(inputEl.files);
+  inputEl.value = '';
+  if (!files.length) return;
+  if (!S.uploads[k]) S.uploads[k] = [];
+
+  const _KEY_TO_LAZY_TAB = {
+    labs:'Labs', meds:'Medications', pharmacy:'Pharmacy',
+    poe:'Physician Orders', fluids:'Fluids I/O', vitals:'Vitals',
+    procedures:'Procedures', diagnoses:'Diagnoses', icu:'ICU Events',
+    // Non-lazy tabs — spinner shows then clears once ingest_file returns
+    microbiology:'Microbiology', transfers:'Transfers', icustays:'ICU Stays',
+  };
+
+  for (const file of files) {
+    const eid = Date.now()+'_'+Math.random().toString(36).slice(2,7);
+    const _affectedTab = _KEY_TO_LAZY_TAB[k];
+
+    S.uploads[k].push({id:eid, name:file.name, status:'uploading', rows:0, fileId:null});
+    // Mark affected tab as upload-in-progress so it shows a spinner
+    if (_affectedTab) S.uploadingFor[_affectedTab] = true;
+    render();
+
+    const form = new FormData();
+    form.append('file', file);
+    form.append('file_type', k);
+    try {
+      const resp = await fetch(`${_API}/api/encounters/${_hadmId}/ingest_file`, {method:'POST',body:form});
+      const res  = await resp.json();
+      if (!resp.ok) throw new Error(res.detail||'Upload failed');
+      const entry = (S.uploads[k]||[]).find(x=>x.id===eid);
+      if (entry) { entry.status='done'; entry.rows=res.rows_inserted||0; entry.fileId=res.file_id; }
+      if (res.encounter_id && !S.encId) S.encId = res.encounter_id;
+      S.uploadedFiles[k] = {name: file.name};
+
+      // ── PHASE 1: instant UI update (no waiting for background fetches) ──────
+      if (res.file_id) {
+        S.prevFiles = S.prevFiles.filter(f =>
+          String(f.id||f.file_id) !== String(res.file_id) &&
+          ((f.file_type||'').toLowerCase() !== k || (f.file_name||f.name) !== file.name)
+        );
+        S.prevFiles.unshift({ id: res.file_id, file_id: res.file_id, file_name: file.name, file_type: k, upload_date: new Date().toISOString() });
+      }
+      // Clear "Uploading & ingesting…" overlay the instant ingest_file responds.
+      // MIMIC data in the tab hasn't changed — no need to restart lazyLoad.
+      // Uploaded rows (S.uploadedRows) will arrive via the background fetch below.
+      if (_affectedTab) delete S.uploadingFor[_affectedTab];
+      render(); // spinner gone, tab shows existing data straight away
+
+      showToast(`${file.name} — ${res.rows_inserted||0} rows ingested`, 'ok');
+      setTimeout(() => {
+        if (S.uploads[k]) S.uploads[k] = S.uploads[k].filter(e => e.id !== eid);
+        delete S.uploadedFiles[k];
+        updateUploadSlots();
+      }, 2500);
+
+      // ── PHASE 2: background re-fetches (non-blocking fire-and-forget) ───────
+      const _fetchEncId = res.encounter_id || S.encId;
+      // Uploaded rows (inline tables inside tabs + tab-bar badge counts)
+      fetch(`${_API}/api/encounters/${_hadmId}/uploaded_clinical_data`)
+        .then(r => r.ok ? r.json() : null)
+        .then(udata => { if (udata) { S.uploadedRows = udata; render(); } })
+        .catch(() => {});
+      // Uploaded Files tab — authoritative server list
+      if (_fetchEncId) {
+        fetch(`${_API}/api/encounters/${_fetchEncId}/files`)
+          .then(fr => fr.ok ? fr.json() : null)
+          .then(fd => { const f = fd && (Array.isArray(fd) ? fd : fd.files); if (f) { S.prevFiles = f; render(); } })
+          .catch(() => {});
+      }
+      // Revision state banner
+      fetch(`${_API}/api/encounters/${_hadmId}/revision_state`)
+        .then(rs => rs.ok ? rs.json() : null)
+        .then(rsd => { if (rsd && (S.encStatus === 'Revision Requested' || S.encStatus === 'Files Ready')) { S.revisionState = rsd; S.encStatus = rsd.enc_status || S.encStatus; render(); } })
+        .catch(() => {});
+    } catch(err) {
+      const entry = (S.uploads[k]||[]).find(x=>x.id===eid);
+      if (entry) { entry.status='error'; entry.errMsg=err.message; }
+      if (_affectedTab) {
+        delete S.uploadingFor[_affectedTab];
+        S.lazyLoaded[_affectedTab] = false;
+        S.lazyLoading[_affectedTab] = false;
+      }
+      showToast(`${k}: ${err.message}`, 'err');
+      render();
+    }
+    updateUploadSlots();
+  }
+}
+
+function updateUploadSlots() {
+  const grid = document.getElementById('uz-grid');
+  if (grid) { grid.innerHTML = activeSlots().map(fileSlotHTML).join(''); bindSlotInputs(); }
+}
+
+function updateTabBar() {
+  const el = document.getElementById('tab-bar');
+  if (!el) return;
+  el.innerHTML = TABS.map(t => {
+    const cnt = tabCount(t);
+    const isIngesting = !!S.uploadingFor[t];
+    const isLoading = LAZY[t] && S.lazyLoading[t];
+    const notLoaded  = LAZY[t] && !S.lazyLoaded[t] && S.patient;
+    const badge = cnt > 0
+      ? `<span class="tab-cnt">${cnt}</span>`
+      : isIngesting ? `<span style="width:8px;height:8px;border:1.5px solid var(--amber);border-top-color:transparent;border-radius:50%;display:inline-block;animation:spin .7s linear infinite"></span>`
+      : isLoading  ? `<span style="width:6px;height:6px;border-radius:50%;background:var(--amber);display:inline-block;animation:pulse 1s infinite"></span>`
+      : notLoaded  ? `<span style="width:6px;height:6px;border-radius:50%;background:var(--border);display:inline-block"></span>`
+      : '';
+    return `<button class="tab-btn${S.tab===t?' active':''}" data-tab="${t}">${t}${badge}</button>`;
+  }).join('');
+  el.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      S.tab = btn.dataset.tab;
+      if (LAZY[S.tab] && !S.lazyLoaded[S.tab] && !S.lazyLoading[S.tab]) lazyLoad(S.tab);
+      else render();
+    });
+  });
+  el.scrollLeft = S.tabBarScroll;
+}
+function bindSlotInputs() {
+  document.querySelectorAll('.slot-inp').forEach(inp => {
+    inp.addEventListener('change', e => handleUpload(e.target.dataset.k, e.target));
+  });
+}
+
+// Maps file_type key → LAZY tab name + which S.* fields to clear
+const _FILE_TAB_MAP = {
+  labs:      { tab: 'Labs',             clear: () => { S.labs = []; } },
+  meds:      { tab: 'Medications',      clear: () => { S.meds = []; } },
+  vitals:    { tab: 'Vitals',           clear: () => { S.chartEvts = []; } },
+  icu:       { tab: 'ICU Events',       clear: () => { S.icuEvts = []; } },
+  fluids:    { tab: 'Fluids I/O',       clear: () => { S.inputEvts = []; S.outputEvts = []; } },
+  poe:       { tab: 'Physician Orders', clear: () => { S.poe = []; } },
+  pharmacy:  { tab: 'Pharmacy',         clear: () => { S.pharmacy = []; } },
+};
+
+async function deleteFile(fileId, fileType, btn) {
+  if (!fileId) { showToast('No file ID — cannot delete', 'err'); return; }
+  // Normalise to lowercase — S.uploadedRows keys are always lowercase
+  const _ftKey = (fileType || '').toLowerCase();
+  // Optimistic: remove file entry AND its uploaded rows from state immediately.
+  // Clear every possible key variant so stale case-mismatched entries don't linger.
+  const _savedFile = S.prevFiles.find(function(f){ return String(f.id||f.file_id) === String(fileId); });
+  S.prevFiles = S.prevFiles.filter(function(f){ return String(f.id||f.file_id) !== String(fileId); });
+  const _savedRows = _ftKey ? (S.uploadedRows[_ftKey] || null) : null;
+  if (_ftKey) {
+    delete S.uploadedRows[_ftKey];
+    // Also wipe any title-case variant (e.g. 'Pharmacy') that might exist from older fetches
+    const _ftTitle = _ftKey.charAt(0).toUpperCase() + _ftKey.slice(1);
+    if (_ftTitle !== _ftKey) delete S.uploadedRows[_ftTitle];
+  }
+  // Clear the corresponding lazy-loaded tab data so it doesn't show stale ingested rows
+  const _tabEntry = _FILE_TAB_MAP[_ftKey];
+  if (_tabEntry) {
+    const _tabName = _tabEntry.tab;
+    _tabEntry.clear();
+    S.lazyLoaded[_tabName]  = false;
+    S.lazyLoading[_tabName] = false;
+    S.lazyFailed[_tabName]  = false;
+    delete _inflight[_tabName];
+  }
+  render(); // Uploaded Files row + data-tab uploaded rows both vanish instantly
+  try {
+    const url = `${_API}/api/uploaded_files/${fileId}?file_type=${encodeURIComponent(fileType)}&hadm_id=${_hadmId}`;
+    const r = await fetch(url, { method: 'DELETE' });
+    if (!r.ok) throw new Error((await r.json().catch(()=>({}))).detail || `HTTP ${r.status}`);
+    showToast('File deleted', 'ok');
+    // Background re-fetches for server-truth (non-blocking)
+    if (S.encId) {
+      fetch(`${_API}/api/encounters/${S.encId}/files`)
+        .then(fr => fr.ok ? fr.json() : null)
+        .then(fd => { const f = fd && (Array.isArray(fd) ? fd : fd.files); if (f) { S.prevFiles = f; render(); } })
+        .catch(() => {});
+    }
+    fetch(`${_API}/api/encounters/${_hadmId}/uploaded_clinical_data`)
+      .then(r => r.ok ? r.json() : null)
+      .then(udata => { if (udata) { S.uploadedRows = udata; render(); } })
+      .catch(() => {});
+  } catch(err) {
+    // Restore both on server failure
+    if (_savedFile) S.prevFiles.unshift(_savedFile);
+    if (_savedRows) S.uploadedRows[_ftKey] = _savedRows;
+    render();
+    showToast('Delete failed: ' + err.message, 'err');
+  }
+}
+
+/* ── Summary view (for already-generated patients) ── */
+function buildSourceDataText() {
+  const p = S.patient   || {};
+  const a = S.admission || {};
+  const L = [];
+
+  function sec(num, title) { L.push(''); L.push('§' + num + ' — ' + title.toUpperCase()); L.push('─'.repeat(42)); }
+  function row(k, v)        { L.push('  ' + (k + ':').padEnd(22) + (v || 'Not recorded')); }
+  function bullet(v)        { L.push('  • ' + v); }
+  function na(msg)          { L.push('  ' + (msg || 'Data not available')); }
+
+  // §1 Patient Demographics
+  sec(1, 'Patient Demographics');
+  row('Name',           p.name || 'Not recorded');
+  row('Age / Gender',   (p.anchor_age ? p.anchor_age + ' yrs' : '?') + ' / ' + (p.gender || '?'));
+  row('Blood Group',    p.blood_group || 'Not recorded');
+  row('Marital Status', p.marital_status || 'N/A');
+  row('Race',           p.race || 'N/A');
+  row('Language',       p.language || 'N/A');
+  row('Ward',           p.ward || 'Not recorded');
+  row('Patient ID',     _pidLabel);
+  row('Admission Date', (a.admittime || '').split(' ')[0] || 'N/A');
+  row('Discharge Date', (a.dischtime || '').split(' ')[0] || 'N/A');
+  row('Admission Type', a.admission_type || 'N/A');
+  row('Admitted From',  a.admission_location || 'N/A');
+  row('Discharged To',  a.discharge_location || 'N/A');
+  row('Discharge Type', S.dischargeType || 'Not selected');
+  row('Insurance',      a.insurance || 'N/A');
+  row('Expired in stay',a.hospital_expire_flag == 1 ? 'Yes' : 'No');
+
+  // §2 Chief Complaint
+  sec(2, 'Chief Complaint');
+  if (S.diagnoses.length) {
+    row('Primary Diagnosis', S.diagnoses[0].long_title || S.diagnoses[0].icd_code || '—');
+    row('Admission Reason',  a.admission_type || 'N/A');
+  } else { na(); }
+
+  // §3 History of Presenting Illness
+  sec(3, 'History of Presenting Illness');
+  if (S.diagnoses.length > 1) {
+    L.push('  Admission diagnoses:');
+    S.diagnoses.slice(0, 10).forEach(function(d, i) {
+      bullet((i === 0 ? '[PRIMARY] ' : '') + (d.long_title || d.icd_code || '—'));
+    });
+  }
+
+  // §4 Significant Past History
+  sec(4, 'Significant Past History');
+  var pastDx = S.diagnoses.filter(function(d) { return d.seq_num > 1; });
+  if (pastDx.length) {
+    pastDx.slice(0, 8).forEach(function(d) { bullet(d.long_title || d.icd_code || '—'); });
+  } else { na('No additional diagnoses recorded'); }
+
+  function uplRows(key) { return S.uploadedRows[key] || []; }
+  function uplBullets(key, labelFn) {
+    var rows = uplRows(key);
+    if (!rows.length) return;
+    L.push('  + Uploaded (' + rows.length + ' rows):');
+    rows.slice(0, 10).forEach(function(r) { bullet('[UPL] ' + labelFn(r)); });
+  }
+
+  // §5 Investigations Summary
+  sec(5, 'Investigations Summary');
+  if (S.labs.length) {
+    L.push('  Labs (' + S.labs.length + ' records):');
+    var labGroups = {};
+    S.labs.forEach(function(l) { var k = l.label || l.itemid; if (!labGroups[k]) labGroups[k] = []; labGroups[k].push(l); });
+    Object.keys(labGroups).slice(0, 12).forEach(function(k) {
+      var r = labGroups[k][0];
+      bullet(k + ': ' + (r.value || r.valuenum || '?') + ' ' + (r.valueuom || '') + (r.flag ? ' [' + r.flag + ']' : ''));
+    });
+  } else { na('Lab results not in GCS'); }
+  uplBullets('labs', function(r){ return Object.values(r).slice(0,4).join(' | '); });
+  L.push('');
+  if (S.chartEvts.length) {
+    L.push('  Vitals (' + S.chartEvts.length + ' records):');
+    var vGroups = {};
+    S.chartEvts.forEach(function(c) { var k = c.label || c.itemid; if (!vGroups[k]) vGroups[k] = []; vGroups[k].push(c); });
+    Object.keys(vGroups).slice(0, 10).forEach(function(k) {
+      var r = vGroups[k][0];
+      bullet(k + ': ' + (r.value || r.valuenum || '?') + ' ' + (r.valueuom || ''));
+    });
+  } else { na('Vitals not in GCS'); }
+  uplBullets('vitals', function(r){ return Object.values(r).slice(0,4).join(' | '); });
+
+  // §6 Treatment Given
+  sec(6, 'Treatment Given');
+
+  // §7 Medications on Admission
+  sec(7, 'Medications on Admission');
+  if (S.meds.length) {
+    L.push('  Prescriptions (' + S.meds.length + '):');
+    S.meds.slice(0, 12).forEach(function(m) {
+      bullet((m.drug || m.formulary_drug_cd || '—') + (m.dose_val_rx ? '  ' + m.dose_val_rx + ' ' + (m.dose_unit_rx || '') : '') + (m.route ? '  [' + m.route + ']' : ''));
+    });
+  } else { na('Medications not in GCS'); }
+  uplBullets('meds', function(r){ return (r.drug || r.medication || r.formulary_drug_cd || Object.values(r)[0] || '—') + (r.dose ? '  ' + r.dose : ''); });
+
+  // §8 Procedures
+  sec(8, 'Procedures Performed');
+  if (S.procedures.length) {
+    S.procedures.slice(0, 10).forEach(function(pr) { bullet(pr.long_title || pr.icd_code || '—'); });
+  } else { na('No procedures in GCS'); }
+  uplBullets('procedures', function(r){ return r.long_title || r.icd_code || Object.values(r)[0] || '—'; });
+  if (S.pharmacy.length) {
+    L.push('  Pharmacy (' + S.pharmacy.length + ' records):');
+    S.pharmacy.slice(0, 5).forEach(function(ph) { bullet((ph.medication || ph.drug || '—') + (ph.doses_given ? '  doses: ' + ph.doses_given : '')); });
+  }
+  uplBullets('pharmacy', function(r){ return r.medication || r.drug || Object.values(r)[0] || '—'; });
+
+  // §9 Clinical Progress Notes
+  sec(9, 'Clinical Progress Notes');
+  if (S.poe.length) {
+    L.push('  Physician orders (' + S.poe.length + '):');
+    S.poe.slice(0, 10).forEach(function(o) { bullet((o.order_type || '—') + ': ' + (o.order_subtype || o.medication || '')); });
+  } else { na('Physician orders not in GCS'); }
+  uplBullets('poe', function(r){ return (r.order_type || r.order_subtype || Object.values(r)[0] || '—'); });
+
+  // §10 ICU Summary
+  sec(10, 'ICU Summary');
+  if (S.icuStays.length) {
+    S.icuStays.forEach(function(s) {
+      bullet((s.first_careunit || '?') + ' → ' + (s.last_careunit || '?') + '  LOS: ' + (s.los ? (+s.los).toFixed(1) + 'd' : '?'));
+    });
+  } else { na('No ICU admissions in GCS'); }
+  uplBullets('icustays', function(r){ return (r.first_careunit || r.last_careunit || Object.values(r)[0] || '—') + (r.los ? '  LOS: ' + (+r.los).toFixed(1) + 'd' : ''); });
+  if (S.icuEvts.length) {
+    L.push('  ICU events (' + S.icuEvts.length + '):');
+    S.icuEvts.slice(0, 6).forEach(function(e) { bullet((e.label || e.itemid || '—') + ': ' + (e.value || e.valuenum || '')); });
+  }
+  uplBullets('icu', function(r){ return Object.values(r).slice(0,4).join(' | '); });
+  if (S.inputEvts.length || S.outputEvts.length) {
+    row('Fluid inputs',  S.inputEvts.length + ' records');
+    row('Fluid outputs', S.outputEvts.length + ' records');
+  }
+  uplBullets('fluids', function(r){ return Object.values(r).slice(0,4).join(' | '); });
+
+  // §11 Discharge Condition
+  sec(11, 'Discharge Condition');
+  row('Discharge Location', a.discharge_location || 'N/A');
+  row('Expired in stay',    a.hospital_expire_flag == 1 ? 'Yes' : 'No');
+  if (S.chartEvts.length) {
+    var lastVitals = S.chartEvts.slice(-5);
+    L.push('  Most recent vitals:');
+    lastVitals.forEach(function(c) { bullet((c.label || c.itemid || '—') + ': ' + (c.value || c.valuenum || '?') + ' ' + (c.valueuom || '')); });
+  } else { na('Vitals not loaded'); }
+
+  // §12 Discharge Instructions
+  sec(12, 'Discharge Instructions');
+  row('Discharged To', a.discharge_location || 'N/A');
+
+  // §13 Follow-up Instructions
+  sec(13, 'Follow-up Instructions');
+  na('Follow-up plan not in structured data');
+
+  // §14 Patient & Caregiver Education
+  sec(14, 'Patient & Caregiver Education');
+  na('Education records not in structured MIMIC data');
+
+  // §15 Complications
+  sec(15, 'Complications');
+  if (S.micro.length) {
+    L.push('  Microbiology (' + S.micro.length + ' records):');
+    S.micro.slice(0, 8).forEach(function(m) {
+      bullet((m.test_name || m.spec_type_desc || '—') + (m.org_name ? '  → ' + m.org_name : '  → No growth'));
+    });
+  } else { na('No microbiology data in GCS'); }
+  uplBullets('microbiology', function(r){ return (r.test_name || r.spec_type_desc || Object.values(r)[0] || '—') + (r.org_name ? '  → ' + r.org_name : ''); });
+  if (S.labs.length) {
+    var abnormal = S.labs.filter(function(l) { return l.flag && l.flag.toLowerCase().includes('abnormal'); });
+    if (abnormal.length) {
+      L.push('  Abnormal lab flags (' + abnormal.length + '):');
+      abnormal.slice(0, 8).forEach(function(l) { bullet((l.label || l.itemid || '—') + ': ' + (l.value || l.valuenum || '?') + ' [' + l.flag + ']'); });
+    }
+  }
+
+  L.push('');
+  return L.join('\n');
+}
+
+function renderSummaryView() {
+  const totalRec    = (S.tableLog || []).reduce(function(a, t) { return a + t.count; }, 0);
+  const tablesBadge = S.tableLog.length
+    ? S.tableLog.length + ' table' + (S.tableLog.length > 1 ? 's' : '') + ' · ' + totalRec + ' records'
+    : '0 tables · 0 records';
+  const srcText = buildSourceDataText();
+
+  const srcPanel = S.showSourceData ? `
+    <div style="width:340px;flex-shrink:0;border-left:1px solid var(--border);background:var(--surf);display:flex;flex-direction:column">
+      <div style="padding:11px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;background:#fff">
+        <span style="font-size:15px">&#128203;</span>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700;color:var(--ink)">Source Clinical Data</div>
+          <div style="font-size:11px;color:var(--ink3)">Raw data used to generate this summary</div>
+        </div>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:14px 16px">
+        <pre style="white-space:pre-wrap;font-family:'Courier New',monospace;font-size:11px;line-height:1.7;color:var(--ink2);margin:0">${srcText}</pre>
+      </div>
+    </div>` : '';
+
+  const _alreadySent = S.reviewSent || ['Awaiting Review','Signed Off'].includes(S.encStatus);
+  const _docOptions  = (S.doctors||[]).map(d => `<option value="${d.email||d.id||''}">${d.full_name||d.name||d.email||'Unknown'}</option>`).join('');
+  const _reviewArea  = _alreadySent
+    ? `<span style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;background:#f0fdf4;border:1px solid #86efac;border-radius:6px;font-size:12px;font-weight:600;color:#15803d">&#10003; Sent to Attending Queue</span>`
+    : S.doctorSelect
+      ? `<select id="doc-sel" style="padding:5px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;color:var(--ink);background:#fff;cursor:pointer;max-width:200px">
+           <option value="">— Select doctor —</option>${_docOptions}
+         </select>
+         <button id="confirm-send-btn" onclick="confirmSend()" style="padding:5px 12px;background:#800080;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">Confirm &rarr;</button>
+         <button onclick="S.doctorSelect=false;render()" style="padding:5px 10px;background:#fff;color:#6b7280;border:1px solid var(--border);border-radius:6px;font-size:12px;cursor:pointer">Cancel</button>`
+      : `<button onclick="S.doctorSelect=true;loadDoctors();render()" style="padding:5px 14px;background:#800080;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">Send to Attending Queue &rarr;</button>`;
+
+  return `
+    ${S.summaryOnly ? '' : `
+    <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+      <button class="btn-sec" onclick="S.summaryView=false;render()" style="display:inline-flex;align-items:center;gap:7px;padding:9px 18px;font-size:13px">
+        &larr; Back to Source Files &amp; Uploads
+      </button>
+    </div>`}
+
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:11px 16px;background:var(--greenb);border:1px solid var(--greenbr);border-bottom:none;border-radius:8px 8px 0 0">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      <span style="font-size:13.5px;font-weight:700;color:var(--green)">AI Discharge Summary Generated</span>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+        ${_reviewArea}
+      </div>
+    </div>
+
+    ${_renderGateWidget(S.errorStats)}
+
+
+    ${S.showLog && S.tableLog.length ? `
+    <div style="padding:10px 16px;background:#f8fafc;border:1px solid var(--greenbr);border-top:none;font-size:12px;color:var(--ink2);display:flex;flex-wrap:wrap;gap:10px">
+      ${S.tableLog.map(function(t){ return '<span style="background:#e0f2fe;border:1px solid #bae6fd;border-radius:5px;padding:2px 8px;color:#0369a1">' + t.table + ': ' + t.count + '</span>'; }).join('')}
+    </div>` : ''}
+
+    <div style="display:flex;border:1px solid var(--greenbr);border-top:none;border-radius:0 0 8px 8px;background:#fff;overflow:hidden;min-height:60vh">
+      <div style="flex:1;overflow-y:auto">
+        ${(function(){
+          var fmtDate = function(d){ return d ? new Date(d).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}) : '—'; };
+          var adm = (S.patient && (S.patient.admittime || S.patient.admit_time)) || null;
+          var dis = (S.patient && (S.patient.dischtime || S.patient.disch_time)) || null;
+          var body = S.summary
+            .replace(/\*\*([^*\n]+)\*\*/g, function(m, g1){
+              return '<div style="margin-top:16px;margin-bottom:4px;font-size:11px;font-weight:700;color:#1e3a5f;text-transform:uppercase;letter-spacing:0.07em;border-bottom:1px solid #e2e8f0;padding-bottom:3px">' + g1 + '</div>';
+            })
+            .replace(/\n/g,'<br/>');
+          return '<div style="padding:32px 40px;max-width:820px;margin:0 auto">'
+            + '<div style="display:flex;align-items:center;gap:18px;padding-bottom:18px;border-bottom:2px solid #1e3a5f;margin-bottom:22px">'
+              + '<div style="width:52px;height:52px;border-radius:12px;background:linear-gradient(135deg,#800080,#C040C0);display:grid;place-items:center;flex-shrink:0">'
+                + '<span style="font-size:13px;font-weight:900;color:white">FQ</span>'
+              + '</div>'
+              + '<div style="flex:1">'
+                + '<div style="font-size:18px;font-weight:800;color:#1e3a5f">Foqal Healthcare</div>'
+                + '<div style="font-size:11px;color:#6b7280;margin-top:2px">Cardiac &amp; Surgical Wing &middot; Chennai, Tamil Nadu</div>'
+              + '</div>'
+              + '<div style="text-align:right">'
+                + '<div style="font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.10em;color:#1e3a5f">Discharge Summary</div>'
+                + '<div style="font-size:10.5px;color:#6b7280;margin-top:3px">' + _pidLabel + ' &middot; v1.0</div>'
+              + '</div>'
+            + '</div>'
+            + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;padding:14px 18px;background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;margin-bottom:28px">'
+              + [['Patient',_synthName],['Patient ID',_pidLabel],['Admitted',fmtDate(adm)],['Discharged',fmtDate(dis)]].map(function(kv){
+                  return '<div><div style="font-size:9.5px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.12em;margin-bottom:3px">' + kv[0] + '</div>'
+                    + '<div style="font-size:13px;font-weight:600;color:#111827">' + kv[1] + '</div></div>';
+                }).join('')
+            + '</div>'
+            + '<div style="font-size:13.5px;line-height:1.75;color:#111827">' + body + '</div>'
+            + '</div>';
+        })()}
+      </div>
+    </div>
+
+  `;
+}
+
+function doRegenerate() {
+  S.summaryView    = false;
+  S.genDone        = false;
+  S.reviewSent     = false;
+  S.doctorSelect   = false;
+  S.sentTo         = null;
+  S.genWarnPending = false;
+  // If this summary was already sent for review ("Awaiting Review"), reset the
+  // backend status to "Ready for Review" immediately so the doctor's queue is
+  // cleared and any page reload won't show "✓ Sent for Review" for the old summary.
+  if (S.encId && ['Awaiting Review', 'Signed Off'].includes(S.encStatus)) {
+    fetch(`${_API}/api/encounters/${S.encId}/status`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + (sessionStorage.getItem('foqal_token') || '')
+      },
+      body: JSON.stringify({ status: 'Ready for Review' })
+    }).then(function(r) { if (r.ok) S.encStatus = 'Ready for Review'; }).catch(function(){});
+  }
+  proceedGenerate();
+}
+
+async function doSubmitFiles() {
+  return doSubmitFix();
+}
+
+function toggleViewDraft() {
+  if (S.summary) {
+    S.summaryView = !S.summaryView;
+    render();
+  } else if (S.summaryLoading) {
+    S.summaryView = true;  // will auto-show when fetch completes
+    render();
+  } else {
+    showToast('No draft summary available yet.', 'warn');
+  }
+}
+
+async function doSubmitFix() {
+  const btn = document.getElementById('submit-fix-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Submitting…'; }
+  try {
+    const resp = await fetch(`${_API}/api/encounters/${_hadmId}/mark_files_ready`, {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + (sessionStorage.getItem('foqal_token') || '') }
+    });
+    if (!resp.ok) { const e = await resp.json().catch(()=>({})); showToast(e.detail||'Failed to submit fix','err'); if (btn) { btn.disabled=false; btn.textContent='Submit Fix →'; } return; }
+    S.encStatus = 'Files Ready';
+    if (S.revisionState) S.revisionState.timestamps = S.revisionState.timestamps || {};
+    showToast('Fix submitted — ward admin notified to trigger regeneration.', 'ok');
+    render();
+  } catch(e) {
+    showToast('Network error — please try again', 'err');
+    if (btn) { btn.disabled = false; btn.textContent = 'Submit Fix →'; }
+  }
+}
+
+/* ── Gen screen helpers ── */
+function simComplete() { S.genScreen=null; S.summaryView=true; render(); }
+function simGap()      { S.genScreen='gap';     render(); }
+function simError()    { S.genScreen='error';   render(); }
+function backToUpload(){ S.genScreen=null;       render(); }
+
+function _storeGapCounts() {
+  var gr = computeGapRows();
+  var t1 = gr.filter(function(r){ return r.tier === 'T1'; }).length;
+  var t2 = gr.filter(function(r){ return r.tier === 'T2'; }).length;
+  var t3 = gr.filter(function(r){ return r.tier === 'T3'; }).length;
+  S.gapT1 = t1; S.gapT2 = t2; S.gapT3 = t3;
+  try { localStorage.setItem('gap_counts_' + _hadmId, JSON.stringify({t1:t1, t2:t2, t3:t3})); } catch(e) {}
+  // Store per-section gap tiers so the doctor review screen can show correct tier badges
+  // Maps gap section codes (§N) to sections_json keys (sN) based on NABH semantic match
+  var _GAP_TO_SJ = {'§2':['s2','s3'],'§4':['s5'],'§5':['s6','s7'],'§7':['s11'],'§8':['s10'],'§9':['s9'],'§10':['s9'],'§11':['s14'],'§13':['s12'],'§14':['s15'],'§15':['s13']};
+  var _gTierRank = {T3:3, T2:2, T1:1};
+  var _secTiers = {};
+  gr.forEach(function(r) {
+    (_GAP_TO_SJ[r.sec] || []).forEach(function(k) {
+      if (!_secTiers[k] || (_gTierRank[r.tier]||0) > (_gTierRank[_secTiers[k]]||0)) _secTiers[k] = r.tier;
+    });
+  });
+  try { localStorage.setItem('gap_sec_tiers_' + _hadmId, JSON.stringify(_secTiers)); } catch(e) {}
+  // gap_rows are now written exclusively by Pass 3 — do not overwrite with pre-generation file-gap predictions
+}
+
+function acceptPartial() {
+  _storeGapCounts();
+  S.genScreen   = null;
+  S.summaryView = true;
+  showToast('Partial summary ready — some sections incomplete', 'ok');
+  render();
+}
+
+/* Compute which NABH sections are missing.
+   Uses tabCount() — same source as the tab badges — so the gap table
+   always reflects exactly what each tab shows. */
+function computeGapRows() {
+  const hasUpload = function(k) { return (S.uploads[k] || []).some(function(f) { return f.status === 'done'; }); };
+  const hasClinicalNotes = hasUpload('notes') || S.tableLog.length > 0;
+  // Only flag a gap when we KNOW the tab has no data — i.e., its fetch has completed.
+  // If still in-flight, don't report a gap (we'd be counting loading as missing).
+  // LAZY tabs track per-tab; display tabs share a single displayLoaded flag.
+  const tabReady = function(t) {
+    return LAZY[t] ? !!(S.lazyLoaded[t] || S.lazyFailed[t]) : !!S.displayLoaded;
+  };
+  const tc = {
+    labs:       tabCount('Labs'),
+    vitals:     tabCount('Vitals'),
+    meds:       tabCount('Medications'),
+    procedures: tabCount('Procedures'),
+    diagnoses:  tabCount('Diagnoses'),
+    micro:      tabCount('Microbiology'),
+    icu:        tabCount('ICU Events') + tabCount('ICU Stays'),
+    pharmacy:   tabCount('Pharmacy'),
+  };
+  const rows = [];
+
+  // §5 Investigations
+  if (tabReady('Labs') && tc.labs === 0 && !hasUpload('labs')) {
+    // T3: AI will hallucinate lab values when none exist (fabricated clinical data)
+    rows.push({ sec:'§5', title:'Investigations Summary',
+      missing: 'No lab results uploaded — AI may hallucinate investigation values',
+      tier:'T3', col:'var(--red)' });
+  } else if (tabReady('Labs') && !hasClinicalNotes) {
+    // T1: AI writes "ECG not available" — phrasing only, clinical meaning unchanged
+    rows.push({ sec:'§5', title:'Investigations Summary',
+      missing: 'ECG / Echo reports not found in uploaded files',
+      tier:'T1', col:'var(--ink3)' });
+  }
+
+  // §11 Discharge Condition
+  if (tabReady('Vitals') && tabReady('Labs') && tc.vitals === 0 && tc.labs === 0) {
+    // T3: AI cannot document discharge state — will fabricate or miss critical data
+    rows.push({ sec:'§11', title:'Discharge Condition',
+      missing: 'No discharge vitals or labs — discharge condition cannot be documented',
+      tier:'T3', col:'var(--red)' });
+  }
+
+  // §4 Clinical Examination
+  if (tabReady('Vitals') && tc.vitals === 0 && !hasUpload('vitals')) {
+    // T3: AI will hallucinate vitals (fabricated clinical data)
+    rows.push({ sec:'§4', title:'Clinical Examination',
+      missing: 'No vitals on record — AI may hallucinate examination findings',
+      tier:'T3', col:'var(--red)' });
+  }
+
+  // §2 Chief Complaint & HPI (upload/DB only — no tab count, always knowable)
+  if (!hasClinicalNotes) {
+    // T3: AI will hallucinate history without source notes (fabricated clinical data)
+    rows.push({ sec:'§2', title:'Chief Complaint & HPI',
+      missing: 'Clinical notes not uploaded — AI may fabricate patient history',
+      tier:'T3', col:'var(--red)' });
+  }
+
+  // §7 Medications on Admission
+  if (tabReady('Medications') && tabReady('Pharmacy') && tc.meds === 0 && !hasUpload('meds') && !hasUpload('pharmacy')) {
+    // T2: Directly medication-related — AI may write wrong drugs/doses
+    rows.push({ sec:'§7', title:'Medications on Admission',
+      missing: 'No medication records — risk of wrong drug or dose in output',
+      tier:'T2', col:'var(--amber)' });
+  }
+
+  // §8 Procedures
+  if (tabReady('Procedures') && tc.procedures === 0 && !hasUpload('procedures')) {
+    // T3: AI may miss or fabricate procedures performed — missed finding / fabricated data
+    rows.push({ sec:'§8', title:'Procedures',
+      missing: 'No procedure records — AI may miss or fabricate procedures performed',
+      tier:'T3', col:'var(--red)' });
+  }
+
+  // §9 Progress Notes (upload/DB only)
+  if (!hasClinicalNotes) {
+    // T3: AI will miss day-wise clinical findings (missed finding = critical)
+    rows.push({ sec:'§9', title:'Clinical Progress Notes',
+      missing: 'Progress notes not uploaded — AI may miss key clinical findings',
+      tier:'T3', col:'var(--red)' });
+  }
+
+  // §10 ICU Summary — ICU Events is LAZY; ICU Stays is a display tab
+  if (tabReady('ICU Events') && tabReady('ICU Stays') && tc.icu === 0) {
+    // T3: AI may miss critical ICU interventions (missed finding = critical)
+    rows.push({ sec:'§10', title:'ICU Summary',
+      missing: 'No ICU admission data — critical ICU details may be missed',
+      tier:'T3', col:'var(--red)' });
+  }
+
+  // §13 Follow-up Instructions (upload/DB only)
+  if (!hasClinicalNotes && !hasUpload('poe')) {
+    // T1: AI writes generic follow-up — style issue, clinical meaning minimally changed
+    rows.push({ sec:'§13', title:'Follow-up Instructions',
+      missing: 'Follow-up plan not found — AI will write generic instructions',
+      tier:'T1', col:'var(--ink3)' });
+  }
+
+  // §14 Patient & Caregiver Education (upload/DB only)
+  if (!hasClinicalNotes) {
+    // T1: AI writes generic education content — phrasing/style issue
+    rows.push({ sec:'§14', title:'Patient & Caregiver Education',
+      missing: 'Clinical notes missing — AI will write generic education content',
+      tier:'T1', col:'var(--ink3)' });
+  }
+
+  // §15 Complications
+  if (tabReady('Labs') && tabReady('Microbiology') && tc.labs === 0 && tc.micro === 0 && !hasUpload('labs')) {
+    // T3: AI will miss documented complications (missed finding = critical)
+    rows.push({ sec:'§15', title:'Complications',
+      missing: 'No lab or microbiology data — AI may miss documented complications',
+      tier:'T3', col:'var(--red)' });
+  }
+
+  // Deduplicate, sort T3→T2→T1 (most critical first), cap at 5
+  var seen = new Set();
+  var unique = rows.filter(function(r) {
+    if (seen.has(r.sec)) return false;
+    seen.add(r.sec);
+    return true;
+  });
+  var tierOrder = { T3:0, T2:1, T1:2 };
+  unique.sort(function(a, b) { return (tierOrder[a.tier]||0) - (tierOrder[b.tier]||0); });
+  return unique.slice(0, 5);
+}
+
+/* ── 3-Tier gate widget (used in gen success screen + summary view) ── */
+function _renderGateWidget(es) {
+  var t1c = S.gapT1 || 0;
+  var t2c = S.gapT2 || 0;
+  var t3c = S.gapT3 || 0;
+  var total = t1c + t2c + t3c;
+  var _p3r  = Array.isArray(S.gapRows) ? S.gapRows : [];
+
+  // Header row — counts + label
+  var _headerBg     = total === 0 ? '#f0fdf4' : (t3c > 0 ? '#fef2f2' : t2c > 0 ? '#fffbeb' : '#fefce8');
+  var _headerBorder = total === 0 ? '#bbf7d0' : (t3c > 0 ? '#fca5a5' : t2c > 0 ? '#fde68a' : '#fde047');
+  var _labelColor   = total === 0 ? '#059669' : (t3c > 0 ? '#dc2626' : t2c > 0 ? '#d97706' : '#854d0e');
+  var _labelText    = total === 0 ? '✓ Pass 3 Verified' : 'Pass 3 — ' + total + ' Section' + (total !== 1 ? 's' : '') + ' Flagged';
+
+  var _countPills = ''
+    + '<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:800;background:' + (t1c>0?'#fef9c3':'#f1f5f9') + ';color:' + (t1c>0?'#854d0e':'#94a3b8') + ';border:1px solid ' + (t1c>0?'#fde047':'#e2e8f0') + '">'
+    +   t1c + ' T1</span>'
+    + '<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:800;background:' + (t2c>0?'#fef3c7':'#f1f5f9') + ';color:' + (t2c>0?'#92400e':'#94a3b8') + ';border:1px solid ' + (t2c>0?'#fcd34d':'#e2e8f0') + '">'
+    +   t2c + ' T2</span>'
+    + '<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:800;background:' + (t3c>0?'#fee2e2':'#f1f5f9') + ';color:' + (t3c>0?'#dc2626':'#94a3b8') + ';border:1px solid ' + (t3c>0?'#fca5a5':'#e2e8f0') + '">'
+    +   t3c + ' T3</span>';
+
+  var _html = '<div style="background:' + _headerBg + ';border:1px solid ' + _headerBorder + ';border-radius:8px;padding:10px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px">'
+    + '<div style="font-size:11px;font-weight:700;color:' + _labelColor + ';flex-shrink:0">' + _labelText + '</div>'
+    + '<div style="display:flex;gap:6px;flex-wrap:wrap">' + _countPills + '</div>'
+    + '</div>';
+
+
+  return _html;
+}
+
+const _GEN_STEPS = [
+  { label:'Parsing & OCR',                    detail:'3 documents · 14.2s',           thresh:0,  done:30  },
+  { label:'NLP Section Tagging',              detail:'NABH template matched · 27.8s', thresh:30, done:50  },
+  { label:'NABH Mapping',                     detail:'15 sections identified · 41.4s',thresh:50, done:68  },
+  { label:'ECG Findings Extraction',          detail:'In progress…',                  thresh:68, done:85  },
+  { label:'Diagnosis Verification',           detail:'Queued',                         thresh:85, done:95  },
+  { label:'Quality Scoring & Tier Assignment',detail:'Queued',                         thresh:95, done:101 },
+];
+
+function _genLabel(p) {
+  if (p < 30)  return `${p}% — Parsing documents…`;
+  if (p < 50)  return `${p}% — NLP section tagging…`;
+  if (p < 68)  return `${p}% — NABH mapping…`;
+  if (p < 85)  return `${p}% — Extracting ECG findings…`;
+  if (p < 95)  return `${p}% — Verifying diagnosis…`;
+  return `${p}% — Quality scoring…`;
+}
+
+function patchGenProgress() {
+  const p   = S.genProgress;
+  const bar = document.getElementById('gs-bar');
+  const lbl = document.getElementById('gs-lbl');
+  if (bar) bar.style.width = p + '%';
+  if (lbl) lbl.textContent = _genLabel(p);
+  document.querySelectorAll('.gs-step').forEach((el, i) => {
+    const s     = _GEN_STEPS[i];
+    const isDone   = p >= s.done;
+    const isActive = p >= s.thresh && !isDone;
+    const icon  = el.querySelector('.gs-icon');
+    const title = el.querySelector('.gs-title');
+    const det   = el.querySelector('.gs-detail');
+    if (icon)  icon.textContent = isDone ? '✅' : isActive ? '⏳' : '⏸️';
+    if (title) title.style.color = isDone ? 'var(--green)' : isActive ? 'var(--ink)' : 'var(--ink3)';
+    if (det) {
+      det.textContent = isDone ? s.detail : isActive ? 'In progress…' : 'Queued';
+      det.style.color = isActive ? 'var(--amber)' : 'var(--ink3)';
+    }
+  });
+}
+
+function renderGenScreen() {
+  const p = S.genProgress;
+
+  if (S.genScreen === 'generating') {
+    const stepsHTML = _GEN_STEPS.map((s, i) => {
+      const isDone   = p >= s.done;
+      const isActive = p >= s.thresh && !isDone;
+      const icon     = isDone ? '✅' : isActive ? '⏳' : '⏸️';
+      const tc       = isDone ? 'var(--green)' : isActive ? 'var(--ink)' : 'var(--ink3)';
+      const detText  = isDone ? s.detail : isActive ? 'In progress…' : 'Queued';
+      const detCol   = isActive ? 'var(--amber)' : 'var(--ink3)';
+      return `<div class="gs-step">
+        <span class="gs-icon">${icon}</span>
+        <div><div class="gs-title" style="color:${tc}">${s.label}</div><div class="gs-detail" style="color:${detCol}">${detText}</div></div>
+      </div>`;
+    }).join('');
+
+    return `<div style="max-width:620px;margin:32px auto">
+      <div class="gen-card" style="padding:40px 36px">
+        <div style="font-size:52px;margin-bottom:16px">⚙️</div>
+        <div style="font-size:17px;font-weight:800;color:var(--ink);margin-bottom:5px">Processing Documents</div>
+        <div style="font-size:13px;color:var(--ink3);margin-bottom:24px">${_synthName} · ${_pidLabel} · ${Math.max(1,Object.keys(S.uploads).length)} documents</div>
+        <div class="gen-prog-bar"><div class="gen-prog-fill" id="gs-bar" style="width:${p}%"></div></div>
+        <div style="font-size:13px;font-weight:600;color:var(--p);margin-bottom:28px" id="gs-lbl">${_genLabel(p)}</div>
+        <div>${stepsHTML}</div>
+        ${S.streamingText ? `<div style="margin-top:20px;text-align:left;background:#f8f9fb;border:1px solid var(--border);border-radius:8px;padding:14px 16px;max-height:160px;overflow:hidden;position:relative">
+          <div style="font-size:11px;font-weight:700;color:var(--p);margin-bottom:6px;letter-spacing:.04em">AI WRITING SUMMARY…</div>
+          <pre id="gs-stream" style="font-size:11px;color:var(--ink2);white-space:pre-wrap;word-break:break-word;margin:0;font-family:inherit;max-height:110px;overflow:hidden">${S.streamingText.replace(/</g,'&lt;')}</pre>
+          <div style="position:absolute;bottom:0;left:0;right:0;height:40px;background:linear-gradient(transparent,#f8f9fb)"></div>
+        </div>` : ''}
+        <div class="gen-btns">
+          <button class="btn-sec" onclick="goBack()">← Back to Queue</button>
+          ${S.genStuck ? `<button class="btn-sec" style="color:var(--t1);border-color:var(--t1)" onclick="cancelGeneration()">⚠ Cancel & Reset</button>` : ''}
+        </div>
+        ${S.genStuck ? `<div style="font-size:11.5px;color:var(--muted);margin-top:10px;text-align:center">Taking too long? Cancel to reset and try again.</div>` : ''}
+      </div>
+    </div>`;
+  }
+
+  if (S.genScreen === 'gap') {
+    var _cgr = (typeof computeGapRows === 'function') ? computeGapRows() : [];
+    var _sectionsDone = Math.max(0, 15 - _cgr.length);
+    var _gTierColor = { T3:'#dc2626', T2:'#d97706', T1:'#0d9488' };
+    var _gTierBg    = { T3:'#fff5f5', T2:'#fffbeb', T1:'#f0fdfa' };
+    var _gRowsHTML = _cgr.map(function(r) {
+      var _tc = _gTierColor[r.tier] || '#64748b';
+      var _bg = _gTierBg[r.tier]   || '#f8f9fa';
+      return '<tr style="border-bottom:1px solid var(--border)">'
+        + '<td style="padding:10px 14px;font-weight:600;color:var(--p)">' + (r.title || r.sec || '') + '</td>'
+        + '<td style="padding:10px 14px;color:var(--ink2);font-size:13px">' + (r.missing || '—') + '</td>'
+        + '<td style="padding:10px 14px;text-align:center"><span style="display:inline-block;padding:2px 9px;border-radius:6px;font-size:11px;font-weight:700;color:' + _tc + ';background:' + _bg + ';border:1px solid ' + _tc + '55">' + (r.tier || '—') + '</span></td>'
+        + '</tr>';
+    }).join('');
+    return `<div style="max-width:660px;margin:32px auto">
+      <div class="gen-card" style="padding:36px;text-align:center">
+        <div style="width:64px;height:64px;border-radius:50%;background:#fffbeb;display:flex;align-items:center;justify-content:center;margin:0 auto 20px">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </div>
+        <div style="font-size:20px;font-weight:800;color:var(--ink);margin-bottom:6px">${_sectionsDone} of 15 Sections Generated</div>
+        <div style="font-size:13px;color:var(--ink3);margin-bottom:22px">${_pidLabel} · ${_synthName}</div>
+        <div style="background:#fffbeb;border:1.5px solid #fcd34d;border-radius:8px;padding:12px 16px;text-align:left;font-size:13px;color:#92400e;margin-bottom:20px;display:flex;align-items:flex-start;gap:8px">
+          <span style="font-size:15px;flex-shrink:0;line-height:1.4">⚠</span>
+          <span>The following sections could not be generated due to missing source documents.</span>
+        </div>
+        ${_cgr.length > 0 ? `<table style="width:100%;border-collapse:collapse;text-align:left;margin-bottom:20px;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+          <thead><tr style="background:#f8f9fa">
+            <th style="padding:10px 14px;font-size:12px;font-weight:700;color:var(--ink3);border-bottom:1px solid var(--border)">Section</th>
+            <th style="padding:10px 14px;font-size:12px;font-weight:700;color:var(--ink3);border-bottom:1px solid var(--border)">Missing Source</th>
+            <th style="padding:10px 14px;font-size:12px;font-weight:700;color:var(--ink3);border-bottom:1px solid var(--border);text-align:center">Impact</th>
+          </tr></thead>
+          <tbody>${_gRowsHTML}</tbody>
+        </table>` : ''}
+        <div class="gen-btns">
+          <button class="btn-sec" onclick="S.genScreen=null;S.genWarnPending=false;render()">← Upload Missing Files</button>
+          <button class="gen-btn-pri" onclick="S.genScreen=null;S.genWarnPending=false;proceedGenerate()">Generate Partial Summary</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  if (S.genScreen === 'error') {
+    const now = new Date();
+    const dt  = now.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})
+               + ', ' + now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+    const raw = S.genError || '';
+    let errCode = 'LLM-ERR';
+    let errMsg  = raw.length > 280 ? raw.slice(0, 280) + '…' : raw;
+    let errRecovery = '~15 minutes';
+    if (!raw || raw.toLowerCase().includes('empty')) {
+      errCode = 'LLM-EMPTY'; errMsg = 'The server returned an empty response. The backend may have crashed.';
+    } else if (raw.toLowerCase().includes('failed to fetch') || raw.toLowerCase().includes('networkerror') || raw.toLowerCase().includes('err_connection_refused')) {
+      errCode = 'LLM-NET'; errMsg = 'Could not connect to the backend server. Please ensure the backend is running on port 8001.'; errRecovery = 'immediately after restarting the backend';
+    } else if (raw.includes('GEMINI_API_KEY')) {
+      errCode = 'LLM-CFG'; errMsg = 'GEMINI_API_KEY is not configured. Add it to backend/.env and restart the backend.'; errRecovery = 'after configuration';
+    } else if (raw.includes('Max retries') || raw.includes('429') || raw.toLowerCase().includes('quota')) {
+      errCode = 'LLM-429'; errMsg = 'API rate limit or quota reached. Too many requests were sent in a short window.'; errRecovery = '~60 seconds';
+    } else if (raw === 'Error 500' || raw.toLowerCase().includes('internal server error')) {
+      errCode = 'LLM-500'; errMsg = 'The backend server encountered an internal error. Check the backend terminal for details.';
+    } else if (raw.includes('503') || raw.toLowerCase().includes('service unavailable')) {
+      errCode = 'LLM-503'; errMsg = 'The AI generation service is temporarily unavailable. Your uploaded documents have been saved securely and are intact.';
+    }
+    return `<div style="max-width:580px;margin:32px auto">
+      <div class="gen-card" style="padding:40px 36px;text-align:center">
+        <div style="width:64px;height:64px;border-radius:50%;background:#fff1f2;display:flex;align-items:center;justify-content:center;margin:0 auto 20px">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#e11d48" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </div>
+        <div style="font-size:20px;font-weight:800;color:#e11d48;margin-bottom:8px">LLM Service Unavailable</div>
+        <div style="font-size:12px;color:var(--ink3);margin-bottom:20px;font-family:monospace;background:#f9fafb;padding:4px 10px;border-radius:5px;display:inline-block">Error code: ${errCode} &middot; ${dt}</div>
+        <div style="background:#fff1f2;border:1.5px solid #fda4af;border-radius:8px;padding:14px 18px;text-align:left;font-size:13px;color:#9f1239;margin-bottom:16px;line-height:1.7">
+          ${errMsg}
+        </div>
+        <div style="font-size:13px;color:var(--ink3);margin-bottom:24px;line-height:1.6">
+          Expected recovery: ${errRecovery}. You will receive a notification when service is restored.
+        </div>
+        <div class="gen-btns" style="margin-top:0">
+          <button class="btn-sec" onclick="goBack()">← Back to Queue</button>
+          <button class="gen-btn-pri" onclick="S.genScreen=null;proceedGenerate()">Retry Generation</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  if (S.genScreen === 'done') {
+    const _cT3 = S.gapT3 || 0;
+    const _cT2 = S.gapT2 || 0;
+    const _cT1 = S.gapT1 || 0;
+    const _dNow = new Date();
+    const _dDt  = _dNow.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+    return `<div style="max-width:580px;margin:32px auto">
+      <div class="gen-card" style="padding:40px 36px;text-align:center">
+        <div style="width:64px;height:64px;border-radius:50%;background:#dcfce7;display:flex;align-items:center;justify-content:center;margin:0 auto 20px">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <div style="font-size:20px;font-weight:800;color:var(--ink);margin-bottom:6px">Summary Generated Successfully</div>
+        <div style="font-size:13px;color:var(--ink3);margin-bottom:28px">${_pidLabel} &middot; ${_synthName} &middot; ${_dDt}</div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:24px">
+          <div style="border:1.5px solid #fca5a5;border-radius:10px;padding:18px 12px;background:#fff5f5">
+            <div style="font-size:30px;font-weight:800;color:#dc2626;line-height:1">${_cT3}</div>
+            <div style="font-size:11px;font-weight:700;color:#dc2626;letter-spacing:.06em;margin-top:5px">T1 CRITICAL</div>
+          </div>
+          <div style="border:1.5px solid #fcd34d;border-radius:10px;padding:18px 12px;background:#fffbeb">
+            <div style="font-size:30px;font-weight:800;color:#d97706;line-height:1">${_cT2}</div>
+            <div style="font-size:11px;font-weight:700;color:#d97706;letter-spacing:.06em;margin-top:5px">T2 MAJOR</div>
+          </div>
+          <div style="border:1.5px solid #99f6e4;border-radius:10px;padding:18px 12px;background:#f0fdfa">
+            <div style="font-size:30px;font-weight:800;color:#0d9488;line-height:1">${_cT1}</div>
+            <div style="font-size:11px;font-weight:700;color:#0d9488;letter-spacing:.06em;margin-top:5px">T3 INFO</div>
+          </div>
+        </div>
+
+        ${_cT3 > 0 ? `<div style="background:#fffbeb;border:1.5px solid #fcd34d;border-radius:8px;padding:12px 16px;text-align:left;font-size:13px;color:#92400e;margin-bottom:20px;display:flex;align-items:flex-start;gap:8px">
+          <span style="font-size:15px;flex-shrink:0;line-height:1.4">⚠</span>
+          <span><strong>${_cT3} T1 Critical flag${_cT3!==1?'s':''}</strong> must be resolved before the attending can sign this summary.</span>
+        </div>` : ''}
+
+        <div class="gen-btns" style="margin-top:${_cT3>0?'0':'4px'}">
+          <button class="btn-sec" onclick="goBack()">← Back to Queue</button>
+          <button class="gen-btn-pri" onclick="S.genScreen=null;S.summaryView=true;render()">View Summary →</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  return '';
+}
+
+/* ── Generate ── */
+let _genInterval = null;
+let _pollInterval = null;
+
+// pagehide fires for both regular navigation AND bfcache — save progress and release lock
+window.addEventListener('pagehide', () => {
+  if (S.genScreen === 'generating' && S.genProgress)
+    sessionStorage.setItem('foqal_gen_progress_' + _hadmId, S.genProgress);
+  if (_pollInterval) { clearInterval(_pollInterval); _pollInterval = null; }
+  // Release poll leader lock so another tab can take over immediately
+  try {
+    const v = localStorage.getItem('foqal_poll_' + _hadmId);
+    if (v && v.startsWith(_MY_POLL_ID)) localStorage.removeItem('foqal_poll_' + _hadmId);
+  } catch {}
+});
+
+// If browser restores from bfcache (Back button), reload fresh so a stale
+// poll from the previous visit doesn't resume alongside the new one
+window.addEventListener('pageshow', (e) => {
+  if (e.persisted) window.location.reload();
+});
+
+/* Poll the encounter status when we arrive on this page while generation is
+   already running in the background (e.g., resident navigated to dashboard
+   and came back). Every 5s we re-check; once the status leaves "Processing"
+   we fetch the completed summary and hand off to the normal render path. */
+// Unique ID for this page instance — used as the poll leader lock owner
+const _MY_POLL_ID = Date.now().toString(36) + Math.random().toString(36).slice(2);
+
+function _startProcessingPoll() {
+  if (_pollInterval) return;
+  if (!S.genProgress) S.genProgress = 30;
+
+  // Claim the poll leader lock for this hadmId so other open tabs back off.
+  // Key: 'foqal_poll_{hadmId}', value: '{tabId}:{timestamp}'
+  const _LOCK_KEY = 'foqal_poll_' + _hadmId;
+  const _claimLock = () => localStorage.setItem(_LOCK_KEY, _MY_POLL_ID + ':' + Date.now());
+  const _releaseLock = () => {
+    const v = localStorage.getItem(_LOCK_KEY);
+    if (v && v.startsWith(_MY_POLL_ID)) localStorage.removeItem(_LOCK_KEY);
+  };
+  _claimLock();
+
+  let _pollTicks = 0;
+  _pollInterval = setInterval(async () => {
+    // Leader check: yield if another tab claimed the lock in the last 4s
+    const lock = localStorage.getItem(_LOCK_KEY);
+    if (lock) {
+      const [owner, ts] = lock.split(':');
+      const stale = Date.now() - Number(ts) > 4000;
+      if (owner !== _MY_POLL_ID && !stale) return; // another tab is active
+    }
+    _claimLock(); // renew our ownership
+
+    try {
+      const enc = await apiFetch(`${_API}/api/encounters/${_hadmId}/encounter`);
+      if (!enc || !enc.id) return;
+      if (enc.status === 'Processing') {
+        _pollTicks++;
+        S.genProgress = Math.min(80, S.genProgress + 2);
+        sessionStorage.setItem('foqal_gen_progress_' + _hadmId, S.genProgress);
+        if (_pollTicks === 45) { S.genStuck = true; render(); } // show cancel after ~90s
+        patchGenProgress && patchGenProgress();
+        return;
+      }
+      clearInterval(_pollInterval); _pollInterval = null;
+      _releaseLock();
+      S.encStatus = enc.status;
+      S.encId     = enc.id;
+      sessionStorage.removeItem('foqal_gen_progress_' + _hadmId);
+      // Fetch the completed summary
+      try {
+        const sumResp = await fetch(`${_API}/api/encounters/${S.encId}/summary`);
+        if (sumResp.ok) {
+          const sum = await sumResp.json();
+          if (sum && sum.content) {
+            S.summary     = sum.content;
+            S.genDone     = true;
+            S.reviewSent  = ['Awaiting Review', 'Signed Off'].includes(S.encStatus);
+            S.genProgress = 100;
+            // Use Pass 3 results already stored in the summary row
+            S.gapT1   = sum.gap_t1  || 0;
+            S.gapT2   = sum.gap_t2  || 0;
+            S.gapT3   = sum.gap_t3  || 0;
+            S.gapRows = Array.isArray(sum.gap_rows) ? sum.gap_rows : [];
+            S.genScreen   = null;
+            S.summaryView = true;
+          }
+        }
+      } catch {}
+      if (S.genScreen === 'generating') S.genScreen = null;
+      render();
+    } catch {}
+  }, 2000);
+}
+
+function handleGenerate() {
+  if (!S.dischargeType) { showToast('Select a discharge type first', 'err'); return; }
+  if (S.hasDCM) {
+    const complete = S.dcmLvef && S.dcmNyha && S.dcmDevice && S.dcmBnp && S.dcmAetiology && S.dcmMeds;
+    if (!complete) { showToast('Please complete the mandatory DCM Checklist', 'err'); return; }
+    if (S.dischargeType !== 'Death' && (!S.nyhaClass || S.nyhaClass === '')) { showToast('Please select NYHA Class at Discharge', 'err'); return; }
+  }
+  // If lazy tabs are still loading, show confirmation strip instead of generating immediately
+  const pendingTabs = Object.keys(LAZY).filter(t => !S.lazyLoaded[t] && !S.lazyFailed[t]);
+  if (pendingTabs.length > 0 && !S.genWarnPending) {
+    S.genWarnPending = true;
+    S.genScreen = 'gap';
+    render();
+    return;
+  }
+  S.genWarnPending = false;
+  // Regeneration path: clear stale review state so "Send to Attending" re-enables
+  if (S.reviewSent || S.genDone) {
+    S.reviewSent   = false;
+    S.doctorSelect = false;
+    S.sentTo       = null;
+    S.genDone      = false;
+  }
+  proceedGenerate();
+}
+
+async function proceedGenerate() {
+  if (_genInterval)  clearInterval(_genInterval);
+  if (_pollInterval) { clearInterval(_pollInterval); _pollInterval = null; }
+  S.genScreen      = 'generating';
+  S.genProgress    = 0;
+  S.generating     = true;
+  S.doctorSelect   = false;
+  S.streamingText  = '';
+  // Persist across navigation: if user goes to dashboard mid-stream, upload.html
+  // will use this flag to jump straight to the summary view when it loads done.
+  sessionStorage.setItem('foqal_generating_' + _hadmId, '1');
+  render();
+
+  // Animate progress bar up to 80 while waiting; streaming takes over after
+  _genInterval = setInterval(() => {
+    if (S.genScreen !== 'generating') { clearInterval(_genInterval); return; }
+    const speed = S.genProgress < 68 ? 3 : 0.5;
+    S.genProgress = Math.min(80, S.genProgress + speed);
+    patchGenProgress();
+  }, 150);
+
+  try {
+    // Safety net: re-fire any tabs not yet cached
+    const _BQ_TABS = ["prescriptions","pharmacy","labevents","poe",
+                      "fluids","chartevents","procedureevents"];
+    Promise.allSettled(_BQ_TABS.map(t =>
+      fetch(`${_DATA}/api/patient/${_hadmId}/tab/${t}`).catch(() => {})
+    ));
+
+    const resp = await fetch(
+      `${_API}/api/encounters/${_hadmId}/generate_summary?stream=true`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        discharge_type: S.dischargeType,
+        nyha_class: S.hasDCM ? S.nyhaClass : null
+      }),
+    });
+
+    if (!resp.ok) {
+      const b = await resp.json().catch(() => ({}));
+      throw new Error(b.detail || `Error ${resp.status}`);
+    }
+
+    // Parse SSE stream
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    let res = null;
+
+    outer: while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split('\n');
+      buf = lines.pop(); // keep incomplete last line
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        let evt;
+        try { evt = JSON.parse(line.slice(6)); } catch { continue; }
+
+        if (evt.type === 'chunk') {
+          // Kill the pre-streaming interval the moment streaming begins — otherwise
+          // it fights the chunk increments (interval caps at 80, chunks push past it)
+          if (_genInterval) { clearInterval(_genInterval); _genInterval = null; }
+          S.streamingText += evt.text;
+          // Patch streaming preview directly — no full render for perf
+          const el = document.getElementById('gs-stream');
+          if (el) el.textContent = S.streamingText;
+          // Bump progress to 85-98 during streaming
+          if (S.genProgress < 98) {
+            S.genProgress = Math.min(98, S.genProgress + 0.4);
+            patchGenProgress();
+          }
+        } else if (evt.type === 'done') {
+          res = evt;
+          break outer;
+        } else if (evt.type === 'error') {
+          throw new Error(evt.message || 'Stream error');
+        }
+      }
+    }
+
+    clearInterval(_genInterval);
+
+    if (!res) throw new Error('Stream ended without completion event');
+
+    S.summary        = res.summary || null;
+    S.tableLog       = res.table_log || [];
+    S.genError       = res.generation_error || null;
+    S.genDone        = true;
+    S.genProgress    = 100;
+    S.genLatency     = res.latency || null;
+    S.genRouge       = res.rouge || null;
+    S.summaryVersion = res.summary_version || null;
+    S.streamingText  = '';
+
+    if (S.genError || !S.summary) {
+      S.genScreen = 'error';
+    } else {
+      S.encStatus  = 'Ready for Review';
+      S.reviewSent = false;
+      // Fetch Pass 3 results from DB (Pass 3 finishes inside _finalize() before the SSE stream ends)
+      try {
+        const _p3sum = await apiFetch(`${_API}/api/encounters/${S.encId}/summary`);
+        S.gapT1   = _p3sum.gap_t1  || 0;
+        S.gapT2   = _p3sum.gap_t2  || 0;
+        S.gapT3   = _p3sum.gap_t3  || 0;
+        S.gapRows = Array.isArray(_p3sum.gap_rows) ? _p3sum.gap_rows : [];
+      } catch(_e) { S.gapT1 = 0; S.gapT2 = 0; S.gapT3 = 0; S.gapRows = []; }
+      S.genScreen = 'done';
+      showToast('Summary generated successfully!', 'ok');
+    }
+  } catch(err) {
+    clearInterval(_genInterval);
+    S.genError      = err.message || 'Request failed';
+    S.genScreen     = 'error';
+    S.streamingText = '';
+  }
+  S.generating = false;
+  sessionStorage.removeItem('foqal_generating_' + _hadmId); // generation done on-page; flag no longer needed
+  render();
+  apiFetch(`${_API}/api/errors/stats`).then(es => { S.errorStats = es; render(); }).catch(() => {});
+}
+
+/* ── Load real doctors from backend ── */
+async function loadDoctors() {
+  if (S.doctors.length || S.doctorsLoading) return;
+  S.doctorsLoading = true;
+  render();
+  try {
+    const res = await apiFetch(`${_API}/api/users/doctors`);
+    S.doctors = Array.isArray(res) ? res : (res.users || res.doctors || []);
+  } catch { S.doctors = []; }
+  S.doctorsLoading = false;
+  render();
+}
+
+/* ── Confirm doctor selection and send ── */
+async function confirmSend() {
+  const sel = document.getElementById('doc-sel');
+  const doc = sel ? sel.value : '';
+  if (!doc) { showToast('Please select a doctor first', 'err'); return; }
+  const btn = document.getElementById('confirm-send-btn');
+  if (btn) { btn.textContent = 'Sending…'; btn.disabled = true; }
+  await Promise.race([
+    sendReview(doc),
+    new Promise(resolve => setTimeout(resolve, 10000))
+  ]);
+  S.sentTo = doc;
+  S.doctorSelect = false;
+  render();
+}
+
+/* ── Send for review ── */
+async function sendReview(assignedDoctor) {
+  if (S.reviewSent) return;
+  try {
+    const encId = S.encId || (await apiFetch(`${_API}/api/encounters/${_hadmId}/encounter`)).id;
+    if (encId) {
+      await fetch(`${_API}/api/encounters/${encId}`, {
+        method:'PATCH', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({status:'Awaiting Review', assigned_to: assignedDoctor||null})
+      });
+    }
+    S.reviewSent = true;
+    showToast('Sent for review!', 'ok');
+    render();
+    setTimeout(() => { window.location.href = '/dashboard.html'; }, 1200);
+  } catch { showToast('Could not update status', 'err'); }
+}
+
+/* ── Send to Attending Queue (no doctor picker) ── */
+async function sendToQueue() {
+  try {
+    const encId = S.encId || (await apiFetch(`${_API}/api/encounters/${_hadmId}/encounter`)).id;
+    if (encId) {
+      await fetch(`${_API}/api/encounters/${encId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'Awaiting Review' })
+      });
+    }
+    S.reviewSent = true;
+    showToast('Sent to Attending Queue!', 'ok');
+    setTimeout(() => { window.location.href = '/dashboard.html'; }, 1200);
+  } catch(e) { showToast('Could not send to queue: ' + e.message, 'err'); }
+}
+
+/* ── Toast / Error ── */
+let _tt = null;
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className='toast '+(type||'ok'); t.style.display='flex';
+  if (_tt) clearTimeout(_tt);
+  _tt = setTimeout(()=>{ t.style.display='none'; }, 3500);
+}
+function showErr(msg) { const e=document.getElementById('err-banner'); e.textContent=msg; e.style.display='block'; }
+function hideErr()    { document.getElementById('err-banner').style.display='none'; }
+
+/* ── Nav ── */
+function goBack()  {
+  if (_pollInterval) clearInterval(_pollInterval);
+  if (S.genScreen === 'generating' && S.genProgress)
+    sessionStorage.setItem('foqal_gen_progress_' + _hadmId, S.genProgress);
+  window.location.href='/dashboard.html';
+}
+function signOut() { sessionStorage.clear(); window.location.href='/'; }
+async function cancelGeneration() {
+  if (!confirm('Cancel generation and reset this encounter so you can try again?')) return;
+  if (_pollInterval) { clearInterval(_pollInterval); _pollInterval = null; }
+  try {
+    await fetch(`${_API}/api/encounters/${_hadmId}/reset_generation`, {method:'POST',
+      headers:{'Authorization':'Bearer ' + (sessionStorage.getItem('foqal_token')||'')}
+    });
+  } catch(e) {}
+  sessionStorage.removeItem('foqal_gen_progress_' + _hadmId);
+  window.location.href = '/dashboard.html';
+}
+
+/* ── LOAD PATIENT DATA ── */
+(async () => {
+  try {
+    // When user clicks "Open Summary →" banner or returns after generation:
+    // show the success card ('done') first instead of jumping straight to summary view.
+    const _gotoSummary = !!sessionStorage.getItem('foqal_goto_summary_' + _hadmId)
+                      || !!sessionStorage.getItem('foqal_generating_' + _hadmId);
+    if (_gotoSummary) {
+      sessionStorage.removeItem('foqal_goto_summary_' + _hadmId);
+      sessionStorage.removeItem('foqal_generating_' + _hadmId);
+      S.summaryLoading = true; // spinner while gap stats + summary load
+    }
+
+    // Summary-only mode: "View Summary" on a Signed row opens directly in summary view,
+    // no upload form, no back-to-upload button.
+    const _summaryOnly = !!sessionStorage.getItem('foqal_summary_only');
+    if (_summaryOnly) {
+      sessionStorage.removeItem('foqal_summary_only');
+      S.summaryOnly    = true;
+      S.summaryLoading = true;
+    }
+
+    // Read preview row status — if summary already exists, skip upload form immediately
+    const _prev = JSON.parse(sessionStorage.getItem('foqal_patient_preview') || 'null');
+    const _prevStatus = _prev?.status || '';
+    const _summaryExists = _summaryOnly
+      || ['Awaiting Review','Signed Off'].includes(_prevStatus);
+
+    if (_prev && _prev.hadm_id === _hadmId) {
+      const _prevDx = _prev._diagnosis || _prev.diagnosis || '';
+      S.patient   = { full_name: _prev._name, anchor_age: _prev._age, gender: _prev._gender, admission_diagnosis: _prevDx };
+      S.admission = { hadm_id: _hadmId, admission_type: _prev.admission_type, admit_time: _prev.admit_time, diagnosis: _prevDx };
+      S.encStatus = _prevStatus; // set immediately so toasts appear on first render
+      if (_prevStatus === 'Processing') {
+        S.genScreen   = 'generating';
+        S.genProgress = parseInt(sessionStorage.getItem('foqal_gen_progress_' + _hadmId) || '30');
+      }
+      if (_summaryExists) S.summaryLoading = true; // show spinner, not upload form, while summary loads
+      render();
+      if (!_summaryExists && _prevStatus !== 'Processing') Object.keys(LAZY).forEach(tab => lazyLoad(tab));
+    }
+
+    // Fire encounter + revision_state in parallel immediately — both start at the same time
+    // so the yellow banner appears as soon as both fast DB calls return, not sequentially.
+    const _encPromise      = apiFetch(`${_API}/api/encounters/${_hadmId}/encounter`).catch(() => null);
+    const _revStatePromise = fetch(`${_API}/api/encounters/${_hadmId}/revision_state`).then(r => r.ok ? r.json() : null).catch(() => null);
+
+    // Show status pill the moment encounter resolves
+    _encPromise.then(enc => {
+      if (!enc || !enc.id) return;
+      S.encId = enc.id; S.encStatus = enc.status;
+      fetch(`${_API}/api/encounters/${enc.id}/files`)
+        .then(r => r.ok ? r.json() : null)
+        .then(fd => { const f = fd && (Array.isArray(fd) ? fd : fd.files); if (f) { S.prevFiles = f; render(); } })
+        .catch(() => {});
+      if (enc.status === 'Processing') {
+        S.genScreen = 'generating';
+        _startProcessingPoll();
+      } else if (!['Ready for Review','Awaiting Review','Signed Off','Processing'].includes(enc.status)) {
+        // Pre-warm Pass 1 in background — by the time user clicks Generate, LLM fact
+        // extraction will already be cached, cutting generation time roughly in half.
+        // Skip when already Processing — generation is running, no need to race it.
+        fetch(`${_API}/api/encounters/${_hadmId}/precompute`, {method:'POST',
+          headers:{'Authorization':'Bearer ' + (sessionStorage.getItem('foqal_token')||'')}
+        }).catch(() => {});
+      }
+      render();
+    }).catch(() => {});
+
+    // Show full yellow banner once both arrive (parallel, not sequential)
+    Promise.all([_encPromise, _revStatePromise]).then(([enc, rsd]) => {
+      if (!enc || !enc.id) return;
+      if (rsd && (enc.status === 'Revision Requested' || enc.status === 'Files Ready')) {
+        S.revisionState = rsd; render();
+      }
+      if (enc.status === 'Amendment Requested') {
+        apiFetch(`${_API}/api/amendments/${enc.id}`)
+          .then(d => { if (d && d.amendment) { S.amendmentState = d.amendment; render(); } })
+          .catch(() => {});
+      }
+    }).catch(() => {});
+
+    try {
+      const data = await apiFetch(`${_DATA}/api/patient/${_hadmId}/display`);
+      S.patient    = data.patient   || S.patient || {subject_id: _hadmId};
+      S.admission  = data.admission || S.admission || null;
+      S.diagnoses  = data.diagnoses  || [];
+      S.procedures = data.procedures || [];
+      S.micro      = data.microbiologyevents || data.microbiology || [];
+      S.icuEvts    = data.icu_events || [];
+      S.transfers  = data.transfers    || [];
+      S.icuStays   = data.icustays || data.icu_stays || [];
+      S.displayLoaded = true;
+    } catch (displayErr) {
+      // Patient not yet in active directory (ETL hasn't run) — continue with
+      // whatever partial data we already have from the encounter cache (_prev).
+      // The upload form will still work; clinical detail tabs will be empty.
+      S.displayLoaded = true;
+      S.displayLoadErr = displayErr.message || "Clinical data not yet loaded";
+    }
+    if (!_summaryExists) {
+      render();
+      Object.keys(LAZY).forEach(tab => lazyLoad(tab));
+    }
+
+    // Encounter result — already handled by the .then() above; just ensure encId is set
+    const enc = await _encPromise;
+    if (enc && enc.id && !S.encId) { S.encId = enc.id; S.encStatus = enc.status; }
+
+    // Summary + files in parallel — summary renders immediately when ready
+    await Promise.allSettled([
+      (async () => {
+        if (!S.encId) { S.summaryLoading = false; render(); return; }
+        try {
+          const sumResp = await fetch(`${_API}/api/encounters/${S.encId}/summary`);
+          if (sumResp.ok) {
+            const sum = await sumResp.json();
+            if (sum && sum.content) {
+              S.summary    = sum.content;
+              S.genDone    = true;
+              S.reviewSent = ['Awaiting Review', 'Signed Off'].includes(S.encStatus);
+              // Populate gap counts so the gate widget renders correctly
+              S.gapT1   = sum.gap_t1  || 0;
+              S.gapT2   = sum.gap_t2  || 0;
+              S.gapT3   = sum.gap_t3  || 0;
+              S.gapRows = Array.isArray(sum.gap_rows) ? sum.gap_rows : [];
+              // Fall back to localStorage if DB hasn't persisted gap counts yet
+              if (!S.gapT1 && !S.gapT2 && !S.gapT3) {
+                try {
+                  const _gcRaw = localStorage.getItem('gap_counts_' + _hadmId);
+                  if (_gcRaw) { const _gc = JSON.parse(_gcRaw); S.gapT1 = _gc.t1||0; S.gapT2 = _gc.t2||0; S.gapT3 = _gc.t3||0; }
+                } catch(_e) {}
+              }
+              if (S.encStatus !== 'Processing') S.genScreen = null;
+              if (_gotoSummary) {
+                // Came from "Open Summary →" banner or returning after generation:
+                // show the success card first so resident sees T1/T2/T3 stats.
+                S.genScreen = 'done';
+              } else if (_summaryExists && !['Revision Requested','Amendment Requested'].includes(S.encStatus)) {
+                S.summaryView = true;
+              }
+            }
+          }
+        } catch {}
+        S.summaryLoading = false;
+        render();
+        // Auto-print if resident clicked PDF from dashboard
+        if (S.summaryView && sessionStorage.getItem('foqal_auto_print') === '1') {
+          sessionStorage.removeItem('foqal_auto_print');
+          setTimeout(() => window.print(), 600);
+        }
+        // Start lazy tabs after summary is shown (lower priority — tab data enhances not blocks)
+        if (_summaryExists || _gotoSummary) Object.keys(LAZY).forEach(tab => lazyLoad(tab));
+      })(),
+      (async () => {
+        if (!S.encId) return;
+        try {
+          const r = await fetch(`${_API}/api/encounters/${S.encId}/files`);
+          if (r.ok) { const d = await r.json(); S.prevFiles = d.files || []; }
+        } catch {}
+      })(),
+      (async () => {
+        try {
+          const d = await apiFetch(`${_API}/api/encounters/${_hadmId}/uploaded_clinical_data`);
+          if (d) S.uploadedRows = d;
+        } catch {}
+      })(),
+    ]);
+
+    // Safety: if the backend finished while we were away but the summary fetch
+    // above returned empty, the generating card would stay stuck forever.
+    // Clear it for any non-Processing status — poll (line ~2020) covers the
+    // still-running case and has its own genScreen cleanup.
+    if (S.genScreen === 'generating' && S.encStatus && S.encStatus !== 'Processing') {
+      S.genScreen = null;
+    }
+
+    render();
+
+  } catch(err) {
+    document.getElementById('main-content').innerHTML = `
+      <div style="padding:40px;text-align:center;color:var(--red)">
+        <div style="font-size:16px;font-weight:700;margin-bottom:8px">Failed to load patient data</div>
+        <div style="font-size:13px;color:var(--ink3)">${err.message}</div>
+        <button class="btn-sec" onclick="goBack()" style="margin-top:16px">← Back to Dashboard</button>
+      </div>`;
+  }
+})();
+</script>
+</body>
+</html>

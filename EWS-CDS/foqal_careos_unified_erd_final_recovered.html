@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Foqal CareOS — Unified Database Architecture v3.0</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+:root{
+  --pur:#6C3FC5;--pur-l:#9B72E0;--pur-d:#4A2A8C;--pur-bg:#F3EEFF;
+  --blue:#2563EB;--blue-bg:#EFF6FF;
+  --green:#059669;--green-bg:#ECFDF5;
+  --gold:#B45309;--gold-bg:#FEF3C7;
+  --red:#DC2626;--orange:#D97706;
+  --gray:#6B7280;--border:#E5E7EB;--bg:#F9FAFB;--card:#fff;--text:#111827;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:13px}
+
+/* HEADER */
+header{background:linear-gradient(135deg,var(--pur-d),var(--pur) 55%,var(--pur-l));color:#fff;padding:36px 48px 28px}
+.badge{display:inline-block;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3);border-radius:20px;padding:3px 12px;font-size:10px;letter-spacing:1px;text-transform:uppercase;margin-bottom:14px}
+header h1{font-size:26px;font-weight:700;margin-bottom:5px}
+header p{font-size:13px;opacity:.82;max-width:740px;line-height:1.6}
+.meta{display:flex;flex-wrap:wrap;gap:28px;margin-top:20px}
+.meta-i strong{display:block;font-size:13px;color:#fff}
+.meta-i{font-size:11px;opacity:.7}
+
+/* OVERVIEW CARDS */
+.ov{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:28px 48px 0}
+.ov-c{borde
+    col('BOOLEAN','vitals_fresh','chart_time within last 45 minutes'),
+    fk('UUID','charge_approved_by','hospital_core.staff — head nurse',true),
+    fk('UUID','attending_signed_by','hospital_core.staff',true),
+    col('VARCHAR','status','pending_charge / charge_approved / attending_review / approved / rejected / completed'),
+    nul('TEXT','rejection_reason'),
+    col('TIMESTAMPTZ','submitted_at'),
+    nul('TIMESTAMPTZ','decided_at'),
+    nul('TIMESTAMPTZ','completed_at'),
+  ]},
+};
+
+const DAI_TABLES = {
+  ACTIVE_PATIENTS:{schema:'da',desc:'Bridge table: links MIMIC-IV hadm_id to hospital_core admission_id. Master hub for all ap_* clinical tables.',cols:[
+    pk('BIGINT','hadm_id','MIMIC-IV legacy admission ID'),
+    fk('UUID','admission_id','hospital_core.admissions — integration key',true),
+    col('VARCHAR','data_fetch_status','pending / fetching / fetched / partial / failed'),
+    col('VARCHAR','status','active / data_ready / summary_generated / signed_off / archived'),
+    col('VARCHAR','discharge_type','Standard / LAMA / DAMA / Death / Referral'),
+    col('CHAR','gender'),col('SMALLINT','anchor_age'),
+    nul('VARCHAR','race'),nul('VARCHAR','insurance'),
+    nul('VARCHAR','admission_type'),
+    nul('TIMESTAMPTZ','admit_time'),nul('TIMESTAMPTZ','discharge_time'),
+    nul('NUMERIC','los_days'),
+    nul('VARCHAR','primary_diagnosis_code'),nul('TEXT','admitting_diagnosis'),
+    fk('UUID','assigned_doctor_id','hospital_core.staff',true),
+    nul('NUMERIC','nli_score','NLI entailment score'),
+    nul('VARCHAR','claim_verification_status'),
+    fk('UUID','signed_by','hospital_core.staff',true),
+    nul('TIMESTAMPTZ','signed_at'),
+    col('TIMESTAMPTZ','created_at'),col('TIMESTAMPTZ','updated_at'),
+  ]},
+  APP_ENCOUNTERS:{schema:'da',desc:'Workflow tracking record for each discharge summary generation cycle.',cols:[
+    pk('UUID','id'),
+    fk('BIGINT','hadm_id','active_patients',false),
+    fk('UUID','admission_id','hospital_core.admissions',true),
+    col('VARCHAR','status','Pending Ingestion / Processing / Ready for Review / Signed Off / Amendment Requested'),
+    col('VARCHAR','complexity','Low / Medium / High'),
+    fk('UUID','assigned_to','hospital_core.staff',true),
+    col('INT','version','revision count'),
+    nul('TIMESTAMPTZ','last_accessed_at'),
+    col('TIMESTAMPTZ','created_at'),col('TIMESTAMPTZ','updated_at'),
+  ]},
+  APP_SUMMARIES:{schema:'da',desc:'Generated discharge summary. NLI entailment score for hallucination detection.',cols:[
+    pk('UUID','id'),
+    fk('UUID','encounter_id','app_encounters',false),
+    col('BIGINT','hadm_id'),
+    col('TEXT','content','full summary text blob'),
+    nul('TEXT','clinical_context','RAG context chunks used in generation'),
+    nul('NUMERIC','nli_score','0.0 to 1.0 entailment score'),
+    nul('VARCHAR','claim_verification_status'),
+    fk('UUID','signed_by','hospital_core.staff',true),
+    nul('TIMESTAMPTZ','signed_at'),
+    col('TIMESTAMPTZ','created_at'),col('TIMESTAMPTZ','updated_at'),
+  ]},
+  DISCHARGE_SECTIONS:{schema:'da',desc:'Per-section NABH tracking — 15 sections with individual confidence scores a
+        <td class="col-desc">${c.desc||''}</td>
+      </tr>`;
+    }).join('');
+    card.innerHTML = `
+      <div class="tcard-head">
+        <span class="tname">${name}</span>
+        <span class="schema-tag ${def.schema}">${schemaLabel}</span>
+      </div>
+      ${def.desc ? `<div class="tcard-desc">${def.desc}</div>` : ''}
+      <table class="col-table">${rows}</table>`;
+    container.appendChild(card);
+  }
+}
+
+function renderComparison() {
+  const tbody = document.getElementById('cmp-body');
+  if (!tbody) return;
+  const cls = {chk:'chk',crs:'crs',prt:'prt',best:'best'};
+  const sym = {chk:'✓',crs:'✗',prt:'⚠',best:'★'};
+  tbody.innerHTML = CMP_ROWS.map(([dim,...rest]) => {
+    const [cur,prof,int_,fin,cc,pc,ic,fc] = rest;
+    return `<tr>
+      <td><strong>${dim}</strong></td>
+      <td class="${cc}">${sym[cc]} ${cur}</td>
+      <td class="${pc}">${sym[pc]} ${prof}</td>
+      <td class="${ic}">${sym[ic]} ${int_}</td>
+      <td class="${fc}">${sym[fc]} ${fin}</td>
+    </tr>`;
+  }).join('');
+}
+
+function showTab(id, btn) {
+  document.querySelectorAll('.tc').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tb').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+  setTimeout(() => mermaid.run(), 80);
+}
+
+// Init
+renderTables(HC_TABLES, 'hc-cards');
+renderTables(EWS_TABLES, 'ews-cards');
+renderTables({...DAI_TABLES,...MIMIC_TABLES}, 'dai-cards');
+renderComparison();
+</script>
+</body>
+</html>

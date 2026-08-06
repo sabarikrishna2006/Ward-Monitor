@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Foqal Hospital OS — Entity Relationship Diagrams</title>
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({
+    startOnLoad: true,
+    er: { useMaxWidth: true, layoutDirection: 'TB', minEntityWidth: 100, entityPadding: 15 }
+  });
+</script>
+<style>
+  :root {
+    --core: #0d9488; --core-light: #ccfbf1; --core-dark: #0f766e;
+    --ews: #7c3aed;  --ews-light: #ede9fe;  --ews-dark: #6d28d9;
+    --dis: #16a34a;  --dis-light: #dcfce7;  --dis-dark: #15803d;
+    --border: #e2e8f0; --text: #1e293b; --muted: #64748b; --gray: #f8fafc;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 13px; color: var(--text); background: #f8fafc; }
+
+  @media print {
+    .no-print { display: none !important; }
+    .page-break { page-break-before: always; }
+    body { background: white; }
+    .mermaid-wrap { border: 1px solid #ccc; }
+  }
+
+  .container { max-width: 1280px; margin: 0 auto; padding: 0 24px; }
+
+  /* HEADER */
+  .header { background: linear-gradient(135deg, #0f766e 0%, #7c3aed 100%); color: white; padding: 36px 48px 28px; }
+  .header h1 { font-size: 26px; font-weight: 700; }
+  .header p { font-size: 13px; opacity: 0.8; margin-top: 6px; }
+  .legend { display: flex; gap: 24px; margin-top: 16px; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; }
+  .legend-dot { width: 14px; height: 14px; border-radius: 3px; }
+  .dot-core { background: #5eead4; }
+  .dot-ews  { background: #c4b5fd; }
+  .dot-dis  { background: #86efac; }
+
+  /* PRINT BAR */
+  .print-bar { background: #1e293b; padding: 10px 24px; display: flex; align-items: center; gap: 12px; }
+  .print-btn { background: var(--core); color: white; border: none; padding: 7px 18px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; }
+  .print-btn:hover { background: var(--core-dark); }
+  .print-bar span { color: #94a3b8; font-size: 12px; }
+
+  /* SECTION */
+  .section { padding: 32px 0; border-bottom: 1px solid var(--border); }
+  .section:last-child { border-bottom: none; }
+  .section-hdr { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 3px solid; }
+  .section-hdr.h-core { border-color: var(--core); }
+  .section-hdr.h-ews  { border-color: var(--ews); }
+  .section-hdr.h-dis  { border-color: var(--dis); }
+  .section-hdr.h-ov   { border-color: #334155; }
+  .badge { display: inline-block; padding: 3px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; font-family: 'Courier New', monospace; }
+  .b-core { background: var(--core-light); color: var(--core-dark); }
+  .b-ews  { background: var(--ews-light); color: var(--ews-dark); }
+  .b-dis  { background: var(--dis-light); color: var(--dis-dark); }
+  .b-ov   { background: #f1f5f9; color: #334155; }
+  .section h2 { font-size: 17px; font-weight: 700; }
+  .section-desc { color: var(--muted); font-size: 12.5px; margin-bottom: 16px; line-height: 1.6; }
+
+  /* MERMAID */
+  .mermaid-wrap { background: white; border: 1px solid var(--border); border-radius: 10px; padding: 20px; overflow-x: auto; }
+
+  /* OVERVIEW GRID */
+  .ov-grid { display: flex; gap: 0; align-items: stretch; flex-wrap: wrap; }
+  .ov-schema { flex: 1; min-width: 260px; border-radius: 10px; border: 2px solid; padding: 16px; }
+  .ov-schema.s-core { border-color: var(--core); background: #f0fdfa; }
+  .ov-schema.s-ews  { border-color: var(--ews); background: #f5f3ff; }
+  .ov-schema.s-dis  { border-color: var(--dis); background: #f0fdf4; }
+  .ov-schema h3 { font-size: 13px; font-weight: 700; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid; }
+  .s-core h3 { color: var(--core-dark); border-color: #99f6e4; }
+  .s-ews  h3 { color: var(--ews-dark); border-color: #c4b5fd; }
+  .s-dis  h3 { color: var(--dis-dark); border-color: #86efac; }
+  .t-chip { background: white; border: 1px solid var(--border); border-radius: 5px; padding: 5px 8px; font-size: 11.5px; font-family: 'Courier New', monospace; font-weight: 600; display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+  .t-chip.dashed { border-style: dashed; }
+  .t-tag { font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 8px; font-family: 'Segoe UI', sans-serif; }
+  .tag-n { background: var(--ews-light); color: var(--ews-dark); }
+  .tag-m { background: var(--core-light); color: var(--core-dark); }
+  .tag-u { font-size: 10px; color: #94a3b8; }
+
+  .ov-arrow { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 12px 8px; color: var(--muted); font-size: 20px; min-width: 60px; }
+  .ov-arrow small { font-size: 10px; color: #94a3b8; text-align: center; font-weight: 600; margin-top: 2px; line-height: 1.3; }
+
+  /* KEY LEGEND */
+  .key-legend { background: white; border: 1px solid var(--border); border-radius: 8px; padding: 14px 18px; margin-top: 16px; }
+  .key-legend h4 { font-size: 12px; font-weight: 700; margin-bottom: 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  .key-items { display: flex; gap: 20px; flex-wrap: wrap; }
+  .key-item { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+  .key-icon { font-family: 'Courier New', monospace; font-weight: 700; color: var(--core); font-size: 12px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="container">
+    <h1>Foqal Hospital OS — Entity Relationship Diagrams</h1>
+    <p>Integrated database architecture: Foqal CareOS EWS + Discharge Summary AI · Google Cloud SQL · June 2026</p>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot dot-core"></div>hospital_core — Shared master data (NEW)</div>
+      <div class="legend-item"><div class="legend-dot dot-ews"></div>ews — Foqal CareOS / Sabari Project</div>
+      <div class="legend-item"><div class="legend-dot dot-dis"></div>discharge_ai — Discharge Summary AI / Ashmit Project</div>
+    </div>
+  </div>
+</div>
+
+<div class="print-bar no-print">
+  <button class="print-btn" onclick="window.print()">⬇ Save as PDF</button>
+  <span>Print → Save as PDF → A3 landscape recommended for full diagram visibility</span>
+</div>
+
+<div class="container">
+
+<!-- ────────────── OVERVIEW ────────────── -->
+<div class="section">
+  <div class="section-hdr h-ov">
+    <span class="badge b-ov">Overview</span>
+    <h2>Cross-Schema Integration Map</h2>
+  </div>
+  <p class="section-desc">
+    All three schemas share one <strong>Google Cloud SQL PostgreSQL instance</strong>. The <code>admission_id</code> UUID is the universal key that travels with every patient from admission through CCU monitoring to discharge summary. The <code>staff_id</code> UUID connects clinical sign-offs across both systems.
+  </p>
+
+  <div class="ov-grid">
+    <div class="ov-schema s-core">
+      <h3>hospital_core — Shared Master Data</h3>
+      <div class="t-chip"><span>hospitals</span><span class="t-tag tag-n">NEW</span></div>
+      <div class="t-chip"><span>departments</span><span class="t-tag tag-n">NEW</span></div>
+      <div class="t-chip"><span>wards</span><span class="t-tag tag-n">NEW</span></div>
+      <div class="t-chip"><span>beds</span><span class="t-tag tag-n">NEW</span></div>
+      <div class="t-chip"><span>staff</span><span class="t-tag tag-n">NEW (replaces app_users)</span></div>
+      <div class="t-chip"><span>patients</span><span class="t-tag tag-n">NEW — UHID</span></div>
+      <div class="t-chip" style="border-color:var(--core); background:#f0fdfa;"><span><strong>admissions</strong></span><span class="t-tag tag-n">UNIVERSAL KEY</span></div>
+      <div class="t-chip"><span>doctor_patient_assignments</span><span class="t-tag tag-n">NEW</span></div>
+      <div class="t-chip"><span>ward_transfers</span><span class="t-tag tag-n">NEW — ADT Log</span></div>
+    </div>
+
+    <div class="ov-arrow">⇄<br><small>admission_id<br>+ staff_id</small></div>
+
+    <div class="ov-schema s-ews">
+      <h3>ews — Foqal CareOS (EWS)</h3>
+      <div class="t-chip"><span>vitals_timeseries</span><span class="t-tag tag-m">MIGRATED</span></div>
+      <div class="t-chip"><span>lab_events</span><span class="t-tag tag-m">MIGRATED</span></div>
+      <div class="t-chip"><span>medications</span><span class="t-tag tag-m">MIGRATED</span></div>
+      <div class="t-chip"><span>escalations</span><span class="t-tag tag-m">MIGRATED</span></div>
+      <div class="t-chip dashed"><span>ews_events</span><span class="t-tag tag-n">NEW</span></div>
+      <div class="t-chip dashed"><span>dcm_assessments</span><span class="t-tag tag-n">NEW</span></div>
+      <div class="t-chip dashed"><span>fluid_balance</span><span class="t-tag tag-n">NEW</span></div>
+      <div class="t-chip dashed"><span>transfer_requests</span><span class="t-tag tag-n">NEW</span></div>
+    </div>
+
+    <div class="ov-arrow">⇄<br><small>admission_id<br>via API call</small></div>
+
+    <div class="ov-schema s-dis">
+      <h3>discharge_ai — Discharge Summary AI</h3>
+      <div class="t-chip"><span>active_patients</span><span class="t-tag tag-m">+ admission_id</span></div>
+      <div class="t-chip"><span>app_encounters</span><span class="t-tag tag-m">+ admission_id</span></div>
+      <div class="t-chip"><span>app_summaries</span><span class="t-tag tag-m">signed_by → staff</span></div>
+      <div class="t-chip"><span>app_clinical_data</span><span class="t-tag tag-u">unchanged</span></div>
+      <div class="t-chip"><span>18 ap_* tables</span><span class="t-tag tag-u">unchanged</span></div>
+      <div class="t-chip"><span>app_audit_log</span><span class="t-tag tag-u">unchanged</span></div>
+      <div class="t-chip"><span>app_settings</span><span class="t-tag tag-u">unchanged</span></div>
+    </div>
+  </div>
+
+  <div class="key-legend">
+    <h4>Relationship &amp; Key Notation</h4>
+    <div class="key-items">
+      <div class="key-item"><span class="key-icon">||--o{</span> One-to-Many (1 parent → many children)</div>
+      <div class="key-item"><span class="key-icon">||--o|</span> One-to-Zero-or-One (optional 1:1)</div>
+      <div class="key-item"><span class="key-icon">PK</span> Primary Key</div>
+      <div class="key-item"><span class="key-icon">FK</span> Foreign Key → references another table</div>
+      <div class="key-item"><span class="key-icon">UK</span> Unique Key (not PK, but must be unique)</div>
+    </div>
+  </div>
+</div>
+
+<!-- ────────────── hospital_core ERD ────────────── -->
+<div class="section page-break">
+  <div class="section-hdr h-core">
+    <span class="badge b-core">hospital_core</span>
+    <h2>Master Data Schema — 9 Tables</h2>
+  </div>
+  <p class="section-desc">
+    New shared schema. Neither the EWS app nor the Discharge AI app owns this — both connect to it as a read layer. The central table is <strong>admissions</strong> whose <code>admission_id</code> UUID is the universal key flowing into all downstream tables. <code>HOSPITALS</code> acts as the top-level tenant anchor for multi-hospital scalability.
+  </p>
+  <div class="mermaid-wrap">
+<pre class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#ccfbf1', 'primaryBorderColor': '#0d9488', 'primaryTextColor': '#0f766e', 'lineColor': '#0d9488', 'secondaryColor': '#f0fdfa', 'tertiaryColor': '#f8fafc', 'background': '#ffffff', 'fontFamily': 'Segoe UI, sans-serif', 'fontSize': '13px', 'attributeBackgroundColorEven': '#f0fdfa', 'attributeBackgroundColorOdd': '#ffffff'}}}%%
+erDiagram
+    HOSPITALS {
+        uuid hospital_id PK
+        string short_code UK "e.g. AIIMS-DEL"
+        string name
+        string type "TERTIARY | PRIVATE | GOVT"
+        boolean nabh_accredited
+        string rohini_id "Indian insurance provider ID"
+    }
+    DEPARTMENTS {
+        uuid dept_id PK
+        uuid hospital_id FK
+        string name "Cardiology, ICU, Medicine"
+        string code "CARD, ICU, MED"
+    }
+    WARDS {
+        uuid ward_id PK
+        uuid hospital_id FK
+        uuid dept_id FK
+        string name "CCU, General Ward 4B"
+        string ward_type "CCU | GW | ICU | HDU | EMERGENCY"
+        int capacity "total bed count"
+    }
+    BEDS {
+        uuid bed_id PK
+        uuid ward_id FK
+        string bed_number "CCU-01, GW-12"
+        string status "available | occupied | maintenance"
+        uuid current_admission_id FK "nullable"
+    }
+    STAFF {
+        uuid staff_id PK
+        uuid hospital_id FK
+        uuid dept_id FK
+        string full_name
+        string role "staff_nurse | charge_nurse | resident | attending | admin_staff | cmo"
+        string hospital_email UK
+        string license_no "MCI or Nursing Council reg."
+    }
+    PATIENTS {
+        varchar uhid PK "AIIMS-2026-0001234"
+        uuid hospital_id FK
+        string full_name
+        date dob
+        char sex "M | F | O"
+        string insurance_type "Ayushman_Bharat | CGHS | ESI | Private"
+    }
+    ADMISSIONS {
+        uuid admission_id PK "UNIVERSAL KEY"
+        varchar uhid FK
+        uuid hospital_id FK
+        uuid assigned_doctor_id FK
+        string admission_type "EMERGENCY | ELECTIVE | TRANSFER_IN"
+        string status "admitted | in_ccu | transferred_to_gw | discharge_pending | discharged"
+        timestamptz admitted_at
+        timestamptz discharged_at "NULL until discharge"
+    }
+    DOCTOR_PATIENT_ASSIGNMENTS {
+        uuid assignment_id PK
+        uuid admission_id FK
+        uuid doctor_id FK
+        string assignment_type "PRIMARY | COVERING | CONSULTANT"
+        timestamptz assigned_at
+        timestamptz unassigned_at "NULL = currently active"
+    }
+    WARD_TRANSFERS {
+        uuid transfer_id PK
+        uuid admission_id FK
+        uuid from_ward_id FK
+        uuid to_ward_id FK
+        string transfer_type "CCU_TO_GW | GW_TO_CCU"
+        int news2_at_transfer "EWS score snapshot"
+        string status "pending | approved | completed"
+    }
+
+    HOSPITALS ||--o{ DEPARTMENTS : "has"
+    HOSPITALS ||--o{ WARDS : "has"
+    HOSPITALS ||--o{ STAFF : "employs"
+    HOSPITALS ||--o{ PATIENTS : "registers"
+    HOSPITALS ||--o{ ADMISSIONS : "hosts"
+    DEPARTMENTS ||--o{ WARDS : "organises"
+    DEPARTMENTS ||--o{ STAFF : "has"
+    WARDS ||--o{ BEDS : "contains"
+    PATIENTS ||--o{ ADMISSIONS : "admitted via"
+    STAFF ||--o{ ADMISSIONS : "assigned to treat"
+    ADMISSIONS ||--o{ DOCTOR_PATIENT_ASSIGNMENTS : "tracked by"
+    ADMISSIONS ||--o{ WARD_TRANSFERS : "logged in ADT"
+    STAFF ||--o{ DOCTOR_PATIENT_ASSIGNMENTS : "fulfils role"
+    WARDS ||--o{ WARD_TRANSFERS : "from / to"
+</pre>
+  </div>
+</div>
+
+<!-- ────────────── EWS ERD ────────────── -->
+<div class="section page-break">
+  <div class="section-hdr h-ews">
+    <span class="badge b-ews">ews</span>
+    <h2>EWS Schema — Foqal CareOS (8 Tables)</h2>
+  </div>
+  <p class="section-desc">
+    All 8 tables are foreign-keyed to <code>admissions.admission_id</code> (shown as a reference entity from hospital_core). Migration from SQLite is a connection-string change in SQLAlchemy — ORM models stay the same, only schema prefix changes from default to <code>ews.*</code>. Dashed-border entities are new additions.
+  </p>
+  <div class="mermaid-wrap">
+<pre class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#ede9fe', 'primaryBorderColor': '#7c3aed', 'primaryTextColor': '#6d28d9', 'lineColor': '#7c3aed', 'secondaryColor': '#f5f3ff', 'background': '#ffffff', 'fontFamily': 'Segoe UI, sans-serif', 'fontSize': '13px', 'attributeBackgroundColorEven': '#f5f3ff', 'attributeBackgroundColorOdd': '#ffffff'}}}%%
+erDiagram
+    ADMISSIONS {
+        uuid admission_id PK "anchor from hospital_core"
+    }
+    VITALS_TIMESERIES {
+        uuid id PK
+        uuid admission_id FK
+        timestamptz chart_hour
+        float heart_rate
+        float resp_rate
+        float spo2
+        float sbp
+        string consciousness "ACVPU"
+        uuid recorded_by FK "staff_id"
+    }
+    LAB_EVENTS {
+        uuid id PK
+        uuid admission_id FK
+        float potassium
+        float creatinine
+        float lactate
+        float inr
+        float egfr
+        float bnp "NEW: BNP for DCM"
+        uuid recorded_by FK
+    }
+    MEDICATIONS {
+        uuid id PK
+        uuid admission_id FK
+        string med_name "Indian generics/brands"
+        string dose
+        string frequency
+        string route "PO | IV | SC | IM"
+        uuid prescribed_by FK
+    }
+    ESCALATIONS {
+        uuid id PK
+        uuid admission_id FK
+        int news2_score
+        string level "low | medium | high | code_blue"
+        string status "active | pending_charge_ack | charge_acked | false_alarm | attending_notified | resolved"
+        boolean false_alarm
+        string false_alarm_reason "from dropdown - feeds EWD model"
+        boolean sla_breached "NABH SLA auto-flag"
+    }
+    EWS_EVENTS {
+        uuid id PK
+        uuid admission_id FK
+        string event_type "NEWS2_RISING | TREND_ALERT | STEP_DOWN_ELIGIBLE | DCM_DECOMPENSATION"
+        float trend_score "EWMA composite"
+        float ml_confidence "0-100"
+        json top_signals "param, direction, contribution"
+        string status "pending | actioned | dismissed"
+    }
+    DCM_ASSESSMENTS {
+        uuid id PK
+        uuid admission_id FK
+        int nyha_class "1-4"
+        float ef_percent "ejection fraction"
+        float baseline_weight "kg at admission"
+        float bnp_admission "pg/mL"
+        int edema_grade "0-3"
+        uuid assessed_by FK
+    }
+    FLUID_BALANCE {
+        uuid id PK
+        uuid admission_id FK
+        timestamptz recorded_at
+        int period_hours "8 or 24"
+        float intake_ml
+        float urine_ml
+        float daily_weight_kg "for fluid-overload trend"
+    }
+    TRANSFER_REQUESTS {
+        uuid id PK
+        uuid admission_id FK
+        uuid from_ward_id FK "CCU ward"
+        uuid to_ward_id FK "GW ward"
+        uuid requested_by FK "Staff Nurse who recommends"
+        json checklist_json "5 step-down criteria auto-populated"
+        boolean attending_notified
+        uuid charge_approved_by FK "Head Nurse who approves"
+        string status "pending_charge | approved | rejected | completed"
+    }
+
+    ADMISSIONS ||--o{ VITALS_TIMESERIES : "records vitals"
+    ADMISSIONS ||--o{ LAB_EVENTS : "records labs"
+    ADMISSIONS ||--o{ MEDICATIONS : "prescribes"
+    ADMISSIONS ||--o{ ESCALATIONS : "triggers"
+    ADMISSIONS ||--o{ EWS_EVENTS : "generates"
+    ADMISSIONS ||--o{ DCM_ASSESSMENTS : "assessed via"
+    ADMISSIONS ||--o{ FLUID_BALANCE : "tracked in"
+    ADMISSIONS ||--o{ TRANSFER_REQUESTS : "initiates"
+</pre>
+  </div>
+</div>
+
+<!-- ────────────── Discharge AI ERD ────────────── -->
+<div class="section page-break">
+  <div class="section-hdr h-dis">
+    <span class="badge b-dis">discharge_ai</span>
+    <h2>Discharge Summary AI Schema (Key Integration Changes)</h2>
+  </div>
+  <p class="section-desc">
+    The Gemini pipeline, MedCPT embeddings, Qdrant RAG, BM25, and all 18 ap_* MIMIC-IV clinical tables are <strong>unchanged</strong>. The changes shown here integrate Ashmit's system into the shared identity layer. <code>ADMISSIONS</code> and <code>STAFF</code> are reference entities from hospital_core.
+    <br><br>
+    <strong>Doctor sign-off chain:</strong> At discharge, <code>app_summaries.signed_by</code> is resolved by querying <code>doctor_patient_assignments WHERE assignment_type='PRIMARY' AND unassigned_at IS NULL</code> for this admission — guaranteeing the correct treating consultant signs the NABH discharge summary.
+  </p>
+  <div class="mermaid-wrap">
+<pre class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#dcfce7', 'primaryBorderColor': '#16a34a', 'primaryTextColor': '#15803d', 'lineColor': '#16a34a', 'secondaryColor': '#f0fdf4', 'background': '#ffffff', 'fontFamily': 'Segoe UI, sans-serif', 'fontSize': '13px', 'attributeBackgroundColorEven': '#f0fdf4', 'attributeBackgroundColorOdd': '#ffffff'}}}%%
+erDiagram
+    ADMISSIONS {
+        uuid admission_id PK "anchor from hospital_core"
+    }
+    STAFF {
+        uuid staff_id PK "from hospital_core"
+        string full_name
+        string role "resident | attending | admin_staff"
+    }
+    ACTIVE_PATIENTS {
+        bigint hadm_id PK "MIMIC-IV key (legacy)"
+        uuid admission_id FK "NEW - integration key"
+        string data_fetch_status "fetched | pending | failed"
+        string status
+    }
+    APP_ENCOUNTERS {
+        uuid encounter_id PK
+        uuid admission_id FK "NEW - from EWS handoff"
+        uuid hospital_id FK "NEW - multi-tenancy"
+        uuid assigned_to FK "→ hospital_core.staff"
+        bigint hadm_id "kept for MIMIC-IV compat"
+        string status "Pending_Ingestion | Ingested | Generating | Ready_for_Review | Signed"
+        int version
+    }
+    APP_SUMMARIES {
+        uuid summary_id PK
+        uuid encounter_id FK
+        uuid signed_by FK "→ hospital_core.staff"
+        float nli_score "claim verification score"
+        string claim_verification_status
+        json content "10 NABH sections"
+        timestamptz signed_at
+    }
+    AP_CLINICAL_TABLES {
+        bigint hadm_id FK "18 ap_* tables combined"
+        string file_type "labevents | prescriptions | diagnoses ..."
+        json row_data "MIMIC-IV clinical row"
+    }
+    APP_AUDIT_LOG {
+        bigint id PK
+        string action
+        bigint hadm_id
+        uuid user_id FK "→ hospital_core.staff"
+        json details
+    }
+
+    ADMISSIONS ||--o| ACTIVE_PATIENTS : "maps to"
+    ADMISSIONS ||--o| APP_ENCOUNTERS : "creates"
+    STAFF ||--o{ APP_ENCOUNTERS : "assigned to"
+    STAFF ||--o{ APP_SUMMARIES : "signs"
+    STAFF ||--o{ APP_AUDIT_LOG : "performs"
+    APP_ENCOUNTERS ||--o{ APP_SUMMARIES : "generates"
+    ACTIVE_PATIENTS ||--o{ AP_CLINICAL_TABLES : "clinical data in"
+</pre>
+  </div>
+</div>
+
+<!-- ────────────── KEY QUERIES ────────────── -->
+<div class="section">
+  <div class="section-hdr h-ov">
+    <span class="badge b-ov">Reference</span>
+    <h2>Key Integration Queries</h2>
+  </div>
+  <p class="section-desc">Critical SQL queries that tie the two systems together at discharge and escalation sign-off.</p>
+
+  <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(420px,1fr)); gap:16px; margin-top:8px;">
+
+    <div style="background:white; border:1px solid var(--border); border-radius:8px; overflow:hidden;">
+      <div style="background:var(--core); color:white; padding:8px 14px; font-size:12px; font-weight:700;">Get Current Treating Consultant for an Admission</div>
+      <pre style="padding:14px; font-size:12px; font-family:'Courier New',monospace; overflow-x:auto; color:#1e293b; line-height:1.6;">SELECT s.staff_id, s.full_name, s.role
+FROM hospital_core.doctor_patient_assignments dpa
+JOIN hospital_core.staff s ON s.staff_id = dpa.doctor_id
+WHERE dpa.admission_id = :admission_id
+  AND dpa.assignment_type = 'PRIMARY'
+  AND dpa.unassigned_at IS NULL;</pre>
+    </div>
+
+    <div style="background:white; border:1px solid var(--border); border-radius:8px; overflow:hidden;">
+      <div style="background:var(--ews); color:white; padding:8px 14px; font-size:12px; font-weight:700;">EWS → Discharge AI Handoff (EWS backend fires this)</div>
+      <pre style="padding:14px; font-size:12px; font-family:'Courier New',monospace; overflow-x:auto; color:#1e293b; line-height:1.6;">POST http://discharge-ai:8000/api/encounters
+{
+  "admission_id": "&lt;uuid&gt;",
+  "uhid":         "AIIMS-2026-0001234",
+  "assigned_doctor_id": "&lt;staff_id uuid&gt;",
+  "discharge_type": "Standard",
+  "hospital_id":  "&lt;uuid&gt;"
+}</pre>
+    </div>
+
+    <div style="background:white; border:1px solid var(--border); border-radius:8px; overflow:hidden;">
+      <div style="background:var(--dis); color:white; padding:8px 14px; font-size:12px; font-weight:700;">STEP_DOWN_ELIGIBLE Auto-Trigger (runs every hour)</div>
+      <pre style="padding:14px; font-size:12px; font-family:'Courier New',monospace; overflow-x:auto; color:#1e293b; line-height:1.6;">SELECT admission_id
+FROM ews.vitals_timeseries
+WHERE chart_hour >= now() - interval '6 hours'
+GROUP BY admission_id
+HAVING MAX(news2_score) &lt;= 2
+  AND admission_id NOT IN (
+    SELECT admission_id FROM ews.escalations
+    WHERE initiated_at >= now() - interval '24 hours'
+  );</pre>
+    </div>
+
+    <div style="background:white; border:1px solid var(--border); border-radius:8px; overflow:hidden;">
+      <div style="background:#334155; color:white; padding:8px 14px; font-size:12px; font-weight:700;">Close Admission on Discharge</div>
+      <pre style="padding:14px; font-size:12px; font-family:'Courier New',monospace; overflow-x:auto; color:#1e293b; line-height:1.6;">UPDATE hospital_core.admissions
+   SET status = 'discharged', discharged_at = now()
+ WHERE admission_id = :admission_id;
+
+UPDATE hospital_core.beds
+   SET status = 'available', current_admission_id = NULL
+ WHERE current_admission_id = :admission_id;
+
+UPDATE hospital_core.doctor_patient_assignments
+   SET unassigned_at = now()
+ WHERE admission_id = :admission_id
+   AND unassigned_at IS NULL;</pre>
+    </div>
+
+  </div>
+</div>
+
+</div><!-- /container -->
+</body>
+</html>

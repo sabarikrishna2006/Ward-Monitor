@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Foqal CareOS — Doctor</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="root"></div>
+
+<script src="config.js"></script>
+<script src="icons.js"></script>
+<script src="state.js"></script>
+<script src="shell.js"></script>
+<script src="api-client.js"></script>
+<script src="data.js"></script>
+<script src="screens/doctor-dashboard.js"></script>
+<script src="screens/doctor-queue.js"></script>
+<script src="screens/dl.js"></script>
+<script src="screens/review-v2.js"></script>
+<script src="screens/signoff.js"></script>
+<script src="screens/signed.js"></script>
+<script src="screens/amendment.js"></script>
+<script src="screens/rejection-flow.js"></script>
+
+<script>
+  // Auth guard — must be logged in as doctor
+  const _stored = JSON.parse(sessionStorage.getItem('foqal_user') || '{}');
+  if (!_stored.email) { window.location.href = '/'; }
+  if (_stored.role !== 'doctor') { window.location.href = '/dashboard.html'; }
+
+  // Hydrate SPA state from session
+  APP.role        = 'doctor';
+  APP.currentUser = {
+    id:         _stored.id   || null,
+    email:      _stored.email,
+    full_name:  _stored.full_name || _stored.email,
+    name:       _stored.full_name || _stored.email,
+    role:       'doctor',
+    initials:   (_stored.full_name || _stored.email || 'D')
+                  .split(' ').map(function(w){ return w[0]; }).join('').slice(0,2).toUpperCase(),
+  };
+
+  // Boot into signing queue table (doctor-dashboard screen)
+  navigate('doctor-dashboard');
+</script>
+</body>
+</html>

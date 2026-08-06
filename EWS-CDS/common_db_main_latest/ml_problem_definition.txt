@@ -1,0 +1,31 @@
+ML Problem Definition: Dynamic Cost Variance Prediction
+
+1. The Business Problem
+- Current Process: The hospital currently generates the initial cost estimate using a static, hardcoded formula (multiplying PM-JAY packages by fixed private multipliers).
+- The Issue: Because the initial estimate is hardcoded and doesn't account for real patient historical data, and because medical needs change as a stay progresses, there is a significant variance between the initial estimate and the final "real cost".
+- The Core Goal (Patient Trust): Replace the hardcoded template with an ML model to generate an accurate initial estimate, and proactively update this prediction daily. By communicating cost changes to patients and insurance (TPA) early, this radical transparency builds immense trust and improves the patient experience.
+
+2. What ML are we actually building? (Explaining Gautam Sir's Point)
+We are building a Time-Series Regression Model (or Sequential Predictive Model).
+
+Instead of making just one prediction at admission, the model looks at the patient's data every single day of their stay and updates its prediction for the final cost.
+
+Why Day-by-Day?: Medical costs aren't static. What happens on Day 1 (e.g., a patient's condition worsens and they need oxygen) changes the expected cost for the rest of the stay. A daily model captures this evolving timeline ("kya hua day 1 pe affects day 2").
+
+3. Formal ML Problem Definition
+- Task Type: Supervised Time-Series Regression
+- Target Variable (What we are predicting):
+  The Final Real Cost of the encounter (or equivalently, the Cost Variance, which is Final Real Cost - Initial Estimate).
+- Input Features (The data we use to predict):
+  - Static Baseline Features (Day 0): Initial Generated Estimate, Patient Age, Gender, Primary Diagnosis, Admission Ward.
+  - Dynamic Daily Features (Day t): Current Day number (Length of Stay so far), New medications prescribed today, Procedures/Labs done today, Patient condition changes, Transfers (e.g., moved from Ward to ICU).
+- The Prediction Mechanism:
+  - On Day 0 (Admission): Model uses Static Features -> Predicts the Initial Cost Estimate (replacing the hardcoded formula)
+  - On Day 1: Model uses (Static Features + Day 1 Events) -> Predicts Final Cost
+  - On Day 2: Model uses (Static Features + Day 1 Events + Day 2 Events) -> Updates Prediction for Final Cost
+
+4. Project Roadmap (Next Steps)
+- Data Collection: Gather historical billing data linked with daily patient clinical logs (using hadm_id).
+- Data Transformation: Group data into daily sequences for each patient (Day 1, Day 2, etc.).
+- EDA (Exploratory Data Analysis): Analyze which daily clinical events cause the biggest spikes in cost variance.
+- Modeling: Train sequential ML models to predict final costs based on these daily updates.

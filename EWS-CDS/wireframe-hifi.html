@@ -1,0 +1,2218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Foqal CareOS — Wireframe v10 · Desktop</title>
+<style>
+:root{--p:#800080;--pl:#f3e6f3;--pm:#b366b3;--pd:#5c005c;--red:#c0392b;--amber:#d4a017;--green:#27ae60;--gray:#f7f7f7;--border:#e0e0e0;--text:#1a1a1a;--muted:#666;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#fff;color:var(--text);font-size:12px;}
+/* Top nav */
+.topnav{background:var(--p);color:#fff;padding:10px 24px;display:flex;align-items:center;gap:12px;}
+.topnav h1{font-size:15px;font-weight:700;}
+.nav-badge{background:rgba(255,255,255,.2);padding:2px 8px;border-radius:10px;font-size:10px;}
+.nav-right{margin-left:auto;display:flex;align-items:center;gap:8px;}
+.nav-icon{background:rgba(255,255,255,.15);border:none;color:#fff;padding:5px 8px;border-radius:4px;cursor:pointer;font-size:11px;}
+/* Persistent screen nav bar */
+.screen-nav{background:#fff;border-bottom:1px solid var(--border);padding:6px 16px;display:flex;align-items:center;gap:8px;font-size:11px;}
+.screen-nav .module{padding:3px 8px;border-radius:3px;cursor:pointer;color:var(--muted);}
+.screen-nav .module.active{background:var(--pl);color:var(--pd);font-weight:700;}
+.screen-nav .nav-r{margin-left:auto;display:flex;align-items:center;gap:6px;}
+.notif-dot{background:var(--red);width:6px;height:6px;border-radius:50%;display:inline-block;margin-left:-4px;margin-top:-8px;}
+/* Tabs */
+.tabs{display:flex;border-bottom:2px solid var(--border);padding:0 24px;overflow-x:auto;background:#fff;}
+.tab{padding:10px 16px;cursor:pointer;font-size:11px;font-weight:600;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-2px;white-space:nowrap;}
+.tab.active{color:var(--p);border-bottom-color:var(--p);}
+.tab:hover:not(.active){color:var(--text);}
+.content{display:none;padding:24px;}
+.content.active{display:block;}
+/* Layout */
+.st{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--p);margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid var(--pl);}
+.row{display:flex;gap:14px;margin-bottom:16px;}
+.col{flex:1;}
+.flow{display:flex;gap:0;align-items:flex-start;margin-bottom:28px;overflow-x:auto;padding-bottom:6px;}
+.step{min-width:200px;max-width:240px;flex-shrink:0;}
+.arrow{display:flex;align-items:center;padding:0 5px;margin-top:36px;color:var(--p);font-size:16px;flex-shrink:0;}
+.step-lbl{font-size:10px;font-weight:700;text-transform:uppercase;color:var(--muted);margin-bottom:5px;letter-spacing:.4px;}
+/* Screen frame */
+.sf{border:1px solid var(--border);border-radius:6px;overflow:hidden;margin-bottom:5px;}
+.sf-bar{background:var(--p);color:#fff;padding:7px 11px;font-size:11px;font-weight:600;display:flex;align-items:center;gap:8px;}
+.sf-body{padding:11px;background:#fff;}
+.sf-gray{background:var(--gray);}
+/* Persona */
+.persona{display:inline-block;padding:2px 7px;border-radius:9px;font-size:10px;font-weight:700;margin-right:3px;}
+.p-res{background:#e8f0ff;color:#003cb3;}
+.p-att{background:#e8fff0;color:#006622;}
+.p-adm{background:#fff3e0;color:#7a4000;}
+.p-bil{background:#fce4ec;color:#880e4f;}
+.p-nur{background:#e0f7fa;color:#006064;}
+.p-cnu{background:#e8eaf6;color:#283593;}
+.p-sup{background:var(--pl);color:var(--pd);}
+.p-cmo{background:#f3e5f5;color:#6a1b9a;}
+.p-sys{background:#eceff1;color:#37474f;}
+/* Buttons */
+.btn{padding:5px 9px;border-radius:4px;font-size:11px;font-weight:600;cursor:pointer;border:none;display:inline-block;}
+.btn-p{background:var(--p);color:#fff;}
+.btn-o{background:#fff;color:var(--p);border:1px solid var(--p);}
+.btn-g{background:#fff;color:var(--muted);border:1px solid var(--border);}
+.btn-r{background:#fff;color:var(--red);border:1px solid var(--red);}
+.btn-grn{background:var(--green);color:#fff;}
+/* Notifications */
+.notif{background:var(--pl);border-left:3px solid var(--p);padding:6px 10px;border-radius:0 4px 4px 0;margin-bottom:6px;color:var(--pd);}
+.notif-r{background:#fde8e8;border-left-color:var(--red);color:var(--red);}
+.notif-g{background:#d4edda;border-left-color:var(--green);color:#155724;}
+.warn{background:#fff8e1;border-left:3px solid var(--amber);padding:6px 10px;border-radius:0 4px 4px 0;color:#856404;}
+.toast{background:#1a1a1a;color:#fff;padding:8px 14px;border-radius:20px;font-size:11px;display:inline-block;margin-bottom:8px;}
+/* Tags */
+.tag{display:inline-block;padding:2px 6px;border-radius:7px;font-size:10px;font-weight:600;}
+.t-pend{background:#fff3e0;color:#7a4000;}
+.t-rev{background:#fef3cd;color:#856404;}
+.t-rej{background:#fde8e8;color:var(--red);}
+.t-sign{background:#d4edda;color:#155724;}
+.t-done{background:var(--pl);color:var(--pd);}
+/* Form fields */
+.field{margin-bottom:8px;}
+.field label{font-size:10px;color:var(--muted);display:block;margin-bottom:2px;font-weight:600;}
+.val{background:var(--gray);border:1px solid var(--border);border-radius:3px;padding:4px 7px;}
+.inp{background:#fff;border:1px solid var(--border);border-radius:3px;padding:4px 7px;color:var(--muted);font-style:italic;}
+select.inp{width:100%;font-style:normal;}
+/* Table */
+.tbl{width:100%;border-collapse:collapse;}
+.tbl th{padding:6px 9px;text-align:left;background:var(--p);color:#fff;font-size:10px;text-transform:uppercase;letter-spacing:.4px;}
+.tbl td{padding:6px 9px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.tbl tr:nth-child(even) td{background:var(--gray);}
+/* NABH sections */
+.nabh{border:1px solid var(--border);border-radius:4px;margin-bottom:4px;overflow:hidden;}
+.nabh-h{padding:6px 9px;display:flex;align-items:center;gap:6px;font-weight:600;background:#fff;cursor:pointer;}
+.nabh.sel .nabh-h{background:var(--pl);color:var(--pd);}
+.nabh-body{padding:6px 9px;color:var(--muted);border-top:1px solid var(--border);line-height:1.5;}
+.chip{margin-left:auto;font-size:9px;padding:2px 5px;border-radius:5px;font-weight:500;}
+.t1{background:#fde8e8;color:var(--red);}
+.t2{background:#fef3cd;color:#856404;}
+.t3{background:#d4edda;color:#155724;}
+/* Kanban */
+.kanban{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;}
+.kcol{background:var(--gray);border-radius:6px;padding:10px;}
+.kcol-h{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px;display:flex;justify-content:space-between;}
+.kcount{background:var(--p);color:#fff;border-radius:8px;padding:1px 6px;font-size:10px;}
+.kcard{background:#fff;border-radius:4px;padding:8px;margin-bottom:6px;border:1px solid var(--border);}
+.kcard-id{font-weight:700;color:var(--p);}
+.kcard-sub{color:var(--muted);margin-top:2px;font-size:10px;}
+/* Nurse */
+.sum-bar{display:flex;gap:8px;margin-bottom:12px;}
+.schip{flex:1;border-radius:6px;padding:10px 12px;display:flex;align-items:center;gap:8px;border:1px solid var(--border);}
+.schip-n{font-size:20px;font-weight:800;}
+.schip-l{font-size:10px;font-weight:600;text-transform:uppercase;color:var(--muted);}
+.sc-c{border-color:#f5c6cb;background:#fde8e8;} .sc-c .schip-n{color:var(--red);}
+.sc-w{border-color:#ffeeba;background:#fff8e1;} .sc-w .schip-n{color:var(--amber);}
+.sc-ok{border-color:#c3e6cb;background:#f0fff4;} .sc-ok .schip-n{color:var(--green);}
+.sc-t{border-color:var(--border);background:var(--gray);} .sc-t .schip-n{color:var(--p);}
+.bed{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:4px;font-weight:800;font-size:11px;color:#fff;}
+.bc{background:var(--red);} .bw{background:var(--amber);} .bo{background:var(--green);}
+.ns{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;font-weight:800;font-size:10px;color:#fff;}
+.nsc{background:var(--red);} .nsw{background:var(--amber);} .nso{background:var(--green);}
+/* Cost */
+.cband-row{display:flex;gap:10px;margin-bottom:12px;}
+.cband{flex:1;border-radius:6px;padding:12px;text-align:center;border:1px solid var(--border);}
+.cband-n{font-size:18px;font-weight:800;}
+.cband-l{font-size:10px;text-transform:uppercase;font-weight:600;color:var(--muted);}
+.cb-f{background:#f0fff4;border-color:#c3e6cb;} .cb-f .cband-n{color:var(--green);}
+.cb-e{background:var(--pl);border-color:var(--pm);} .cb-e .cband-n{color:var(--p);}
+.cb-c{background:#fde8e8;border-color:#f5c6cb;} .cb-c .cband-n{color:var(--red);}
+/* Misc */
+.comp{background:#fff8e1;border:1px solid #ffeeba;border-radius:4px;padding:8px 10px;margin-bottom:10px;}
+.comp strong{color:#856404;}
+.empty{text-align:center;padding:24px;color:var(--muted);}
+.empty-icon{font-size:32px;margin-bottom:8px;}
+hr{border:none;border-top:1px solid var(--border);margin:18px 0;}
+.note{font-size:10px;color:var(--muted);font-style:italic;margin-top:4px;}
+.ft{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:16px;align-items:center;}
+.fts{padding:4px 9px;border-radius:10px;font-size:10px;font-weight:700;background:var(--gray);color:var(--muted);border:1px solid var(--border);}
+.fts.a{background:var(--p);color:#fff;border-color:var(--p);}
+.fts.d{background:var(--green);color:#fff;border-color:var(--green);}
+.ft-arr{color:var(--muted);font-size:11px;}
+/* Settings */
+.settings-layout{display:flex;gap:0;border:1px solid var(--border);border-radius:6px;overflow:hidden;}
+.settings-nav{width:160px;background:var(--gray);border-right:1px solid var(--border);padding:10px 0;}
+.settings-item{padding:8px 14px;font-size:11px;cursor:pointer;color:var(--muted);}
+.settings-item.active{background:#fff;color:var(--p);font-weight:700;border-left:3px solid var(--p);}
+.settings-body{flex:1;padding:16px;}
+/* Detail panel */
+.detail-panel{border:1px solid var(--p);border-radius:6px;background:var(--pl);padding:12px;margin-top:8px;}
+
+/* ── DESKTOP LAYOUT ── */
+body{font-size:12px;}
+.desktop-wrap{display:flex;min-height:calc(100vh - 118px);}
+.screen-sidebar{width:220px;min-width:220px;background:#fafafa;border-right:2px solid var(--border);overflow-y:auto;position:sticky;top:118px;height:calc(100vh - 118px);flex-shrink:0;}
+.sb-mod{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);padding:10px 14px 4px;margin-top:6px;border-top:1px solid var(--border);}
+.sb-mod:first-child{border-top:none;margin-top:0;}
+.sb-screen{display:flex;align-items:center;gap:7px;padding:5px 14px;cursor:pointer;border-left:2px solid transparent;text-decoration:none;}
+.sb-screen:hover{background:var(--pl);}
+.sb-sid{font-family:'SF Mono',Consolas,monospace;font-size:9px;font-weight:800;background:var(--p);color:#fff;padding:1px 5px;border-radius:3px;min-width:36px;text-align:center;flex-shrink:0;}
+.sb-sid.mod-b{background:#1565c0;}
+.sb-sid.mod-c{background:#2e7d32;}
+.sb-sid.mod-d{background:#6a1b9a;}
+.sb-sid.mod-adm{background:#4e342e;}
+.sb-name{font-size:10px;color:var(--text);line-height:1.3;}
+.screen-area{flex:1;min-width:0;}
+.content{max-width:none;padding:24px 32px;}
+
+/* ── SCREEN ID BADGE (inside sf-bar) ── */
+.sid{font-family:'SF Mono',Consolas,monospace;font-size:10px;font-weight:800;background:rgba(255,255,255,.22);color:#fff;padding:2px 7px;border-radius:3px;margin-right:4px;letter-spacing:.3px;flex-shrink:0;border:1px solid rgba(255,255,255,.35);}
+
+/* ── SECTION TITLE HEADERS ── */
+.st{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--p);margin:0 0 14px;padding-bottom:8px;border-bottom:2px solid var(--pl);display:flex;align-items:center;gap:10px;}
+.st-id{font-family:'SF Mono',Consolas,monospace;font-size:12px;font-weight:800;background:var(--p);color:#fff;padding:3px 9px;border-radius:4px;letter-spacing:.5px;}
+
+/* ── FULL-SCREEN DESKTOP LAYOUT ── */
+html,body{width:100%;overflow-x:auto;}
+.desktop-wrap{display:flex;min-height:calc(100vh - 118px);width:100%;}
+.screen-sidebar{width:220px;min-width:220px;flex-shrink:0;}
+.screen-area{flex:1;min-width:0;width:calc(100% - 220px);}
+.content{padding:28px 40px;width:100%;}
+
+/* Flow steps — desktop proportions */
+.step{min-width:360px;max-width:420px;}
+.flow{padding-bottom:12px;gap:0;overflow-x:auto;}
+.arrow{padding:0 8px;margin-top:40px;font-size:18px;}
+
+/* Full-width standalone screens */
+.sf-full{width:100%;}
+.sf-full .sf-body{padding:16px 20px;}
+
+/* Desktop tabs */
+.tabs{padding:0 28px;}
+.tab{padding:11px 18px;font-size:12px;}
+
+/* Section titles */
+.st{font-size:12px;margin:0 0 18px;padding-bottom:10px;}
+
+/* Desktop kanban — 5 columns fill available width */
+.kanban{grid-template-columns:repeat(5,1fr);gap:14px;}
+.kcol{padding:12px;}
+
+/* Desktop table density */
+.tbl th,.tbl td{padding:8px 11px;}
+
+/* Desktop screen frames */
+.sf{box-shadow:0 1px 6px rgba(0,0,0,0.07);}
+.sf-bar{padding:9px 14px;font-size:12px;}
+.sf-body{padding:14px;}
+
+/* ── PROMINENT STEP LABELS (show screen IDs clearly) ── */
+.step-lbl{font-size:11px;font-weight:700;color:var(--pd);margin-bottom:6px;padding:5px 9px;background:var(--pl);border-radius:4px;border-left:3px solid var(--p);letter-spacing:0;display:flex;align-items:center;flex-wrap:wrap;gap:4px;}
+
+/* ── SECTION TITLE with screen ID ── */
+.st{display:flex;align-items:center;gap:10px;}
+.st-id{font-family:'SF Mono',Consolas,monospace;font-size:12px;font-weight:800;background:var(--p);color:#fff;padding:3px 9px;border-radius:4px;letter-spacing:.5px;flex-shrink:0;}
+
+/* Desktop: header version update */
+.topnav h1{font-size:16px;}
+</style>
+</head>
+<body>
+
+<div style="background:#d4a017;color:#1a1a1a;padding:6px 24px;font-size:11px;display:flex;align-items:center;gap:12px;font-weight:600;border-left:4px solid #a07010;">
+  <strong>⚠ DEMO MODE</strong> — DPA agreement pending signature (Week 1 action). All data shown is synthetic or de-identified. Real patient data flows only post-DPA (DPDPA 2023 compliance). <span style="margin-left:auto;opacity:.8">DPA Status: ☐ Not Signed &nbsp;|&nbsp; Expected: Week 3</span>
+</div>
+<div class="topnav">
+  <h1>Foqal CareOS</h1>
+  <span class="nav-badge">v8 · All Flows · All Personas</span>
+  <select style="background:rgba(255,255,255,.15);border:none;color:#fff;padding:3px 6px;border-radius:4px;font-size:11px;cursor:pointer"><option>🏥 Medanta — Gurugram</option><option>🏥 Gangaram Hospital</option><option>🏥 NY Montefiore (Phase 2)</option></select>
+  <span class="nav-badge" style="margin-left:auto">PM: Harshika Prakash</span>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="st('ov',this)">Overview</div>
+  <div class="tab" onclick="st('pj',this)" style="color:#c62828;font-weight:700">Patient Journey</div>
+  <div class="tab" onclick="st('auth',this)">Auth &amp; Settings</div>
+  <div class="tab" onclick="st('p1res',this)">P1 · Resident</div>
+  <div class="tab" onclick="st('p1att',this)">P1 · Attending</div>
+  <div class="tab" onclick="st('p1rej',this)">P1 · Rejection</div>
+  <div class="tab" onclick="st('p1mb',this)">P1 · Module B</div>
+  <div class="tab" onclick="st('p1adm',this)">P1 · Admin &amp; Audit</div>
+  <div class="tab" onclick="st('sup',this)">Super Admin &amp; CMO</div>
+  <div class="tab" onclick="st('p2nur',this)">P2 · Nurse &amp; Escalation</div>
+  <div class="tab" onclick="st('p2cn',this)">P2 · Charge Nurse</div>
+  <div class="tab" onclick="st('p2dl',this)">P2 · Drug-Lab</div>
+  <div class="tab" onclick="st('spr',this)">Sprint Plan</div>
+  <div class="tab" onclick="st('edge',this)" style="color:var(--red)">⚠ Edge Cases</div>
+</div>
+
+<div class="desktop-wrap">
+
+<!-- ══ LEFT SIDEBAR — SCREEN INDEX ══ -->
+<aside class="screen-sidebar">
+  <div style="padding:10px 14px 6px;font-size:11px;font-weight:700;color:var(--p);border-bottom:1px solid var(--border);">Screen Index</div>
+
+  <div class="sb-mod">Auth</div>
+  <div class="sb-screen" onclick="st('auth',document.querySelectorAll('.tab')[2])"><span class="sb-sid">AUTH1</span><span class="sb-name">Login</span></div>
+  <div class="sb-screen" onclick="st('auth',document.querySelectorAll('.tab')[2])"><span class="sb-sid">AUTH2</span><span class="sb-name">Role Routing</span></div>
+  <div class="sb-screen" onclick="st('auth',document.querySelectorAll('.tab')[2])"><span class="sb-sid">AUTH3</span><span class="sb-name">Forgot Password</span></div>
+  <div class="sb-screen" onclick="st('auth',document.querySelectorAll('.tab')[2])"><span class="sb-sid">SETT</span><span class="sb-name">Settings</span></div>
+
+  <div class="sb-mod">Module A — Discharge Summary</div>
+  <div class="sb-screen" onclick="st('p1res',document.querySelectorAll('.tab')[3])"><span class="sb-sid">S1</span><span class="sb-name">Patient Queue</span></div>
+  <div class="sb-screen" onclick="st('p1res',document.querySelectorAll('.tab')[3])"><span class="sb-sid">S2</span><span class="sb-name">Upload Documents</span></div>
+  <div class="sb-screen" onclick="st('p1res',document.querySelectorAll('.tab')[3])"><span class="sb-sid">S3</span><span class="sb-name">Generate Summary</span></div>
+  <div class="sb-screen" onclick="st('p1att',document.querySelectorAll('.tab')[4])"><span class="sb-sid">S4a</span><span class="sb-name">Signing Queue</span></div>
+  <div class="sb-screen" onclick="st('p1att',document.querySelectorAll('.tab')[4])"><span class="sb-sid">S4b</span><span class="sb-name">Split-Pane Review</span></div>
+  <div class="sb-screen" onclick="st('p1att',document.querySelectorAll('.tab')[4])"><span class="sb-sid">S4c</span><span class="sb-name">Edit / Comment</span></div>
+  <div class="sb-screen" onclick="st('p1att',document.querySelectorAll('.tab')[4])"><span class="sb-sid">S4d</span><span class="sb-name">LLM Revision</span></div>
+  <div class="sb-screen" onclick="st('p1att',document.querySelectorAll('.tab')[4])"><span class="sb-sid">S5</span><span class="sb-name">E-Sign</span></div>
+  <div class="sb-screen" onclick="st('p1att',document.querySelectorAll('.tab')[4])"><span class="sb-sid">S6</span><span class="sb-name">Post-Sign PDF</span></div>
+  <div class="sb-screen" onclick="st('p1att',document.querySelectorAll('.tab')[4])"><span class="sb-sid">S7</span><span class="sb-name">Amendment</span></div>
+  <div class="sb-screen" onclick="st('p1rej',document.querySelectorAll('.tab')[5])"><span class="sb-sid">REJ</span><span class="sb-name">Rejection Flow</span></div>
+
+  <div class="sb-mod">Module B — Cost Estimator</div>
+  <div class="sb-screen" onclick="st('p1mb',document.querySelectorAll('.tab')[6])"><span class="sb-sid mod-b">CE1</span><span class="sb-name">Input Form</span></div>
+  <div class="sb-screen" onclick="st('p1mb',document.querySelectorAll('.tab')[6])"><span class="sb-sid mod-b">CE2</span><span class="sb-name">Cost Band</span></div>
+  <div class="sb-screen" onclick="st('p1mb',document.querySelectorAll('.tab')[6])"><span class="sb-sid mod-b">CE2b</span><span class="sb-name">Save Confirm</span></div>
+  <div class="sb-screen" onclick="st('p1mb',document.querySelectorAll('.tab')[6])"><span class="sb-sid mod-b">CE3</span><span class="sb-name">Print / Email / PDF</span></div>
+  <div class="sb-screen" onclick="st('p1mb',document.querySelectorAll('.tab')[6])"><span class="sb-sid mod-b">CE4</span><span class="sb-name">Reconciliation</span></div>
+  <div class="sb-screen" onclick="st('p1mb',document.querySelectorAll('.tab')[6])"><span class="sb-sid mod-b">CE5</span><span class="sb-name">Final Bill</span></div>
+
+  <div class="sb-mod">Module C — Early Warning</div>
+  <div class="sb-screen" onclick="st('p2nur',document.querySelectorAll('.tab')[9])"><span class="sb-sid mod-c">N1</span><span class="sb-name">NEWS2 Dashboard</span></div>
+  <div class="sb-screen" onclick="st('p2nur',document.querySelectorAll('.tab')[9])"><span class="sb-sid mod-c">N1b</span><span class="sb-name">Patient Detail</span></div>
+  <div class="sb-screen" onclick="st('p2nur',document.querySelectorAll('.tab')[9])"><span class="sb-sid mod-c">N2</span><span class="sb-name">Escalation Form</span></div>
+  <div class="sb-screen" onclick="st('p2nur',document.querySelectorAll('.tab')[9])"><span class="sb-sid mod-c">N3</span><span class="sb-name">Escalation Sent</span></div>
+  <div class="sb-screen" onclick="st('p2nur',document.querySelectorAll('.tab')[9])"><span class="sb-sid mod-c">N4</span><span class="sb-name">Status Log</span></div>
+  <div class="sb-screen" onclick="st('p2nur',document.querySelectorAll('.tab')[9])"><span class="sb-sid mod-c">N4b</span><span class="sb-name">De-escalation (inline in N4)</span></div>
+  <div class="sb-screen" onclick="st('p2cn',document.querySelectorAll('.tab')[10])"><span class="sb-sid mod-c">N5</span><span class="sb-name">Escalation Queue</span></div>
+  <div class="sb-screen" onclick="st('p2cn',document.querySelectorAll('.tab')[10])"><span class="sb-sid mod-c">N5b</span><span class="sb-name">Threshold Config</span></div>
+  <div class="sb-screen" onclick="st('p2nur',document.querySelectorAll('.tab')[9])"><span class="sb-sid mod-c">N6</span><span class="sb-name">Shift Handoff</span></div>
+  <div class="sb-screen" onclick="st('p2nur',document.querySelectorAll('.tab')[9])"><span class="sb-sid mod-c">N6b</span><span class="sb-name">Handoff Complete</span></div>
+
+  <div class="sb-mod">Module D — Drug-Lab</div>
+  <div class="sb-screen" onclick="st('p2dl',document.querySelectorAll('.tab')[11])"><span class="sb-sid mod-d">DL1</span><span class="sb-name">Flag in S4b</span></div>
+  <div class="sb-screen" onclick="st('p2dl',document.querySelectorAll('.tab')[11])"><span class="sb-sid mod-d">DL2</span><span class="sb-name">Flag Detail + Action</span></div>
+  <div class="sb-screen" onclick="st('p2dl',document.querySelectorAll('.tab')[11])"><span class="sb-sid mod-d">DL2b</span><span class="sb-name">Confirmation</span></div>
+  <div class="sb-screen" onclick="st('p2dl',document.querySelectorAll('.tab')[11])"><span class="sb-sid mod-d">DL2c</span><span class="sb-name">Co-Sign (Tier 1)</span></div>
+  <div class="sb-screen" onclick="st('p2dl',document.querySelectorAll('.tab')[11])"><span class="sb-sid mod-d">DL3</span><span class="sb-name">Nurse Alert Tab</span></div>
+
+  <div class="sb-mod">Admin</div>
+  <div class="sb-screen" onclick="st('p1adm',document.querySelectorAll('.tab')[7])"><span class="sb-sid mod-adm">A1</span><span class="sb-name">Kanban Pipeline</span></div>
+  <div class="sb-screen" onclick="st('p1adm',document.querySelectorAll('.tab')[7])"><span class="sb-sid mod-adm">A2</span><span class="sb-name">Audit Log</span></div>
+  <div class="sb-screen" onclick="st('p1adm',document.querySelectorAll('.tab')[7])"><span class="sb-sid mod-adm">A3</span><span class="sb-name">Module Health</span></div>
+  <div class="sb-screen" onclick="st('sup',document.querySelectorAll('.tab')[8])"><span class="sb-sid mod-adm">SA1</span><span class="sb-name">User Management</span></div>
+  <div class="sb-screen" onclick="st('sup',document.querySelectorAll('.tab')[8])"><span class="sb-sid mod-adm">SA2</span><span class="sb-name">Hospital Settings</span></div>
+  <div class="sb-screen" onclick="st('sup',document.querySelectorAll('.tab')[8])"><span class="sb-sid mod-adm">SA3</span><span class="sb-name">Drug-Lab Rules</span></div>
+  <div class="sb-screen" onclick="st('sup',document.querySelectorAll('.tab')[8])"><span class="sb-sid mod-adm">CMO1</span><span class="sb-name">Pilot Dashboard</span></div>
+  <div style="height:20px;"></div>
+</aside>
+
+<!-- ══ MAIN CONTENT AREA ══ -->
+<div class="screen-area">
+
+<!-- ═══ OVERVIEW ═══ -->
+<div class="content active" id="tab-ov">
+<div style="background:linear-gradient(135deg,var(--pd) 0%,var(--p) 100%);border-radius:8px;padding:20px 28px;margin-bottom:24px;color:#fff;">
+  <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;opacity:.7;margin-bottom:8px">The Product in One Sentence</div>
+  <div style="font-size:16px;font-weight:700;line-height:1.5;max-width:820px">CareOS is a hospital operating system that takes the most time-consuming, error-prone clinical paperwork — discharge summaries, patient cost estimates, ward alerts, drug checks — and makes them <span style="background:rgba(255,255,255,.18);padding:1px 6px;border-radius:3px;">AI-assisted</span>, <span style="background:rgba(255,255,255,.18);padding:1px 6px;border-radius:3px;">audit-compliant</span>, and <span style="background:rgba(255,255,255,.18);padding:1px 6px;border-radius:3px;">role-specific</span>.</div>
+  <div style="margin-top:14px;display:flex;gap:24px;font-size:11px;opacity:.85;flex-wrap:wrap">
+    <span>⏱ 62 min → 18 min · <strong>-71% summary time</strong></span>
+    <span>📋 67% → 84% · <strong>+17% NABH compliance</strong></span>
+    <span>💊 <strong>13 drug-lab rules</strong> · India-calibrated</span>
+    <span>👥 <strong>8 personas</strong> · 4 modules · 32 screens</span>
+  </div>
+</div>
+<div class="st">Persistent Navigation — Role-Filtered Per Persona</div>
+<div class="sf" style="margin-bottom:8px">
+  <div class="sf-bar"><span class="persona p-att">Attending</span> &nbsp;Nav — Dr. Sharma (sees Mod A + Mod D only)</div>
+  <div class="screen-nav">
+    <span class="module active">Mod A · Discharge</span>
+    <span class="module">Mod D · Drug-Lab</span>
+    <div class="nav-r">
+      <span class="nav-icon">🔔<span class="notif-dot"></span></span>
+      <span class="nav-icon">⚙️ Settings</span>
+      <span class="nav-icon">Dr. Sharma ▾</span>
+    </div>
+  </div>
+  <div class="sf-body sf-gray" style="font-size:11px;color:var(--muted)">Module switcher is RBAC-filtered — only modules accessible to the logged-in role are shown. No role toggle. Role is set at login and cannot be changed in-session. Notification bell → in-app panel. Settings → profile/notifications/2FA. Avatar → logout. <strong>Attending "Mod D" tab routes to Drug-Lab History screen (all flag decisions across their patients) — Sprint 4 deliverable.</strong></div>
+</div>
+<div class="row" style="margin-bottom:20px">
+  <div class="col">
+    <div class="sf">
+      <div class="sf-bar"><span class="persona p-res">Resident</span> Nav</div>
+      <div class="screen-nav"><span class="module active">Mod A · Discharge</span><div class="nav-r"><span class="nav-icon">🔔</span><span class="nav-icon">⚙️</span><span class="nav-icon">Dr. Priya ▾</span></div></div>
+    </div>
+  </div>
+  <div class="col">
+    <div class="sf">
+      <div class="sf-bar"><span class="persona p-adm">Ward Admin</span> Nav</div>
+      <div class="screen-nav"><span class="module active">Mod A · Admin</span><div class="nav-r"><span class="nav-icon">🔔</span><span class="nav-icon">⚙️</span><span class="nav-icon">Anita (Admin) ▾</span></div></div>
+    </div>
+  </div>
+  <div class="col">
+    <div class="sf">
+      <div class="sf-bar"><span class="persona p-bil">Billing Staff</span> Nav</div>
+      <div class="screen-nav"><span class="module active">Mod B · Cost</span><div class="nav-r"><span class="nav-icon">🔔</span><span class="nav-icon">⚙️</span><span class="nav-icon">Anita ▾</span></div></div>
+    </div>
+  </div>
+  <div class="col">
+    <div class="sf">
+      <div class="sf-bar"><span class="persona p-nur">Bedside Nurse</span> / <span class="persona p-cnu">Charge Nurse</span> Nav</div>
+      <div class="screen-nav"><span class="module active">Mod C · EWDS</span><span class="module">Mod D · Drug-Lab</span><div class="nav-r"><span class="nav-icon">🔔</span><span class="nav-icon">⚙️</span><span class="nav-icon">Nurse Meera ▾</span></div></div>
+    </div>
+  </div>
+  <div class="col">
+    <div class="sf">
+      <div class="sf-bar"><span class="persona p-sup">Super Admin</span> / <span class="persona p-cmo">CMO</span> Nav</div>
+      <div class="screen-nav"><span class="module active">Mod A · Discharge</span><span class="module">Mod B · Cost</span><span class="module">Mod C · EWDS</span><span class="module">Mod D · Drug-Lab</span><div class="nav-r"><span class="nav-icon">🔔</span><span class="nav-icon">⚙️</span><span class="nav-icon">Admin ▾</span></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="st">Personas &amp; First Screen After Login</div>
+<table class="tbl">
+  <tr><th>Persona</th><th>First Screen</th><th>Modules</th><th>Can Access</th></tr>
+  <tr><td><span class="persona p-res">Resident</span></td><td>Patient Queue (S1)</td><td>A</td><td>Upload, generate, send to attending</td></tr>
+  <tr><td><span class="persona p-att">Attending</span></td><td>Signing Queue (S4a)</td><td>A, D</td><td>Review, edit, comment, sign, reject, amend</td></tr>
+  <tr><td><span class="persona p-adm">Ward Admin</span></td><td>Kanban Pipeline (A1)</td><td>A admin</td><td>Monitor pipeline, trigger regeneration</td></tr>
+  <tr><td><span class="persona p-bil">Billing Staff</span></td><td>Cost Estimator (CE1)</td><td>B</td><td>Estimate, reconcile, patient printout</td></tr>
+  <tr><td><span class="persona p-nur">Bedside Nurse</span></td><td>NEWS2 Dashboard (N1)</td><td>C, D (view)</td><td>View alerts, escalate, acknowledge</td></tr>
+  <tr><td><span class="persona p-cnu">Charge Nurse</span></td><td>Escalation Queue (N5)</td><td>C, D (view)</td><td>All nurse views + manage escalations + ward config</td></tr>
+  <tr><td><span class="persona p-sup">Super Admin</span></td><td>User Management</td><td>All</td><td>RBAC, hospital settings, module config, rules mgmt</td></tr>
+  <tr><td><span class="persona p-cmo">CMO</span></td><td>Pilot Dashboard</td><td>Read-only all</td><td>Dashboards, accuracy drill-down, SLA tracking</td></tr>
+</table>
+
+<hr>
+<div class="st">Data Model Notes &amp; Definitions</div>
+<div class="row">
+  <div class="col">
+    <div class="sf"><div class="sf-bar">Patient ID Convention</div><div class="sf-body">
+      <table class="tbl">
+        <tr><th>Format</th><th>Module</th><th>Example</th></tr>
+        <tr><td><strong>P-XXXX</strong></td><td>Module A — Discharge Summary</td><td>P-1001, P-1002</td></tr>
+        <tr><td><strong>PT-XXXX</strong></td><td>Module C — EWDS (Nurse dashboard)</td><td>PT-4473, PT-9088</td></tr>
+      </table>
+      <p class="note" style="margin-top:6px">Same patient, different module context. Backend links P-1001 ↔ PT-4473 via UHID. ⚠ Pre-pilot dependency: unified ID must be visible to both personas before clinical use (nurse calls about PT-4473, doctor looks up P-1001 — patient safety gap). Sprint 4 task — not Phase 2.</p>
+    </div></div>
+  </div>
+  <div class="col">
+    <div class="sf"><div class="sf-bar">Accuracy Tier Definitions</div><div class="sf-body">
+      <table class="tbl">
+        <tr><th>Tier</th><th>Error Type</th><th>Example</th><th>Gate</th></tr>
+        <tr><td><span class="chip t3">T3 Safe</span></td><td>Phrasing / formatting only</td><td>"Mild" vs "Moderate" chest pain</td><td>Pass — no block</td></tr>
+        <tr><td><span class="chip t2">T2 Review</span></td><td>Wrong drug name / dose</td><td>Ecosprin 150mg instead of 75mg</td><td>Attending must verify</td></tr>
+        <tr><td><span class="chip t1">T1 Verify</span></td><td>Wrong diagnosis / missed finding</td><td>STEMI missed, reported as NSTEMI</td><td>Hard block — cannot sign</td></tr>
+      </table>
+      <p class="note" style="margin-top:6px">Target: T1 &lt;25% at launch, &lt;5% by end of pilot (Nitin May 20). Tier auto-assigned by LLM confidence score + NLI factual consistency check.</p>
+    </div></div>
+  </div>
+</div>
+<div class="sf" style="margin-bottom:20px">
+  <div class="sf-bar">Module Integration — How Modules Talk</div>
+  <div class="sf-body">
+    <div style="display:flex;gap:10px;align-items:center;font-size:11px;flex-wrap:wrap">
+      <div style="background:var(--pl);border-radius:5px;padding:8px 12px;text-align:center"><strong style="color:var(--pd)">Module A</strong><br><span style="color:var(--muted)">Discharge Summary</span></div>
+      <span style="color:var(--p)">⟷ tightly coupled ⟷</span>
+      <div style="background:var(--pl);border-radius:5px;padding:8px 12px;text-align:center"><strong style="color:var(--pd)">Module B</strong><br><span style="color:var(--muted)">Cost Estimator</span></div>
+      <span style="color:var(--muted);margin:0 8px">|</span>
+      <div style="background:#e8f0ff;border-radius:5px;padding:8px 12px;text-align:center"><strong style="color:#003cb3">Module C</strong><br><span style="color:var(--muted)">EWDS (Nurses)</span></div>
+      <span style="color:#0066cc">⟷ parallel ⟷</span>
+      <div style="background:#e8f0ff;border-radius:5px;padding:8px 12px;text-align:center"><strong style="color:#003cb3">Module D</strong><br><span style="color:var(--muted)">Drug-Lab</span></div>
+    </div>
+    <p class="note" style="margin-top:8px">A+B: Attending signs discharge summary → diagnosis/procedure auto-populated in CE1 cost estimator. C+D: pull same patient data as A but run in parallel; do not auto-trigger A regeneration. Phase 2: composite rules (e.g. NEWS2 ≥5 + ACE-I → K+ flag triggers S7 re-check).</p>
+  </div>
+</div>
+<div class="st">Complete Flow Map</div>
+<table class="tbl">
+  <tr><th>Flow</th><th>Starts</th><th>Ends</th><th>Tab</th></tr>
+  <tr><td>Login → Role routing</td><td>Login screen</td><td>Role-correct first screen</td><td>Auth &amp; Settings</td></tr>
+  <tr><td>Forgot password</td><td>Login screen</td><td>New password set</td><td>Auth &amp; Settings</td></tr>
+  <tr><td>First login onboarding</td><td>Post-login (first time)</td><td>Role-specific tour complete</td><td><strong>Auth &amp; Settings tab</strong> — 3-step tour screen</td></tr>
+  <tr><td>Settings</td><td>Any screen (nav ⚙️)</td><td>Settings saved</td><td>Auth &amp; Settings</td></tr>
+  <tr><td>Resident: upload → generate</td><td>S1 queue</td><td>S3b success confirmation</td><td>P1 · Resident</td></tr>
+  <tr><td>Gap check failure</td><td>S3 (missing docs)</td><td>S2b upload retry</td><td>P1 · Resident</td></tr>
+  <tr><td>Attending: review → sign</td><td>S4a queue</td><td>S6 PDF success</td><td>P1 · Attending</td></tr>
+  <tr><td>Edit section</td><td>S4b split pane</td><td>S4b updated section</td><td>P1 · Attending</td></tr>
+  <tr><td>Comment to LLM → re-review</td><td>S4c comment</td><td>S4d revised section review</td><td>P1 · Attending</td></tr>
+  <tr><td>Amendment (post-sign)</td><td>S6 post-sign</td><td>S7 amendment signed</td><td>P1 · Attending</td></tr>
+  <tr><td>Rejection → revision → re-sign</td><td>S4b reject</td><td>S6 signed</td><td>P1 · Rejection</td></tr>
+  <tr><td>Cost estimate — Phase 1 (at admission)</td><td>CE1 manual input</td><td>CE3 patient printout + pre-auth submitted</td><td>P1 · Module B</td></tr>
+  <tr><td>Cost estimate — Phase 2 (at discharge, simultaneous with S6 sign)</td><td>CE4 triggered by Module A sign-off</td><td>CE5 final bill · patient pays before leaving</td><td>P1 · Module B</td></tr>
+  <tr><td>Admin pipeline management</td><td>A1 Kanban</td><td>Regeneration triggered</td><td>P1 · Admin &amp; Audit</td></tr>
+  <tr><td>Audit log review</td><td>A2 audit viewer</td><td>Version history viewed</td><td>P1 · Admin &amp; Audit</td></tr>
+  <tr><td>Nurse: monitor → escalate</td><td>N1 dashboard</td><td>N4 escalation resolved</td><td>P2 · Nurse</td></tr>
+  <tr><td>Patient detail view</td><td>N1 row click</td><td>N1b detail panel</td><td>P2 · Nurse</td></tr>
+  <tr><td>De-escalation</td><td>N4 status log</td><td>Resolved — confirmation inline on N4 (no separate screen)</td><td>P2 · Nurse &amp; Escalation</td></tr>
+  <tr><td>Shift handoff</td><td>N6 end of shift</td><td>Next nurse briefed</td><td>P2 · Nurse</td></tr>
+  <tr><td>Charge nurse: manage escalations</td><td>N5 queue</td><td>Resolution logged</td><td>P2 · Charge Nurse</td></tr>
+  <tr><td>Drug-lab flag → override</td><td>DL1 flag in S7</td><td>DL2b confirmation</td><td>P2 · Drug-Lab</td></tr>
+  <tr><td>Drug-lab rules management</td><td>Super Admin settings</td><td>Rules saved to DB</td><td>P2 · Drug-Lab</td></tr>
+  <tr><td>Super Admin: RBAC</td><td>User management</td><td>User created/edited</td><td>Super Admin &amp; CMO</td></tr>
+  <tr><td>Hospital settings</td><td>Super Admin settings</td><td>Thresholds saved</td><td>Super Admin &amp; CMO</td></tr>
+  <tr><td>CMO dashboard + drill-down</td><td>CMO first screen</td><td>Accuracy report viewed</td><td>Super Admin &amp; CMO</td></tr>
+</table>
+</div>
+
+<!-- ═══ PATIENT JOURNEY ═══ -->
+<div class="content" id="tab-pj">
+<div class="st"><span class="st-id">JOURNEY</span> End-to-End Patient Journey — Acute MI · PTCA · Medanta Cardiology · Demo Case: P-1001</div>
+
+<!-- ── THREE-PHASE STRIP ── -->
+<div style="display:grid;grid-template-columns:1fr 20px 1fr 20px 1fr;gap:0;margin-bottom:20px;align-items:stretch;">
+
+  <!-- Phase 1 -->
+  <div style="background:var(--gray);border:1px solid var(--border);border-radius:6px 0 0 6px;padding:16px 18px;">
+    <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin-bottom:4px">Phase 1</div>
+    <div style="font-size:14px;font-weight:800;color:var(--text)">Admission</div>
+    <div style="font-size:10px;color:var(--muted);margin-bottom:10px">Day 0</div>
+    <span style="background:#eceff1;color:#546e7a;font-size:9px;font-weight:700;padding:2px 7px;border-radius:3px;">CareOS inactive</span>
+    <div style="margin-top:10px;font-size:10px;line-height:1.8;color:var(--text)">
+      <div>🏥 Patient arrives · chest pain · ECG</div>
+      <div>🛏 Admitted to CCU · assigned to Dr. Sharma + Dr. Priya</div>
+      <div>🔬 Cath Lab: PTCA + stent (LAD 90% occlusion)</div>
+      <hr style="margin:8px 0;border-color:var(--border)">
+      <div style="color:var(--p);font-weight:700">💰 Module B Phase 1</div>
+      <div style="color:var(--p)"><strong>CE1</strong> manual entry → <strong>CE2</strong> ₹3.2L–₹6.5L range → <strong>CE3</strong> prints for family</div>
+      <div style="color:var(--muted);font-size:10px;margin-left:8px">↳ Pre-auth submitted to Mediclaim insurer</div>
+    </div>
+  </div>
+
+  <!-- Arrow 1 -->
+  <div style="display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--p);font-weight:900">›</div>
+
+  <!-- Phase 2 -->
+  <div style="background:#e8f5e9;border:2px solid #2e7d32;padding:16px 18px;">
+    <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;color:#2e7d32;margin-bottom:4px">Phase 2 · Continuous</div>
+    <div style="font-size:14px;font-weight:800;color:#1b5e20">During Admission</div>
+    <div style="font-size:10px;color:var(--muted);margin-bottom:10px">Day 0 – 4</div>
+    <div style="display:flex;gap:4px;flex-wrap:wrap;">
+      <span style="background:#2e7d32;color:#fff;font-size:9px;font-weight:700;padding:2px 7px;border-radius:3px;">Module C active</span>
+      <span style="background:#6a1b9a;color:#fff;font-size:9px;font-weight:700;padding:2px 7px;border-radius:3px;">Module D active</span>
+    </div>
+    <div style="margin-top:10px;font-size:10px;line-height:1.8;">
+      <div style="color:#2e7d32;font-weight:700">📊 Module C — Early Warning</div>
+      <div><strong>N1</strong> NEWS2 dashboard · nurse monitors every shift</div>
+      <div><strong>Night Day 2, 02:28 AM:</strong> PT-4473 Bed 15 · BP drops to 48 · NEWS2 = 9</div>
+      <div><strong>N2</strong> escalate → Dr. Sharma → <strong>N4</strong> resolved 02:52 · BP 72</div>
+      <div style="color:var(--muted);font-size:10px;margin-left:8px">↳ All via non-PHI push + WhatsApp</div>
+      <hr style="margin:8px 0;border-color:#c8e6c9">
+      <div style="color:#6a1b9a;font-weight:700">💊 Module D — Drug-Lab</div>
+      <div>Spiro + ACE-I + K+ 5.1 → Hyperkalemia flag</div>
+      <div>Metformin + Cr 1.9 → Contraindicated flag</div>
+      <div style="color:var(--muted);font-size:10px;margin-left:8px">↳ Nurse sees flags (DL3 awareness) · Attending resolves at discharge</div>
+    </div>
+  </div>
+
+  <!-- Arrow 2 -->
+  <div style="display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--p);font-weight:900">›</div>
+
+  <!-- Phase 3 -->
+  <div style="background:var(--pl);border:2px solid var(--p);border-radius:0 6px 6px 0;padding:16px 18px;">
+    <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;color:var(--pd);margin-bottom:4px">Phase 3 · Simultaneous</div>
+    <div style="font-size:14px;font-weight:800;color:var(--pd)">Discharge</div>
+    <div style="font-size:10px;color:var(--muted);margin-bottom:10px">Day 4 — all at once</div>
+    <div style="display:flex;gap:4px;flex-wrap:wrap;">
+      <span style="background:var(--p);color:#fff;font-size:9px;font-weight:700;padding:2px 7px;border-radius:3px;">Module A active</span>
+      <span style="background:#1565c0;color:#fff;font-size:9px;font-weight:700;padding:2px 7px;border-radius:3px;">Module B active</span>
+    </div>
+    <div style="margin-top:10px;font-size:10px;line-height:1.8;">
+      <div style="color:var(--p);font-weight:700">📋 Module A — Discharge Summary</div>
+      <div>Dr. Priya: <strong>S2</strong> upload Cath Lab + Echo + Labs → <strong>S3</strong> generate (24s)</div>
+      <div>Dr. Sharma: <strong>S4b</strong> review 15 sections → <strong>DL2</strong> resolve drug-lab flags</div>
+      <div>→ <strong>S5</strong> e-sign (patient ack + MCI/NMC) → <strong>S6</strong> PDF generated</div>
+      <hr style="margin:8px 0;border-color:var(--pm)">
+      <div style="color:#1565c0;font-weight:700">💰 Module B Phase 2 — triggered by S6 sign</div>
+      <div>Billing notified instantly → <strong>CE4</strong> reconcile actuals vs estimate</div>
+      <div>→ <strong>CE5</strong> final bill ₹4.8L · patient pays co-pay ₹1.6L · <strong>leaves</strong></div>
+      <div style="color:var(--muted);font-size:10px;margin-left:8px">↳ Patient walks out with: signed PDF + paid bill receipt</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── SWIMLANE ── -->
+<div class="st">Who Does What — Per Phase</div>
+<table class="tbl">
+  <tr>
+    <th style="width:110px">Persona</th>
+    <th style="background:#e0e0e0;color:var(--text)">Phase 1 — Admission (Day 0)</th>
+    <th style="background:#c8e6c9;color:#1b5e20">Phase 2 — During Admission (Day 0–4)</th>
+    <th style="background:var(--pl);color:var(--pd)">Phase 3 — Discharge (Day 4)</th>
+  </tr>
+  <tr>
+    <td style="font-weight:700">Patient / Family</td>
+    <td>Admitted · Cath Lab procedure · receives CE3 cost range printout</td>
+    <td>Vitals monitored · resting in ward</td>
+    <td>Signs patient acknowledgement (S5) · pays co-pay at discharge counter · leaves with signed PDF + bill receipt</td>
+  </tr>
+  <tr>
+    <td><span class="persona p-res">Resident</span></td>
+    <td style="color:var(--muted);font-style:italic;font-size:10px">Not in CareOS — admits patient via HIS</td>
+    <td style="color:var(--muted);font-style:italic;font-size:10px">Not in CareOS</td>
+    <td><strong>S1</strong> queue → <strong>S2</strong> upload docs (DPDPA consent, Cath Lab, Echo, Labs) → <strong>S3</strong> generate → <strong>S3b</strong> sent to attending queue</td>
+  </tr>
+  <tr>
+    <td><span class="persona p-att">Attending</span></td>
+    <td style="color:var(--muted);font-style:italic;font-size:10px">Admitting diagnosis + PTCA decision in HIS</td>
+    <td>Reviews escalation acknowledgements · drug-lab flags visible but resolved at discharge</td>
+    <td><strong>S4a</strong> queue → <strong>S4b</strong> 15 NABH sections + DL flags → <strong>DL2</strong> hold Metformin, document K+ plan → <strong>S4c/d</strong> fix drug names → <strong>S5</strong> e-sign → <strong>S6</strong> PDF</td>
+  </tr>
+  <tr>
+    <td><span class="persona p-nur">Bedside Nurse</span></td>
+    <td style="color:var(--muted);font-style:italic;font-size:10px">Initial vitals in HIS</td>
+    <td><strong>N1</strong> NEWS2 dashboard every shift → <strong>N2</strong> escalate Bed 15 (BP 48, 02:28) → <strong>N4</strong> track resolution → <strong>N6</strong> shift handoff</td>
+    <td><strong>N6b</strong> handoff complete · discharge noted on board</td>
+  </tr>
+  <tr>
+    <td><span class="persona p-cnu">Charge Nurse</span></td>
+    <td style="color:var(--muted);font-style:italic;font-size:10px">—</td>
+    <td><strong>N5</strong> escalation queue · re-escalates Bed 27 (unacked >5 min) · <strong>N5b</strong> configures ward thresholds</td>
+    <td style="color:var(--muted);font-style:italic;font-size:10px">—</td>
+  </tr>
+  <tr>
+    <td><span class="persona p-bil">Billing Staff</span></td>
+    <td><strong>CE1</strong> manual entry (provisional Dx + planned procedure) → <strong>CE2</strong> ₹3.2L–₹6.5L estimate → <strong>CE3</strong> print for family · pre-auth to insurer</td>
+    <td style="color:var(--muted);font-style:italic;font-size:10px">Not in CareOS</td>
+    <td>Notified when S6 signed → <strong>CE4</strong> reconcile (actual vs estimate, CE4 auto-fills Dx + procedure from Module A) → <strong>CE5</strong> ₹4.8L final bill · patient pays ₹1.6L co-pay</td>
+  </tr>
+  <tr>
+    <td><span class="persona p-adm">Ward Admin</span></td>
+    <td style="color:var(--muted);font-style:italic;font-size:10px">—</td>
+    <td><strong>A1</strong> Kanban — monitors pipeline · handles any rejections · SLA breach alerts</td>
+    <td><strong>A1</strong> P-1001 moves to Signed → Exported · <strong>A2</strong> full audit trail available</td>
+  </tr>
+</table>
+
+<!-- ── TIMING + KEY FACTS ── -->
+<div class="detail-panel" style="margin-top:16px">
+  <div style="font-size:11px;font-weight:700;color:var(--pd);margin-bottom:8px">Key Timings &amp; Facts</div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;font-size:10px;">
+    <div style="background:#fff;border-radius:4px;padding:8px 10px;border:1px solid var(--pm)"><div style="font-weight:700;color:var(--p);margin-bottom:2px">⏱ AI generation</div>24 seconds (Pass 1 + Pass 2)</div>
+    <div style="background:#fff;border-radius:4px;padding:8px 10px;border:1px solid var(--pm)"><div style="font-weight:700;color:var(--p);margin-bottom:2px">⏱ Attending active work</div>~90 seconds (review + sign)</div>
+    <div style="background:#fff;border-radius:4px;padding:8px 10px;border:1px solid var(--pm)"><div style="font-weight:700;color:var(--p);margin-bottom:2px">⏱ Clock time to signed PDF</div>~18 minutes (vs 62 min manual · -71%)</div>
+    <div style="background:#fff;border-radius:4px;padding:8px 10px;border:1px solid var(--pm)"><div style="font-weight:700;color:var(--p);margin-bottom:2px">⏱ Billing after S6 sign</div>~2–3 minutes (CE4→CE5)</div>
+    <div style="background:#fff;border-radius:4px;padding:8px 10px;border:1px solid var(--pm)"><div style="font-weight:700;color:var(--p);margin-bottom:2px">💊 Drug-Lab rules</div>13 rules · India-calibrated (CSI/CDSCO)</div>
+    <div style="background:#fde8e8;border-radius:4px;padding:8px 10px;border:1px solid #f5c6cb"><div style="font-weight:700;color:var(--red);margin-bottom:2px">⚠ Dual patient ID</div>P-1001 (Module A) ↔ PT-4473 (Module C) · UHID links in Sprint 4</div>
+  </div>
+</div>
+</div>
+
+<!-- ═══ AUTH & SETTINGS ═══ -->
+<div class="content" id="tab-auth">
+<div class="st"><span class="st-id">AUTH1</span> Login Flow</div>
+<div class="flow">
+  <div class="step">
+    <div class="step-lbl"><span class="persona p-sys">All Personas</span> Login</div>
+    <div class="sf">
+      <div class="sf-bar">🏥 Foqal CareOS</div>
+      <div class="sf-body">
+        <div class="field"><label>Hospital</label><div class="val">Medanta — Gurugram</div></div>
+        <div class="field"><label>Employee ID</label><div class="inp">Enter ID or email</div></div>
+        <div class="field"><label>Password</label><div class="inp">••••••••</div></div>
+        <div class="btn btn-p" style="width:100%;text-align:center;display:block;margin-bottom:8px">Sign In</div>
+        <div style="display:flex;justify-content:space-between">
+          <span style="color:var(--p);cursor:pointer">Forgot password?</span>
+          <span style="color:var(--muted)">Need access? Contact IT</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="step">
+    <div class="step-lbl"><span class="persona p-sys">System</span> Role Check</div>
+    <div class="sf">
+      <div class="sf-bar">Routing by Role</div>
+      <div class="sf-body sf-gray">
+        <div class="notif">Role read from DB → route to first screen</div>
+        <table class="tbl" style="margin-top:6px">
+          <tr><th>Role</th><th>→ First Screen</th></tr>
+          <tr><td><span class="persona p-res">Resident</span></td><td>S1 Patient Queue</td></tr>
+          <tr><td><span class="persona p-att">Attending</span></td><td>S4a Signing Queue</td></tr>
+          <tr><td><span class="persona p-adm">Ward Admin</span></td><td>A1 Kanban</td></tr>
+          <tr><td><span class="persona p-bil">Billing</span></td><td>CE1 Cost Form</td></tr>
+          <tr><td><span class="persona p-nur">Nurse</span></td><td>N1 Dashboard</td></tr>
+          <tr><td><span class="persona p-cnu">Charge Nurse</span></td><td>N5 Escalation Queue</td></tr>
+          <tr><td><span class="persona p-sup">Super Admin</span></td><td>User Mgmt</td></tr>
+          <tr><td><span class="persona p-cmo">CMO</span></td><td>Pilot Dashboard</td></tr>
+        </table>
+        <p class="note">Multi-role user: role selector shown post-login</p>
+      </div>
+    </div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="step">
+    <div class="step-lbl"><span class="persona p-sys">First Login Only</span> Onboarding Tour</div>
+    <div class="sf">
+      <div class="sf-bar">Welcome — Step 1 of 3</div>
+      <div class="sf-body">
+        <div class="notif">👋 Welcome, Dr. Priya! Here's a quick tour of your workspace.</div>
+        <div style="background:var(--gray);border-radius:4px;padding:10px;margin:8px 0;text-align:center">
+          <div style="font-size:20px;margin-bottom:4px">📋</div>
+          <strong>Step 1: Patient Queue</strong>
+          <p style="color:var(--muted);font-size:11px;margin-top:4px">Your list of patients ready for discharge summary generation</p>
+        </div>
+        <div style="background:var(--gray);border-radius:4px;padding:10px;margin:4px 0;text-align:center;opacity:.5">
+          <div style="font-size:20px;margin-bottom:4px">✍️</div>
+          <strong>Step 2: Review &amp; Sign</strong>
+          <p style="color:var(--muted);font-size:11px;margin-top:4px">Open any summary to review sections, edit, comment to LLM, and e-sign</p>
+        </div>
+        <div style="background:var(--gray);border-radius:4px;padding:10px;margin:4px 0;text-align:center;opacity:.3">
+          <div style="font-size:20px;margin-bottom:4px">⚙️</div>
+          <strong>Step 3: Settings &amp; Notifications</strong>
+          <p style="color:var(--muted);font-size:11px;margin-top:4px">Customise your notification preferences and profile from the top-right menu</p>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:8px">
+          <span class="btn btn-g">Skip Tour → goes to your first screen (role-based)</span>
+          <span class="btn btn-p">Next →</span>
+        </div>
+        <div style="display:flex;justify-content:center;gap:4px;margin-top:8px">
+          <div style="width:8px;height:8px;border-radius:50%;background:var(--p)"></div>
+          <div style="width:8px;height:8px;border-radius:50%;background:var(--border)"></div>
+          <div style="width:8px;height:8px;border-radius:50%;background:var(--border)"></div>
+        </div>
+        <p class="note" style="margin-top:4px">Skip Tour or complete all 3 steps → routes to role-based first screen (Resident→S1, Attending→S4a, Nurse→N1, etc.)</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="st"><span class="st-id">AUTH3</span> Forgot Password Flow</div>
+<div class="flow">
+  <div class="step">
+    <div class="step-lbl"><span class="persona p-sys">All Personas</span> Request Reset</div>
+    <div class="sf">
+      <div class="sf-bar">Forgot Password</div>
+      <div class="sf-body">
+        <div class="field"><label>Employee Email</label><div class="inp">name@hospital.org</div></div>
+        <span class="btn btn-p">Send Reset Link</span>
+        <p class="note" style="margin-top:6px">Link expires in 30 minutes. Contact IT if not received.</p>
+      </div>
+    </div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="step">
+    <div class="step-lbl"><span class="persona p-sys">System</span> Email Sent</div>
+    <div class="sf">
+      <div class="sf-bar">Check Your Email</div>
+      <div class="sf-body sf-gray">
+        <div class="notif-g">✓ Reset link sent to dr.priya@medanta.org</div>
+        <p style="color:var(--muted);margin-top:8px">Click the link in the email to set a new password. Link valid for 30 min.</p>
+        <span class="btn btn-g" style="margin-top:8px">← Back to Login</span>
+      </div>
+    </div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="step">
+    <div class="step-lbl"><span class="persona p-sys">All Personas</span> Set New Password</div>
+    <div class="sf">
+      <div class="sf-bar">Set New Password</div>
+      <div class="sf-body">
+        <div class="field"><label>New Password</label><div class="inp">Min 8 chars, 1 number, 1 symbol</div></div>
+        <div class="field"><label>Confirm Password</label><div class="inp">••••••••</div></div>
+        <span class="btn btn-p">Save New Password →</span>
+        <div class="notif-g" style="margin-top:8px">✓ Password updated — redirecting to login</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="st"><span class="st-id">SETT</span> Settings Page — Accessible from All Screens via ⚙️ Nav</div>
+<div class="sf">
+  <div class="sf-bar"><span class="persona p-att">Attending</span> ⚙️ Settings — Dr. Rahul Sharma</div>
+  <div class="sf-body" style="padding:0">
+    <div class="settings-layout">
+      <div class="settings-nav">
+        <div class="settings-item active">Profile</div>
+        <div class="settings-item">Notifications</div>
+        <div class="settings-item">Password &amp; 2FA</div>
+        <div class="settings-item">Accessibility</div>
+        <div class="settings-item" style="margin-top:16px;color:var(--red)">Sign Out</div>
+      </div>
+      <div class="settings-body">
+        <strong style="font-size:12px">Profile</strong>
+        <div class="row" style="margin-top:10px">
+          <div class="col"><div class="field"><label>Full Name</label><div class="val">Dr. Rahul Sharma</div></div></div>
+          <div class="col"><div class="field"><label>Designation</label><div class="val">Attending Cardiologist</div></div></div>
+        </div>
+        <div class="row">
+          <div class="col"><div class="field"><label>Hospital</label><div class="val">Medanta — Gurugram</div></div></div>
+          <div class="col"><div class="field"><label>Ward</label><div class="val">Ward A · Cardiology</div></div></div>
+        </div>
+        <hr>
+        <strong style="font-size:12px">Notification Preferences</strong>
+        <table class="tbl" style="margin-top:8px">
+          <tr><th>Event</th><th>In-App</th><th>Push</th><th>WhatsApp</th></tr>
+          <tr><td>Summary ready to review</td><td>✅</td><td>✅</td><td>⬜ (no PHI)</td></tr>
+          <tr><td>Summary revised after rejection</td><td>✅</td><td>✅</td><td>⬜</td></tr>
+          <tr><td>Nurse escalation</td><td>✅</td><td>✅</td><td>✅ (no PHI)</td></tr>
+          <tr><td>Drug-lab flag raised</td><td>✅</td><td>⬜</td><td>⬜</td></tr>
+        </table>
+        <p class="note" style="margin-top:4px">WhatsApp notifications never contain patient ID, name, or clinical data (DPDPA compliant)</p>
+        <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
+          <span class="btn btn-p">Save Settings</span>
+          <span class="btn btn-g">← Back</span>
+          <span style="background:#1a1a1a;color:#fff;padding:5px 12px;border-radius:14px;font-size:11px;display:inline-block" id="settings-toast">✓ Settings saved</span>
+        </div>
+        <p class="note" style="margin-top:4px">After saving: toast appears for 2s, then back button returns to previous screen.</p>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ═══ P1 RESIDENT ═══ -->
+<div class="content" id="tab-p1res">
+<div class="st"><span class="st-id">S1 → S3</span> Resident Flow — S1 Queue → S2 Upload → Patient Consent → S3 Generate → Success / Gap Failure</div>
+<div class="flow">
+  <div class="step">
+    <div class="step-lbl"><span class="persona p-res">Resident</span> S1 — Patient Queue</div>
+    <div class="sf">
+      <div class="sf-bar">Dr. Priya · Resident · Ward A</div>
+      <div class="sf-body">
+        <table class="tbl">
+          <tr><th>Patient ID</th><th>Admitted</th><th>Status</th><th></th></tr>
+          <tr><td><strong>P-1001</strong> 62M</td><td>May 28</td><td><span class="tag t-pend">Docs Needed</span></td><td><span class="btn btn-p">Upload →</span></td></tr>
+          <tr><td><strong>P-1002</strong> 55F</td><td>May 29</td><td><span class="tag t-rev">In Review</span></td><td><span class="btn btn-g">View →</span></td></tr>
+          <tr><td><strong>P-1003</strong> 70M</td><td>May 27</td><td><span class="tag t-sign">Signed</span></td><td><span class="btn btn-g">⬇ PDF</span></td></tr>
+        </table>
+        <p class="note" style="margin-top:4px">View → opens read-only S4b split-pane (no edit/sign buttons). PDF → opens S6 post-sign screen (download only).</p>
+        <div class="empty" style="display:none"><div class="empty-icon">📋</div><div>No patients assigned. Contact Ward Admin.</div></div>
+      </div>
+    </div>
+    <p class="note">Empty state shown when no patients assigned</p>
+  </div>
+  <div class="arrow">→</div>
+  <div class="step">
+    <div class="step-lbl"><span class="persona p-res">Resident</span> S2 — Upload Docs</div>
+    <div class="sf">
+      <div class="sf-bar">P-1001 · Upload Documents</div>
+      <div class="sf-body">
+        <div class="comp"><strong>⚖ DPDPA Consent:</strong> <label style="display:inline;font-style:normal"><input type="checkbox"> Patient / attendant has consented to AI-assisted summary generation</label></div>
+        <div class="field"><label>Discharge Type *</label><select class="inp"><option>Standard</option><option>LAMA</option><option>DAMA</option><option>Death</option><option>Referral</option></select></div>
+        <div class="field"><label>Cath Lab Report (PDF) *</label><div class="inp">Drop or browse · Max 10MB</div></div>
+        <div class="field"><label>Echo Report (PDF)</label><div class="inp">Drop or browse</div></div>
+        <div class="field"><label>Lab Results (PDF/CSV) *</label><div class="inp">Drop or browse</div></div>
+        <div class="field"><label>Nursing Notes (PDF)</label><div class="inp">Drop or browse</div></div>
+        <div style="display:flex;gap:6px"><span class="btn btn-p">Generate Summary →</span><span class="btn btn-g">← Back</span></div>
+        <p class="note">* Required. File errors: "Must be PDF, max 10MB" shown inline.</p>
+      </div>
+    </div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="step">
+    <div class="step-lbl"><span class="persona p-res">Resident</span> S3 — Generating</div>
+    <div class="sf">
+      <div class="sf-bar">Generating · P-1001</div>
+      <div class="sf-body sf-gray">
+        <div class="notif">Pass 1: Extracting facts… (~12s)</div>
+        <div style="background:var(--border);border-radius:3px;height:5px;margin:6px 0"><div style="background:var(--p);border-radius:3px;height:5px;width:65%"></div></div>
+        <div class="notif" style="opacity:.5">Pass 2: Generating NABH narrative… (~18s)</div>
+        <p class="note">Do not close tab. Push notification sent when ready.</p>
+        <span class="btn btn-g" style="margin-top:8px">Go to Queue (runs in background)</span>
+      </div>
+    </div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="step">
+    <div class="step-lbl"><span class="persona p-res">Resident</span> S3b — Success</div>
+    <div class="sf">
+      <div class="sf-bar">✓ Summary Ready</div>
+      <div class="sf-body">
+        <div class="notif-g">✓ Summary generated for P-1001 in 24 seconds</div>
+        <div style="margin:8px 0">Sent to Dr. Sharma's signing queue.</div>
+        <div style="display:flex;gap:6px"><span class="btn btn-o">Preview Summary</span><span class="btn btn-p">← Back to Queue</span></div>
+        <p class="note">Preview Summary → opens read-only screen showing full generated summary with all 15 NABH section tier badges (T1/T2/T3), page breaks, and PDF preview. No editing. Attending sees this before signing queue is triggered.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="st"><span class="st-id">S3-GAP</span> Gap Check Failure — Missing Required Documents</div>
+<div class="flow">
+  <div class="step">
+    <div class="step-lbl"><span class="persona p-sys">System</span> Gap Check</div>
+    <div class="sf">
+      <div class="sf-bar">Gap Check · P-1001</div>
+      <div class="sf-body sf-gray">
+        <div class="notif">Pass 1 complete. Checking required fields…</div>
+        <div class="notif-r" style="margin-top:6px">⚠ Missing fields detected before Pass 2</div>
+      </div>
+    </div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="step">
+    <div class="step-lbl"><span class="persona p-res">Resident</span> S2b — Gap Result</div>
+    <div class="sf">
+      <div class="sf-bar">Missing Documents · P-1001</div>
+      <div class="sf-body">
+        <div class="notif-r">Summary cannot be generated — 2 required fields missing</div>
+        <table class="tbl" style="margin:8px 0">
+          <tr><th>Missing Field</th><th>Section</th><th>Impact</th></tr>
+          <tr><td>Cath Lab findings</td><td>S9</td><td><span class="chip t1">Tier 1 risk</span></td></tr>
+          <tr><td>Discharge medications</td><td>S7</td><td><span class="chip t1">Tier 1 risk</span></td></tr>
+        </table>
+        <div style="display:flex;gap:6px"><span class="btn btn-p">Upload Missing Docs →</span><span class="btn btn-o">Generate Anyway (flag gaps)</span></div>
+        <p class="note">"Generate Anyway" creates summary with explicit gap flags. Attending must review flagged sections before signing.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="st"><span class="st-id">S3-ERR</span> Error States</div>
+<div class="row">
+  <div class="col">
+    <div class="sf"><div class="sf-bar">Upload Error</div><div class="sf-body"><div class="notif-r">File rejected: "NursingNotes.pdf" is 35MB. Max 10MB. Please compress or split.</div><span class="btn btn-o" style="margin-top:6px">Try Again</span></div></div>
+  </div>
+  <div class="col">
+    <div class="sf"><div class="sf-bar">Generation Failed</div><div class="sf-body"><div class="notif-r">Generation failed — LLM timeout. Please retry in 30 seconds.</div><div style="display:flex;gap:6px;margin-top:6px"><span class="btn btn-p">Retry</span><span class="btn btn-g">Save Draft &amp; Exit</span></div></div></div>
+  </div>
+</div>
+</div>
+
+<!-- ═══ P1 ATTENDING ═══ -->
+<div class="content" id="tab-p1att">
+<div class="st"><span class="st-id">S4a → S7</span> Attending Flow — Signing Queue → Review → Edit / Comment → LLM Re-Review → Sign → PDF → Amendment</div>
+
+<div class="flow">
+  <div class="step">
+    <div class="step-lbl"><span class="persona p-att">Attending</span> S4a — Signing Queue</div>
+    <div class="sf">
+      <div class="sf-bar"><span class="sid">S4a</span> Dr. Sharma · Signing Queue</div>
+      <div class="sf-body">
+        <div class="notif">🔔 P-1001 summary ready · P-1002 revised &amp; ready</div>
+        <table class="tbl" style="margin-top:6px">
+          <tr><th>Patient</th><th>Status</th><th>Wait</th><th>SLA</th><th></th></tr>
+          <tr><td><strong>P-1001</strong> Acute MI</td><td><span class="tag t-pend">Pending</span></td><td>2 hr</td><td style="color:var(--red);font-size:10px">⏱ Overdue (target: 45–90s)</td><td><span class="btn btn-p">Review</span></td></tr>
+          <tr><td><strong>P-1002</strong> HF</td><td><span class="tag t-done">Revised</span></td><td>30 min</td><td style="color:var(--amber);font-size:10px">⏱ Pending</td><td><span class="btn btn-o">Re-Review</span></td></tr>
+        </table>
+        <div class="empty" style="margin-top:8px;display:none"><div class="empty-icon">✅</div>All summaries reviewed. Nothing pending.</div>
+        <p class="note" style="margin-top:8px">SLA target: 45–90 sec per summary review. Time-on-summary tracked in analytics backend. Phase 2: live timer in S4b. Admin sees SLA breach alerts in A1 Kanban.</p>
+      </div>
+    </div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="step">
+    <div class="step-lbl"><span class="persona p-att">Attending</span> S4b — Split Pane</div>
+    <div class="sf">
+      <div class="sf-bar"><span class="sid">S4b</span> P-1001 · Review Summary</div>
+      <div class="sf-body" style="display:flex;gap:6px;padding:8px">
+        <div style="flex:1;border-right:1px solid var(--border);padding-right:6px;max-height:300px;overflow-y:auto;">
+          <div style="font-size:10px;font-weight:700;color:var(--muted);margin-bottom:4px">ALL 15 NABH SECTIONS &nbsp;·&nbsp; <span style="color:var(--red)">1 T1</span> &nbsp;·&nbsp; <span style="color:var(--amber)">4 T2</span> &nbsp;·&nbsp; <span style="color:var(--green)">10 T3</span></div>
+          <div class="nabh sel"><div class="nabh-h"><span style="color:var(--muted);font-size:10px">S1</span> Presenting Complaint <span class="chip t3">T3</span></div><div class="nabh-body">Central chest pain, radiating L arm, 3 hrs. ECG: ST elevation II/III/aVF… <span style="color:var(--p);font-size:10px">↗ highlighted in source</span></div></div>
+          <div class="nabh"><div class="nabh-h"><span style="color:var(--muted);font-size:10px">S2</span> Relevant History <span class="chip t2">T2</span></div></div>
+          <div class="nabh"><div class="nabh-h"><span style="color:var(--muted);font-size:10px">S3</span> Examination Findings <span class="chip t3">T3</span></div></div>
+          <div class="nabh"><div class="nabh-h"><span style="color:var(--muted);font-size:10px">S4</span> Investigations / Lab Results <span class="chip t2">T2</span></div></div>
+          <div class="nabh"><div class="nabh-h"><span style="color:var(--muted);font-size:10px">S5</span> Diagnosis <span class="chip t3">T3</span></div></div>
+          <div class="nabh"><div class="nabh-h"><span style="color:var(--muted);font-size:10px">S6</span> Procedures Performed <span class="chip t2">T2</span></div></div>
+          <div class="nabh"><div class="nabh-h"><span style="color:var(--muted);font-size:10px">S7</span> Medications at Discharge <span class="chip t1">T1 · Verify</span> <span style="background:#fde8e8;color:var(--red);font-size:9px;padding:1px 5px;border-radius:3px;margin-left:2px;font-weight:700">⚠ 2 DL</span></div></div>
+          <div class="nabh"><div class="nabh-h"><span style="color:var(--muted);font-size:10px">S8</span> Follow-up Instructions <span class="chip t3">T3</span></div></div>
+          <div class="nabh"><div class="nabh-h"><span style="color:var(--muted);font-size:10px">S9</span> Cath Lab / Special Investigations <span class="chip t2">T2</span></div></div>
+          <div class="nabh"><div class="nabh-h"><span style="color:var(--muted);font-size:10px">S10</span> Condition at Discharge <span class="chip t3">T3</span></div></div>
+          <div class="nabh"><div class="nabh-h"><span style="color:var(--muted);font-size:10px">S11</span> Diet Advice <span class="chip t3">T3</span></div></div>
+          <div class="nabh"><div class="nabh-h"><span style="color:var(--muted);font-size:10px">S12</span> Activity Restrictions <span class="chip t3">T3</span></div></div>
+          <div class="nabh"><div class="nabh-h"><span style="color:var(--muted);font-size:10px">S13</span> Wound / Site Care <span class="chip t3">T3</span></div></div>
+          <div class="nabh"><div class="nabh-h"><span style="color:var(--muted);font-size:10px">S14</span> Follow-up Appointment <span class="chip t3">T3</span></div></div>
+          <div class="nabh"><div class="nabh-h"><span style="color:var(--muted);font-size:10px">S15</span> Patient / Attendant Acknowledgement <span class="chip t3">T3</span></div></div>
+        </div>
+        <div style="flex:1;padding-left:4px">
+          <div style="font-size:10px;font-weight:700;color:var(--muted);margin-bottom:6px">SOURCE — S1 highlighted</div>
+          <div style="background:rgba(128,0,128,.1);border-left:3px solid var(--p);padding:6px;font-size:10px;margin-bottom:6px">
+            <div style="font-size:9px;font-weight:700;color:var(--p);margin-bottom:3px">📄 ED_Note.pdf · Page 1 · Chief Complaint</div>
+            "c/o chest pain, radiating L arm, 3 hrs. ECG: ST elevation II, III, aVF."
+            <br><span style="color:var(--muted)">ED Note · May 28 · 09:14 · uploaded by Dr. Priya</span>
+          </div>
+          <div style="background:var(--gray);border-left:3px solid var(--border);padding:6px;font-size:10px;margin-bottom:6px">
+            <div style="font-size:9px;font-weight:700;color:var(--muted);margin-bottom:3px">📄 Nursing_Notes.pdf · Page 2 · Admission Vitals</div>
+            Vitals: BP 100/70 · HR 98 · SpO2 94%
+            <br><span style="color:var(--muted)">Nursing Notes · May 28 · 09:20</span>
+          </div>
+          <p class="note">Source panel updates when a different NABH section is clicked. Each section traces to its source document + page + exact line. Click S9 → shows Cath_Lab_Report.pdf. Click S4 → shows Lab_Results.pdf.</p>
+        </div>
+      </div>
+      <div style="padding:8px;border-top:1px solid var(--border)">
+        <div class="notif-r" style="margin-bottom:6px;font-size:10px">⚠ 1 Tier 1 flag unresolved (S7 Medications) — Sign disabled until resolved</div>
+        <div style="display:flex;gap:6px">
+          <span class="btn btn-o">✏️ Edit</span>
+          <span class="btn btn-o">💬 Comment to LLM</span>
+          <span class="btn btn-r" style="margin-left:auto">✗ Reject</span>
+          <span class="btn btn-g" style="opacity:.5;cursor:not-allowed">✓ Sign (T1 active)</span>
+        </div>
+        <p class="note" style="margin-top:4px">Sign button active (purple) only when: all 15 sections reviewed + 0 Tier 1 flags. T1 block and form-field validation (S5) are independent gates — both must pass. After T1 resolved via Edit or Comment → red banner disappears → Sign activates.</p>
+      </div>
+    </div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="step">
+    <div class="step-lbl"><span class="persona p-att">Attending</span> S4c — Edit or Comment</div>
+    <div class="sf">
+      <div class="sf-bar"><span class="sid">S4c</span> S7 Medications — Edit / Comment</div>
+      <div class="sf-body">
+        <div class="comp"><strong>⚖ NABH:</strong> All edits timestamped + attributed. Original preserved.</div>
+        <div style="background:var(--gray);border-radius:4px;padding:8px;margin-bottom:8px">
+          <strong>✏️ Edit Directly</strong>
+          <textarea style="width:100%;border:1px solid var(--border);border-radius:3px;padding:5px;font-size:11px;height:44px;margin-top:4px">Ecosprin 75mg OD, Clopivas 75mg OD…</textarea>
+          <span class="btn btn-p" style="margin-top:4px">Save Edit</span>
+          <span style="font-size:10px;color:var(--muted);margin-left:6px">Logged: Dr. Sharma · Jun 2</span>
+          <div class="notif-g" style="margin-top:6px;font-size:10px">✓ Edit saved · Section highlighted as "Edited by Dr. Sharma · Jun 2"</div>
+          <span class="btn btn-p" style="margin-top:6px">← Back to S4b Review</span>
+          <p class="note" style="margin-top:4px">S4b shows updated S7 with attribution chip: "Edited by Dr. Sharma · Jun 2 11:35". Original AI-generated text preserved in A2 audit log. Section tier badge updates from T1 to T2 if edit resolved the flag.</p>
+        </div>
+        <div style="background:var(--pl);border-radius:4px;padding:8px">
+          <strong>💬 Comment to LLM</strong>
+          <textarea style="width:100%;border:1px solid var(--border);border-radius:3px;padding:5px;font-size:11px;height:44px;margin-top:4px">Replace all US drug names with Indian equivalents</textarea>
+          <div style="display:flex;gap:6px;margin-top:4px">
+            <span class="btn btn-p">Send to LLM →</span>
+            <span class="btn btn-g">← Cancel (back to S4b)</span>
+          </div>
+          <p class="note">Cancel returns to S4b without submitting. No LLM call made.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="step">
+    <div class="step-lbl"><span class="persona p-att">Attending</span> S4d — LLM Revision Result ⚠ NEW</div>
+    <div class="sf">
+      <div class="sf-bar">S7 Revised by LLM</div>
+      <div class="sf-body">
+        <div class="notif-g">✓ S7 revised in 18 seconds. Review before continuing.</div>
+        <div style="background:var(--pl);border-radius:4px;padding:8px;margin:8px 0">
+          <div style="font-size:10px;font-weight:700;color:var(--pd);margin-bottom:4px">REVISED S7 — Version 2</div>
+          Ecosprin 75mg OD · Clopivas 75mg OD · Atorva 40mg HS · Pantoprazole 40mg OD · Metoprolol 25mg BD
+        </div>
+        <div style="font-size:10px;color:var(--muted);margin-bottom:8px">Diff: 5 US drug names → Indian equivalents. No clinical values changed.</div>
+        <div style="display:flex;gap:6px">
+          <span class="btn btn-r">Reject Revision</span>
+          <span class="btn btn-o">Send Another Comment</span>
+          <span class="btn btn-p">Accept &amp; Continue → S5 E-Sign</span>
+          <p class="note" style="margin-top:4px">Accept → proceeds to S5 E-Sign screen. Reject Revision → returns to S4c comment form with LLM response shown as context; attending can refine comment and re-send.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="flow" style="margin-top:0">
+  <div class="step">
+    <div class="step-lbl"><span class="persona p-att">Attending</span> S5 — E-Sign</div>
+    <div class="sf">
+      <div class="sf-bar">Sign Off · P-1001</div>
+      <div class="sf-body">
+        <div class="notif-g">✓ All 15 sections reviewed · 0 Tier 1 flags</div>
+        <div class="comp" style="margin-top:8px"><strong>NABH MN4 — Patient Acknowledgement</strong>
+          <div style="margin-top:6px">
+            <div class="field"><label>Acknowledged by</label><div class="inp">Name of patient / attendant</div></div>
+            <div class="field"><label>Relation</label><select class="inp"><option>Self</option><option>Spouse</option><option>Parent</option><option>Other</option></select></div>
+            <div class="field"><label>Signature</label><div style="height:32px;background:#fff;border:1px dashed var(--border);border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--muted)">Sign here</div></div>
+          </div>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <div class="col"><div class="field"><label>MCI / NMC Registration No. *</label><div class="inp">e.g. MH-12345-2018 (validated against NMC registry)</div></div></div>
+          <div class="col"><div class="field"><label>Designation</label><div class="val">Attending Cardiologist</div></div></div>
+        </div>
+        <div class="field"><label>Doctor Digital Signature</label><div style="height:32px;background:#fff;border:1px dashed var(--border);border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--muted)">Sign here</div></div>
+        <span class="btn btn-p" id="sign-btn">✓ Sign &amp; Generate PDF →</span>
+        <p class="note">Button disabled until: patient name + relation + patient signature + MCI/NMC number + doctor signature all non-empty (NABH MN4 hard gate). If patient refuses acknowledgement — see Edge Cases tab. MCI/NMC real-time lookup in Phase 2; MVP: format validation only.</p>
+      </div>
+    </div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="step">
+    <div class="step-lbl"><span class="persona p-att">Attending</span> S5 — Validation Error States</div>
+    <div class="sf">
+      <div class="sf-bar" style="background:var(--red)">S5 — Error: Fields Missing</div>
+      <div class="sf-body">
+        <div class="notif-r">⚠ Cannot sign — 3 required fields incomplete</div>
+        <div class="field" style="margin-top:6px"><label style="color:var(--red)">Acknowledged by *</label><div style="border:1.5px solid var(--red);border-radius:3px;padding:4px 7px;font-size:10px;color:var(--red)">Required — enter patient / attendant name</div></div>
+        <div class="field"><label style="color:var(--red)">Signature *</label><div style="height:28px;background:#fde8e8;border:1.5px solid var(--red);border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--red)">Required — sign here</div></div>
+        <div class="field"><label style="color:var(--red)">MCI / NMC No. *</label><div style="border:1.5px solid var(--red);border-radius:3px;padding:4px 7px;font-size:10px;color:var(--red)">Required</div></div>
+        <span class="btn btn-g" style="opacity:.5;cursor:not-allowed;margin-top:4px">✓ Sign &amp; Generate PDF (disabled)</span>
+        <p class="note" style="margin-top:4px">Each empty required field: red border + inline error label. No form submission. Sign stays gray (cursor: not-allowed) until all 5 fields filled AND T1 = 0.</p>
+      </div>
+    </div>
+    <div class="sf" style="margin-top:8px">
+      <div class="sf-bar" style="background:var(--amber)">S5 — Error: MCI/NMC Format Invalid</div>
+      <div class="sf-body">
+        <div class="field"><label style="color:var(--red)">MCI / NMC Registration No. *</label><div style="border:1.5px solid var(--red);border-radius:3px;padding:4px 7px;font-size:10px;color:var(--red)">MH12345 — Invalid format. Use: MH-12345-2018</div></div>
+        <p class="note">Format: [State 2-char]-[5-digit number]-[Year]. Inline regex validation on blur. Sign stays disabled until format passes.</p>
+      </div>
+    </div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="step">
+    <div class="step-lbl"><span class="persona p-att">Attending</span> S6 — Post-Sign Success ⚠ NEW</div>
+    <div class="sf">
+      <div class="sf-bar">✓ Signed &amp; PDF Ready</div>
+      <div class="sf-body">
+        <div class="notif-g" style="margin-bottom:8px">✓ Summary signed · PDF generated · Sent to billing queue</div>
+        <div style="background:var(--gray);border-radius:4px;padding:10px;text-align:center">
+          <div style="font-size:20px;margin-bottom:4px">📄</div>
+          <strong>Discharge Summary — P-1001</strong>
+          <div style="color:var(--muted);margin:4px 0;font-size:11px">Signed: Dr. Sharma · Jun 2 11:45 AM · v2</div>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:10px">
+          <span class="btn btn-p">⬇ Download PDF</span>
+          <span class="btn btn-o">Request Amendment → S7</span>
+          <span class="btn btn-g">← Back to Queue</span>
+        </div>
+        <div class="notif" style="margin-top:6px;font-size:10px">Request Amendment → opens S7 form → attending submits → creates v3 → attending re-signs → new PDF. Original v2 preserved in A2 audit log.</div>
+      </div>
+    </div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="step">
+    <div class="step-lbl"><span class="persona p-att">Attending</span> S7 — Amendment ⚠ NEW</div>
+    <div class="sf">
+      <div class="sf-bar"><span class="persona p-att">Attending</span> &nbsp; Amendment · P-1001 · Post-Sign</div>
+      <div class="sf-body">
+        <div class="comp"><strong>⚖ NABH:</strong> Amendment creates v3. v1 and v2 preserved in audit log. Both doctor and patient must re-acknowledge.</div>
+        <div class="field"><label>Section to amend</label><select class="inp"><option>S7 — Medications</option><option>S5 — Diagnosis</option><option>Other</option></select></div>
+        <div class="field"><label>Reason for amendment</label><div class="inp">e.g. Medication dosage error found after sign-off</div></div>
+        <div class="field"><label>Corrected content</label><textarea style="width:100%;border:1px solid var(--border);border-radius:3px;padding:5px;font-size:11px;height:44px"></textarea></div>
+        <span class="btn btn-p">Submit Amendment →</span>
+        <p class="note">Amendment requires fresh patient acknowledgement (NABH MN4) and doctor re-signature.</p>
+        <div class="sf" style="margin-top:12px">
+          <div class="sf-bar">S7b — Amendment Submitted · Success State</div>
+          <div class="sf-body">
+            <div class="notif-g">✓ Amendment submitted · v3 created · Re-signature required</div>
+            <div class="notif" style="margin-top:4px">📱 Push to Dr. Sharma: "Discharge summary P-1001 amended — re-sign required — CareOS" (no PHI)</div>
+            <div style="margin-top:8px;font-size:11px">Patient / attendant must re-acknowledge. Doctor re-signs via S5 form (pre-filled with v3 content). v2 preserved in A2 audit log.</div>
+            <div style="display:flex;gap:6px;margin-top:8px">
+              <span class="btn btn-p">Re-Sign Now → S5</span>
+              <span class="btn btn-g">← Back to Queue (reminder active)</span>
+            </div>
+            <p class="note">v3 PDF generated only after re-signature. Unsigned amendment = NABH audit flag raised. Reminder push sent every 4 hrs until signed.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ═══ REJECTION FLOW ═══ -->
+<div class="content" id="tab-p1rej">
+<div class="st"><span class="st-id">REJ</span> Rejection &amp; Revision — Full 7-Step Flow</div>
+<div class="comp">⚖ NABH: Original preserved. Revision = new version. All actions timestamped. Push/WhatsApp notifications contain NO PHI (DPDPA).</div>
+<div class="ft">
+  <span class="fts d">1 · Doctor Rejects</span><span class="ft-arr">→</span>
+  <span class="fts d">2 · Rejection Notes</span><span class="ft-arr">→</span>
+  <span class="fts d">3 · Staff Queue</span><span class="ft-arr">→</span>
+  <span class="fts d">4 · Regenerate</span><span class="ft-arr">→</span>
+  <span class="fts d">5 · Notify Doctor</span><span class="ft-arr">→</span>
+  <span class="fts a">6 · Re-Review</span><span class="ft-arr">→</span>
+  <span class="fts">7 · Signed</span>
+</div>
+<div class="flow">
+  <div class="step">
+    <div class="step-lbl"><span class="persona p-att">Attending</span> Step 1</div>
+    <div class="sf"><div class="sf-bar">P-1001 · S7 Issue Found</div><div class="sf-body"><div class="warn">S7: US drug names — cannot sign<br>S9: Cath Lab section incomplete</div><div style="margin-top:8px;display:flex;gap:6px"><span class="btn btn-r">✗ Reject</span><span class="btn btn-g">← Back</span></div></div></div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="step">
+    <div class="step-lbl"><span class="persona p-att">Attending</span> Step 2 — Dialog</div>
+    <div class="sf"><div class="sf-bar">Rejection Notes</div><div class="sf-body">
+      <div class="field"><label>Sections to fix</label><div style="display:flex;flex-direction:column;gap:3px;background:var(--gray);padding:6px;border-radius:3px"><label style="display:flex;gap:4px"><input type="checkbox" checked> S7 — Medications</label><label style="display:flex;gap:4px"><input type="checkbox" checked> S9 — Cath Lab</label></div></div>
+      <div class="field"><label>Instructions for staff / LLM</label><textarea style="width:100%;border:1px solid var(--border);border-radius:3px;padding:5px;font-size:11px;height:44px">S7: Replace US drug names. S9: Check Cath Lab PDF for findings.</textarea></div>
+      <span class="btn btn-r">Submit Rejection →</span>
+      <p class="note">v1 preserved. Rejection logged with timestamp + attribution.</p>
+    </div></div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="step">
+    <div class="step-lbl"><span class="persona p-adm">Ward Admin</span> Step 3 — Queue</div>
+    <div class="sf"><div class="sf-bar">Kanban · Rejected</div><div class="sf-body sf-gray">
+      <div class="kcard" style="border-left:3px solid var(--red);background:#fff">
+        <div class="kcard-id">P-1001 · Rejected</div>
+        <div class="kcard-sub">S7 drug names · S9 incomplete</div>
+        <div class="kcard-sub">Dr. Sharma · Jun 2 11:28</div>
+        <span class="btn btn-p" style="margin-top:6px;display:inline-block">Regenerate →</span>
+      </div>
+    </div></div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="step">
+    <div class="step-lbl"><span class="persona p-sys">System</span> Step 4 — Regenerating</div>
+    <div class="sf"><div class="sf-bar">Regenerating · P-1001</div><div class="sf-body sf-gray">
+      <div class="notif">Pass 1: skip (facts cached)</div>
+      <div class="notif">Pass 2: re-running with revision notes… (~18s)</div>
+      <div style="background:var(--border);border-radius:3px;height:5px;margin:6px 0"><div style="background:var(--p);border-radius:3px;height:5px;width:80%"></div></div>
+      <div class="notif-g">✓ v2 generated · Notifying Dr. Sharma</div>
+      <p class="note">v1 preserved in audit log</p>
+    </div></div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="step">
+    <div class="step-lbl"><span class="persona p-att">Attending</span> Step 5 — Notification</div>
+    <div class="sf"><div class="sf-bar">Notifications</div><div class="sf-body">
+      <div class="notif">📱 Push: "2 summaries ready for review — CareOS" (no PHI)</div>
+      <div class="notif" style="margin-top:4px">💬 WhatsApp: "Summary revised — check CareOS" (no PHI)</div>
+      <p class="note">No patient name, ID, or clinical detail in external notifications</p>
+    </div></div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="step">
+    <div class="step-lbl"><span class="persona p-att">Attending</span> Step 6 — Re-Review</div>
+    <div class="sf"><div class="sf-bar">P-1001 · v2 · Revised</div><div class="sf-body">
+      <div class="notif-g">✓ S7: Ecosprin · Clopivas · Atorva (Indian names)</div>
+      <div class="notif-g">✓ S9: Cath Lab findings included</div>
+      <div style="margin-top:8px;display:flex;gap:6px"><span class="btn btn-r">Reject Again</span><span class="btn btn-p">Approve &amp; Sign →</span></div>
+    </div></div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="step">
+    <div class="step-lbl"><span class="persona p-sys">System</span> Step 7 — Audit</div>
+    <div class="sf"><div class="sf-bar">Signed &amp; Logged</div><div class="sf-body sf-gray">
+      <div class="notif-g">✓ PDF generated</div>
+      <div class="notif-g">✓ Sent to billing</div>
+      <div class="notif-g">✓ Audit: v1 rejected 11:28 · v2 signed 11:45</div>
+      <p class="note">Error logged for Tier classification + LLM accuracy tracking</p>
+    </div></div>
+  </div>
+</div>
+</div>
+
+<!-- ═══ MODULE B ═══ -->
+<div class="content" id="tab-p1mb">
+<div class="st"><span class="st-id">CE1 → CE3</span> Module B — Phase 1: AT ADMISSION · CE1 Input → CE2 Band → CE2b Confirm → CE3 Print (patient family given cost range + pre-auth submitted)</div>
+<div class="flow">
+  <div class="step">
+    <div class="step-lbl"><span class="persona p-bil">Billing Staff</span> CE1 — Input</div>
+    <div class="sf"><div class="sf-bar"><span class="sid">CE1</span> Cost Estimator · New</div><div class="sf-body">
+      <div class="notif" style="margin-bottom:8px;font-size:10px">📅 Phase 1 — opened at <strong>admission</strong>. Discharge summary not yet generated. Fields entered manually by billing staff.</div>
+      <div class="field"><label>Primary Diagnosis *</label><div class="inp">e.g. Acute MI / I21.0 (enter manually — provisional at admission)</div></div>
+      <div class="field"><label>Planned Procedure *</label><div class="inp">e.g. PTCA (enter manually — planned, not yet performed)</div></div>
+      <div class="field"><label>Ward Preference *</label><select class="inp"><option>General</option><option>Semi-Private</option><option selected>Private</option></select></div>
+      <div class="field"><label>Insurance / Payer *</label><select class="inp"><option>Self-Pay</option><option selected>Mediclaim</option><option>Ayushman Bharat</option><option>CGHS</option></select></div>
+      <div class="field"><label>Insurance Policy No. *</label><div class="inp">e.g. MED-2024-456789 (hidden when Self-Pay selected)</div></div>
+      <div class="field"><label>Pre-Authorization</label><select class="inp"><option>Not Required (emergency / self-pay)</option><option selected>Required — submit with this estimate</option><option>Already obtained — enter ref no.</option></select></div>
+      <div class="field" style="display:none"><label>Pre-Auth Ref No.</label><div class="inp">e.g. PREAUTH-240602-1001 (shown when "Already obtained" selected)</div></div>
+      <div style="display:flex;gap:6px"><span class="btn btn-p">Calculate →</span><span class="btn btn-o">Compare Scenarios</span></div>
+      <p class="note">Insurance Policy No. + Pre-Auth fields hidden when Self-Pay. Compare Scenarios → 2-column modal: same diagnosis, two ward/payer combos. User picks → loads into CE2. Pre-auth reference number shown only when "Already obtained" selected.</p>
+    </div></div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="step">
+    <div class="step-lbl"><span class="persona p-bil">Billing Staff</span> CE2 — Cost Band</div>
+    <div class="sf"><div class="sf-bar"><span class="sid">CE2</span> Estimate · Acute MI · PTCA · Private · Mediclaim</div><div class="sf-body">
+      <div class="cband-row">
+        <div class="cband cb-f"><div class="cband-n">₹3.2L</div><div class="cband-l">Floor</div></div>
+        <div class="cband cb-e"><div class="cband-n">₹4.8L</div><div class="cband-l">Expected</div></div>
+        <div class="cband cb-c"><div class="cband-n">₹6.5L</div><div class="cband-l">Ceiling</div></div>
+      </div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:8px">Model: 82% accuracy · 340 cases (Jan–May 2026) · <span style="color:var(--p);cursor:pointer">View data source</span></div>
+      <table class="tbl">
+        <tr><th>Item</th><th>Estimated Range</th></tr>
+        <tr><td>PTCA Procedure</td><td>₹1.8–2.5L</td></tr>
+        <tr><td>Ward + ICU (4–6 days)</td><td>₹1.0–1.7L</td></tr>
+        <tr><td>Medications</td><td>₹0.2–0.4L</td></tr>
+        <tr><td>Labs &amp; Investigations</td><td>₹0.2–0.3L</td></tr>
+      </table>
+      <div class="detail-panel" style="margin-top:10px">
+        <strong style="font-size:11px">Mediclaim Coverage Estimate</strong>
+        <table class="tbl" style="margin-top:6px">
+          <tr><th>Component</th><th>Estimated</th></tr>
+          <tr><td>Total estimated cost</td><td><strong>₹4.8L</strong></td></tr>
+          <tr><td>Mediclaim covers (est.)</td><td style="color:var(--green)">- ₹3.2L</td></tr>
+          <tr><td><strong>Patient co-pay</strong></td><td><strong style="color:var(--amber)">₹1.6L</strong></td></tr>
+        </table>
+        <div class="warn" style="margin-top:6px;font-size:10px">Coverage subject to insurer approval at claim settlement. Co-pay may vary.</div>
+        <div style="margin-top:6px;display:flex;align-items:center;gap:8px;font-size:10px">
+          <strong>Pre-Auth:</strong> <span class="tag t-rev">⏳ Pending</span>
+          <span style="color:var(--muted)">Ref: PREAUTH-240602-1001 · submitted Jun 2 09:30</span>
+        </div>
+        <p class="note" style="margin-top:4px">NHCX: digital claim to be submitted via National Health Claims Exchange post-discharge. Open decision: NHCX enrollment status at Medanta — confirm with Dr. Shroff / hospital IT.</p>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:8px"><span class="btn btn-p">Save to Patient Record</span><span class="btn btn-o">Print Summary</span></div>
+    </div></div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="step">
+    <div class="step-lbl"><span class="persona p-bil">Billing Staff</span> CE2 — Govt. Payer Variant</div>
+    <div class="sf"><div class="sf-bar"><span class="sid">CE2</span> Estimate · Acute MI · PTCA · Ayushman Bharat</div><div class="sf-body">
+      <div class="notif" style="margin-bottom:8px">⚕ Ayushman Bharat package rate applies — fixed government tariff, not floor/ceiling model</div>
+      <table class="tbl">
+        <tr><th>Component</th><th>Package Rate</th></tr>
+        <tr><td>PTCA — Acute MI (HBP code H07.01)</td><td><strong>₹1.26L</strong></td></tr>
+        <tr><td>ICU + Ward (included in package)</td><td style="color:var(--green)">Covered</td></tr>
+        <tr><td>Medications (included)</td><td style="color:var(--green)">Covered</td></tr>
+        <tr><td><strong>Patient co-pay</strong></td><td><strong style="color:var(--green)">₹0 (fully covered if eligible)</strong></td></tr>
+      </table>
+      <div class="notif-g" style="margin-top:8px">✓ Patient AB-PMJAY eligible · Card verified · HBP pre-auth auto-submitted</div>
+      <p class="note" style="margin-top:4px">CGHS: similar fixed package rates. Rate card source: NHA PMJAY procedure list 2024. Medanta to confirm procedure codes with hospital billing system. Self-pay or excess beyond package = separate invoice line.</p>
+      <div style="display:flex;gap:6px;margin-top:8px"><span class="btn btn-p">Save to Patient Record</span><span class="btn btn-o">Print Summary</span></div>
+    </div></div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="step">
+    <div class="step-lbl"><span class="persona p-bil">Billing Staff</span> CE2b — Confirmation ⚠ NEW</div>
+    <div class="sf"><div class="sf-bar">✓ Estimate Saved</div><div class="sf-body">
+      <div class="notif-g">✓ Estimate saved · ID: EST-001543 · Jun 1 11:23 · Anita Patel</div>
+      <div style="display:flex;gap:6px;margin-top:8px"><span class="btn btn-p">View &amp; Print Cost Summary → CE3</span><span class="btn btn-g">← Back to CE1</span></div>
+      <p class="note">← Back returns to CE1 input form. "View & Print" → goes to CE3 cost summary preview before printing.</p>
+    </div></div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="step">
+    <div class="step-lbl"><span class="persona p-bil">Billing Staff</span> CE3 — Print ⚠ FIXED</div>
+    <div class="sf"><div class="sf-bar">Patient Summary · P-1001</div><div class="sf-body">
+      <div style="border:1px solid var(--border);border-radius:4px;padding:10px;background:#fff">
+        <strong>Medanta — Admission Cost Estimate</strong>
+        <p style="color:var(--muted);margin:4px 0;font-size:11px">Patient P-1001 · Acute MI · PTCA · Private</p>
+        <div style="background:var(--pl);border-radius:4px;padding:8px;margin:8px 0;text-align:center">
+          <div style="font-size:16px;font-weight:800;color:var(--p)">₹3.2L – ₹6.5L</div>
+          <div style="font-size:10px;color:var(--muted)">Estimated total cost range</div>
+        </div>
+        <p style="font-size:10px;color:var(--muted)">Final bill may vary based on complications and length of stay. Mediclaim coverage to be verified with insurer.</p>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:8px"><span class="btn btn-p">🖨 Print</span><span class="btn btn-o">📧 Email to Patient</span><span class="btn btn-g">⬇ PDF</span></div>
+      <div class="row" style="margin-top:10px">
+        <div class="col"><div class="sf"><div class="sf-bar">🖨 Print Sent</div><div class="sf-body sf-gray"><div class="notif-g">✓ Sent to printer: Ward Office. 1 copy queued.</div><span class="btn btn-g" style="margin-top:6px">← Back to CE3</span></div></div></div>
+        <div class="col"><div class="sf"><div class="sf-bar">📧 Email Sent</div><div class="sf-body sf-gray"><div class="notif-g">✓ Email sent to patient@example.com · Jun 2 12:05</div><span class="btn btn-g" style="margin-top:6px">← Back to CE3</span></div></div></div>
+        <div class="col"><div class="sf"><div class="sf-bar">⬇ PDF Downloaded</div><div class="sf-body sf-gray"><div class="notif-g">✓ PDF saved: P1001-cost-estimate-Jun2.pdf</div><span class="btn btn-g" style="margin-top:6px">← Back to CE3</span></div></div></div>
+      </div>
+    </div></div>
+  </div>
+</div>
+
+<div class="st"><span class="st-id">CE4 → CE5</span> Module B — Phase 2: AT DISCHARGE · Simultaneous with Module A (S6) sign-off · CE4 Reconciliation → CE5 Final Bill → Patient pays and leaves</div>
+<div class="sf">
+  <div class="sf-bar"><span class="sid">CE4</span><span class="persona p-bil">Billing Staff</span> CE4 — Reconciliation · P-1001</div>
+  <div class="sf-body">
+    <div class="notif" style="margin-bottom:8px;font-size:10px">📅 Phase 2 — triggered <strong>simultaneously</strong> when Dr. Sharma signs discharge summary (S6). Billing staff receives in-app notification: "P-1001 discharge summary signed — reconciliation ready." Patient is waiting at discharge counter. Auto-fills: final diagnosis <strong>Acute MI (I21.0)</strong> + procedure <strong>PTCA</strong> from signed Module A summary.</div>
+    <div class="comp" style="margin-bottom:8px">Admission estimate (CE2): <strong>₹3.2L floor · ₹4.8L expected · ₹6.5L ceiling</strong> · Actual charges below</div>
+    <table class="tbl">
+      <tr><th>Item</th><th>Estimated</th><th>Actual</th><th>Δ</th><th>Approved By</th></tr>
+      <tr><td>PTCA Procedure</td><td>₹2.1L</td><td>₹2.3L</td><td style="color:var(--amber)">+₹0.2L</td><td><span class="inp" style="font-size:10px">Dr. Sharma · Jun 5</span></td></tr>
+      <tr><td>Ward + ICU</td><td>₹1.4L</td><td>₹1.2L</td><td style="color:var(--green)">-₹0.2L</td><td>—</td></tr>
+      <tr><td>Medications</td><td>₹0.3L</td><td>₹0.28L</td><td style="color:var(--green)">-₹0.02L</td><td>—</td></tr>
+    </table>
+    <p class="note" style="margin-top:6px">Variance &gt;10% requires attending sign-off (see CE4b in Edge Cases tab). Reconciliation data feeds model retraining (monthly).</p>
+    <span class="btn btn-p" style="margin-top:8px">Generate Final Bill</span>
+    <div class="sf" style="margin-top:10px"><div class="sf-bar">CE5 — Final Bill Generated · Patient pays at discharge counter before leaving</div><div class="sf-body">
+      <div class="notif-g">✓ Final bill generated · P-1001 · Total: ₹4.8L · Jun 2 15:30</div>
+      <div class="notif-g">✓ Patient pays at discharge counter — Mediclaim: ₹3.2L (insurer) + ₹1.6L (patient co-pay)</div>
+      <div class="notif-g">✓ Sent to accounting system · NHCX claim submitted (post-enrollment)</div>
+      <div class="notif" style="margin-top:4px;font-size:10px">Patient leaves with: (1) Signed discharge summary PDF · (2) Paid bill receipt · (3) CE3 cost estimate given at admission for reference</div>
+      <p class="note" style="margin-top:6px">⚖ DPDPA: SMS contains financial data (bill total). Requires explicit patient consent. MVP: consent checkbox at CE1 (Sprint 3). Until built, SMS is opt-in only.<br>Timing: CE4→CE5 runs simultaneously with Module A S6 sign-off. Billing staff notified the moment the doctor signs — patient waits at discharge counter while reconciliation completes (~2–3 min).</p>
+      <div style="margin-top:8px;display:flex;gap:6px"><span class="btn btn-p">⬇ Download Bill PDF</span><span class="btn btn-g">← Back to Patient List</span></div>
+    </div></div>
+  </div>
+</div>
+</div>
+
+<!-- ═══ ADMIN & AUDIT ═══ -->
+<div class="content" id="tab-p1adm">
+<div class="st"><span class="st-id">A1</span> Ward Admin — Kanban Pipeline (5 columns incl. Rejected)</div>
+<div class="sf" style="margin-bottom:20px">
+  <div class="sf-bar"><span class="persona p-adm">Ward Admin</span> A1 — Pipeline · Ward A · Jun 2</div>
+  <div class="sf-body">
+    <div class="kanban">
+      <div class="kcol"><div class="kcol-h">Pending <span class="kcount">4</span></div>
+        <div class="kcard" style="border-left:3px solid #ccc"><div class="kcard-id">P-1001</div><div class="kcard-sub">Dr. Sharma · Acute MI</div></div>
+      </div>
+      <div class="kcol"><div class="kcol-h" style="color:var(--amber)">In Review <span class="kcount" style="background:var(--amber)">2</span></div>
+        <div class="kcard" style="border-left:3px solid var(--amber)"><div class="kcard-id">P-1005</div><div class="kcard-sub">Dr. Sharma · HF · 2 hr</div></div>
+        <div class="kcard" style="border-left:3px solid var(--red);background:#fde8e8"><div class="kcard-id" style="color:var(--red)">P-1007 ⏱ SLA</div><div class="kcard-sub" style="color:var(--red)">Dr. Mehta · STEMI · 3h 20m</div><div style="font-size:9px;color:var(--red);font-weight:700;margin-top:3px">SLA BREACH — target was 90 min</div></div>
+      </div>
+      <div class="kcol"><div class="kcol-h" style="color:var(--red)">Rejected <span class="kcount" style="background:var(--red)">1</span></div>
+        <div class="kcard" style="border-left:3px solid var(--red)"><div class="kcard-id">P-1002</div><div class="kcard-sub">S7 US names · S9 gap</div><span class="btn btn-p" style="margin-top:6px;display:inline-block;font-size:10px">Regenerate</span></div>
+      </div>
+      <div class="kcol"><div class="kcol-h" style="color:var(--green)">Signed <span class="kcount" style="background:var(--green)">6</span></div>
+        <div class="kcard" style="border-left:3px solid var(--green)"><div class="kcard-id">P-1003</div><div class="kcard-sub">Signed Jun 1</div></div>
+      </div>
+      <div class="kcol"><div class="kcol-h" style="color:var(--p)">Exported <span class="kcount">3</span></div>
+        <div class="kcard" style="border-left:3px solid var(--p)"><div class="kcard-id">P-1004</div><div class="kcard-sub">PDF · Billing confirmed</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="st"><span class="st-id">A2</span> Audit Log Viewer — Version History for Any Summary</div>
+<div class="sf" style="margin-bottom:20px">
+  <div class="sf-bar"><span class="sid">A2</span><span class="persona p-adm">Ward Admin</span> / <span class="persona p-cmo">CMO</span> A2 — Audit Log · P-1001</div>
+  <div class="sf-body">
+    <div style="display:flex;gap:8px;margin-bottom:10px"><span class="btn btn-g">← All Patients</span><div class="field" style="margin:0;flex:1"><div class="inp">Search by Patient ID or Doctor</div></div><span class="btn btn-p">Search</span></div>
+    <table class="tbl">
+      <tr><th>Version</th><th>Timestamp</th><th>Action</th><th>By</th><th>Changes</th><th>PDF</th></tr>
+      <tr><td>v1</td><td>Jun 2 09:14</td><td>Generated</td><td><span class="persona p-sys">System</span></td><td>Initial LLM output</td><td><span class="btn btn-g" style="font-size:10px">View</span></td></tr>
+      <tr><td>v1</td><td>Jun 2 11:28</td><td>Rejected</td><td><span class="persona p-att">Dr. Sharma</span></td><td>S7 US names · S9 gap</td><td>—</td></tr>
+      <tr><td>v2</td><td>Jun 2 11:30</td><td>Regenerated</td><td><span class="persona p-sys">System</span></td><td>S7 Indian names · S9 updated</td><td><span class="btn btn-g" style="font-size:10px">View</span></td></tr>
+      <tr><td>v2</td><td>Jun 2 11:45</td><td>Signed</td><td><span class="persona p-att">Dr. Sharma</span></td><td>Patient ack: Rajesh Kumar (Self)</td><td><span class="btn btn-p" style="font-size:10px">⬇ PDF</span></td></tr>
+    </table>
+    <div style="display:flex;gap:6px;margin-top:8px"><span class="btn btn-g">← Back to A1 Kanban</span><span class="btn btn-o">⬇ Export Audit (Super Admin only)</span><span class="btn btn-o">Compare Versions</span></div>
+    <div class="notif-g" style="margin-top:6px">→ Export: "✓ Audit exported: P1001-audit-Jun2.pdf / .csv · Download started"</div>
+    <p class="note" style="margin-top:4px">Read-only for all roles. Export restricted to Super Admin. Back button returns to A1 Kanban with patient pre-selected.</p>
+    <div class="sf" style="margin-top:12px">
+      <div class="sf-bar">A2b — Compare Versions (v1 vs v2)</div>
+      <div class="sf-body">
+        <div class="row">
+          <div class="col">
+            <div style="font-size:10px;font-weight:700;color:var(--muted);margin-bottom:4px">v1 — Original LLM Output · Jun 2 09:14</div>
+            <div class="nabh"><div class="nabh-h"><span style="color:var(--muted);font-size:10px">S7</span> Medications <span class="chip t1">T1</span></div><div class="nabh-body" style="background:#fde8e8;color:var(--red);text-decoration:line-through">Aspirin 75mg OD · Clopidogrel 75mg OD · Atorvastatin 40mg HS</div></div>
+            <div class="nabh"><div class="nabh-h"><span style="color:var(--muted);font-size:10px">S9</span> Cath Lab <span class="chip t2">T2</span></div><div class="nabh-body" style="background:#fde8e8;color:var(--red);text-decoration:line-through">Cath Lab findings not available</div></div>
+          </div>
+          <div class="col">
+            <div style="font-size:10px;font-weight:700;color:var(--muted);margin-bottom:4px">v2 — Revised · Jun 2 11:30</div>
+            <div class="nabh"><div class="nabh-h"><span style="color:var(--muted);font-size:10px">S7</span> Medications <span class="chip t2">T2</span></div><div class="nabh-body" style="background:#d4edda;color:#155724">Ecosprin 75mg OD · Clopivas 75mg OD · Atorva 40mg HS</div></div>
+            <div class="nabh"><div class="nabh-h"><span style="color:var(--muted);font-size:10px">S9</span> Cath Lab <span class="chip t3">T3</span></div><div class="nabh-body" style="background:#d4edda;color:#155724">LAD 90% occlusion · PTCA + stent · TIMI 3 post-procedure</div></div>
+          </div>
+        </div>
+        <p class="note" style="margin-top:6px">Red strikethrough = removed/changed. Green = added/updated. Only sections with changes are shown. All other sections identical between versions.</p>
+        <span class="btn btn-g" style="margin-top:6px">← Back to Audit Log</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="st"><span class="st-id">A3</span> Module Health Dashboard</div>
+<div class="sf">
+  <div class="sf-bar"><span class="sid">A3</span><span class="persona p-adm">Ward Admin</span> A3 — Module Health</div>
+  <div class="sf-body">
+    <table class="tbl">
+      <tr><th>Module</th><th>Status</th><th>Avg. Response</th><th>Last Error</th><th>Action</th></tr>
+      <tr><td>Module A — Discharge Summary</td><td><span class="tag t-sign">✓ Healthy</span></td><td>24s</td><td>None</td><td>—</td></tr>
+      <tr><td>Module B — Cost Estimator</td><td><span class="tag t-sign">✓ Healthy</span></td><td>1.2s</td><td>None</td><td>—</td></tr>
+      <tr><td>Module C — EWDS</td><td><span class="tag" style="background:#fff8e1;color:#856404">⚠ Slow</span></td><td>8.4s</td><td>Jun 2 02:15 · DB timeout</td><td><span class="btn btn-o" style="font-size:10px">Restart</span></td></tr>
+      <tr><td>Module D — Drug-Lab</td><td><span class="tag t-sign">✓ Healthy</span></td><td>0.4s</td><td>None</td><td>—</td></tr>
+    </table>
+    <p class="note" style="margin-top:6px">Auto-refresh every 5 minutes. Alerts sent to Super Admin on module failure.</p>
+    <div class="sf" style="margin-top:12px"><div class="sf-bar">A3b — Restart Confirmation Dialog</div><div class="sf-body">
+      <div class="warn">⚠ Restart Module C (EWDS)? This will drop active requests. Nurses currently viewing N1 will see a loading spinner for ~30 seconds.</div>
+      <div style="display:flex;gap:6px;margin-top:8px"><span class="btn btn-r">Restart</span><span class="btn btn-g">Cancel</span></div>
+      <div class="notif-g" style="margin-top:6px">→ After restart: "✓ Module C restarted · 02:31 AM · Response time: 1.1s · All systems healthy"</div>
+    </div></div>
+    <div class="sf" style="margin-top:8px"><div class="sf-bar">A1 → A2 Drill-In: Click Kanban Card</div><div class="sf-body">
+      <p style="font-size:11px;margin-bottom:6px">Clicking any card in A1 Kanban opens A2 Audit Log pre-filtered to that patient:</p>
+      <div style="background:var(--gray);border-radius:4px;padding:8px;font-size:11px">Card click: P-1002 → A2 opens with "Showing audit for P-1002" · Breadcrumb: <span style="color:var(--p)">Kanban → P-1002 Audit</span></div>
+      <p class="note" style="margin-top:4px">Back button in A2 returns to A1 Kanban. Search field in A2 pre-filled with P-1002.</p>
+    </div></div>
+  </div>
+</div>
+</div>
+
+<!-- ═══ SUPER ADMIN & CMO ═══ -->
+<div class="content" id="tab-sup">
+<div class="row">
+  <div class="col">
+    <div class="st">Super Admin — RBAC User Management</div>
+    <div class="sf">
+      <div class="sf-bar"><span class="sid">SA1</span><span class="persona p-sup">Super Admin</span> User Management</div>
+      <div class="sf-body">
+        <div style="display:flex;gap:6px;margin-bottom:10px"><span class="btn btn-p">+ Add User</span><span class="btn btn-o">Import from HR</span></div>
+        <table class="tbl">
+          <tr><th>Name</th><th>Role</th><th>Ward</th><th>Status</th><th></th></tr>
+          <tr><td>Dr. Priya Sharma</td><td><span class="persona p-res">Resident</span></td><td>Ward A</td><td><span class="tag t-sign">Active</span></td><td><span class="btn btn-g" style="font-size:10px">Edit</span></td></tr>
+          <tr><td>Dr. Rahul Sharma</td><td><span class="persona p-att">Attending</span></td><td>Ward A</td><td><span class="tag t-sign">Active</span></td><td><span class="btn btn-g" style="font-size:10px">Edit</span></td></tr>
+          <tr><td>Anita Patel</td><td><span class="persona p-adm">Ward Admin</span></td><td>Ward A</td><td><span class="tag t-sign">Active</span></td><td><span class="btn btn-g" style="font-size:10px">Edit</span></td></tr>
+        </table>
+        <div class="comp" style="margin-top:10px"><strong>RBAC Rules:</strong> Super Admin cannot assign clinical roles (Attending/Resident) to non-clinical staff. Ward Admin can only manage users in their assigned ward. Attendings cannot access billing data.</div>
+        <div class="sf" style="margin-top:12px"><div class="sf-bar">+ Add User — Form</div><div class="sf-body">
+          <div class="row"><div class="col"><div class="field"><label>Full Name *</label><div class="inp">Dr. Ananya Mehta</div></div></div><div class="col"><div class="field"><label>Employee Email *</label><div class="inp">ananya@medanta.org</div></div></div></div>
+          <div class="row"><div class="col"><div class="field"><label>Role *</label><select class="inp"><option>Resident</option><option>Attending</option><option>Ward Admin</option><option>Billing Staff</option><option>Nurse</option><option>Charge Nurse</option><option>CMO</option></select></div></div><div class="col"><div class="field"><label>Ward *</label><select class="inp"><option>Ward A — Cardiology</option><option>Ward B — General</option><option>ICU</option></select></div></div></div>
+          <span class="btn btn-p">Send Invite →</span>
+          <div class="notif-g" style="margin-top:6px">✓ Invite sent to ananya@medanta.org · Expires in 7 days · User must complete 2FA setup on first login</div>
+        </div></div>
+        <div class="sf" style="margin-top:8px"><div class="sf-bar">Edit User — Pre-filled Form (Dr. Rahul Sharma)</div><div class="sf-body">
+          <div class="row"><div class="col"><div class="field"><label>Full Name *</label><div class="val">Dr. Rahul Sharma</div></div></div><div class="col"><div class="field"><label>Employee Email *</label><div class="val">rahul.sharma@medanta.org</div></div></div></div>
+          <div class="row"><div class="col"><div class="field"><label>Role *</label><select class="inp"><option>Resident</option><option selected>Attending</option><option>Ward Admin</option><option>Billing Staff</option><option>Nurse</option><option>Charge Nurse</option><option>CMO</option></select></div></div><div class="col"><div class="field"><label>Ward *</label><select class="inp"><option selected>Ward A — Cardiology</option><option>Ward B — General</option><option>ICU</option></select></div></div></div>
+          <div style="display:flex;gap:6px;margin-top:8px"><span class="btn btn-p">Save Changes →</span><span class="btn btn-r">Deactivate User</span><span class="btn btn-g">Cancel</span></div>
+          <div class="notif-g" style="margin-top:6px">→ Save: "✓ User updated · Changes live immediately · Dr. Rahul Sharma notified by email"</div>
+          <p class="note" style="margin-top:4px">Role change takes effect on next login. If user is currently logged in, they keep current session role until next login.</p>
+        </div></div>
+        <div class="sf" style="margin-top:8px"><div class="sf-bar" style="background:var(--red)">Deactivate User — Confirmation Dialog</div><div class="sf-body">
+          <div class="notif-r">⚠ Deactivate Dr. Rahul Sharma (Attending · Ward A)?</div>
+          <div style="margin-top:8px;font-size:11px">This will:</div>
+          <ul style="font-size:11px;margin:4px 0 8px 16px;color:var(--text)">
+            <li>Immediately invalidate all active sessions</li>
+            <li>Remove from all signing queues (pending summaries reassigned to Ward Admin)</li>
+            <li>Prevent login until reactivated by Super Admin</li>
+            <li>Preserve all audit history (cannot be deleted)</li>
+          </ul>
+          <div class="field"><label>Reason for deactivation *</label><select class="inp"><option>Staff offboarding</option><option>Leave of absence</option><option>Role transfer</option><option>Other</option></select></div>
+          <div style="display:flex;gap:6px;margin-top:8px"><span class="btn btn-r">Confirm Deactivate</span><span class="btn btn-g">Cancel</span></div>
+          <div class="notif-g" style="margin-top:6px">→ After confirm: "✓ Dr. Rahul Sharma deactivated · Session terminated · Ward Admin notified · 2 pending summaries moved to unassigned queue"</div>
+        </div></div>
+      </div>
+    </div>
+  </div>
+  <div class="col">
+    <div class="st">Super Admin — Hospital &amp; Module Settings ⚠ NEW</div>
+    <div class="sf">
+      <div class="sf-bar"><span class="sid">SA2</span><span class="persona p-sup">Super Admin</span> Hospital Settings</div>
+      <div class="sf-body">
+        <strong style="font-size:11px">NEWS2 Thresholds — Ward A Cardiology</strong>
+        <table class="tbl" style="margin:8px 0">
+          <tr><th>Level</th><th>Score Range</th><th>Action</th></tr>
+          <tr><td style="color:var(--red);font-weight:700">Critical</td><td><div class="inp" style="width:60px;display:inline-block">≥ 7</div></td><td>Immediate escalation</td></tr>
+          <tr><td style="color:var(--amber);font-weight:700">Warning</td><td><div class="inp" style="width:60px;display:inline-block">5–6</div></td><td>Urgent review</td></tr>
+        </table>
+        <hr>
+        <strong style="font-size:11px">Module Configuration</strong>
+        <table class="tbl" style="margin-top:8px">
+          <tr><th>Module</th><th>Status</th><th></th></tr>
+          <tr><td>Module A — Discharge Summary</td><td><span class="tag t-sign">ON</span></td><td><span class="btn btn-g" style="font-size:10px">Toggle</span></td></tr>
+          <tr><td>Module B — Cost Estimator</td><td><span class="tag t-sign">ON</span></td><td><span class="btn btn-g" style="font-size:10px">Toggle</span></td></tr>
+          <tr><td>Module C — EWDS</td><td><span class="tag t-sign">ON</span></td><td><span class="btn btn-g" style="font-size:10px">Toggle</span></td></tr>
+          <tr><td>Module D — Drug-Lab</td><td><span class="tag t-sign">ON</span></td><td><span class="btn btn-g" style="font-size:10px">Toggle</span></td></tr>
+        </table>
+        <span class="btn btn-p" style="margin-top:10px">Save Settings</span>
+        <div class="notif-g" style="margin-top:6px">✓ Settings saved · NEWS2 thresholds live in 30 seconds · All nurses on Ward A see updated alert levels · Change logged in audit</div>
+        <div class="sf" style="margin-top:10px"><div class="sf-bar" style="background:var(--red)">Module Toggle OFF — Confirmation Dialog</div><div class="sf-body">
+          <div class="notif-r">⚠ Turn OFF Module C (EWDS)?</div>
+          <div style="font-size:11px;margin:8px 0">Currently active:</div>
+          <table class="tbl" style="margin-bottom:8px">
+            <tr><th>Impact</th><th>Detail</th></tr>
+            <tr><td>Active nurse sessions</td><td>4 nurses on N1 dashboard — will see "Module offline" banner</td></tr>
+            <tr><td>Pending escalations</td><td>2 active escalations — will be preserved, no new alerts until module ON</td></tr>
+            <tr><td>Draft auto-save</td><td>All unsaved nurse notes auto-saved before shutdown</td></tr>
+          </table>
+          <div style="display:flex;gap:6px"><span class="btn btn-r">Confirm Turn OFF</span><span class="btn btn-g">Cancel</span></div>
+          <div class="notif-g" style="margin-top:6px">→ After confirm: Module C shows OFF badge · Nurses see "Module offline — contact Super Admin" · Auto-restores when toggled back ON</div>
+        </div></div>
+        <div class="sf" style="margin-top:8px"><div class="sf-bar">Module Offline Banner — What Nurses See (N1)</div><div class="sf-body sf-gray">
+          <div class="notif-r">⚠ Early Warning module is currently offline. Contact your Super Admin. Your last session data has been saved.</div>
+          <p class="note">Banner appears on N1 dashboard. Nurses cannot escalate or view live vitals until module restored. Historical data remains viewable.</p>
+        </div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="st"><span class="st-id">CMO1</span> CMO — Pilot Impact Dashboard + Accuracy Drill-Down</div>
+<div class="row">
+  <div class="col">
+    <div class="sf">
+      <div class="sf-bar"><span class="persona p-cmo">CMO</span> Pilot Dashboard — Medanta W1 of 8</div>
+      <div class="sf-body">
+        <div class="sum-bar">
+          <div class="schip sc-t"><div class="schip-n">24</div><div class="schip-l">Summaries</div></div>
+          <div class="schip sc-ok"><div class="schip-n">18</div><div class="schip-l">Signed</div></div>
+          <div class="schip sc-w"><div class="schip-n">4</div><div class="schip-l">In Review</div></div>
+          <div class="schip sc-c"><div class="schip-n">2</div><div class="schip-l">Rejected</div></div>
+        </div>
+        <table class="tbl">
+          <tr><th>Metric</th><th>Baseline</th><th>CareOS W1</th><th>Δ</th></tr>
+          <tr><td>Avg. summary time</td><td>62 min</td><td>18 min</td><td style="color:var(--green)">-71%</td></tr>
+          <tr><td>NABH compliance</td><td>67%</td><td>84%</td><td style="color:var(--green)">+17%</td></tr>
+          <tr><td>Tier 3 accuracy</td><td>—</td><td>78%</td><td style="color:var(--amber)">Target: 75% ✓</td></tr>
+          <tr><td>Tier 1 error rate (rolling 7-day)</td><td>—</td><td>22%</td><td style="color:var(--red)">⚠ Gate: &lt;25% (borderline)</td></tr>
+          <tr><td>Cost band accuracy (Module B)</td><td>—</td><td>82%</td><td style="color:var(--green)">MAPE ±10% on 340 cases</td></tr>
+          <tr><td>Rejection rate</td><td>—</td><td>8%</td><td style="color:var(--green)">Expected</td></tr>
+        </table>
+        <p class="note" style="margin-top:6px">Placeholder metrics — updates weekly during pilot. Read-only.</p>
+      </div>
+    </div>
+  </div>
+  <div class="col">
+    <div class="sf">
+      <div class="sf-bar"><span class="persona p-cmo">CMO</span> Accuracy Drill-Down ⚠ NEW</div>
+      <div class="sf-body">
+        <div class="notif-r" style="margin-bottom:8px">⚠ Section S7 error rate: 22% — above 15% threshold</div>
+        <table class="tbl">
+          <tr><th>Section</th><th>Tier 1 %</th><th>Status</th></tr>
+          <tr><td>S1 — Presenting Complaint</td><td>2%</td><td><span class="tag t-sign">✓ OK</span></td></tr>
+          <tr><td>S7 — Medications</td><td>22%</td><td><span class="tag t-rej">⚠ High</span></td></tr>
+          <tr><td>S9 — Cath Lab</td><td>14%</td><td><span class="tag t-rev">Monitor</span></td></tr>
+          <tr><td>S14 — Follow-up</td><td>4%</td><td><span class="tag t-sign">✓ OK</span></td></tr>
+        </table>
+        <div class="notif" style="margin-top:8px">Recommendation: S7 drug mapping model needs India formulary fine-tuning. Escalate to Ashmit.</div>
+        <div style="display:flex;gap:6px;margin-top:6px">
+          <span class="btn btn-o">Export Full Report</span>
+        </div>
+        <div class="sf" style="margin-top:8px"><div class="sf-bar">Export Options</div><div class="sf-body sf-gray">
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <span class="btn btn-p">⬇ Download PDF</span>
+            <span class="btn btn-o">📊 Download CSV</span>
+            <span class="btn btn-o">📧 Email to CMO</span>
+          </div>
+          <div class="notif-g" style="margin-top:6px">→ After export: "✓ Report exported: CareOS-Accuracy-W1-Jun2.pdf · Sent to cmo@medanta.org"</div>
+        </div></div>
+        <div style="margin-top:8px"><span class="btn btn-g">← Back to Pilot Dashboard</span></div>
+        <p class="note" style="margin-top:4px">Back returns to CMO Pilot Impact Dashboard. Breadcrumb: "Pilot Dashboard → Accuracy Drill-Down"</p>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ═══ P2 NURSE ═══ -->
+<div class="content" id="tab-p2nur">
+<div class="st"><span class="st-id">N1 → N4</span> Nurse Flow — Priority Dashboard → Patient Detail → Escalate → Track → De-escalate (inline N4) → Shift Handoff</div>
+<div class="flow">
+  <div class="step">
+    <div class="step-lbl"><span class="persona p-nur">Bedside Nurse</span> N1 — Priority Dashboard</div>
+    <div class="sf">
+      <div class="sf-bar">Ward A · EWDS · Night Shift · 02:30</div>
+      <div class="sf-body">
+        <div class="sum-bar">
+          <div class="schip sc-t"><div class="schip-n">16</div><div class="schip-l">Total</div></div>
+          <div class="schip sc-c"><div class="schip-n">4</div><div class="schip-l">Critical</div></div>
+          <div class="schip sc-w"><div class="schip-n">2</div><div class="schip-l">Warning</div></div>
+          <div class="schip sc-ok"><div class="schip-n">10</div><div class="schip-l">Stable</div></div>
+        </div>
+        <div style="background:var(--pl);border-radius:4px;padding:6px 10px;font-size:11px;margin-bottom:8px;display:flex;gap:10px;flex-wrap:wrap"><strong style="color:var(--pd)">NEWS2:</strong><span>🔴 ≥7 Critical</span><span>🟡 5–6 Warning</span><span>🟢 0–4 Stable</span><span style="margin-left:auto;font-size:10px;color:var(--muted)">Thresholds: Medanta Ward A</span></div>
+        <table class="tbl">
+          <tr><th>Bed</th><th>ID</th><th>Complaint</th><th>HR</th><th>SpO2</th><th>BP</th><th>Temp°C</th><th>Last</th><th>NEWS2</th><th>Flag</th><th></th></tr>
+          <tr style="background:rgba(192,57,43,.06)">
+            <td><span class="bed bc">15</span></td><td><strong>PT-4473</strong></td><td>Chest Pain</td>
+            <td style="color:var(--red);font-weight:700">95</td><td>98%</td><td style="color:var(--red);font-weight:700">48</td><td>36.9</td>
+            <td style="font-size:10px;color:var(--muted)">02:27</td>
+            <td><span class="ns nsc">9</span></td>
+            <td style="font-size:10px;color:var(--red);font-weight:500">BP 48 critically low</td>
+            <td><span class="btn btn-p" style="font-size:10px">Escalate</span></td>
+          </tr>
+          <tr style="background:rgba(212,160,23,.06)">
+            <td><span class="bed bw">27</span></td><td><strong>PT-9088</strong></td><td>DKA</td>
+            <td style="color:var(--amber);font-weight:700">108</td><td>96%</td><td>108</td><td>36.6</td>
+            <td style="font-size:10px;color:var(--muted)">02:25</td>
+            <td><span class="ns nsw">6</span></td>
+            <td style="font-size:10px;color:var(--amber)">HR 108 &gt;15 min</td>
+            <td style="display:flex;gap:4px"><span class="btn btn-o" style="font-size:10px;color:var(--amber);border-color:var(--amber)">Escalate</span><span class="btn btn-g" style="font-size:10px">Acknowledge</span></td>
+          </tr>
+          <tr style="background:rgba(39,174,96,.04)">
+            <td><span class="bed bo">31</span></td><td><strong>PT-0214</strong></td><td>Renal Failure</td>
+            <td>110</td><td>96%</td><td>137</td><td>36.7</td>
+            <td style="font-size:10px;color:var(--muted)">02:20</td>
+            <td><span class="ns nso">2</span></td>
+            <td style="font-size:10px;color:var(--green)">Normal</td>
+            <td><span class="btn btn-g" style="font-size:10px">Monitor</span></td>
+          </tr>
+          <tr style="opacity:.55">
+            <td><span class="bed" style="background:#999">08</span></td><td><strong>PT-3301</strong></td><td>Post-CABG</td>
+            <td style="color:var(--muted)">72</td><td style="color:var(--muted)">97%</td><td style="color:var(--muted)">118</td><td style="color:var(--muted)">36.8</td>
+            <td style="font-size:10px;color:var(--red);font-weight:700">01:44 ⚠</td>
+            <td><span class="ns" style="background:#999">1</span></td>
+            <td style="font-size:10px;color:var(--muted);font-style:italic">Stale &gt;45 min</td>
+            <td><span class="btn btn-g" style="font-size:10px;opacity:.7">Update Vitals</span></td>
+          </tr>
+        </table>
+        <p class="note" style="margin-top:4px">Patient numbers only — no names (DPDPA). Stale vitals (&gt;30 min): entire row shown at reduced opacity, timestamp in red with ⚠. Nurse must manually trigger vitals update or check bedside monitor. <strong>Acknowledge</strong> (Warning-level): logs nurse has reviewed the alert — no escalation. Audit-logged with timestamp.</p>
+      </div>
+    </div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="step">
+    <div class="step-lbl"><span class="persona p-nur">Bedside Nurse</span> N1b — Patient Detail ⚠ NEW</div>
+    <div class="sf">
+      <div class="sf-bar">PT-4473 · Bed 15 · Detail</div>
+      <div class="sf-body">
+        <div class="detail-panel">
+          <strong>PT-4473 · 78F · Chest Pain</strong>
+          <div style="margin-top:6px;font-size:11px">
+            <div style="margin-bottom:4px"><strong>Vital Trend (24h):</strong></div>
+            <div style="background:#fff;border-radius:3px;padding:6px;font-size:10px;color:var(--muted)">
+              <div style="color:var(--red);margin-bottom:2px">BP: 90 → 70 → 48 mmHg ↓ (6 hrs)</div>
+              <div style="height:18px;background:linear-gradient(90deg,#27ae60,#d4a017,#c0392b);border-radius:2px;margin-bottom:4px;opacity:.6"></div>
+              <div style="color:var(--amber);margin-bottom:2px">HR: 72 → 85 → 95 bpm ↑ (6 hrs)</div>
+              <div style="height:18px;background:linear-gradient(90deg,#27ae60,#d4a017,#d4a017);border-radius:2px;opacity:.6"></div>
+              <p style="margin-top:4px;font-style:italic">Phase 2: real-time SVG sparklines. MVP: text trend summaries.</p>
+            </div>
+            <div style="margin-top:6px"><strong>Escalation History:</strong> None today</div>
+            <div><strong>Admitted:</strong> May 28 · <strong>Diagnosis:</strong> Chest Pain · Awaiting Cath</div>
+            <div><strong>Assigned Attending:</strong> Dr. Sharma</div>
+          </div>
+          <div style="display:flex;gap:6px;margin-top:8px">
+            <span class="btn btn-p">Escalate Now → N2</span>
+            <span class="btn btn-g">← Back to N1</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="step">
+    <div class="step-lbl"><span class="persona p-nur">Bedside Nurse</span> N2 — Escalation</div>
+    <div class="sf">
+      <div class="sf-bar">Escalate · Bed 15</div>
+      <div class="sf-body">
+        <div class="notif-r">NEWS2: 9 · BP critically low · Immediate</div>
+        <div class="field" style="margin-top:8px"><label>Escalate to</label><select class="inp"><option>Dr. Sharma (On-call)</option><option>Charge Nurse Meena</option></select></div>
+        <div class="field"><label>Nurse's Note</label><textarea style="width:100%;border:1px solid var(--border);border-radius:3px;padding:5px;font-size:11px;height:36px">BP 48 at 02:28. IV secured. Patient conscious.</textarea></div>
+        <span class="btn btn-p">Send Escalation →</span>
+        <p class="note">Doctor receives push: "Bed 15 needs attention — CareOS" (no PHI)</p>
+      </div>
+    </div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="step">
+    <div class="step-lbl"><span class="persona p-nur">Bedside Nurse</span> N3 — Post-Escalation ⚠ NEW</div>
+    <div class="sf">
+      <div class="sf-bar">N1 — Bed 15 Updated</div>
+      <div class="sf-body sf-gray">
+        <div class="notif-g" style="margin-bottom:6px">✓ Escalation sent · 02:29</div>
+        <table class="tbl">
+          <tr><th>Bed</th><th>ID</th><th>NEWS2</th><th>Escalation</th></tr>
+          <tr style="background:rgba(192,57,43,.06)">
+            <td><span class="bed bc">15</span></td><td><strong>PT-4473</strong></td><td><span class="ns nsc">9</span></td>
+            <td><span class="tag" style="background:#fff8e1;color:#856404">⏳ Pending ack</span></td>
+          </tr>
+        </table>
+        <p class="note">Row updated in real-time. Escalation status visible to all nurses on ward.</p>
+      </div>
+    </div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="step">
+    <div class="step-lbl"><span class="persona p-nur">Nurse</span> N4 — Status &amp; De-Escalation ⚠ NEW</div>
+    <div class="sf">
+      <div class="sf-bar">Escalation Log · Bed 15</div>
+      <div class="sf-body">
+        <table class="tbl">
+          <tr><th>Time</th><th>Event</th></tr>
+          <tr><td>02:28</td><td>BP alert (48 mmHg)</td></tr>
+          <tr><td>02:29</td><td>Nurse escalated → Dr. Sharma</td></tr>
+          <tr><td>02:31</td><td style="color:var(--green)">✓ Dr. Sharma acknowledged</td></tr>
+          <tr><td>02:35</td><td>Doctor at bedside</td></tr>
+          <tr><td>02:50</td><td>BP 72 mmHg · NEWS2 drops to 5</td></tr>
+        </table>
+        <div style="margin-top:8px;display:flex;gap:6px">
+          <span class="btn btn-grn">✓ Mark Resolved</span>
+          <span class="btn btn-o">Re-Escalate → N5 Charge Nurse Queue</span>
+        </div>
+        <div class="notif-g" style="margin-top:6px">✓ Escalation resolved · 02:52 · Nurse Meera · Logged in N4 status log</div>
+        <div class="sf" style="margin-top:10px"><div class="sf-bar">N4b — N1 Dashboard After Resolution (auto-refresh)</div><div class="sf-body sf-gray">
+          <div class="notif-g" style="margin-bottom:8px">✓ Bed 15 escalation resolved — dashboard updated</div>
+          <table class="tbl">
+            <tr><th>Bed</th><th>ID</th><th>NEWS2</th><th>Status</th><th>Escalation</th></tr>
+            <tr style="background:rgba(212,160,23,.06)">
+              <td><span class="bed bw">15</span></td><td><strong>PT-4473</strong></td>
+              <td><span class="ns nsw">5</span></td>
+              <td><span class="tag t-rev">Warning</span></td>
+              <td><span class="tag t-sign">✓ Resolved 02:52</span></td>
+            </tr>
+          </table>
+          <p class="note" style="margin-top:4px">Bed 15 moves: Critical (red) → Warning (amber) because NEWS2 dropped from 9 to 5. If NEWS2 had dropped below 5 → Stable (green). Row colour, bed badge, and NEWS2 badge all update simultaneously. Escalation archived to N5 charge nurse log. Visible on N6 handoff summary.</p>
+        </div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="st"><span class="st-id">N6 → N6b</span> N6 — Shift Handoff</div>
+<div class="sf">
+  <div class="sf-bar"><span class="sid">N6</span><span class="persona p-nur">Bedside Nurse</span> N6 — End of Shift Handoff</div>
+  <div class="sf-body">
+    <div class="notif">Night shift ending — 06:00 AM. Handoff to Day Shift Nurse Priya.</div>
+    <table class="tbl" style="margin-top:8px">
+      <tr><th>Bed</th><th>Status</th><th>Active Escalation</th><th>Handoff Note</th></tr>
+      <tr><td><span class="bed bc">15</span></td><td><span class="tag t-rev">Warning</span></td><td>Resolved 02:52</td><td><div class="inp" style="font-size:10px">BP stabilised post-intervention. Monitor Q1h.</div></td></tr>
+      <tr><td><span class="bed bw">27</span></td><td><span class="tag t-rev">Warning</span></td><td>None</td><td><div class="inp" style="font-size:10px">HR elevated. DKA protocol active. Check labs at 08:00.</div></td></tr>
+      <tr><td><span class="bed bo">31</span></td><td><span class="tag t-sign">Stable</span></td><td>None</td><td><div class="inp" style="font-size:10px">Routine monitoring.</div></td></tr>
+      <!-- Note: Handoff notes are EDITABLE by outgoing nurse before completing handoff. Pre-filled from last nurse's session notes. Incoming nurse sees them as read-only after handoff is completed. -->
+    </table>
+    <div style="margin-top:10px;display:flex;gap:6px"><span class="btn btn-p">Complete Handoff →</span><span class="btn btn-g">Add Note</span></div>
+    <p class="note">Handoff logged with timestamp. Day nurse receives in-app notification with this summary.</p>
+    <div class="sf" style="margin-top:12px"><div class="sf-bar">N6b — Handoff Complete</div><div class="sf-body">
+      <div class="notif-g">✓ Handoff complete · 06:05 AM · Nurse Meera (Night) → Nurse Priya (Day)</div>
+      <div class="notif" style="margin-top:4px">📱 Day shift Nurse Priya receives in-app notification: "Night shift handoff ready. 3 beds flagged — view summary."</div>
+      <div style="margin-top:8px;display:flex;gap:6px"><span class="btn btn-g">← Exit (auto-logout in 2 min)</span></div>
+      <p class="note">After handoff: session extends 2 min for urgent escalations, then prompts logout. Day nurse sees handoff badge on N1 dashboard.</p>
+    </div></div>
+  </div>
+</div>
+</div>
+
+<!-- ═══ CHARGE NURSE ═══ -->
+<div class="content" id="tab-p2cn">
+<div class="st"><span class="st-id">N5 → N5b</span> Charge Nurse — Escalation Queue + Ward Overview + Threshold Config</div>
+<div class="sf" style="margin-bottom:16px">
+  <div class="sf-bar">N5 — Empty State (Quiet Shift)</div>
+  <div class="sf-body sf-gray">
+    <div class="empty"><div class="empty-icon">✅</div><div style="font-weight:700;color:var(--green)">All clear — no active escalations</div><div style="color:var(--muted);font-size:11px;margin-top:4px">Ward A · 0 unacknowledged · Last escalation resolved at 01:52</div></div>
+    <div style="display:flex;gap:8px;justify-content:center;margin-top:12px"><span class="btn btn-g">View Resolved Log</span><span class="btn btn-o">Configure Thresholds → N5b</span></div>
+    <p class="note" style="margin-top:8px;text-align:center">Empty state shown when all escalations resolved. Charge Nurse still has access to N5b threshold config and full resolved log.</p>
+  </div>
+</div>
+<div class="row">
+  <div class="col">
+    <div class="sf">
+      <div class="sf-bar"><span class="sid">N5</span><span class="persona p-cnu">Charge Nurse</span> N5 — Escalation Queue (Active)</div>
+      <div class="sf-body">
+        <div class="notif-r">3 active escalations · 1 unacknowledged &gt;5 min</div>
+        <table class="tbl" style="margin-top:8px">
+          <tr><th>Bed</th><th>Escalated By</th><th>Time</th><th>Doctor</th><th>Status</th><th></th></tr>
+          <tr><td><span class="bed bc">15</span></td><td>Nurse Meera</td><td>02:29</td><td>Dr. Sharma</td><td><span class="tag t-sign">✓ Acknowledged</span></td><td><span class="btn btn-g" style="font-size:10px">View</span></td></tr>
+          <tr><td><span class="bed bw">27</span></td><td>Nurse Ritu</td><td>02:45</td><td>—</td><td><span class="tag t-rej">⚠ Unacknowledged</span></td><td><span class="btn btn-p" style="font-size:10px">Re-Escalate</span></td></tr>
+          <tr><td><span class="bed bc">19</span></td><td>Nurse Meera</td><td>01:10</td><td>Dr. Mehta</td><td><span class="tag t-done">Resolved</span></td><td><span class="btn btn-g" style="font-size:10px">Log</span></td></tr>
+        </table>
+        <p class="note" style="margin-top:6px">Unacknowledged &gt;5 min triggers charge nurse alert. Charge nurse can re-escalate to on-call doctor.</p>
+        <div class="sf" style="margin-top:10px"><div class="sf-bar">N5 — Re-Escalation Confirmation</div><div class="sf-body">
+          <div class="notif-g">✓ Re-escalation sent to Dr. Mehta (On-call) · 02:50 AM · "Previous escalation unresolved · Bed 27 · NEWS2 6"</div>
+          <div class="notif" style="margin-top:4px">Dr. Mehta receives push notification + in-app alert. N5 row updates to "Re-escalated → Dr. Mehta"</div>
+        </div></div>
+      </div>
+    </div>
+  </div>
+  <div class="col">
+    <div class="sf">
+      <div class="sf-bar"><span class="sid">N5b</span><span class="persona p-cnu">Charge Nurse</span> N5b — Ward Threshold Config</div>
+      <div class="sf-body">
+        <div class="comp"><strong>Note:</strong> Thresholds set here apply to this ward only. Hospital-level defaults set by Super Admin.</div>
+        <table class="tbl" style="margin-top:8px">
+          <tr><th>Vital</th><th>Alert Threshold</th><th>Source</th></tr>
+          <tr><td>Heart Rate</td><td><div class="inp" style="display:inline-block;width:60px">&gt;110 bpm</div></td><td>Medanta Protocol</td></tr>
+          <tr><td>SpO2</td><td><div class="inp" style="display:inline-block;width:60px">&lt;90%</div></td><td>NEWS2 Standard</td></tr>
+          <tr><td>BP (Systolic)</td><td><div class="inp" style="display:inline-block;width:60px">&lt;90 mmHg</div></td><td>Medanta Protocol</td></tr>
+          <tr><td>Resp Rate</td><td><div class="inp" style="display:inline-block;width:60px">&gt;25 b/m</div></td><td>NEWS2 Standard</td></tr>
+        </table>
+        <div class="field" style="margin-top:8px">
+          <label>Charge Nurse Sign-off <span style="color:var(--red)">*</span></label>
+          <div style="display:flex;align-items:center;gap:8px;background:var(--gray);padding:6px;border-radius:3px">
+            <input type="checkbox"> I confirm these thresholds are clinically appropriate for Ward A Cardiology
+          </div>
+        </div>
+        <span class="btn btn-p" style="margin-top:6px">Save Thresholds</span>
+        <div class="notif-g" style="margin-top:6px">✓ Thresholds saved · Effective immediately for Ward A · N1 dashboard auto-refreshes in 30s · Change logged: Charge Nurse Meena · Jun 2 03:15</div>
+        <p class="note">Sign-off required before save activates. Change logged in audit with Charge Nurse identity + timestamp. Cannot be undone without a new sign-off.</p>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ═══ DRUG-LAB ═══ -->
+<div class="content" id="tab-p2dl">
+<div class="st"><span class="st-id">DL1 → DL3</span> Drug-Lab Flow — Flag in Summary → Attending Reviews → Override / Replace → Nurse Awareness → Rules Mgmt</div>
+<div class="flow">
+  <div class="step">
+    <div class="step-lbl"><span class="persona p-att">Attending</span> DL1 — S7 with Flags</div>
+    <div class="sf"><div class="sf-bar">S7 Medications · P-1001</div><div class="sf-body">
+      <div class="nabh sel"><div class="nabh-h">S7 Medications <span class="chip t1">⚠ 2 Drug-Lab Flags</span></div>
+        <div class="nabh-body">
+          <div style="background:#fde8e8;border-left:3px solid var(--red);padding:6px;border-radius:0 4px 4px 0;margin-bottom:6px"><strong>⚠ Hyperkalemia Risk</strong><div style="font-size:10px;color:var(--muted)">Spironolactone + ACE-I · K+ 5.1 mEq/L</div></div>
+          <div style="background:#fde8e8;border-left:3px solid var(--red);padding:6px;border-radius:0 4px 4px 0;margin-bottom:6px"><strong>⚠ Creatinine &gt; 1.5</strong><div style="font-size:10px;color:var(--muted)">Metformin contraindicated · Cr 1.9 mg/dL</div></div>
+          Ecosprin 75mg · Clopivas 75mg · Spironolactone 25mg…
+        </div>
+      </div>
+    </div></div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="step">
+    <div class="step-lbl"><span class="persona p-att">Attending</span> DL2 — Flag Detail</div>
+    <div class="sf"><div class="sf-bar">Flag Detail · Metformin + High Cr</div><div class="sf-body">
+      <div class="notif-r"><strong>Rule #4:</strong> Metformin contraindicated when Cr &gt;1.5. Patient Cr: 1.9.</div>
+      <div class="field" style="margin-top:8px"><label>Action</label><select class="inp"><option>Override (with justification)</option><option selected>Replace with alternative</option><option>Hold — review in OPD</option></select></div>
+      <div class="field"><label>Justification <span style="color:var(--red)">* required for Override</span></label><textarea style="width:100%;border:1px solid var(--border);border-radius:3px;padding:5px;font-size:11px;height:36px"></textarea></div>
+      <div class="notif-r" style="margin-bottom:6px;display:none" id="dl2-err">⚠ Justification required when overriding. Please describe clinical reasoning.</div>
+      <span class="btn btn-p">Save Decision →</span>
+      <p class="note">Validation: Save blocked if "Override" selected and justification empty. Tier 1 flags require Charge Nurse co-sign after attending submits.</p>
+    </div></div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="step">
+    <div class="step-lbl"><span class="persona p-att">Attending</span> DL2b — Confirmation ⚠ NEW</div>
+    <div class="sf"><div class="sf-bar">Decision Saved</div><div class="sf-body">
+      <div class="notif-g">✓ Decision saved: Metformin → Hold (OPD review)</div>
+      <div class="notif-g">✓ Audit: Dr. Sharma · Jun 2 11:35 · Decision logged</div>
+      <div style="margin-top:8px;display:flex;gap:6px">
+        <span class="btn btn-p">← Back to S4b Review</span>
+        <span class="btn btn-g">View All Drug-Lab Flags</span>
+      </div>
+      <p class="note" style="margin-top:4px">Breadcrumb: Review → S7 Medications → Flag #4 · Back returns to S4b split pane with S7 flagged as "Decision logged"</p>
+    </div></div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="step">
+    <div class="step-lbl"><span class="persona p-nur">Bedside Nurse</span> DL3 — Drug-Lab Tab</div>
+    <div class="sf"><div class="sf-bar">Ward A · Drug-Lab Alerts</div><div class="sf-body">
+      <div class="notif" style="margin-bottom:8px">Navigation: N1 dashboard → "Drug-Lab" tab (shown in screen nav bar alongside Mod A/B/C/D)</div>
+      <div class="screen-nav" style="margin-bottom:8px;border:1px solid var(--border);border-radius:4px">
+        <span class="module">NEWS2 View</span>
+        <span class="module active">Drug-Lab Alerts <span style="background:var(--red);color:#fff;border-radius:8px;padding:1px 5px;font-size:9px;margin-left:4px">3</span></span>
+        <span class="module">Escalation Log</span>
+      </div>
+      <table class="tbl">
+        <tr><th>Bed</th><th>Drug</th><th>Lab Flag</th><th>Status</th><th></th></tr>
+        <tr><td><span class="bed bc">19</span></td><td>Spiro + ACE-I</td><td>K+ 5.1</td><td><span class="tag t-pend">Pending</span></td><td><span class="btn btn-g" style="font-size:10px">Acknowledge</span></td></tr>
+        <tr><td><span class="bed bw">27</span></td><td>Metformin</td><td>Cr 1.9</td><td><span class="tag t-sign">Held</span></td><td>—</td></tr>
+        <tr><td><span class="bed bo">31</span></td><td>NSAIDs</td><td>eGFR 42</td><td><span class="tag t-rej">Held</span></td><td>—</td></tr>
+      </table>
+      <div class="notif-g" style="margin-top:6px;font-size:10px">After "Acknowledge": ✓ Flag marked seen · PT-4473 · Bed 19 · Nurse Meera · 11:36 AM</div>
+      <p class="note" style="margin-top:4px">Nurse sees awareness only. Clinical decisions by Attending. Count badge on tab decreases after acknowledge.</p>
+    </div></div>
+  </div>
+</div>
+
+<div class="st"><span class="st-id">SA3</span> Drug-Lab Rules Management — Super Admin</div>
+<div class="sf">
+  <div class="sf-bar"><span class="persona p-sup">Super Admin</span> Drug-Lab Rules · 13 Rules (India-Calibrated · CSI / CDSCO / RSSDI / ESC / FDA)</div>
+  <div class="sf-body">
+    <div class="warn" style="margin-bottom:10px">Rules require clinical validation by hospital pharmacologist before deployment. Rules shown below are draft for demo.</div>
+    <table class="tbl">
+      <tr><th>#</th><th>Rule</th><th>Trigger</th><th>Severity</th><th>Action Required</th><th></th></tr>
+      <tr><td>1</td><td>Hyperkalemia Risk</td><td>Spiro + ACE-I + K+ &gt;5.0</td><td><span class="chip t1">Tier 1</span></td><td>Attending + Charge Nurse sign-off</td><td><span class="btn btn-g" style="font-size:10px">Edit</span></td></tr>
+      <tr><td>2</td><td>Renal Function Check</td><td>Metformin + Cr &gt;1.5</td><td><span class="chip t1">Tier 1</span></td><td>Attending decision</td><td><span class="btn btn-g" style="font-size:10px">Edit</span></td></tr>
+      <tr><td>3</td><td>NSAIDs + Renal</td><td>NSAIDs + eGFR &lt;60</td><td><span class="chip t2">Tier 2</span></td><td>Attending decision</td><td><span class="btn btn-g" style="font-size:10px">Edit</span></td></tr>
+      <tr><td>4–10</td><td colspan="4" style="color:var(--muted);font-style:italic">Warfarin + Ecosprin · Digoxin toxicity · QT prolongation · Statin + CYP3A4 inhibitor · … (7 more)</td><td><span class="btn btn-o" style="font-size:10px">View All</span></td></tr>
+    </table>
+    <span class="btn btn-p" style="margin-top:8px">+ Add Rule</span>
+    <p class="note" style="margin-top:4px">Rules stored in DB. Applied at runtime. Changes require Super Admin sign-off + clinical reviewer approval. Max 50 active rules per hospital.</p>
+    <div class="sf" style="margin-top:12px"><div class="sf-bar">+ Add Rule — New Rule Form</div><div class="sf-body">
+      <div class="warn" style="margin-bottom:8px">⚠ New rules must be validated by a clinical pharmacologist before activation. Save as Draft first, then submit for approval.</div>
+      <div class="row"><div class="col"><div class="field"><label>Rule Name *</label><div class="inp">e.g. Warfarin + NSAID bleeding risk</div></div></div><div class="col"><div class="field"><label>Severity *</label><select class="inp"><option>Tier 1 — Attending + Charge Nurse co-sign</option><option>Tier 2 — Attending decision only</option><option>Tier 3 — Advisory only</option></select></div></div></div>
+      <div class="field"><label>Triggered Lab *</label><select class="inp"><option>potassium</option><option>creatinine</option><option>egfr</option><option>inr</option><option>alt</option><option>heart_rate</option><option>lactate</option><option>other (specify)</option></select></div>
+      <div class="field"><label>Lab Threshold *</label><div class="inp">e.g. &gt; 5.5 or &lt; 3.5</div></div>
+      <div class="field"><label>Implicated Drug(s) *</label><div class="inp">e.g. warfarin, nsaids (comma-separated, must match formulary keys)</div></div>
+      <div class="field"><label>Clinical Message *</label><div class="inp">e.g. INR elevated with NSAID — increased bleeding risk</div></div>
+      <div class="field"><label>Recommended Action *</label><div class="inp">e.g. Hold NSAID. Consider paracetamol as alternative. Recheck INR in 48h.</div></div>
+      <div class="field"><label>Guideline Source *</label><div class="inp">e.g. CSI AF Guidelines 2021 / BNF</div></div>
+      <div style="display:flex;gap:6px;margin-top:8px"><span class="btn btn-o">Save as Draft</span><span class="btn btn-p">Submit for Clinical Review →</span><span class="btn btn-g">Cancel</span></div>
+      <div class="notif-g" style="margin-top:6px">→ After Submit: "✓ Rule submitted for clinical review · Pharmacologist will receive email notification · Rule inactive until approved · Ref: RULE-DRAFT-014"</div>
+      <p class="note" style="margin-top:4px">Draft rules visible in SA3 table with "Draft" badge. Cannot trigger patient alerts until approved. Approval logs to audit with pharmacologist name + timestamp.</p>
+    </div></div>
+    <div class="sf" style="margin-top:8px"><div class="sf-bar">Edit Rule #1 — Hyperkalemia Risk</div><div class="sf-body">
+      <div class="row"><div class="col"><div class="field"><label>Rule Name</label><div class="val">Hyperkalemia Risk</div></div></div><div class="col"><div class="field"><label>Severity</label><select class="inp"><option selected>Tier 1 — Attending + Charge Nurse co-sign</option><option>Tier 2 — Attending decision only</option></select></div></div></div>
+      <div class="field"><label>Trigger Condition</label><div class="val">Drug: Spironolactone OR ACE Inhibitor · AND · Lab: K+ &gt; 5.0 mEq/L</div></div>
+      <div class="field"><label>Required Action</label><div class="val">Attending must override/replace/hold + Charge Nurse co-sign required for Tier 1</div></div>
+      <div style="display:flex;gap:6px"><span class="btn btn-p">Save Rule →</span><span class="btn btn-g">Cancel</span></div>
+      <div class="notif-g" style="margin-top:6px">→ After save: "✓ Rule #1 updated · Propagating to all wards (30s)" · DL1 flags update in real-time · Affected patients re-flagged · Audit logged</div>
+    </div></div>
+  </div>
+</div>
+</div>
+
+<!-- ═══ SPRINT PLAN ═══ -->
+<div class="content" id="tab-spr">
+<div class="st">Sprint 1 — Jun 1–6</div>
+<table class="tbl">
+  <tr><th>#</th><th>Task</th><th>Track</th><th>Owner</th><th>Due</th><th>Status</th></tr>
+  <tr><td>1</td><td>P1 server deploy + URL</td><td>P1</td><td style="color:#0066cc;font-weight:700">Ashmit</td><td>Jun 1</td><td style="color:#ccc">☐</td></tr>
+  <tr><td>2</td><td>P2 server deploy + URL</td><td>P2</td><td style="color:var(--green);font-weight:700">Sabari</td><td>Jun 1</td><td style="color:#ccc">☐</td></tr>
+  <tr><td>3</td><td>GitHub repo access to Harshika</td><td>P1</td><td style="color:#0066cc;font-weight:700">Ashmit</td><td>Jun 1</td><td style="color:#ccc">☐</td></tr>
+  <tr><td>4</td><td>MIMIC data inventory: present/missing/synthetic</td><td>P2</td><td style="color:var(--green);font-weight:700">Sabari</td><td>Jun 1</td><td style="color:#ccc">☐</td></tr>
+  <tr><td>5</td><td>S4d: LLM revision result screen (functional)</td><td>P1</td><td style="color:#0066cc;font-weight:700">Ashmit</td><td>Jun 2</td><td style="color:#ccc">☐</td></tr>
+  <tr><td>6</td><td>Section highlighting → exact source line</td><td>P1</td><td style="color:#0066cc;font-weight:700">Ashmit</td><td>Jun 2</td><td style="color:#ccc">☐</td></tr>
+  <tr><td>7</td><td>Comment button → LLM revision (functional)</td><td>P1</td><td style="color:#0066cc;font-weight:700">Ashmit</td><td>Jun 2</td><td style="color:#ccc">☐</td></tr>
+  <tr><td>8</td><td>Patient numbers (not names) in P2 dashboard</td><td>P2</td><td style="color:var(--green);font-weight:700">Sabari</td><td>Jun 2</td><td style="color:#ccc">☐</td></tr>
+  <tr><td>9</td><td>One-liner flag reason per critical/warning row</td><td>P2</td><td style="color:var(--green);font-weight:700">Sabari</td><td>Jun 2</td><td style="color:#ccc">☐</td></tr>
+  <tr><td>10</td><td>NEWS2 legend on first screen</td><td>P2</td><td style="color:var(--green);font-weight:700">Sabari</td><td>Jun 2</td><td style="color:#ccc">☐</td></tr>
+  <tr><td>11</td><td>Temperature in Celsius + vitals timestamp</td><td>P2</td><td style="color:var(--green);font-weight:700">Sabari</td><td>Jun 2</td><td style="color:#ccc">☐</td></tr>
+  <tr><td>12</td><td>Wireframes v15 complete — all 8 personas, full state coverage, insurance, RBAC nav, 15 NABH sections, source panel, SA1/SA2/SA3 forms, N1 stale vitals, N4b, N5 empty state</td><td>PM</td><td style="color:var(--p);font-weight:700">Harshika</td><td>Jun 2</td><td style="color:var(--green);font-weight:700">✓</td></tr>
+</table>
+
+<hr>
+<div class="st">Sprint 2 — Jun 7–13</div>
+<table class="tbl">
+  <tr><th>#</th><th>Task</th><th>Track</th><th>Owner</th><th>Due</th><th>Status</th></tr>
+  <tr><td>13</td><td>NABH 15-section two-pass structured output</td><td>P1</td><td style="color:#0066cc;font-weight:700">Ashmit</td><td>Jun 9</td><td style="color:#ccc">☐</td></tr>
+  <tr><td>14</td><td>RBAC — role set at login, no toggle</td><td>P1</td><td style="color:#0066cc;font-weight:700">Ashmit</td><td>Jun 9</td><td style="color:#ccc">☐</td></tr>
+  <tr><td>15</td><td>Rejection flow: staff queue + regenerate + notify</td><td>P1</td><td style="color:#0066cc;font-weight:700">Ashmit</td><td>Jun 11</td><td style="color:#ccc">☐</td></tr>
+  <tr><td>16</td><td>Admin Kanban with rejected column</td><td>P1</td><td style="color:#0066cc;font-weight:700">Ashmit</td><td>Jun 11</td><td style="color:#ccc">☐</td></tr>
+  <tr><td>17</td><td>Module B cost estimator UI + cost band output</td><td>P1-B</td><td style="color:#0066cc;font-weight:700">Ashmit</td><td>Jun 13</td><td style="color:#ccc">☐</td></tr>
+  <tr><td>18</td><td>Escalation backend — doctor notification (non-PHI)</td><td>P2</td><td style="color:var(--green);font-weight:700">Sabari</td><td>Jun 9</td><td style="color:#ccc">☐</td></tr>
+  <tr><td>19</td><td>Alert rules → DB (hospital/doctor/patient level)</td><td>P2</td><td style="color:var(--green);font-weight:700">Sabari</td><td>Jun 11</td><td style="color:#ccc">☐</td></tr>
+  <tr><td>20</td><td>All 13 drug-lab rules integrated for demo (CSI/CDSCO/RSSDI/ESC/FDA calibrated)</td><td>P2-D</td><td style="color:var(--green);font-weight:700">Sabari</td><td>Jun 12</td><td style="color:#ccc">☐</td></tr>
+  <tr><td>21</td><td>P2 nurse dashboard mobile responsive</td><td>P2</td><td style="color:var(--green);font-weight:700">Sabari</td><td>Jun 13</td><td style="color:#ccc">☐</td></tr>
+  <tr><td>22</td><td>US → Indian medicine mapping (salt-based: Ecosprin/Clopivas/Atorva)</td><td>P1</td><td style="color:#0066cc;font-weight:700">Ashmit</td><td>Jun 11</td><td style="color:#ccc">☐</td></tr>
+  <tr><td>23</td><td>Shift handoff screen (N6) backend</td><td>P2</td><td style="color:var(--green);font-weight:700">Sabari</td><td>Jun 13</td><td style="color:#ccc">☐</td></tr>
+  <tr><td>24</td><td>Cardiologist interviews (2–3)</td><td>PM</td><td style="color:var(--p);font-weight:700">Harshika</td><td>Jun 13</td><td style="color:#ccc">☐</td></tr>
+  <tr><td>25</td><td>Accuracy baseline: 20 summaries Tier 1–3</td><td>PM</td><td style="color:var(--p);font-weight:700">Harshika</td><td>Jun 13</td><td style="color:#ccc">☐</td></tr>
+  <tr><td>26</td><td>CE1: Insurance policy no. + pre-auth fields (hidden for Self-Pay)</td><td>P1-B</td><td style="color:#0066cc;font-weight:700">Ashmit</td><td>Jun 11</td><td style="color:#ccc">☐</td></tr>
+  <tr><td>27</td><td>CE2: Mediclaim coverage breakdown + Ayushman Bharat / CGHS package rate variant</td><td>P1-B</td><td style="color:#0066cc;font-weight:700">Ashmit</td><td>Jun 13</td><td style="color:#ccc">☐</td></tr>
+  <tr><td>28</td><td>SA1: Edit User form + Deactivate confirmation dialog (session invalidation)</td><td>P1</td><td style="color:#0066cc;font-weight:700">Ashmit</td><td>Jun 11</td><td style="color:#ccc">☐</td></tr>
+  <tr><td>29</td><td>SA2: Module toggle OFF confirmation modal (impact summary + active user warning)</td><td>P1</td><td style="color:#0066cc;font-weight:700">Ashmit</td><td>Jun 11</td><td style="color:#ccc">☐</td></tr>
+  <tr><td>30</td><td>N1: Stale vitals row (grey, &gt;30 min) + Acknowledge action for Warning-level</td><td>P2</td><td style="color:var(--green);font-weight:700">Sabari</td><td>Jun 11</td><td style="color:#ccc">☐</td></tr>
+  <tr><td>31</td><td>N5: Empty state when no active escalations (quiet shift)</td><td>P2</td><td style="color:var(--green);font-weight:700">Sabari</td><td>Jun 9</td><td style="color:#ccc">☐</td></tr>
+</table>
+
+<hr>
+<div class="st">Sprint 3 — Jun 14–20</div>
+<table class="tbl">
+  <tr><th>#</th><th>Task</th><th>Track</th><th>Owner</th><th>Due</th><th>Status</th></tr>
+  <tr><td>32</td><td>E2E integration test: all 4 modules connected</td><td>All</td><td style="color:#0066cc;font-weight:700">Ashmit + Sabari</td><td>Jun 16</td><td style="color:#ccc">☐</td></tr>
+  <tr><td>33</td><td>SLA timer in S4b (attending review clock, breach alert in A1)</td><td>P1</td><td style="color:#0066cc;font-weight:700">Ashmit</td><td>Jun 17</td><td style="color:#ccc">☐</td></tr>
+  <tr><td>34</td><td>S4b: source panel shows document name + page + exact line per NABH section</td><td>P1</td><td style="color:#0066cc;font-weight:700">Ashmit</td><td>Jun 16</td><td style="color:#ccc">☐</td></tr>
+  <tr><td>35</td><td>A1: SLA breach visual on Kanban card (red card + breach label)</td><td>P1</td><td style="color:#0066cc;font-weight:700">Ashmit</td><td>Jun 17</td><td style="color:#ccc">☐</td></tr>
+  <tr><td>36</td><td>A2: Version compare view (side-by-side diff, changed sections only)</td><td>P1</td><td style="color:#0066cc;font-weight:700">Ashmit</td><td>Jun 17</td><td style="color:#ccc">☐</td></tr>
+  <tr><td>37</td><td>Module A→B trigger: S6 sign notifies billing queue → CE4 auto-fills final diagnosis + procedure from signed discharge summary</td><td>P1-B</td><td style="color:#0066cc;font-weight:700">Ashmit</td><td>Jun 18</td><td style="color:#ccc">☐</td></tr>
+  <tr><td>38</td><td>SA3: Add Rule form + draft/approval workflow (pharmacologist sign-off gate)</td><td>P1</td><td style="color:#0066cc;font-weight:700">Ashmit</td><td>Jun 18</td><td style="color:#ccc">☐</td></tr>
+  <tr><td>39</td><td>Drug-lab rules clinical QA + identify Medanta pharmacologist for sign-off</td><td>P2-D</td><td style="color:var(--p);font-weight:700">Harshika</td><td>Jun 17</td><td style="color:#ccc">☐</td></tr>
+  <tr><td>40</td><td>Real-time vital sparklines in N1b (replace text trend with SVG)</td><td>P2</td><td style="color:var(--green);font-weight:700">Sabari</td><td>Jun 18</td><td style="color:#ccc">☐</td></tr>
+  <tr><td>41</td><td>DPDPA audit export (Super Admin only, A2 export to PDF/CSV)</td><td>P1</td><td style="color:#0066cc;font-weight:700">Ashmit</td><td>Jun 19</td><td style="color:#ccc">☐</td></tr>
+  <tr><td>42</td><td>CE1 financial consent checkbox (DPDPA gate for CE5 SMS)</td><td>P1-B</td><td style="color:#0066cc;font-weight:700">Ashmit</td><td>Jun 19</td><td style="color:#ccc">☐</td></tr>
+  <tr><td>43</td><td>NHCX: claim submission stub post-discharge (CE5 flow)</td><td>P1-B</td><td style="color:#0066cc;font-weight:700">Ashmit</td><td>Jun 19</td><td style="color:#ccc">☐</td></tr>
+  <tr><td>44</td><td>Pilot demo prep: synthetic patient dataset + run-sheet</td><td>PM</td><td style="color:var(--p);font-weight:700">Harshika</td><td>Jun 20</td><td style="color:#ccc">☐</td></tr>
+</table>
+
+<hr>
+<div class="st">Sprint 4 — Jun 21–27 (Pilot Hardening)</div>
+<table class="tbl">
+  <tr><th>#</th><th>Task</th><th>Track</th><th>Owner</th><th>Due</th><th>Status</th></tr>
+  <tr><td>45</td><td>Bug bash + regression: all 8 persona flows end-to-end</td><td>All</td><td style="color:#0066cc;font-weight:700">Ashmit + Sabari</td><td>Jun 23</td><td style="color:#ccc">☐</td></tr>
+  <tr><td>46</td><td>MCI/NMC format validation in S5 (regex on blur, format: XX-12345-YYYY)</td><td>P1</td><td style="color:#0066cc;font-weight:700">Ashmit</td><td>Jun 24</td><td style="color:#ccc">☐</td></tr>
+  <tr><td>47</td><td>UHID unified patient ID — link P-XXXX ↔ PT-XXXX visible to both personas (pre-pilot safety dep.)</td><td>Infra</td><td style="color:#0066cc;font-weight:700">Ashmit + Sabari</td><td>Jun 25</td><td style="color:#ccc">☐</td></tr>
+  <tr><td>48</td><td>Multi-hospital tenant isolation (hospital_id on all tables)</td><td>Infra</td><td style="color:#0066cc;font-weight:700">Ashmit</td><td>Jun 25</td><td style="color:#ccc">☐</td></tr>
+  <tr><td>49</td><td>Performance: P1 generation &lt;30s at 10 concurrent users; P2 dashboard &lt;2s at 20 nurses</td><td>All</td><td style="color:#0066cc;font-weight:700">Ashmit + Sabari</td><td>Jun 26</td><td style="color:#ccc">☐</td></tr>
+  <tr><td>50</td><td>Pilot readiness sign-off + DPA confirmation</td><td>PM</td><td style="color:var(--p);font-weight:700">Harshika</td><td>Jun 27</td><td style="color:#ccc">☐</td></tr>
+</table>
+</div>
+
+<!-- ═══ EDGE CASES & MISSING SCENARIOS ═══ -->
+<div class="content" id="tab-edge">
+<div class="warn" style="margin-bottom:16px">These are scenarios NOT covered in the main flow tabs. Each needs a screen or annotation before the product goes to pilot. Severity: 🔴 Critical · 🟡 High · 🟠 Medium</div>
+
+<div class="st">🔴 Attending Offline — Escalation Timeout (Patient Safety)</div>
+<div class="flow">
+  <div class="step"><div class="step-lbl"><span class="persona p-nur">Nurse</span> N2 Sent</div>
+    <div class="sf"><div class="sf-bar">Escalation Sent · 02:29</div><div class="sf-body">
+      <div class="notif">Push sent to Dr. Sharma. Awaiting acknowledgement…</div>
+      <div style="font-size:10px;color:var(--amber);margin-top:6px">⚠ MVP: Charge Nurse manually re-escalates after 5 min (N5 queue). Auto-escalate to backup = Phase 2.</div>
+    </div></div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="step"><div class="step-lbl"><span class="persona p-sys">System</span> 5-Min Timeout</div>
+    <div class="sf"><div class="sf-bar">Escalation Timeout · 02:34</div><div class="sf-body sf-gray">
+      <div class="notif-r">⚠ Dr. Sharma unresponsive for 5 min</div>
+      <div class="notif">Auto-routing to Charge Nurse Meena + On-call Dr. Mehta</div>
+      <p class="note">Auto-escalate to backup after 10 min = Phase 2. MVP: Charge Nurse manually re-escalates from N5.</p>
+    </div></div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="step"><div class="step-lbl"><span class="persona p-cnu">Charge Nurse</span> N5 Alert</div>
+    <div class="sf"><div class="sf-bar">N5 — Unacknowledged &gt;5 min</div><div class="sf-body">
+      <div class="notif-r">⚠ Bed 15 — Unacknowledged 6 min</div>
+      <div style="margin-top:6px;display:flex;gap:6px"><span class="btn btn-p">Re-Escalate to On-Call</span><span class="btn btn-o">Attend Personally</span></div>
+      <p class="note">Re-Escalate → sends to Dr. Mehta (on-call) with "Previous escalation unresolved" flag</p>
+    </div></div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="step"><div class="step-lbl"><span class="persona p-att">On-Call Doctor</span> Receives Alert</div>
+    <div class="sf"><div class="sf-bar">Escalation · Bed 15 · Unresolved</div><div class="sf-body">
+      <div class="notif-r">🚨 Re-escalation from Charge Nurse · Dr. Sharma unresponsive · Bed 15 · NEWS2: 9</div>
+      <span class="btn btn-p" style="margin-top:6px">Acknowledge →</span>
+    </div></div>
+  </div>
+</div>
+
+<div class="st">🔴 Patient Discharged Before Summary Signed</div>
+<div class="row">
+  <div class="col">
+    <div class="sf"><div class="sf-bar"><span class="persona p-sys">System</span> Discharge Event Detected</div><div class="sf-body">
+      <div class="notif-r">⚠ P-1001 has been discharged. Summary still unsigned.</div>
+      <div style="margin-top:8px">
+        <div class="field"><label>Action Required</label>
+          <div style="display:flex;flex-direction:column;gap:4px;background:var(--gray);padding:6px;border-radius:3px">
+            <label style="display:flex;gap:4px;font-size:11px"><input type="radio" name="dc"> Sign post-discharge (attending can still sign within 24 hrs)</label>
+            <label style="display:flex;gap:4px;font-size:11px"><input type="radio" name="dc"> Flag as "Unsigned Discharge" (NABH audit flag raised)</label>
+          </div>
+        </div>
+      </div>
+      <span class="btn btn-p">Confirm →</span>
+      <p class="note">Unsigned discharge = audit flag in A2 log. Attending must sign within 24 hrs or escalate to CMO.</p>
+    </div></div>
+  </div>
+  <div class="col">
+    <div class="sf"><div class="sf-bar"><span class="persona p-att">Attending</span> Post-Discharge Sign</div><div class="sf-body">
+      <div class="warn">Patient discharged · Jun 2 14:00. Signing post-discharge.</div>
+      <div class="field" style="margin-top:8px"><label>Reason for post-discharge signing</label><div class="inp">e.g. Attending was in emergency · Summary delayed</div></div>
+      <span class="btn btn-p">Sign &amp; Log Reason →</span>
+      <p class="note">Reason logged in audit trail. Summary PDF generated, sent to patient's registered email.</p>
+    </div></div>
+  </div>
+</div>
+
+<div class="st">🔴 Two Attendings Try to Sign the Same Summary (Concurrency)</div>
+<div class="sf" style="margin-bottom:20px">
+  <div class="sf-bar"><span class="persona p-att">Attending B</span> S5 — Summary Already Signed</div>
+  <div class="sf-body">
+    <div class="notif-r">⚠ This summary was already signed by Dr. Sharma at 11:45 AM · Jun 2 · v2</div>
+    <div style="margin-top:8px;display:flex;gap:6px"><span class="btn btn-o">View Signed Summary</span><span class="btn btn-g">← Back to Queue</span></div>
+    <p class="note">Backend: optimistic locking on summary ID. Second sign attempt returns 409 Conflict → UI shows this screen. Phase 2: real-time "Dr. Sharma is reviewing" lock indicator in S4b.</p>
+  </div>
+</div>
+
+<div class="st">🟡 CE1 — Cost Estimator: Out-of-Distribution Diagnosis (OOD)</div>
+<div class="sf" style="margin-bottom:20px">
+  <div class="sf-bar"><span class="persona p-bil">Billing Staff</span> CE2 — Low Confidence Estimate</div>
+  <div class="sf-body">
+    <div class="warn">⚠ Diagnosis "Myocarditis with LVAD" not in training data (confidence: 42%). Estimate may be unreliable.</div>
+    <div class="cband-row" style="margin-top:8px">
+      <div class="cband cb-f"><div class="cband-n">₹5.2L</div><div class="cband-l">Floor</div></div>
+      <div class="cband cb-e"><div class="cband-n">₹9.1L</div><div class="cband-l">Expected</div></div>
+      <div class="cband cb-c"><div class="cband-n">₹14.8L</div><div class="cband-l">Ceiling</div></div>
+    </div>
+    <p class="note">Wide confidence interval = OOD indicator. Phase 2: show confidence score explicitly. MVP: flag OOD diagnoses with yellow warning + recommend manual review.</p>
+    <div style="margin-top:8px;display:flex;gap:6px"><span class="btn btn-o">Use Anyway (log as manual)</span><span class="btn btn-p">Request Manual Review</span></div>
+  </div>
+</div>
+
+<div class="st">🟡 CE4b — Variance &gt;10%: Attending Approval Required ⚠ MISSING FROM CE4</div>
+<div class="flow">
+  <div class="step"><div class="step-lbl"><span class="persona p-bil">Billing Staff</span> CE4 — Variance Flag</div>
+    <div class="sf"><div class="sf-bar">CE4 Reconciliation · Variance Detected</div><div class="sf-body">
+      <div class="notif-r">⚠ PTCA Procedure: Actual ₹2.3L vs Est ₹2.1L — Δ+₹0.2L (9.5% variance). Above 10% threshold requires sign-off.</div>
+      <span class="btn btn-p" style="margin-top:6px">Request Attending Approval →</span>
+    </div></div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="step"><div class="step-lbl"><span class="persona p-att">Attending</span> CE4b — Variance Review</div>
+    <div class="sf"><div class="sf-bar">Variance Approval · P-1001</div><div class="sf-body">
+      <div class="notif-r">₹0.2L overage on PTCA — 9.5% above estimate</div>
+      <div class="field" style="margin-top:8px"><label>Reason for variance</label>
+        <select class="inp"><option>Procedure complexity higher than expected</option><option>Additional consumables used</option><option>ICU stay extended</option><option>Other</option></select>
+      </div>
+      <span class="btn btn-p">Approve Variance →</span>
+    </div></div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="step"><div class="step-lbl"><span class="persona p-bil">Billing Staff</span> CE4c — Approval Logged</div>
+    <div class="sf"><div class="sf-bar">✓ Variance Approved</div><div class="sf-body">
+      <div class="notif-g">✓ Variance approved · Dr. Sharma · Jun 5 · Logged in audit</div>
+      <span class="btn btn-p" style="margin-top:6px">Generate Final Bill →</span>
+    </div></div>
+  </div>
+</div>
+
+<div class="st">🟡 Drug-Lab Tier 1 Override — Charge Nurse Co-Sign Required</div>
+<div class="flow">
+  <div class="step"><div class="step-lbl"><span class="persona p-att">Attending</span> DL2 — Override Tier 1</div>
+    <div class="sf"><div class="sf-bar">Override · Rule #1 · Hyperkalemia</div><div class="sf-body">
+      <div class="comp"><strong>Tier 1 override requires Charge Nurse co-sign.</strong></div>
+      <div class="field" style="margin-top:6px"><label>Justification</label><textarea style="width:100%;border:1px solid var(--border);border-radius:3px;padding:5px;font-size:11px;height:36px">Short-term use acceptable. K+ being monitored Q6h.</textarea></div>
+      <span class="btn btn-p">Submit for Co-Sign →</span>
+    </div></div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="step"><div class="step-lbl"><span class="persona p-cnu">Charge Nurse</span> Co-Sign Request</div>
+    <div class="sf"><div class="sf-bar">Co-Sign Pending · Rule #1</div><div class="sf-body">
+      <div class="notif-r">⚠ Tier 1 override: Spironolactone + ACE-I + K+ 5.1 · Dr. Sharma</div>
+      <div style="font-size:11px;margin:6px 0">Justification: "Short-term use acceptable. K+ monitored Q6h."</div>
+      <div style="display:flex;gap:6px"><span class="btn btn-r">Reject Override</span><span class="btn btn-grn">Approve Co-Sign</span></div>
+    </div></div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="step"><div class="step-lbl"><span class="persona p-att">Attending</span> DL2b — Confirmation</div>
+    <div class="sf"><div class="sf-bar">✓ Override Approved</div><div class="sf-body">
+      <div class="notif-g">✓ Charge Nurse Meena co-signed override · 11:36 AM · Audit logged</div>
+      <span class="btn btn-p" style="margin-top:6px">← Continue S4b Review</span>
+      <p class="note">If Charge Nurse rejects: override blocked. Drug flagged as "On hold pending review." Attending must choose alternative or hold.</p>
+    </div></div>
+  </div>
+</div>
+
+<div class="st">🟡 Internet Drop During LLM Generation (S3)</div>
+<div class="sf" style="margin-bottom:20px">
+  <div class="sf-bar"><span class="persona p-res">Resident</span> S3 — Network Interrupted</div>
+  <div class="sf-body">
+    <div class="notif-r">⚠ Network disconnected during Pass 2. Generation interrupted at 60%.</div>
+    <div style="margin-top:8px;display:flex;gap:6px">
+      <span class="btn btn-p">Retry (resume from Pass 2 cache)</span>
+      <span class="btn btn-o">Retry from scratch</span>
+      <span class="btn btn-g">Save &amp; Exit — retry later</span>
+    </div>
+    <p class="note">Pass 1 output (clinical JSON) is cached for 24 hrs. Resume skips Pass 1 (~12s saved). If cache expired: must run full pipeline.</p>
+  </div>
+</div>
+
+<div class="st">🟡 Patient Refuses Discharge Summary Acknowledgement (NABH MN4)</div>
+<div class="sf" style="margin-bottom:20px">
+  <div class="sf-bar"><span class="persona p-att">Attending</span> S5 — Patient Refuses</div>
+  <div class="sf-body">
+    <div class="field"><label>Patient / Attendant Acknowledgement</label>
+      <div style="display:flex;flex-direction:column;gap:4px;background:var(--gray);padding:6px;border-radius:3px">
+        <label style="display:flex;gap:4px;font-size:11px"><input type="radio" name="ack"> Patient / attendant acknowledged ✓</label>
+        <label style="display:flex;gap:4px;font-size:11px"><input type="radio" name="ack" checked> Patient / attendant refused to acknowledge</label>
+      </div>
+    </div>
+    <div class="notif-r" style="margin-top:6px">⚠ NABH MN4 requires acknowledgement. Cannot sign without it or escalation approval.</div>
+    <div style="display:flex;gap:6px;margin-top:8px">
+      <span class="btn btn-o">Escalate to Ward Admin (NABH exception)</span>
+      <span class="btn btn-g">Return later — defer sign-off</span>
+    </div>
+    <p class="note">Escalation creates audit record: "Patient refused, escalated to admin." Ward Admin can approve exception. Exception logged in A2.</p>
+  </div>
+</div>
+
+<div class="st">🟠 Drug-Lab Rule Conflicts with Standing Order</div>
+<div class="sf" style="margin-bottom:20px">
+  <div class="sf-bar"><span class="persona p-sup">Super Admin</span> Drug-Lab Rule Edit — Conflict Detection</div>
+  <div class="sf-body">
+    <div class="warn">⚠ Rule #3 update (NSAIDs + eGFR &lt;60) will retroactively affect 7 active standing orders across Ward A and Ward B.</div>
+    <table class="tbl" style="margin:8px 0">
+      <tr><th>Patient</th><th>Current Order</th><th>eGFR</th><th>Impact</th></tr>
+      <tr><td>PT-0214</td><td>Ibuprofen 400mg BD</td><td>42</td><td><span class="tag t-rej">New flag triggered</span></td></tr>
+      <tr><td>PT-3381</td><td>Naproxen 250mg OD</td><td>55</td><td><span class="tag t-rej">New flag triggered</span></td></tr>
+    </table>
+    <div style="display:flex;gap:6px">
+      <span class="btn btn-r">Apply Rule (flag affected orders)</span>
+      <span class="btn btn-g">Save as Draft (don't apply yet)</span>
+    </div>
+    <p class="note">If applied: all affected patients get new DL flag. Attending + Charge Nurse notified per standard DL flow. Retroactive change logged in audit.</p>
+  </div>
+</div>
+
+<div class="st">🟠 Super Admin Deactivates User Mid-Session</div>
+<div class="sf" style="margin-bottom:20px">
+  <div class="sf-bar"><span class="persona p-att">Attending</span> Mid-Session — Account Deactivated</div>
+  <div class="sf-body">
+    <div class="notif-r">⚠ Your account has been deactivated by the system administrator. Please contact IT.</div>
+    <div style="margin-top:8px">All unsaved changes have been preserved. Your current draft (P-1001 S4c edit) is auto-saved.</div>
+    <span class="btn btn-g" style="margin-top:8px">← Return to Login</span>
+    <p class="note">Backend: session token invalidated immediately on deactivation. Next API call returns 401 → frontend shows this modal. Draft auto-saved to prevent data loss.</p>
+  </div>
+</div>
+
+<div class="st">🟠 Patient Transferred Between Wards Mid-Escalation</div>
+<div class="sf" style="margin-bottom:20px">
+  <div class="sf-bar"><span class="persona p-sys">System</span> N4 — Patient Transfer Detected</div>
+  <div class="sf-body">
+    <div class="notif-r">⚠ PT-4473 (Bed 15) transferred to ICU · 02:45 AM · Escalation was routing to Dr. Sharma (Ward A)</div>
+    <div style="margin-top:8px">Escalation automatically re-routed to Dr. Mehta (ICU Attending).</div>
+    <table class="tbl" style="margin:8px 0">
+      <tr><th>Time</th><th>Event</th></tr>
+      <tr><td>02:29</td><td>Escalation sent to Dr. Sharma (Ward A)</td></tr>
+      <tr><td>02:31</td><td>Dr. Sharma acknowledged</td></tr>
+      <tr><td>02:45</td><td>Patient transferred to ICU · Escalation re-routed to Dr. Mehta (ICU)</td></tr>
+    </table>
+    <p class="note">Phase 2: HIS integration required for real-time ward transfer events. MVP: nurse manually updates patient location in system, which triggers re-routing.</p>
+  </div>
+</div>
+
+<div class="st">🟠 All Doctors Busy — Escalation Queue Overflow</div>
+<div class="sf" style="margin-bottom:20px">
+  <div class="sf-bar"><span class="persona p-cnu">Charge Nurse</span> N5 — Queue Depth Alert</div>
+  <div class="sf-body">
+    <div class="notif-r">⚠ High escalation backlog — 5 unacknowledged escalations across Ward A</div>
+    <div class="sum-bar" style="margin-top:8px">
+      <div class="schip sc-c"><div class="schip-n">5</div><div class="schip-l">Unacked</div></div>
+      <div class="schip sc-w"><div class="schip-n">2</div><div class="schip-l">&gt;5 min</div></div>
+      <div class="schip sc-t"><div class="schip-n">1</div><div class="schip-l">&gt;10 min</div></div>
+    </div>
+    <div style="margin-top:8px;display:flex;gap:6px">
+      <span class="btn btn-r">Escalate All to Medical Director</span>
+      <span class="btn btn-o">Prioritise by NEWS2 Score</span>
+    </div>
+    <p class="note">Queue overflow triggers CMO notification. "Prioritise by NEWS2" re-sorts queue — highest NEWS2 escalations escalated first. Medical Director notified for &gt;10 min cases.</p>
+  </div>
+</div>
+
+<div class="st">Summary: Missing Flow Fixes for Each Tab</div>
+<table class="tbl">
+  <tr><th>Tab</th><th>Fix Needed</th><th>Location</th><th>Status</th></tr>
+  <tr><td>Auth &amp; Settings</td><td>Add ← Back button + save toast to Settings</td><td>Settings save button</td><td><span class="tag t-sign">✓ Fixed — Back button + save toast present in SETT screen</span></td></tr>
+  <tr><td>P1 Resident</td><td>S3 error retry: add "Retry (resume from Pass 2)" button</td><td>S3 error state</td><td><span class="tag t-sign">✓ Fixed — Edge Cases tab S3</span></td></tr>
+  <tr><td>P1 Attending</td><td>S4c post-edit: add "← Back to S4b (edit saved)" return</td><td>S4c save button</td><td><span class="tag t-sign">✓ Fixed — return path + annotation added</span></td></tr>
+  <tr><td>P1 Module B</td><td>CE1 validation: add inline field error states</td><td>CE1 generate button</td><td><span class="tag t-sign">✓ Shown in OOD scenario above</span></td></tr>
+  <tr><td>P1 Module B</td><td>CE3: add post-print/email/PDF confirmations</td><td>CE3 buttons</td><td><span class="tag t-sign">✓ Fixed — Print/Email/PDF confirmation screens added</span></td></tr>
+  <tr><td>P1 Module B</td><td>CE4b: variance approval</td><td>CE4 reconciliation</td><td><span class="tag t-sign">✓ Fixed — CE4b above</span></td></tr>
+  <tr><td>P1 Admin</td><td>A1 card click → A2 drill-in; A3 restart confirmation</td><td>A1 Kanban; A3</td><td><span class="tag t-sign">✓ Fixed — A1→A2 drill-in panel + A3 restart dialog added</span></td></tr>
+  <tr><td>Super Admin</td><td>Add user form; threshold save confirm; rule edit form</td><td>All 3 sections</td><td><span class="tag t-sign">✓ Fixed — Add User form, threshold save toast, rule edit form all added</span></td></tr>
+  <tr><td>P2 Nurse</td><td>N4 re-escalate destination; N6b completion</td><td>N4 + N6</td><td><span class="tag t-sign">✓ Fixed — N4 re-escalate flow + N6b completion screen added</span></td></tr>
+  <tr><td>P2 Charge Nurse</td><td>N5 re-escalation confirm; N5b → N1 update confirm</td><td>N5 + N5b</td><td><span class="tag t-sign">✓ Fixed — N5 re-escalation confirmation + N5b save toast added</span></td></tr>
+  <tr><td>P2 Drug-Lab</td><td>DL2b back button; Tier 1 co-sign; N1 drug-lab nav; rule edit + propagation</td><td>DL2b + DL rules</td><td><span class="tag t-sign">✓ Fixed — DL2b back button, Tier 1 co-sign, N1 drug-lab nav, rule edit all added</span></td></tr>
+  <tr><td>Concurrency</td><td>Two attendings signing same summary</td><td>S5 sign screen</td><td><span class="tag t-sign">✓ Fixed — above</span></td></tr>
+  <tr><td>Patient discharge</td><td>Patient discharged before summary signed</td><td>S6 / system event</td><td><span class="tag t-sign">✓ Fixed — above</span></td></tr>
+  <tr><td>Escalation</td><td>Attending offline → timeout → re-route</td><td>N4 / N5</td><td><span class="tag t-sign">✓ Fixed — above</span></td></tr>
+  <tr><td>NABH MN4</td><td>Patient refuses to acknowledge</td><td>S5 sign screen</td><td><span class="tag t-sign">✓ Fixed — above</span></td></tr>
+  <tr><td>Rule conflict</td><td>Drug-lab rule change affects standing orders</td><td>Super Admin rules</td><td><span class="tag t-sign">✓ Fixed — above</span></td></tr>
+  <tr><td>Session</td><td>Admin deactivates user mid-session</td><td>System-wide</td><td><span class="tag t-sign">✓ Fixed — above</span></td></tr>
+  <tr><td>Transfer</td><td>Patient transferred mid-escalation</td><td>N4 status log</td><td><span class="tag t-sign">✓ Fixed — above</span></td></tr>
+  <tr><td>Queue overflow</td><td>All doctors busy — escalation backlog</td><td>N5</td><td><span class="tag t-sign">✓ Fixed — above</span></td></tr>
+</table>
+</div>
+
+</div><!-- /screen-area -->
+</div><!-- /desktop-wrap -->
+
+<script>
+function st(n,el){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.querySelectorAll('.content').forEach(c=>c.classList.remove('active'));document.getElementById('tab-'+n).classList.add('active');el.classList.add('active');}
+</script>
+</body>
+</html>
