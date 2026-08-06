@@ -521,16 +521,17 @@ async function _loadBillingDashboard() {
     const data = await res.json();
     const { stats, pending_actions, post_discharge = [] } = data;
 
-    statsEl.innerHTML = `
-      <div style="border:1px solid var(--border);border-radius:8px;padding:16px;text-align:center;background:#fff;cursor:pointer" onclick="_scrollTo('ce0-table')">
-        <div style="font-size:28px;font-weight:700;color:var(--t2)">${(() => {
-          const cache = JSON.parse(sessionStorage.getItem('billing_phase_cache') || '{}');
-          const shared = Object.values(cache).filter(v => v === 'estimate_shared').length;
-          return Math.max(0, (stats.pending_estimates || 0) - shared);
-        })()}</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:4px">Pending Estimates</div>
-      </div>
-      ${_ce0PatientEntryCard()}`;
+    const _pendingCount = (() => {
+      const cache = JSON.parse(sessionStorage.getItem('billing_phase_cache') || '{}');
+      const shared = Object.values(cache).filter(v => v === 'estimate_shared').length;
+      return Math.max(0, (stats.pending_estimates || 0) - shared);
+    })();
+    // Same rule the table badges use, so the card and the rows can never disagree.
+    const _reconCount = pending_actions.filter(p => _ce0StatusText(p) === 'Reconciliation Due').length;
+
+    statsEl.innerHTML =
+      _ce0StatCard(_pendingCount, 'Pending Estimates', 'var(--t2)', "_scrollTo('ce0-table')") +
+      _ce0StatCard(_reconCount,  'Reconciliation Due', 'var(--t1)', "_ce0ShowReconDue()");
 
     const pendingPts = pending_actions;
 
@@ -605,16 +606,25 @@ let _ce0Tab = 'pending';
 let _ce0PendingRaw = [];
 let _ce0ReconciledRaw = [];
 
-// Entry point into CE1. Sized to match the stat cards next to it so the row
-// reads as one strip -- this replaced the small "+ Manual New Estimate"
-// button that used to sit above the pending table.
-function _ce0PatientEntryCard() {
+// Entry point into CE1. Lives in the toolbar directly above the pending table
+// (right-aligned, over the ACTION column) rather than in the stat strip -- the
+// stat row is for counts, this is an action.
+function _ce0PatientEntryBtn() {
   return `
-  <div onclick="_ceReset();showScreen('ce1')"
-       style="border:1px solid var(--p);border-radius:8px;padding:16px;text-align:center;background:#fff;cursor:pointer;transition:background .15s"
-       onmouseover="this.style.background='#faf5ff'" onmouseout="this.style.background='#fff'">
-    <div style="font-size:28px;font-weight:700;color:var(--p);line-height:1.15">+</div>
-    <div style="font-size:11px;color:var(--p);font-weight:700;margin-top:4px">Patient Entry</div>
+  <button onclick="_ceReset();showScreen('ce1')"
+          style="margin-left:auto;display:inline-flex;align-items:center;gap:6px;padding:8px 16px;font-size:12.5px;font-weight:700;color:var(--p);background:#fff;border:1px solid var(--p);border-radius:7px;cursor:pointer;transition:background .15s;white-space:nowrap"
+          onmouseover="this.style.background='#faf5ff'" onmouseout="this.style.background='#fff'">
+    <span style="font-size:16px;line-height:1">+</span> Patient Entry
+  </button>`;
+}
+
+// Square stat tile for the CE0 dashboard strip.
+function _ce0StatCard(value, label, color, onclick) {
+  return `
+  <div ${onclick ? `onclick="${onclick}"` : ''}
+       style="border:1px solid var(--border);border-radius:8px;background:#fff;width:150px;height:150px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:12px${onclick ? ';cursor:pointer' : ''}">
+    <div style="font-size:34px;font-weight:700;color:${color};line-height:1.1">${value}</div>
+    <div style="font-size:11px;color:var(--muted);margin-top:6px">${label}</div>
   </div>`;
 }
 
@@ -674,6 +684,15 @@ function _ce0AdmitISO(p) {
     }
   }
   return null;
+}
+
+// Reconciliation Due card → jump to the pending tab filtered to just those rows.
+function _ce0ShowReconDue() {
+  _switchCe0Tab('pending');
+  const el = document.getElementById('ce0-status-filter');
+  if (el) el.value = 'Reconciliation Due';
+  _ce0FilterPending();
+  _scrollTo('ce0-table');
 }
 
 function _ce0ClearFilters() {
@@ -1286,12 +1305,9 @@ ce0: () => `
   <h1 class="sh-title">Billing Dashboard</h1>
   <span class="sh-id">CE0</span>
 </div>
-<div id="ce0-stats" style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:16px">
-  <div style="border:1px solid var(--border);border-radius:8px;padding:16px;text-align:center;background:#fff">
-    <div style="font-size:28px;font-weight:700;color:var(--t2)">—</div>
-    <div style="font-size:11px;color:var(--muted);margin-top:4px">Pending Estimates</div>
-  </div>
-  ${_ce0PatientEntryCard()}
+<div id="ce0-stats" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px">
+  ${_ce0StatCard('—', 'Pending Estimates', 'var(--t2)')}
+  ${_ce0StatCard('—', 'Reconciliation Due', 'var(--t1)')}
 </div>
 <div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:14px">
   <button id="ce0-btn-pending" onclick="_switchCe0Tab('pending')" style="padding:9px 20px;font-size:13px;font-weight:700;border:none;background:none;cursor:pointer;border-bottom:2px solid var(--p);margin-bottom:-2px;color:var(--p)">Pending Estimates</button>
@@ -1311,6 +1327,7 @@ ce0: () => `
       <input id="ce0-admit-date" class="fi" type="date" style="max-width:160px" title="Admitted on this date" onchange="_ce0FilterPending()">
     </div>
     <button class="btn btn-sec btn-sm" onclick="_ce0ClearFilters()">Clear</button>
+    ${_ce0PatientEntryBtn()}
   </div>
   <div id="ce0-table" style="color:var(--muted);padding:16px;font-size:12px">Loading patients…</div>
 </div>
