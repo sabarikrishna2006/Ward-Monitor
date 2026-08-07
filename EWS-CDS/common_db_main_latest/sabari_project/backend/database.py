@@ -72,6 +72,18 @@ def init_db():
             "CREATE UNIQUE INDEX IF NOT EXISTS uq_ews_labs_hadm_time "
             "ON ews_lab_events (hadm_id, chart_time)"
         ))
+        # Early Warning panel ack/dismiss -- workflow-only state, never read
+        # by escalation_model.predict(). See models.AiAlertAck's docstring.
+        conn.execute(_t(
+            "CREATE TABLE IF NOT EXISTS ews_ai_alert_ack ("
+            "  id SERIAL PRIMARY KEY,"
+            "  hadm_id INTEGER UNIQUE NOT NULL,"
+            "  acknowledged_at TIMESTAMP,"
+            "  acknowledged_by VARCHAR,"
+            "  dismissed_until TIMESTAMP,"
+            "  updated_at TIMESTAMP"
+            ")"
+        ))
 
 def get_db():
     db = SessionLocal()

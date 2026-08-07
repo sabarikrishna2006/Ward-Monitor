@@ -140,6 +140,15 @@ async function nav(id, param = null) {
       const loc = APP.role === 'nurse' ? 'CCU' : APP.role === 'gw_nurse' ? 'GENERAL_WARD' : 'All';
       const res = await fetch('/api/ward-data?location=' + loc);
       if (res.ok) APP.data.n1 = await res.json();
+      // Held-out-test-split model statistics — fetched once per dashboard
+      // load, not per patient, and never blended with the live ward count
+      // above (see /api/ml-stats's own docstring on why that split matters).
+      if (!APP.data.mlStatsFull) {
+        try {
+          const sRes = await fetch('/api/ml-stats');
+          if (sRes.ok) APP.data.mlStatsFull = await sRes.json();
+        } catch (_) { /* modal falls back to per-patient mlStats if this fails */ }
+      }
     } else if (id === 'dl1') {
       const res = await fetch('/api/ward-data?ward=All');
       if (res.ok) APP.data.n1 = await res.json();
@@ -274,6 +283,39 @@ window.ackPatient = function(event, patientId) {
       });
     }
   }
+}
+
+// Early Warning ack/dismiss — workflow-only, backed by /api/patients/{id}/
+// ai-alert/*. Deliberately separate from ackPatient() above (that's the
+// older, purely-local per-shift NEWS2 acknowledgment). Conflating the two
+// would mean dismissing a NEWS2 alert also hides a real AI alert (or vice
+// versa) for reasons that have nothing to do with each other.
+window.ackAiAlert = async function(patientId) {
+  try {
+    const res = await fetch(`/api/patients/${patientId}/ai-alert/acknowledge`, {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ ackBy: (APP.user && APP.user.name) || 'nurse' }),
+    });
+    if (res.ok) {
+      showToast('success', 'Acknowledged', { detail: 'Will keep monitoring — this stays on the Early Warning panel.' });
+      await nav(APP.screen, APP.currentPatientId);
+    }
+  } catch (e) { console.error('ackAiAlert failed:', e); }
+}
+
+window.dismissAiAlert = async function(patientId, hours) {
+  try {
+    const res = await fetch(`/api/patients/${patientId}/ai-alert/dismiss`, {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ hours, dismissedBy: (APP.user && APP.user.name) || 'nurse' }),
+    });
+    if (res.ok) {
+      showToast('success', hours > 0 ? 'Dismissed' : 'Restored', {
+        detail: hours > 0 ? `Hidden from the Early Warning panel for ${hours}h. The model's own score is unchanged.` : 'Back on the Early Warning panel.',
+      });
+      await nav(APP.screen, APP.currentPatientId);
+    }
+  } catch (e) { console.error('dismissAiAlert failed:', e); }
 }
 
 window.showFalseAlarmMenu = function() {
@@ -490,29 +532,47 @@ const MODALS = {
     <div class="modal-b" style="color:var(--t3)">✅ Override successfully co-signed and recorded in the NABH audit trail.</div>
     <div class="modal-f"><button class="btn btn-pri" onclick="closeModal();nav('dl1')">Back to DL Flags</button></div>`,
   ai_stats: () => {
-    // These are ward-level model statistics (measured once on held-out test
-    // data), not per-patient — identical for every "live"-scored patient. Look
-    // across all loaded patients for one that actually has them, so a patient
-    // sitting on the ml_demo() fallback (empty mlStats) at whatever position
-    // happened to load first doesn't mask real numbers that exist elsewhere in
-    // the same response. No hardcoded fallback figures: those go stale the
-    // moment thresholds are retuned (as happened once already this session)
-    // and silently misstate what the live model is actually measured at.
+    // Prefer the dedicated /api/ml-stats fetch (fetched once on dashboard
+    // load — see nav()); this is the SAME file (serving_meta.json) both
+    // tables below are computed from, so numbers here can never drift from
+    // what ml/build_serving_esc.py and ml/30_nonvacuous_stats.py measured.
+    // Falls back to a per-patient mlStats blob (all-anchors only) only if
+    // that fetch hasn't landed yet — no hardcoded numbers either way.
+    const full = APP.data.mlStatsFull;
     const pool = [APP.data.n1b, ...((APP.data.n1 && APP.data.n1.patients) || [])].filter(Boolean);
-    const stats = (pool.find(p => p.mlStats && Object.keys(p.mlStats).length) || {}).mlStats || {};
-    const fmt = (v, suffix, digits) => (v === undefined || v === null) ? '—' : (v * 100).toFixed(digits) + suffix;
+    const allAnchors = full ? full.allAnchors : ((pool.find(p => p.mlStats && Object.keys(p.mlStats).length) || {}).mlStats || {});
+    const nv = full ? full.nonVacuous : null;
+    const tauHigh = full ? full.tauHigh : null;
+    const fmtPct = (v, digits) => (v === undefined || v === null || Number.isNaN(v)) ? '—' : (v * 100).toFixed(digits) + '%';
+    const fmtH = v => (v === undefined || v === null) ? '—' : v.toFixed(1) + ' hours';
+
     return `
     <div class="modal-t">AI Model Clinical Performance</div>
     <div class="modal-b" style="font-size:13px; line-height:1.6">
-      <div style="margin-bottom:12px">This predictive model is validated against MIMIC-IV critical care data and tuned for high-sensitivity early warning.</div>
-      <table style="width:100%; text-align:left; border-collapse:collapse; margin-bottom:12px;">
+      <div style="margin-bottom:10px">One fixed threshold — ${tauHigh != null ? (tauHigh*100).toFixed(1) + '%' : '—'} predicted 24h risk — computed once on historical data and applied identically to every patient, always. Not tuned per patient.</div>
+
+      <div class="card-title" style="margin-bottom:8px">All patients (held-out test split)</div>
+      <table style="width:100%; text-align:left; border-collapse:collapse; margin-bottom:14px;">
         <tr style="border-bottom:1px solid var(--border)"><th style="padding:6px 0">Metric</th><th>Value</th></tr>
-        <tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 0">Patient Recall (Sensitivity)</td><td class="bold" style="color:var(--t1)">${fmt(stats.patient_recall, '%', 0)}</td></tr>
-        <tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 0">Episode PPV (24h Window)</td><td class="bold">${fmt(stats.episode_ppv_24h, '%', 1)}</td></tr>
-        <tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 0">Median Lead Time</td><td class="bold">${stats.median_lead_time_h != null ? stats.median_lead_time_h.toFixed(1) + ' hours' : '—'}</td></tr>
-        <tr><td style="padding:6px 0">Accuracy (AUROC)</td><td class="bold">${stats.auroc_test != null ? stats.auroc_test.toFixed(2) : '—'}</td></tr>
+        <tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 0">Patient Recall (Sensitivity)</td><td class="bold" style="color:var(--t1)">${fmtPct(allAnchors.patient_recall, 0)}</td></tr>
+        <tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 0">Episode PPV (24h Window)</td><td class="bold">${fmtPct(allAnchors.episode_ppv_24h, 1)}</td></tr>
+        <tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 0">Median Lead Time</td><td class="bold">${fmtH(allAnchors.median_lead_time_h)}</td></tr>
+        <tr><td style="padding:6px 0">Accuracy (AUROC)</td><td class="bold">${allAnchors.auroc_test != null ? allAnchors.auroc_test.toFixed(2) : '—'}</td></tr>
       </table>
-      <div class="muted small">A high recall model ensures no critical deterioration is missed, but may flag early or transient instability. Clinical judgement remains paramount.</div>
+
+      <div class="card-title" style="margin-bottom:4px">Non-vacuous only <span class="muted" style="font-weight:400">— NEWS2 &lt; 7 at the time, alarm still fired</span></div>
+      <div class="muted small" style="margin-bottom:8px">The number Prof. Shroff asked for directly: restricted to hours where the patient did NOT yet look critical on NEWS2. This is the honest test of whether the model adds anything NEWS2 doesn't already tell you.</div>
+      ${nv ? `
+      <table style="width:100%; text-align:left; border-collapse:collapse; margin-bottom:10px;">
+        <tr style="border-bottom:1px solid var(--border)"><th style="padding:6px 0">Metric</th><th>Value</th></tr>
+        <tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 0">N (non-vacuous person-hours)</td><td class="bold">${nv.n_non_vacuous_person_hours ?? '—'}</td></tr>
+        <tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 0">Patient Recall</td><td class="bold" style="color:var(--t1)">${fmtPct(nv.patient_recall, 0)}</td></tr>
+        <tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 0">Episode PPV</td><td class="bold">${fmtPct(nv.episode_ppv, 1)}</td></tr>
+        <tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 0">False Positive Rate (episodes)</td><td class="bold">${fmtPct(nv.false_positive_rate_episodes, 1)}</td></tr>
+        <tr><td style="padding:6px 0">Median Lead Time</td><td class="bold">${fmtH(nv.median_lead_time_h)}</td></tr>
+      </table>
+      <div class="muted small">Based on ${nv.n_event_patients_non_vacuous ?? '—'} patients who were NEWS2&lt;7 and went on to deteriorate — a real but modest number; treat this as what the held-out data currently supports, not a promise. Numbers computed on the offline test split with known outcomes, not from any live patient shown elsewhere in this app.</div>
+      ` : `<div class="muted small">Loading — reopen this panel in a moment if this is still blank.</div>`}
     </div>
     <div class="modal-f"><button class="btn btn-sec" onclick="closeModal()">Close</button></div>`;
   },
@@ -618,6 +678,73 @@ function errorState(msg) {
   </div>`;
 }
 
+// Dedicated, always-visible Early Warning panel — the fix for the original
+// failure mode where the only AI signal was a per-row badge someone had to
+// notice by scanning every row. This turns "find the alert" into "the alert
+// finds you": one headline number, right under the ward summary, every time.
+// Uses the --p (purple) "predictive" token so it reads as visually distinct
+// from NEWS2's own red/amber/green system — this is a DIFFERENT signal
+// (predicted future escalation), not an early copy of the NEWS2 score.
+// A visible zero is honest; hiding the panel on a quiet day invites exactly
+// the "I don't see any alerts" reaction that caused the original failure.
+function renderEarlyWarningPanel() {
+  const n1 = APP.data.n1;
+  if (!n1) return '';
+  const count = n1.earlyWarningCount || 0;
+  const flagged = (n1.patients || []).filter(p => p.earlyWarningActive);
+  const active = APP.n1_filter === 'early_warning';
+
+  return `
+<div class="ew-panel${count === 0 ? ' ew-panel-empty' : ''}${active ? ' ew-panel-active' : ''}" style="cursor:pointer" onclick="APP.n1_filter = APP.n1_filter==='early_warning' ? 'all' : 'early_warning'; renderAll()">
+  <div class="ew-panel-head">
+    <div class="ew-panel-title">
+      <span class="ew-icon">⚡</span>
+      <span>Early Warning — NEWS2 stable, AI flags risk</span>
+    </div>
+    <div class="ew-panel-count">${count}</div>
+  </div>
+  ${count === 0
+    ? `<div class="ew-panel-sub">No silent-deterioration alerts right now. The model is scoring every patient continuously — this updates live.</div>`
+    : `<div class="ew-panel-sub">${count} patient${count === 1 ? '' : 's'} with a NEWS2 score that still looks fine, but whose independent AI risk score has crossed the alarm threshold. NEWS2 cannot see this — it only reflects the current vitals snapshot. ${active ? 'Showing these now — click to clear filter.' : 'Click to filter the board to just these patients.'}</div>
+       <div class="ew-panel-chips">
+         ${flagged.slice(0, 6).map(p => `<span class="ew-chip">${p.name} · NEWS2 ${p.news2} · AI ${p.mlRisk}%</span>`).join('')}
+         ${flagged.length > 6 ? `<span class="ew-chip ew-chip-more">+${flagged.length - 6} more</span>` : ''}
+       </div>`
+  }
+  <div class="ew-panel-foot" onclick="event.stopPropagation();openModal('ai_stats')">How this is measured, and what "flagged" means ⓘ</div>
+</div>`;
+}
+
+// Persistent patient-detail banner. Only rendered in the loud/red treatment
+// for the real (non-vacuous) case; a patient already NEWS2-critical whose
+// tier also fires gets a small inline note instead — see the plan's design
+// rationale for why competing for attention there is the wrong call.
+function renderAiAlertBanner(p) {
+  if (p.earlyWarningActive) {
+    const ackedTag = p.aiAcknowledgedAt
+      ? `<span class="ai-alert-acked">&#10003; Acknowledged ${new Date(p.aiAcknowledgedAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})} — still monitoring</span>`
+      : `<button class="btn btn-sec btn-xs" onclick="ackAiAlert(${p.id})">Acknowledge — will monitor</button>`;
+    return `
+<div class="ai-alert-banner">
+  <div class="ai-alert-head">
+    <span class="ai-alert-badge">&#9888; AI ALERT</span>
+    <span class="ai-alert-msg">NEWS2 is ${p.news2} — still looks stable. The AI model independently predicts elevated risk of deterioration (${p.mlRisk}%, above the ${p.mlStats && p.mlStats.tau_high ? (p.mlStats.tau_high*100).toFixed(1) : '7.7'}% alarm threshold). This is a real, separate signal — NEWS2 cannot see it.</span>
+  </div>
+  <div class="ai-alert-actions">
+    ${ackedTag}
+    <button class="btn btn-sec btn-xs" onclick="dismissAiAlert(${p.id}, 12)">Dismiss for 12h</button>
+  </div>
+</div>`;
+  }
+  if (p.aiCurrentlyDismissed && p.nonVacuousAlert) {
+    return `<div class="ai-alert-dismissed-note">This patient's Early Warning alert is dismissed until ${new Date(p.aiDismissedUntil).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}. The underlying model score is unaffected. <button class="btn btn-sec btn-xs" onclick="dismissAiAlert(${p.id}, 0)">Restore now</button></div>`;
+  }
+  if (p.vacuousAiConfirm) {
+    return `<div class="ai-alert-quiet-note">AI confirms elevated risk — consistent with this patient's already-critical NEWS2 score. Not new information.</div>`;
+  }
+  return '';
+}
+
 SCREENS.n1 = () => {
   if (APP.loading && !APP.data.n1)
     return skeletonDashboard(APP.role==='gw_nurse'?'General Ward — NEWS2 Dashboard':APP.role==='nurse'?'CCU — NEWS2 Dashboard':'NEWS2 Priority Dashboard');
@@ -652,6 +779,7 @@ SCREENS.n1 = () => {
     if (APP.n1_filter === 'medium') return p.news2 >= 5 && p.news2 < 7 && p.status !== 'stale';
     if (APP.n1_filter === 'low') return p.news2 < 5 && p.status !== 'stale';
     if (APP.n1_filter === 'stale') return p.status === 'stale';
+    if (APP.n1_filter === 'early_warning') return !!p.earlyWarningActive;
     return true;
   });
 
@@ -687,6 +815,8 @@ SCREENS.n1 = () => {
     <div class="stat-l">Stale Vitals</div>
   </div>
 </div>
+
+${renderEarlyWarningPanel()}
 
 <div class="tw"><table class="tbl-stack">
   <thead><tr>
@@ -743,6 +873,11 @@ SCREENS.n1 = () => {
       let rowClass = score >= 7 ? 'row-crit' : score >= 5 ? 'row-warn' : '';
       if (isStale) rowClass = 'stale'; // defined in css for faded row
       if (p._acked) rowClass += ' acked-row';
+      // Non-vacuous AI alert gets its own accent even on an otherwise-stable
+      // (low NEWS2) row — that's the entire point: this is a signal NEWS2's
+      // own row coloring cannot show. Vacuous (NEWS2 already critical) is
+      // deliberately NOT given this treatment — see aiRiskCol below.
+      if (p.earlyWarningActive) rowClass += ' row-ew';
 
       const scoreClass = isStale ? 'muted' : score >= 7 ? 'n2s hi' : score >= 5 ? 'n2s med' : 'n2s lo';
       const statusBd = isStale ? 'bd bd-muted' : score >= 7 ? 'bd bd-t1' : score >= 5 ? 'bd bd-t2' : 'bd bd-t3';
@@ -776,7 +911,19 @@ SCREENS.n1 = () => {
         ? `<span class="bd bd-t3" title="Acknowledged for this shift">&#10003; Acked</span>`
         : `<button class="btn btn-sec btn-xs" onclick="event.stopPropagation();ackPatient(event, ${p.id})">Ack</button>`;
       
-      const aiRiskTierHtml = p.escalationTier ? `<span class="bd bd-${p.escalationTier==='CRITICAL RISK'?'t1':p.escalationTier==='HIGH RISK'?'t2':'t3'}">${p.escalationTier}</span>` : '—';
+      // Loud vs quiet is not a color swap on the same badge — it's a
+      // different element entirely, because a per-row badge (however
+      // colored) is still something a nurse has to notice by scanning every
+      // row. Non-vacuous gets its own purple "EARLY WARNING" chip (matches
+      // the panel above); vacuous gets a small muted aside next to the
+      // ordinary tier badge, so it never competes for attention with a real
+      // early-warning case — for a patient already NEWS2-critical, the
+      // model confirming that isn't the interesting part.
+      const aiRiskTierHtml = p.earlyWarningActive
+        ? `<span class="bd bd-ew">⚡ EARLY WARNING</span>`
+        : p.escalationTier
+          ? `<span class="bd bd-${p.escalationTier==='CRITICAL RISK'?'t1':p.escalationTier==='HIGH RISK'?'t2':'t3'}">${p.escalationTier}</span>${p.vacuousAiConfirm ? `<span class="muted small" style="margin-left:4px" title="NEWS2 is already critical — the AI model agreeing isn't new information">AI confirms</span>` : ''}`
+          : '—';
       const aiRiskCol = p.escalationTier ? `<div style="display:flex;flex-direction:column;align-items:flex-start;gap:2px">${aiRiskTierHtml}<div style="display:flex;align-items:center;gap:4px;"><span class="small" style="color:var(--muted);font-weight:600">${p.mlRisk != null ? p.mlRisk + '%' : ''}</span></div></div>` : '—';
       
       return `
@@ -919,6 +1066,30 @@ SCREENS.n1b = () => {
   // needs to reflect that on its own. This card has a plain white background
   // (no severity tint), so the color never clashes with its surroundings.
   const mlRiskCol = p.escalationTier === 'CRITICAL RISK' ? 'var(--t1)' : p.escalationTier === 'HIGH RISK' ? 'var(--t2)' : 'var(--t3)';
+
+  // Real per-prediction explainability: SHAP attribution from the model's
+  // own 24h booster (escalation_model.py's _shap_drivers), not a NEWS2-score
+  // readout or a hand-built vital-threshold heuristic — see the plan this
+  // implements for why that distinction is load-bearing under scrutiny.
+  // "up" = pushed this prediction's risk higher, "down" = pulled it lower.
+  const shapChart = (p.mlContributors || []).length === 0
+    ? `<div class="muted small">No attribution available for this prediction.</div>`
+    : `<div class="shap-chart">
+        ${p.mlContributors.map(d => {
+          const isUp = d.direction !== 'down';
+          const pct = Math.max(d.pct || 0, 2);
+          return `
+          <div class="shap-row">
+            <div class="shap-label">${d.label}</div>
+            <div class="shap-bar-track">
+              <div class="shap-bar ${isUp ? 'shap-up' : 'shap-down'}" style="width:${pct}%"></div>
+            </div>
+            <div class="shap-pct ${isUp ? 'shap-up-t' : 'shap-down-t'}">${isUp ? '▲' : '▼'} ${pct}%</div>
+          </div>`;
+        }).join('')}
+        <div class="muted small" style="margin-top:8px">▲ pushed this patient's 24h risk score higher · ▼ pulled it lower. Bars show each factor's share of the model's own SHAP attribution for this specific prediction — not a NEWS2 sub-score.</div>
+      </div>`;
+
   const mlInsights = `
     <div class="grid2">
       <div class="card">
@@ -937,6 +1108,10 @@ SCREENS.n1b = () => {
         <div class="card-title" style="margin-top:14px">Recommended action</div>
         <div class="small" style="line-height:1.7; font-weight:${p.escalationTier==='CRITICAL RISK'?'600':'normal'}; color:${p.escalationTier==='CRITICAL RISK'?'var(--t1)':'inherit'}">${p.escalationTier === 'CRITICAL RISK' ? '🚨 Continuous monitoring recommended. Escalate to attending physician for proactive review.' : (p.recommendedAction || 'Continue routine monitoring per ward protocol.')}</div>
       </div>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <div class="card-title">Why the model says this <span class="muted" style="font-weight:400;font-size:11px">— SHAP attribution, this patient's actual prediction</span></div>
+      ${shapChart}
     </div>`;
 
   const dlAlerts = p.drugLabAlerts || [];
@@ -1026,6 +1201,8 @@ ${(() => {
     <div><span class="dx-lbl">AI risk</span><b style="color:${p.escalationTier === 'CRITICAL RISK' ? 'var(--t1)' : p.escalationTier === 'HIGH RISK' ? 'var(--t2)' : 'var(--t3)'}">${p.mlRisk != null ? p.mlRisk + '%' : '—'}</b></div>
   </div>`;
 })()}
+
+${renderAiAlertBanner(p)}
 
 <div class="tab-strip">
   <button class="tab-btn${APP.n1b_tab==='vitals'?' active':''}" onclick="APP.n1b_tab='vitals';renderAll()">Vital Signs</button>

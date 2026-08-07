@@ -3,6 +3,7 @@ import json
 import logging
 import numpy as np
 import xgboost as xgb
+import shap
 import pickle
 from datetime import datetime
 
@@ -15,8 +16,52 @@ log = logging.getLogger(__name__)
 _BOOSTERS = None
 _CALIBRATORS = None
 _META = None
+_SHAP_EXPLAINER = None   # TreeExplainer for the 24h-horizon booster only —
+                          # tau_high/tau_low are fit on that horizon's score,
+                          # so explanations must come from the same booster
+                          # driving the alarm, not an arbitrary/blended one.
+_HORIZON_24H_IDX = None
 
 MODEL_DIR = os.path.join(os.path.dirname(__file__), "model")
+
+# ── Human-readable feature labels for SHAP driver display ──────────────────
+# Built compositionally (base vital x suffix) rather than a 55-entry literal
+# table, so every feature in serving_meta.json's feature list resolves to a
+# real label instead of silently falling through to the raw column name.
+_BASE_LABELS = {
+    "dbp": "Diastolic BP", "heart_rate": "Heart rate", "resp_rate": "Respiratory rate",
+    "sbp": "Systolic BP", "spo2": "SpO₂", "temperature": "Temperature",
+    "news2": "NEWS2 score", "age": "Age", "is_female": "Sex",
+    "fio2_last": "Oxygen requirement (FiO₂)", "not_alert": "Consciousness level",
+    "on_oxygen": "Supplemental oxygen", "hours_in_band": "Time in current NEWS2 band",
+    "hours_of_history": "Monitoring history length", "hours_since_adm": "Time since admission",
+}
+_SUFFIX_LABELS = [
+    ("_delta_adm", "change since admission"), ("_last", "latest value"),
+    ("_max", "recent high"), ("_min", "recent low"), ("_mean", "recent average"),
+    ("_std", "recent variability"), ("_rate", "trend (rate of change)"),
+]
+
+
+def _feature_base_and_suffix(fname: str) -> tuple[str, str | None]:
+    """Splits a feature name into (base vital, suffix description) — e.g.
+    'sbp_min' -> ('sbp', 'recent low'). Used both for the single-feature
+    label and for grouping correlated sub-features (sbp_last/_mean/_min/
+    _max/_std/_rate/_delta_adm are 7 features describing ONE vital; SHAP
+    naturally splits credit for a real BP effect across all 7, which makes
+    any single one look weak even when the underlying signal is strong)."""
+    for suf, desc in _SUFFIX_LABELS:
+        if fname.endswith(suf):
+            base = fname[: -len(suf)]
+            if base in _BASE_LABELS:
+                return base, desc
+    return fname, None
+
+
+def _feature_label(fname: str) -> str:
+    base, desc = _feature_base_and_suffix(fname)
+    label = _BASE_LABELS.get(base, base.replace("_", " ").capitalize())
+    return f"{label} — {desc}" if desc else label
 
 LOOKBACK_H = 6.0          # trailing window for _mean/_std/_min/_max/_rate — must
                           # match ml/config.py's LOOKBACK_H used at training time
@@ -27,7 +72,7 @@ HYSTERESIS_ANCHORS = 6    # trailing readings to replay the latch over — kept
 
 
 def load_models():
-    global _BOOSTERS, _CALIBRATORS, _META
+    global _BOOSTERS, _CALIBRATORS, _META, _HORIZON_24H_IDX
     if _META is not None:
         return True
 
@@ -43,10 +88,66 @@ def load_models():
             b = xgb.Booster()
             b.load_model(os.path.join(MODEL_DIR, f"hazard_interval_{h}h.json"))
             _BOOSTERS.append(b)
+        _HORIZON_24H_IDX = _META["horizons"].index(24)
         return True
     except Exception as e:
         log.error(f"Failed to load escalation models: {e}")
         return False
+
+
+def _get_shap_explainer():
+    """Lazily builds (once) a TreeExplainer against the 24h booster — the
+    same booster tau_high/tau_low are fit on, so the explanation always
+    matches the number actually driving the alarm."""
+    global _SHAP_EXPLAINER
+    if _SHAP_EXPLAINER is None:
+        _SHAP_EXPLAINER = shap.TreeExplainer(_BOOSTERS[_HORIZON_24H_IDX])
+    return _SHAP_EXPLAINER
+
+
+def _shap_drivers(X, feature_names, top_n=4):
+    """Real per-prediction explainability: SHAP values from the model's own
+    24h-horizon booster (log-odds/margin space, binary:logistic objective),
+    not a NEWS2-derived or hand-built heuristic.
+
+    Sub-features are grouped by physiological base vital before ranking
+    (sbp_last/_mean/_min/_max/_std/_rate/_delta_adm are 7 correlated features
+    describing ONE vital -- SHAP splits credit for a real BP effect across
+    all 7, so ranking individual columns understates vitals with many
+    engineered sub-features relative to single-column ones like age or
+    is_female). Grouping sums real |SHAP| within each vital -- it does not
+    invent or reweight anything -- and reports the single most-influential
+    sub-feature's own suffix/direction as the representative detail, so
+    every number shown is still one specific SHAP value, just aggregated for
+    a clinician-legible top line.
+    """
+    explainer = _get_shap_explainer()
+    sv = np.asarray(explainer.shap_values(X)).reshape(-1)
+    total_abs = float(np.sum(np.abs(sv))) or 1.0
+
+    groups: dict[str, list[int]] = {}
+    for i, fname in enumerate(feature_names):
+        base, _ = _feature_base_and_suffix(fname)
+        groups.setdefault(base, []).append(i)
+
+    scored = []
+    for base, idxs in groups.items():
+        group_importance = float(np.sum(np.abs(sv[idxs])))
+        rep_i = idxs[int(np.argmax(np.abs(sv[idxs])))]
+        scored.append((group_importance, base, rep_i))
+    scored.sort(key=lambda t: -t[0])
+
+    return [
+        {
+            "label": _feature_label(feature_names[rep_i]) if len(groups[base]) == 1
+                      else _BASE_LABELS.get(base, base.replace("_", " ").capitalize()),
+            "feature": feature_names[rep_i],
+            "pct": round(group_importance / total_abs * 100),
+            "direction": "up" if sv[rep_i] > 0 else "down",
+            "shapValue": float(sv[rep_i]),
+        }
+        for group_importance, base, rep_i in scored[:top_n]
+    ]
 
 
 def _elapsed_hours(t_from, t_to):
@@ -250,7 +351,7 @@ def _score_risk24h(patient, vitals_asc, as_of_idx):
     return S
 
 
-def predict(patient, recent_vitals, news_factors=None):
+def predict(patient, recent_vitals):
     """recent_vitals must be ordered OLDEST -> NEWEST (matches how main.py
     builds vitals_history/vitals_dict_history).
 
@@ -308,31 +409,16 @@ def predict(patient, recent_vitals, news_factors=None):
 
         window_str = f"next {int(time_to_event)} hours" if risk_24h > 0.05 else "--"
 
-        drivers = []
-        if news_factors:
-            _ML_LABELS = {
-                "Respiration Rate": "Respiratory rate trend",
-                "SpO2 (Scale 1)": "SpO₂ downtrend", "SpO2 (Scale 2)": "SpO₂ downtrend",
-                "Supplemental Oxygen": "Oxygen requirement",
-                "Systolic BP": "Falling blood pressure", "Heart Rate": "Heart-rate trend",
-                "Consciousness (CVPU)": "Reduced consciousness", "Temperature": "Temperature",
-            }
-            total = sum(nf["score"] for nf in news_factors) or 1
-            drivers = [
-                {"label": _ML_LABELS.get(nf["name"], nf["name"]), "pct": round(nf["score"] / total * 100)}
-                for nf in sorted(news_factors, key=lambda x: x["score"], reverse=True)[:4]
-            ]
-        if not drivers:
-            X_last = build_features(patient, recent_vitals, n - 1)
-            x_dict = dict(zip(_META["features"], X_last[0])) if X_last is not None else {}
-            if x_dict.get("heart_rate_mean", 0) > 100 or x_dict.get("heart_rate_mean", 0) < 50:
-                drivers.append({"label": "Heart-rate trend", "pct": 40})
-            if x_dict.get("sbp_mean", 120) < 90 or x_dict.get("sbp_mean", 120) > 160:
-                drivers.append({"label": "Abnormal blood pressure", "pct": 30})
-            if x_dict.get("resp_rate_mean", 16) > 22 or x_dict.get("resp_rate_mean", 16) < 10:
-                drivers.append({"label": "Respiratory rate trend", "pct": 30})
-            if not drivers:
-                drivers = [{"label": "Multivariate vital instability", "pct": 100}]
+        # Real per-prediction explainability: SHAP attribution from the
+        # model's own 24h booster, not a NEWS2-score readout or a hand-built
+        # vital-threshold heuristic (neither of those was ever actually
+        # derived from what this model computed — see plan for why that
+        # matters under scrutiny). X_last is the same feature vector that
+        # produced risk_24h, so the explanation matches the number shown.
+        X_last = build_features(patient, recent_vitals, n - 1)
+        drivers = _shap_drivers(X_last, _META["features"]) if X_last is not None else [
+            {"label": "Insufficient data for attribution", "pct": 100, "direction": "up", "shapValue": 0.0}
+        ]
 
         return {
             "escalationRisk": float(round(risk_24h * 100, 1)),

@@ -1,3 +1,4 @@
+import json
 import math
 import os
 import threading
@@ -7,7 +8,7 @@ from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from database import SessionLocal, init_db
-from models import Patient, VitalTimeSeries, LabEvent, Medication, Escalation, CcuTransfer, DrugLabAction
+from models import Patient, VitalTimeSeries, LabEvent, Medication, Escalation, CcuTransfer, DrugLabAction, AiAlertAck
 from engine.drug_lab import check_patient_against_rules
 from mimic_sync import sync_patient_from_mimic, list_dcm_patients
 from pydantic import BaseModel
@@ -542,6 +543,12 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
     for _m in _mrows:
         _meds_map[_m.hadm_id].append(_m)
 
+    # Early Warning ack/dismiss state — bulk-fetched like everything else
+    # above, never per-patient. Display-only: never consulted by
+    # escalation_model.predict() and never changes tier/score/hysteresis.
+    _ack_rows = db.query(AiAlertAck).filter(AiAlertAck.hadm_id.in_(patient_ids)).all()
+    _ack_map = {a.hadm_id: a for a in _ack_rows}
+
     result = []
     for p in patients:
         all_vitals = list(_vitals_map[p.hadm_id])   # already sorted desc by bulk query
@@ -800,7 +807,7 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
         ml_real = None
         try:
             import escalation_model
-            ml_real = escalation_model.predict(p, vitals_dict_history, news_data.get("factors"))
+            ml_real = escalation_model.predict(p, vitals_dict_history)
         except Exception as e:
             pass
             
@@ -827,17 +834,38 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
             ml_model_type = "demo"
             ml_stats = {}
 
-        # Smart Recommendation Injection
+        # ── Non-vacuous AI alert: the model fired (CRITICAL RISK, i.e. crossed
+        # tau_high and is hysteresis-latched) while NEWS2 has NOT yet reached
+        # its own ≥7 crisis threshold. This is the real, independent signal —
+        # NEWS2 structurally cannot see it. When NEWS2 is ALREADY ≥7, the same
+        # tier firing is "vacuous": true but not informative, since a nurse
+        # already knows this patient is critical from NEWS2 alone.
+        #
+        # Deliberately does NOT set status='critical' here (that field drives
+        # the NEWS2-protocol explanation text below, which reads news2_score
+        # directly — forcing it from the ML tier previously made a NEWS2<7
+        # patient's card claim "HIGH RISK (NEWS2 ≥7)", which is false for
+        # exactly the non-vacuous case this whole feature exists to surface).
+        # The Early Warning panel is the dedicated, visually separate place
+        # this alert belongs — see design note in the plan this implements.
+        non_vacuous_alert = (ml_tier == 'CRITICAL RISK' and isinstance(news2_score, (int, float)) and news2_score < 7)
+        vacuous_ai_confirm = (ml_tier == 'CRITICAL RISK' and not non_vacuous_alert)
+
         if ml_tier == 'CRITICAL RISK' and not any(a.get('source') == 'AI' for a in drug_lab_alerts):
-            # Prepend a high-priority AI alert
             drug_lab_alerts.insert(0, {
                 "rule_name": "AI Deterioration Alert",
                 "message": "AI prediction indicates high risk of critical deterioration. Recommend attending review and continuous monitoring.",
                 "severity": "CRITICAL",
                 "source": "AI"
             })
-            if status != 'critical':
-                status = 'critical'
+
+        # ── ack/dismiss is a display annotation only (see AiAlertAck
+        # docstring) — it never feeds back into non_vacuous_alert above. ──
+        _ack = _ack_map.get(p.hadm_id)
+        ai_acknowledged_at = _ack.acknowledged_at if _ack else None
+        ai_dismissed_until = _ack.dismissed_until if _ack else None
+        ai_currently_dismissed = bool(ai_dismissed_until and ai_dismissed_until > datetime.now())
+        early_warning_active = non_vacuous_alert and not ai_currently_dismissed
 
         # ── NEWS2 clinical risk tier (per NHS protocol) ──
         # Check if any single parameter scored 3 (Low-Medium risk trigger)
@@ -971,6 +999,12 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
             "escalationRisk2h": ml_risk_2h,
             "escalationTier": ml_tier,
             "escalationModel": ml_model_type,
+            "nonVacuousAlert": non_vacuous_alert,
+            "vacuousAiConfirm": vacuous_ai_confirm,
+            "earlyWarningActive": early_warning_active,
+            "aiAcknowledgedAt": ai_acknowledged_at,
+            "aiDismissedUntil": ai_dismissed_until,
+            "aiCurrentlyDismissed": ai_currently_dismissed,
             "mlStats": ml_stats,
             "mlExplanation": explanation,
             "recommendedAction": action,
@@ -991,10 +1025,99 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
     # last rather than first/last-arbitrarily.
     result.sort(key=lambda p: p["news2"] if isinstance(p["news2"], (int, float)) else -1, reverse=True)
 
-    _response = {"patients": result, "ward": ward}
+    # Early Warning panel count: NEWS2-stable patients the model is flagging
+    # right now, excluding any currently dismissed. This is a live mechanism
+    # count (today's ward snapshot), NOT the held-out-test-split statistics —
+    # those live separately in /api/ml-stats and must never be blended with
+    # this number (see plan: "live demo patients prove the mechanism, not
+    # the statistics").
+    early_warning_count = sum(1 for p in result if p.get("earlyWarningActive"))
+
+    _response = {"patients": result, "ward": ward, "earlyWarningCount": early_warning_count}
     if hadm_id is None:
         _ward_cache[_cache_key] = {"ts": _time.time(), "data": _response}
     return _response
+
+
+# ── Model statistics panel: every number here traces to one file
+# (sabari_project/backend/model/serving_meta.json), written only by
+# ml/build_serving_esc.py and ml/30_nonvacuous_stats.py. Never hardcode a
+# number here — if a stat is missing, add it to those scripts' output. ──
+_SERVING_META_CACHE = None
+
+def _load_serving_meta() -> dict:
+    global _SERVING_META_CACHE
+    if _SERVING_META_CACHE is None:
+        _path = os.path.join(os.path.dirname(__file__), "model", "serving_meta.json")
+        with open(_path, "r") as f:
+            _SERVING_META_CACHE = json.load(f)
+    return _SERVING_META_CACHE
+
+@app.get("/api/ml-stats")
+def get_ml_stats():
+    """Practitioner-facing model statistics — held-out test-split numbers,
+    NOT the live ward snapshot (that's earlyWarningCount from /api/ward-data).
+    Keeping these two endpoints separate is deliberate: mixing a live demo
+    patient's score with an offline recall/PPV number is exactly the
+    mechanism-vs-statistics conflation this project's redo is trying to fix.
+    """
+    meta = _load_serving_meta()
+    return {
+        "model": meta.get("source_model"),
+        "tauHigh": meta.get("tau_high"),
+        "tauLow": meta.get("tau_low"),
+        "aurocTest": meta.get("auroc_test"),
+        "baseRate24h": meta.get("base_rate_24h"),
+        "allAnchors": meta.get("practitioner_stats", {}),
+        "nonVacuous": meta.get("non_vacuous_stats", {}),
+    }
+
+
+class AiAlertAckBody(BaseModel):
+    ackBy: str = "nurse"
+
+class AiAlertDismissBody(BaseModel):
+    hours: float = 12.0
+    dismissedBy: str = "nurse"
+
+@app.post("/api/patients/{hadm_id}/ai-alert/acknowledge")
+def acknowledge_ai_alert(hadm_id: int, body: AiAlertAckBody, db: Session = Depends(get_db)):
+    """Workflow-only: marks the Early Warning card as reviewed. Never touches
+    escalationTier, mlRisk, or the hysteresis latch — those are re-derived
+    fresh from vitals on every /api/ward-data call regardless of this row."""
+    row = db.query(AiAlertAck).filter(AiAlertAck.hadm_id == hadm_id).first()
+    now = datetime.now()
+    if row is None:
+        row = AiAlertAck(hadm_id=hadm_id, acknowledged_at=now, acknowledged_by=body.ackBy, updated_at=now)
+        db.add(row)
+    else:
+        row.acknowledged_at = now
+        row.acknowledged_by = body.ackBy
+        row.updated_at = now
+    db.commit()
+    _invalidate_ward_cache("All")
+    return {"status": "ok", "hadm_id": hadm_id, "acknowledgedAt": now}
+
+@app.post("/api/patients/{hadm_id}/ai-alert/dismiss")
+def dismiss_ai_alert(hadm_id: int, body: AiAlertDismissBody, db: Session = Depends(get_db)):
+    """Workflow-only: hides this patient's card from the Early Warning panel
+    count for `hours` (default 12). Does not alter the model's own output —
+    if the patient is queried directly, escalationTier/mlRisk are unchanged;
+    only earlyWarningActive/earlyWarningCount reflect the dismissal."""
+    row = db.query(AiAlertAck).filter(AiAlertAck.hadm_id == hadm_id).first()
+    now = datetime.now()
+    until = now + timedelta(hours=body.hours)
+    if row is None:
+        row = AiAlertAck(hadm_id=hadm_id, dismissed_until=until, acknowledged_by=body.dismissedBy, updated_at=now)
+        db.add(row)
+    else:
+        row.dismissed_until = until
+        row.acknowledged_by = body.dismissedBy
+        row.updated_at = now
+    db.commit()
+    _invalidate_ward_cache("All")
+    return {"status": "ok", "hadm_id": hadm_id, "dismissedUntil": until}
+
 
 @app.post("/api/escalations")
 def create_escalation(esc: EscalationCreate, db: Session = Depends(get_db)):

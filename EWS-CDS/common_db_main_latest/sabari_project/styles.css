@@ -116,6 +116,29 @@ a{color:inherit;text-decoration:none}
 .stat-l{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:6px}
 .stat.active-filter{box-shadow:0 0 0 2px var(--p) inset;background:var(--pl)}
 
+/* ── EARLY WARNING PANEL ──
+   Deliberately its own visual system (purple --p family), not a tint of the
+   red/amber/green NEWS2 palette -- this is a different signal (predicted
+   future escalation the current vitals snapshot can't show), and looking
+   different is how a nurse tells the two apart at a glance. */
+.ew-panel{background:var(--pl);border:1px solid var(--pm);border-left:4px solid var(--p);border-radius:8px;padding:16px 18px;margin-bottom:20px;transition:box-shadow .12s}
+.ew-panel:hover{box-shadow:0 2px 8px rgba(128,0,128,0.12)}
+.ew-panel-active{box-shadow:0 0 0 2px var(--p) inset}
+.ew-panel-empty{background:#fff;border-left-color:var(--border);border-color:var(--border)}
+.ew-panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.ew-panel-title{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;color:var(--p)}
+.ew-panel-empty .ew-panel-title{color:var(--ink2)}
+.ew-icon{font-size:16px}
+.ew-panel-count{font-size:28px;font-weight:800;color:var(--p);line-height:1}
+.ew-panel-empty .ew-panel-count{color:var(--muted)}
+.ew-panel-sub{font-size:12px;color:var(--ink2);margin-top:6px;line-height:1.5;max-width:900px}
+.ew-panel-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.ew-chip{background:#fff;border:1px solid var(--pm);color:var(--p);font-size:11px;font-weight:600;padding:3px 9px;border-radius:12px}
+.ew-chip-more{color:var(--muted);border-color:var(--border)}
+.ew-panel-foot{font-size:11px;color:var(--pm);margin-top:10px;cursor:pointer;text-decoration:underline;width:fit-content}
+.bd-ew{background:var(--pl);color:var(--p);border:1px solid var(--pm)}
+.row-ew td:first-child{box-shadow:inset 3px 0 0 var(--p)}
+
 /* ── BUTTONS ── */
 .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:6px;font-size:12.5px;font-weight:600;border:1px solid transparent;cursor:pointer;transition:all .15s;white-space:nowrap}
 .btn-pri{background:var(--p);color:#fff;border-color:var(--p)}
@@ -180,6 +203,18 @@ tr.acked-row td:first-child{box-shadow:inset 3px 0 0 var(--t3)}
 /* ── CARD ── */
 .card{background:#fff;border:1px solid var(--border);border-radius:8px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,0.02)}
 .card-title{font-size:13px;font-weight:700;color:var(--ink);margin-bottom:14px;letter-spacing:-0.2px}
+
+/* ── SHAP DRIVER CHART (real per-prediction attribution, not a heuristic) ── */
+.shap-chart{display:flex;flex-direction:column;gap:10px}
+.shap-row{display:grid;grid-template-columns:170px 1fr 60px;align-items:center;gap:10px}
+.shap-label{font-size:12px;font-weight:600;color:var(--ink2)}
+.shap-bar-track{background:var(--surf);border-radius:4px;height:14px;overflow:hidden}
+.shap-bar{height:100%;border-radius:4px}
+.shap-bar.shap-up{background:var(--p)}
+.shap-bar.shap-down{background:var(--t3)}
+.shap-pct{font-size:11px;font-weight:700;text-align:right}
+.shap-up-t{color:var(--p)}
+.shap-down-t{color:var(--t3)}
 
 /* ── FORM ── */
 .frow{display:flex;gap:16px}
@@ -313,6 +348,19 @@ tr.acked-row td:first-child{box-shadow:inset 3px 0 0 var(--t3)}
 .dx-banner.sev-t3{background:var(--t3b);border-color:var(--t3)}
 .dx-banner .dx-lbl{display:block;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px}
 .dx-banner b{font-size:13px;color:var(--ink)}
+
+/* ── AI ALERT BANNER (patient detail) ──
+   Loud, red-bordered treatment ONLY for the non-vacuous case (see
+   renderAiAlertBanner) -- a patient already NEWS2-critical gets the quiet
+   note variant below instead, so it never competes with a real alert. */
+.ai-alert-banner{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;padding:14px 16px;border-radius:8px;margin-bottom:16px;background:var(--t1b);border:2px solid var(--t1)}
+.ai-alert-head{display:flex;align-items:flex-start;gap:12px;flex:1;min-width:260px}
+.ai-alert-badge{flex-shrink:0;background:var(--t1);color:#fff;font-size:11px;font-weight:800;letter-spacing:.4px;padding:4px 10px;border-radius:4px;white-space:nowrap}
+.ai-alert-msg{font-size:12.5px;line-height:1.5;color:var(--ink2)}
+.ai-alert-actions{display:flex;gap:8px;flex-shrink:0}
+.ai-alert-acked{font-size:11.5px;font-weight:600;color:var(--t3);white-space:nowrap}
+.ai-alert-dismissed-note{font-size:12px;color:var(--muted);background:var(--surf);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.ai-alert-quiet-note{font-size:11.5px;color:var(--muted);padding:6px 2px;margin-bottom:12px}
 
 /* ── DCM source tags ── */
 .src-tag{font-size:9px;color:var(--muted);font-weight:500}

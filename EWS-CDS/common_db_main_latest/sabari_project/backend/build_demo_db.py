@@ -31,7 +31,7 @@ def init_db_fresh():
     Creates any missing EWS tables first (idempotent against Cloud SQL)."""
     from sqlalchemy import text
     ews_tables = [
-        "ews_drug_lab_actions", "ews_ccu_transfers", "ews_escalations",
+        "ews_ai_alert_ack", "ews_drug_lab_actions", "ews_ccu_transfers", "ews_escalations",
         "ews_medications", "ews_lab_events", "ews_vitals_timeseries", "active_patients",
     ]
     Base.metadata.create_all(bind=engine, checkfirst=True)
@@ -241,6 +241,7 @@ def build():
                 data_fetch_status   = "fetched",
             )
             session.add(patient)
+            session.flush()
 
             # Vitals
             gen_vitals_trajectory(session, sid, scenario)

@@ -118,6 +118,27 @@ class Escalation(Base):
     reescalation_note  = Column(String, nullable=True)
 
 
+class AiAlertAck(Base):
+    """Workflow-only acknowledge/dismiss state for the Early Warning panel.
+
+    Deliberately holds NOTHING about the model's own output (score, tier,
+    hysteresis latch) -- only when a clinician looked at an alert and what
+    they chose to do about it for display purposes. The escalation model's
+    predict() re-derives tier/score fresh from vitals on every call and never
+    reads this table; acknowledging/dismissing must never be able to change
+    what the model itself is reporting (see the original per-patient-
+    threshold confusion this project is explicitly trying to not repeat).
+    """
+    __tablename__ = "ews_ai_alert_ack"
+
+    id                = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    hadm_id           = Column(Integer, index=True, unique=True)
+    acknowledged_at   = Column(DateTime, nullable=True)
+    acknowledged_by   = Column(String, nullable=True)
+    dismissed_until   = Column(DateTime, nullable=True)
+    updated_at        = Column(DateTime, nullable=True)
+
+
 class CcuTransfer(Base):
     """CCU to General Ward step-down recommendation."""
     __tablename__ = "ews_ccu_transfers"
