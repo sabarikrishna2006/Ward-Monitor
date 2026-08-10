@@ -237,8 +237,20 @@ def build_features(patient, vitals_asc, as_of_idx=None):
 
     last_v = anchor
     f["not_alert"] = 1.0 if (last_v.get("consciousness") or "A") != "A" else 0.0
-    f["on_oxygen"] = 1.0 if (last_v.get("air_or_oxygen") or "Air") != "Air" else 0.0
-    f["fio2_last"] = 21.0
+    on_oxygen = (last_v.get("air_or_oxygen") or "Air") != "Air"
+    f["on_oxygen"] = 1.0 if on_oxygen else 0.0
+    # ews_vitals_timeseries has no numeric FiO2 field (only the Air/Oxygen flag),
+    # so the true per-patient value can't be read live -- but flatly feeding 21.0
+    # (room air) to every patient regardless of oxygen status silently discards
+    # the single strongest true-vs-false-positive differentiator found when this
+    # session decomposed the model's non-vacuous false alarms (std. mean diff
+    # 0.64, the largest of any feature): training data's fio2_last for on_oxygen
+    # patients has median 50% (IQR 40-60%), essentially never 21%. Use that
+    # population median as a data-driven stand-in for on-oxygen patients rather
+    # than a value the training distribution says is almost never true for them.
+    # Still not the same as a real per-patient reading -- that requires adding a
+    # numeric FiO2 column to the live schema, not done here.
+    f["fio2_last"] = 50.0 if on_oxygen else 21.0
     news2_anchor = _num(anchor, "news2")
     f["news2_at_anchor"] = float(news2_anchor) if not np.isnan(news2_anchor) else 0.0
 

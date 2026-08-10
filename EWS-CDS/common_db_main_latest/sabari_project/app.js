@@ -234,7 +234,7 @@ let _refreshTimer = null;
 // a single slow cold fetch (~13-15s right after a cache invalidation) would
 // otherwise get hit by 2-3 more overlapping polls before it even returns,
 // stacking concurrent queries against a pool with only 2+3 connections.
-const REFRESH_MS = 5 * 1000;
+const REFRESH_MS = 20 * 1000;
 const REFRESHABLE = ['n1', 'n5', 'n1b', 'dl1'];   // read-only screens (never a form mid-entry)
 let _refreshInFlight = false;
 
@@ -505,7 +505,67 @@ function renderHeader() {
   roleEl.className = 'role-chip' + (u && u.role ? ' ' + u.role : '');
   document.getElementById('hdr-user').textContent  = u ? u.name  : '';
   document.getElementById('hdr-ward').textContent  = u ? u.ward  : '';
+  renderEwBell();
 }
+
+// Header bell — visible on every screen, not just the dashboard. Reflects
+// whatever the most recently fetched n1 data says; a nurse working outside
+// the dashboard still sees the count without needing to navigate there.
+function renderEwBell() {
+  const bellEl = document.getElementById('ew-bell-btn');
+  const badgeEl = document.getElementById('ew-bell-badge');
+  if (!bellEl || !badgeEl) return;
+  const n1 = APP.data.n1;
+  const count = (n1 && n1.earlyWarningCount) || 0;
+  bellEl.classList.toggle('has-alerts', count > 0);
+  badgeEl.style.display = count > 0 ? 'flex' : 'none';
+  badgeEl.textContent = count > 9 ? '9+' : String(count);
+  const dd = document.getElementById('ew-bell-dropdown');
+  if (dd && dd.style.display !== 'none') renderEwDropdownContent();
+}
+
+window.toggleEwBell = function(e) {
+  if (e) e.stopPropagation();
+  const dd = document.getElementById('ew-bell-dropdown');
+  if (!dd) return;
+  const opening = dd.style.display === 'none';
+  dd.style.display = opening ? 'block' : 'none';
+  if (opening) renderEwDropdownContent();
+};
+// Close on outside click; never on a click inside the dropdown itself.
+document.addEventListener('click', (e) => {
+  const dd = document.getElementById('ew-bell-dropdown');
+  const wrap = document.getElementById('ew-bell-wrap');
+  if (dd && dd.style.display !== 'none' && wrap && !wrap.contains(e.target)) {
+    dd.style.display = 'none';
+  }
+});
+
+function renderEwDropdownContent() {
+  const dd = document.getElementById('ew-bell-dropdown');
+  if (!dd) return;
+  const n1 = APP.data.n1;
+  const flagged = ((n1 && n1.patients) || []).filter(p => p.earlyWarningActive);
+  dd.innerHTML = `
+    <div class="ew-dd-head"><span>⚡</span><span>Early Warning — AI flags risk, NEWS2 stable</span></div>
+    ${flagged.length === 0
+      ? `<div class="ew-dd-empty">No silent-deterioration alerts right now.</div>`
+      : flagged.map(p => `
+        <div class="ew-dd-card" onclick="closeEwBellAndOpen(${p.id})">
+          <div class="ew-dd-card-top">
+            <span class="ew-dd-name">${p.name}</span>
+            <span class="ew-dd-age">${alertAgeLabel(p.aiAlertAgeMinutes)}</span>
+          </div>
+          <div class="ew-dd-mid"><span>NEWS2 <b>${p.news2}</b></span><span>AI <b style="color:var(--p)">${p.mlRisk}%</b></span></div>
+          ${renderAiSvgMini(p.recentVitals)}
+        </div>`).join('')
+    }
+    <div class="ew-dd-foot">NEWS2 still looks fine on these patients, but the model's independent risk score has crossed the alarm threshold. Click a patient to open their chart.</div>`;
+}
+window.closeEwBellAndOpen = function(patientId) {
+  document.getElementById('ew-bell-dropdown').style.display = 'none';
+  nav('n1b', patientId);
+};
 
 function renderSidebar() {
   const items = NAV[APP.role] || [];
@@ -648,15 +708,77 @@ function renderNews2Svg(recent) {
 }
 
 /* ── AI Risk trend chart (SVG) ── */
-function renderAiSvgLarge(recent) {
+// Compact trend line for the Early Warning panel cards -- reuses the same
+// aiRisk points already computed for every patient in the ward response
+// (see main.py's per-patient recentVitals loop), so this costs nothing extra
+// server-side; it's purely a rendering choice to surface data that already
+// exists but was previously only visible after clicking into the detail tab.
+// Research this session found trend-vs-point-value is the single highest-
+// leverage signal in comparable deployed EWS UIs (PeraHealth's Rothman Index
+// is built around a continuous trend line, not a point score).
+function renderAiSvgMini(recent) {
   const pts = (recent || []).filter(r => r.aiRisk !== '--' && r.aiRisk != null);
-  if (pts.length < 2) return '<div class="muted small" style="margin-top:10px">Not enough historical data to show trend.</div>';
-  const W = 300, H = 60, pad = 4;
+  if (pts.length < 2) return '';
+  const W = 84, H = 26, pad = 2;
   const x = i => pad + i * ((W - 2 * pad) / (pts.length - 1));
   const y = v => H - pad - (v / 100) * (H - 2 * pad);
   const line = pts.map((p, i) => `${x(i).toFixed(1)},${y(p.aiRisk).toFixed(1)}`).join(' ');
-  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:300px;height:60px;display:block;margin-top:6px;background:#fcfcfc;border:1px solid var(--border);border-radius:4px;padding:4px;">
-    <polyline points="${line}" fill="none" stroke="var(--t1)" stroke-width="2.5" stroke-linejoin="round"/>
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:84px;height:26px;display:block;flex-shrink:0">
+    <polyline points="${line}" fill="none" stroke="var(--p)" stroke-width="2" stroke-linejoin="round"/>
+  </svg>`;
+}
+
+// "New" vs "been sitting for hours" -- alert-fatigue research flags giving
+// both the same badge as a specific, named design failure (an alert nobody's
+// looked at yet should read differently from one that's been open all
+// shift). aiAlertAgeMinutes is null only if the panel hasn't loaded the
+// timestamp yet, not if the alert is brand new (that reads as 0).
+function alertAgeLabel(mins) {
+  if (mins == null) return '';
+  if (mins < 5) return 'New';
+  if (mins < 60) return `${mins}m ago`;
+  const h = Math.floor(mins / 60);
+  return `${h}h ago`;
+}
+
+function renderAiSvgLarge(recent, tauHigh) {
+  const pts = (recent || []).filter(r => r.aiRisk !== '--' && r.aiRisk != null);
+  if (pts.length < 2) return '<div class="muted small" style="margin-top:10px">Not enough historical data to show trend.</div>';
+  const W = 340, H = 110, padL = 30, padR = 10, padT = 16, padB = 20;
+  // Scale to the data's own range (with the alarm line always included), not a
+  // fixed 0-100 -- a patient sitting at 2-8% would otherwise draw as a flat
+  // line pinned to the bottom of a 0-100 axis, which is unreadable.
+  const vals = pts.map(p => p.aiRisk);
+  const thr = tauHigh != null ? tauHigh * 100 : null;
+  const maxV = Math.max(...vals, thr || 0, 1) * 1.15;
+  const x = i => padL + i * ((W - padL - padR) / (pts.length - 1));
+  const y = v => H - padB - (v / maxV) * (H - padT - padB);
+  const line = pts.map((p, i) => `${x(i).toFixed(1)},${y(p.aiRisk).toFixed(1)}`).join(' ');
+  const dots = pts.map((p, i) =>
+    `<circle cx="${x(i).toFixed(1)}" cy="${y(p.aiRisk).toFixed(1)}" r="2.5" fill="var(--t1)"/>`
+  ).join('');
+  // Label every point on short series (<=6, the common case), else just
+  // start/end/peak so labels don't overlap on a long trajectory.
+  const labelIdxs = pts.length <= 6
+    ? pts.map((_, i) => i)
+    : [...new Set([0, pts.length - 1, vals.indexOf(Math.max(...vals))])];
+  const valueLabels = labelIdxs.map(i =>
+    `<text x="${x(i).toFixed(1)}" y="${(y(pts[i].aiRisk) - 6).toFixed(1)}" font-size="8.5" fill="var(--t1)" text-anchor="middle" font-weight="700">${pts[i].aiRisk}%</text>`
+  ).join('');
+  const timeLabels = pts.map((p, i) => {
+    if (pts.length > 6 && i % Math.ceil(pts.length / 6) !== 0 && i !== pts.length - 1) return '';
+    return `<text x="${x(i).toFixed(1)}" y="${H - 5}" font-size="7.5" fill="var(--muted)" text-anchor="middle">${p.time || ''}</text>`;
+  }).join('');
+  const yAxisLabels = `
+    <text x="${padL - 4}" y="${(padT + 3).toFixed(1)}" font-size="7.5" fill="var(--muted)" text-anchor="end">${maxV.toFixed(0)}%</text>
+    <text x="${padL - 4}" y="${(H - padB).toFixed(1)}" font-size="7.5" fill="var(--muted)" text-anchor="end">0%</text>`;
+  const thrLine = thr != null && thr <= maxV ? `
+    <line x1="${padL}" y1="${y(thr).toFixed(1)}" x2="${W - padR}" y2="${y(thr).toFixed(1)}" stroke="var(--p)" stroke-width="1" stroke-dasharray="3,2" opacity="0.55"/>
+    <text x="${W - padR}" y="${(y(thr) - 3).toFixed(1)}" font-size="7.5" fill="var(--p)" text-anchor="end">alarm ${thr.toFixed(1)}%</text>` : '';
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:${W}px;height:${H}px;display:block;margin-top:6px;background:#fcfcfc;border:1px solid var(--border);border-radius:4px;padding:4px;">
+    ${thrLine}
+    <polyline points="${line}" fill="none" stroke="var(--t1)" stroke-width="2" stroke-linejoin="round"/>
+    ${dots}${valueLabels}${timeLabels}${yAxisLabels}
   </svg>`;
 }
 
@@ -678,43 +800,6 @@ function errorState(msg) {
   </div>`;
 }
 
-// Dedicated, always-visible Early Warning panel — the fix for the original
-// failure mode where the only AI signal was a per-row badge someone had to
-// notice by scanning every row. This turns "find the alert" into "the alert
-// finds you": one headline number, right under the ward summary, every time.
-// Uses the --p (purple) "predictive" token so it reads as visually distinct
-// from NEWS2's own red/amber/green system — this is a DIFFERENT signal
-// (predicted future escalation), not an early copy of the NEWS2 score.
-// A visible zero is honest; hiding the panel on a quiet day invites exactly
-// the "I don't see any alerts" reaction that caused the original failure.
-function renderEarlyWarningPanel() {
-  const n1 = APP.data.n1;
-  if (!n1) return '';
-  const count = n1.earlyWarningCount || 0;
-  const flagged = (n1.patients || []).filter(p => p.earlyWarningActive);
-  const active = APP.n1_filter === 'early_warning';
-
-  return `
-<div class="ew-panel${count === 0 ? ' ew-panel-empty' : ''}${active ? ' ew-panel-active' : ''}" style="cursor:pointer" onclick="APP.n1_filter = APP.n1_filter==='early_warning' ? 'all' : 'early_warning'; renderAll()">
-  <div class="ew-panel-head">
-    <div class="ew-panel-title">
-      <span class="ew-icon">⚡</span>
-      <span>Early Warning — NEWS2 stable, AI flags risk</span>
-    </div>
-    <div class="ew-panel-count">${count}</div>
-  </div>
-  ${count === 0
-    ? `<div class="ew-panel-sub">No silent-deterioration alerts right now. The model is scoring every patient continuously — this updates live.</div>`
-    : `<div class="ew-panel-sub">${count} patient${count === 1 ? '' : 's'} with a NEWS2 score that still looks fine, but whose independent AI risk score has crossed the alarm threshold. NEWS2 cannot see this — it only reflects the current vitals snapshot. ${active ? 'Showing these now — click to clear filter.' : 'Click to filter the board to just these patients.'}</div>
-       <div class="ew-panel-chips">
-         ${flagged.slice(0, 6).map(p => `<span class="ew-chip">${p.name} · NEWS2 ${p.news2} · AI ${p.mlRisk}%</span>`).join('')}
-         ${flagged.length > 6 ? `<span class="ew-chip ew-chip-more">+${flagged.length - 6} more</span>` : ''}
-       </div>`
-  }
-  <div class="ew-panel-foot" onclick="event.stopPropagation();openModal('ai_stats')">How this is measured, and what "flagged" means ⓘ</div>
-</div>`;
-}
-
 // Persistent patient-detail banner. Only rendered in the loud/red treatment
 // for the real (non-vacuous) case; a patient already NEWS2-critical whose
 // tier also fires gets a small inline note instead — see the plan's design
@@ -724,10 +809,11 @@ function renderAiAlertBanner(p) {
     const ackedTag = p.aiAcknowledgedAt
       ? `<span class="ai-alert-acked">&#10003; Acknowledged ${new Date(p.aiAcknowledgedAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})} — still monitoring</span>`
       : `<button class="btn btn-sec btn-xs" onclick="ackAiAlert(${p.id})">Acknowledge — will monitor</button>`;
+    const ageLbl = alertAgeLabel(p.aiAlertAgeMinutes);
     return `
 <div class="ai-alert-banner">
   <div class="ai-alert-head">
-    <span class="ai-alert-badge">&#9888; AI ALERT</span>
+    <span class="ai-alert-badge">&#9888; AI ALERT${ageLbl ? ` · ${ageLbl}` : ''}</span>
     <span class="ai-alert-msg">NEWS2 is ${p.news2} — still looks stable. The AI model independently predicts elevated risk of deterioration (${p.mlRisk}%, above the ${p.mlStats && p.mlStats.tau_high ? (p.mlStats.tau_high*100).toFixed(1) : '7.7'}% alarm threshold). This is a real, separate signal — NEWS2 cannot see it.</span>
   </div>
   <div class="ai-alert-actions">
@@ -816,17 +902,11 @@ SCREENS.n1 = () => {
   </div>
 </div>
 
-${renderEarlyWarningPanel()}
-
 <div class="tw"><table class="tbl-stack">
   <thead><tr>
     <th>Patient</th><th>Diagnosis</th><th>Ward</th><th>SpO₂ (%)</th><th>RR (/min)</th><th>BP (mmHg)</th>
     <th>HR (bpm)</th><th>Temp (°C)</th><th>AVPU</th>
     <th onclick="APP.sortBy='news2'; renderAll()" style="cursor:pointer; text-decoration:underline;" title="Sort by NEWS2">NEWS2 ↕</th>
-    <th title="AI Deterioration Risk Prediction">
-      <span onclick="APP.sortBy='mlRisk'; renderAll()" style="cursor:pointer; text-decoration:underline;">AI Risk ↕</span>
-      <span style="cursor:pointer; margin-left:4px; opacity:0.6;" onclick="event.stopPropagation();openModal('ai_stats')">ⓘ</span>
-    </th>
     <th>EWS Reason</th><th>Status</th><th>Actions</th>
   </tr></thead>
   <tbody>
@@ -844,11 +924,10 @@ ${renderEarlyWarningPanel()}
           <td data-label="Patient"><b>${p.name}</b><br><span class="pid">${p.patient_code || 'PT-' + p.id}</span></td>
           <td data-label="Diagnosis" class="dx-cell">${p.primary_diagnosis || '—'}</td>
           <td data-label="Ward">${(p.ward||'').split(' ')[1]||p.ward||'--'}${p.ward_location==='GENERAL_WARD'?'<br><span class="loc-tag loc-gw">GW</span>':'<br><span class="loc-tag loc-ccu">CCU</span>'}</td>
-          <td colspan="8" style="color:var(--muted);font-style:italic;font-size:12px">
+          <td colspan="7" style="color:var(--muted);font-style:italic;font-size:12px">
             <span style="display:inline-block;width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--p);border-radius:50%;animation:spin 1s linear infinite;vertical-align:middle;margin-right:6px"></span>
             Syncing clinical data… Ward board will update when complete.
           </td>
-          <td data-label="AI Risk">—</td>
           <td data-label="Status"><span class="bd bd-muted">SYNCING</span></td>
           <td data-label="Actions"></td>
         </tr>`;
@@ -899,13 +978,19 @@ ${renderEarlyWarningPanel()}
       const bpVal = p.bp ? p.bp.split('/')[0] : '';
       
       // If stale, show dashes instead of old values
-      const hr = isStale ? '-' : (p.hr || '-');
-      const rr = isStale ? '-' : (p.rr || '-');
-      const spo2 = isStale ? '-' : (p.spo2 || '-');
-      const bp = isStale ? '-' : (p.bp || '-');
-      const temp = isStale ? '-' : (p.temp || '-');
-      const avpu = isStale ? '-' : (p.avpu || 'A');
-      const s = isStale ? '-' : score;
+      // A stale patient's LAST KNOWN vitals are still real, useful information --
+      // hiding them behind a dash reads as "we have no data on this patient",
+      // which is a much worse and more alarming signal than the true one ("this
+      // reading is old"). The row's own .stale styling + OVERDUE badge already
+      // communicate staleness; blanking the actual numbers on top of that just
+      // throws away real information a nurse might still want to glance at.
+      const hr = p.hr || '-';
+      const rr = p.rr || '-';
+      const spo2 = p.spo2 || '-';
+      const bp = p.bp || '-';
+      const temp = p.temp || '-';
+      const avpu = p.avpu || 'A';
+      const s = score;
       
       const ackBtn = p._acked
         ? `<span class="bd bd-t3" title="Acknowledged for this shift">&#10003; Acked</span>`
@@ -949,7 +1034,6 @@ ${renderEarlyWarningPanel()}
           <td data-label="Temp" class="${valCrit(p.temp, 38.0, '>')}">${temp} ${timeHtml(p.temp_time)}</td>
           <td data-label="AVPU">${avpu} ${timeHtml(p.avpu_time)}</td>
           <td data-label="NEWS2"><span class="${scoreClass}">${s}</span></td>
-          <td data-label="AI Risk">${isStale ? '—' : aiRiskCol}</td>
           <td data-label="EWS Reason" class="ews-reason-td" style="line-height:1.4">${renderEwsReason(p)}</td>
           <td data-label="Status">
             <div style="display:flex;flex-direction:column;align-items:flex-start;gap:4px">
@@ -1059,7 +1143,11 @@ SCREENS.n1b = () => {
     </div>` + dcmCard;
 
   // ── ML Insights ──
-  const riskTrendGraph = renderAiSvgLarge(p.recentVitals);
+  // Escalation model is trained on CCU-only data (see CLAUDE.md §GW gating) —
+  // GW patients never get a score, so the tab itself is hidden rather than
+  // showing an empty/not-applicable state a nurse would have to interpret.
+  const mlApplicable = p.escalationModel !== 'not_applicable_gw';
+  const riskTrendGraph = renderAiSvgLarge(p.recentVitals, p.mlStats && p.mlStats.tau_high);
   
   // Colored by the predicted risk value itself, not the current NEWS2 score —
   // a stable patient can still carry a high predicted risk, and the number
@@ -1198,7 +1286,7 @@ ${(() => {
     <div><span class="dx-lbl">EWS Trigger</span><b>${sig}</b></div>
     <div><span class="dx-lbl">Ward · Bed</span><b>${p.ward || ''} · Bed ${p.bed || ''} <span class="loc-tag ${locTag}">${loc}</span></b></div>
     <div><span class="dx-lbl">Monitoring</span><b>${(p.monitoring && p.monitoring.label) || '—'}${p.dueLabel ? ' · ' + p.dueLabel : ''}</b></div>
-    <div><span class="dx-lbl">AI risk</span><b style="color:${p.escalationTier === 'CRITICAL RISK' ? 'var(--t1)' : p.escalationTier === 'HIGH RISK' ? 'var(--t2)' : 'var(--t3)'}">${p.mlRisk != null ? p.mlRisk + '%' : '—'}</b></div>
+    ${p.escalationModel === 'not_applicable_gw' ? '' : `<div><span class="dx-lbl">AI risk</span><b style="color:${p.escalationTier === 'CRITICAL RISK' ? 'var(--t1)' : p.escalationTier === 'HIGH RISK' ? 'var(--t2)' : 'var(--t3)'}">${p.mlRisk != null ? p.mlRisk + '%' : '—'}</b></div>`}
   </div>`;
 })()}
 
@@ -1206,13 +1294,16 @@ ${renderAiAlertBanner(p)}
 
 <div class="tab-strip">
   <button class="tab-btn${APP.n1b_tab==='vitals'?' active':''}" onclick="APP.n1b_tab='vitals';renderAll()">Vital Signs</button>
-  <button class="tab-btn${APP.n1b_tab==='ml'?' active':''}" onclick="APP.n1b_tab='ml';renderAll()">ML Insights</button>
+  ${mlApplicable ? `<button class="tab-btn${APP.n1b_tab==='ml'?' active':''}" onclick="APP.n1b_tab='ml';renderAll()">ML Insights</button>` : ''}
   <button class="tab-btn${APP.n1b_tab==='drug-lab'?' active':''}" onclick="APP.n1b_tab='drug-lab';renderAll()">Drug-Lab Alerts</button>
   <button class="tab-btn${APP.n1b_tab==='labs'?' active':''}" onclick="APP.n1b_tab='labs';renderAll()">Lab Results</button>
   <button class="tab-btn${APP.n1b_tab==='meds'?' active':''}" onclick="APP.n1b_tab='meds';renderAll()">Medications</button>
 </div>
 
-${APP.n1b_tab === 'ml' ? mlInsights : APP.n1b_tab === 'drug-lab' ? druglab : APP.n1b_tab === 'labs' ? labsHtml : APP.n1b_tab === 'meds' ? medsHtml : vitals}
+${(() => {
+  const tab = (!mlApplicable && APP.n1b_tab === 'ml') ? 'vitals' : APP.n1b_tab;
+  return tab === 'ml' ? mlInsights : tab === 'drug-lab' ? druglab : tab === 'labs' ? labsHtml : tab === 'meds' ? medsHtml : vitals;
+})()}
 
 ${p.db_status === 'discharge_initiated' ? `
 <div class="alert al-ok" style="border-left:4px solid var(--disch);margin-top:16px;display:flex;align-items:center;gap:10px">

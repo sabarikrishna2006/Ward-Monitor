@@ -209,27 +209,16 @@ def _sync_vitals(hadm_id: int, db: Session) -> int:
     mimic_last = max(buckets.keys())
     target_last = datetime.now() - timedelta(minutes=30)
 
-    inserted = 0
-    for bucket_time, vals in sorted(buckets.items()):
-        new_time = _restamp(bucket_time, mimic_last, target_last)
-
-        # Skip if this exact (hadm_id, chart_time) already exists
-        exists = db.execute(sql_text(
-            "SELECT 1 FROM ews_vitals_timeseries WHERE hadm_id=:h AND chart_time=:t LIMIT 1"
-        ), {"h": hadm_id, "t": new_time}).fetchone()
-        if exists:
-            continue
-
-        db.execute(sql_text("""
-            INSERT INTO ews_vitals_timeseries
-                (hadm_id, chart_time, heart_rate, resp_rate, spo2, sbp, dbp,
-                 temperature, consciousness, air_or_oxygen, urine_output, weight_kg)
-            VALUES
-                (:h, :t, :hr, :rr, :spo2, :sbp, :dbp,
-                 :temp, :avpu, :o2, :urine, :wt)
-            ON CONFLICT (hadm_id, chart_time) DO NOTHING
-        """), {
-            "h": hadm_id, "t": new_time,
+    # Batched, not one SELECT-then-INSERT round trip per bucket -- ON CONFLICT
+    # DO NOTHING already makes the pre-check redundant (it's the same
+    # uniqueness guard, just re-verified twice), and up to ~20-30 buckets
+    # meant ~40-60 sequential Cloud SQL round trips per patient. Measured
+    # directly (2026-08-09): this loop was a dominant chunk of a >90s
+    # admission-to-ward-visible time. One multi-row INSERT does the same
+    # dedup with a single round trip regardless of bucket count.
+    rows = [
+        {
+            "h": hadm_id, "t": _restamp(bucket_time, mimic_last, target_last),
             "hr":    vals.get("heart_rate"),
             "rr":    vals.get("resp_rate"),
             "spo2":  vals.get("spo2"),
@@ -240,8 +229,19 @@ def _sync_vitals(hadm_id: int, db: Session) -> int:
             "o2":    vals.get("air_or_oxygen", "Air"),
             "urine": None,   # filled by _sync_urine
             "wt":    vals.get("weight_kg"),
-        })
-        inserted += 1
+        }
+        for bucket_time, vals in sorted(buckets.items())
+    ]
+    db.execute(sql_text("""
+        INSERT INTO ews_vitals_timeseries
+            (hadm_id, chart_time, heart_rate, resp_rate, spo2, sbp, dbp,
+             temperature, consciousness, air_or_oxygen, urine_output, weight_kg)
+        VALUES
+            (:h, :t, :hr, :rr, :spo2, :sbp, :dbp,
+             :temp, :avpu, :o2, :urine, :wt)
+        ON CONFLICT (hadm_id, chart_time) DO NOTHING
+    """), rows)
+    inserted = len(rows)
 
     # Gap-fill: real MIMIC chartevents can genuinely lack certain vital types
     # for a given admission (e.g. Temperature charted only twice a shift while
@@ -356,29 +356,15 @@ def _sync_labs(hadm_id: int, age: int, gender: str, db: Session) -> int:
     mimic_last = max(all_times)
     target_last = datetime.now() - timedelta(minutes=30)
 
-    inserted = 0
+    # Batched for the same reason as _sync_vitals above -- ON CONFLICT DO
+    # NOTHING already guards duplicates; the per-day SELECT was a redundant
+    # extra round trip per row.
+    rows = []
     for day, vals in sorted(day_buckets.items()):
-        new_time = _restamp(day, mimic_last, target_last)
-
-        exists = db.execute(sql_text(
-            "SELECT 1 FROM ews_lab_events WHERE hadm_id=:h AND chart_time=:t LIMIT 1"
-        ), {"h": hadm_id, "t": new_time}).fetchone()
-        if exists:
-            continue
-
         cr = vals.get("creatinine")
         egfr = ckd_epi_egfr(cr, age, gender) if cr else None
-
-        db.execute(sql_text("""
-            INSERT INTO ews_lab_events
-                (hadm_id, chart_time, potassium, creatinine, lactate, inr, egfr, alt,
-                 bnp, troponin, sodium, hemoglobin)
-            VALUES
-                (:h, :t, :k, :cr, :lac, :inr, :egfr, :alt,
-                 :bnp, :trop, :na, :hgb)
-            ON CONFLICT (hadm_id, chart_time) DO NOTHING
-        """), {
-            "h":    hadm_id, "t": new_time,
+        rows.append({
+            "h":    hadm_id, "t": _restamp(day, mimic_last, target_last),
             "k":    vals.get("potassium"),
             "cr":   cr,
             "lac":  vals.get("lactate"),
@@ -390,9 +376,16 @@ def _sync_labs(hadm_id: int, age: int, gender: str, db: Session) -> int:
             "na":   vals.get("sodium"),
             "hgb":  vals.get("hemoglobin"),
         })
-        inserted += 1
-
-    return inserted
+    db.execute(sql_text("""
+        INSERT INTO ews_lab_events
+            (hadm_id, chart_time, potassium, creatinine, lactate, inr, egfr, alt,
+             bnp, troponin, sodium, hemoglobin)
+        VALUES
+            (:h, :t, :k, :cr, :lac, :inr, :egfr, :alt,
+             :bnp, :trop, :na, :hgb)
+        ON CONFLICT (hadm_id, chart_time) DO NOTHING
+    """), rows)
+    return len(rows)
 
 
 def _sync_meds(hadm_id: int, db: Session) -> int:
@@ -413,19 +406,21 @@ def _sync_meds(hadm_id: int, db: Session) -> int:
     # Clear existing meds for this patient to avoid duplicates
     db.execute(sql_text("DELETE FROM ews_medications WHERE hadm_id = :h"), {"h": hadm_id})
 
-    inserted = 0
+    med_rows = []
     for drug, dose_val, dose_unit, doses_per_day, route in rows:
         if not drug or not drug.strip():
             continue
         dose_str = f"{dose_val or ''}{dose_unit or ''}".strip() or "--"
         freq = f"{int(doses_per_day)}×/day" if doses_per_day else (route or "--")
+        med_rows.append({"h": hadm_id, "n": drug.strip(), "d": dose_str, "f": freq})
+
+    if med_rows:  # one batched insert instead of one round trip per drug
         db.execute(sql_text("""
             INSERT INTO ews_medications (hadm_id, med_name, dose, frequency)
             VALUES (:h, :n, :d, :f)
-        """), {"h": hadm_id, "n": drug.strip(), "d": dose_str, "f": freq})
-        inserted += 1
+        """), med_rows)
 
-    return inserted
+    return len(med_rows)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -440,14 +435,19 @@ def _sync_diagnosis(hadm_id: int, db: Session) -> int:
     if existing and existing[0]:  # already populated — skip
         return 0
 
-    # Try ap_diagnoses first (ICD codes with text descriptions).
-    # Both except blocks below roll back on failure — a caught-but-unrolled-back
-    # error here would leave the session in Postgres's "transaction aborted"
-    # state, which then poisons every later statement in the orchestrator's
-    # single transaction (this bit us for real: an earlier version silently
-    # swallowed exceptions here without rolling back, and the orchestrator's
-    # very next query — the BNP lookup — failed with an unrelated-looking
-    # "current transaction is aborted" error).
+    # diagnosis_short is VARCHAR(80) (models.py) — truncate to that width, not
+    # an arbitrary longer one. A mismatch here previously caused a real
+    # "value too long for type character varying(80)" DatabaseError on any
+    # MIMIC diagnosis text over 80 chars (observed directly: hadm_id
+    # 26713233's real diagnosis is 87 chars). That error was caught below and
+    # rolled back — but because this whole sync runs as ONE transaction with
+    # the vitals/labs/meds inserts done earlier by the same caller
+    # (sync_patient_from_mimic), a bare db.rollback() here didn't just abandon
+    # the diagnosis-fill — it silently discarded ALL of that already-synced
+    # clinical data too, while the caller still reported success. Each
+    # attempt below now runs inside its own SAVEPOINT (db.begin_nested()) so
+    # a failure here can only undo the diagnosis-fill itself, never anything
+    # written earlier in the outer transaction.
     try:
         diag_row = db.execute(sql_text("""
             SELECT long_title FROM ap_diagnoses
@@ -456,12 +456,13 @@ def _sync_diagnosis(hadm_id: int, db: Session) -> int:
             LIMIT 1
         """), {"h": hadm_id}).fetchone()
         if diag_row and diag_row[0]:
-            db.execute(sql_text(
-                "UPDATE active_patients SET diagnosis_short = :d WHERE hadm_id = :h AND diagnosis_short IS NULL"
-            ), {"h": hadm_id, "d": diag_row[0][:120]})
+            with db.begin_nested():
+                db.execute(sql_text(
+                    "UPDATE active_patients SET diagnosis_short = :d WHERE hadm_id = :h AND diagnosis_short IS NULL"
+                ), {"h": hadm_id, "d": diag_row[0][:80]})
             return 1
     except Exception:
-        db.rollback()
+        pass
 
     # Fallback: try ap_admissions.diagnosis
     try:
@@ -469,12 +470,13 @@ def _sync_diagnosis(hadm_id: int, db: Session) -> int:
             "SELECT diagnosis FROM ap_admissions WHERE hadm_id = :h LIMIT 1"
         ), {"h": hadm_id}).fetchone()
         if adm_row and adm_row[0]:
-            db.execute(sql_text(
-                "UPDATE active_patients SET diagnosis_short = :d WHERE hadm_id = :h AND diagnosis_short IS NULL"
-            ), {"h": hadm_id, "d": adm_row[0][:120]})
+            with db.begin_nested():
+                db.execute(sql_text(
+                    "UPDATE active_patients SET diagnosis_short = :d WHERE hadm_id = :h AND diagnosis_short IS NULL"
+                ), {"h": hadm_id, "d": adm_row[0][:80]})
             return 1
     except Exception:
-        db.rollback()
+        pass
 
     return 0
 

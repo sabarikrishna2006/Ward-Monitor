@@ -136,6 +136,12 @@ class AiAlertAck(Base):
     acknowledged_at   = Column(DateTime, nullable=True)
     acknowledged_by   = Column(String, nullable=True)
     dismissed_until   = Column(DateTime, nullable=True)
+    # Set once, the first time non_vacuous_alert is observed True for this
+    # patient; cleared back to NULL once it's observed False (so a later,
+    # separate alert reads as new rather than inheriting the old age). This is
+    # a display timestamp only, same as everything else on this row -- it does
+    # not feed back into non_vacuous_alert or the hysteresis latch.
+    first_flagged_at  = Column(DateTime, nullable=True)
     updated_at        = Column(DateTime, nullable=True)
 
 

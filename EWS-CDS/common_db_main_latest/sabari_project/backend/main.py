@@ -495,10 +495,17 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
 
     patient_ids = [p.hadm_id for p in patients]
 
-    from sqlalchemy import func
-
     # Bulk-fetch vitals/labs/meds in 3 queries instead of 3×N Cloud SQL round-trips
-    demo_now = db.query(func.max(VitalTimeSeries.chart_time)).scalar() or datetime.now()
+    # demo_now used to be MAX(chart_time) across the ENTIRE table (all patients
+    # combined) -- confirmed by direct test (2026-08-08) that this makes every
+    # OTHER patient's staleness indicator drift whenever even one unrelated
+    # patient gets a fresh sync: inserting one new reading for one real patient
+    # pushed a static patient's displayed stale_mins up by 3+ hours with zero
+    # change to that patient's own data. Real wall-clock time is the honest,
+    # per-patient-independent reference; a canned demo that wants everyone to
+    # look fresh should re-seed close to presentation time, not rely on a
+    # shared clock that silently couples unrelated patients' staleness.
+    demo_now = datetime.now()
 
     # LIMIT prevents pulling thousands of MIMIC ICU rows per patient.
     # 96 = 24 readings × 4 patients safety factor — well above dashboard needs (6 readings).
@@ -548,6 +555,8 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
     # escalation_model.predict() and never changes tier/score/hysteresis.
     _ack_rows = db.query(AiAlertAck).filter(AiAlertAck.hadm_id.in_(patient_ids)).all()
     _ack_map = {a.hadm_id: a for a in _ack_rows}
+    _flag_sets = []   # hadm_ids that need first_flagged_at set to now()
+    _flag_clears = []  # hadm_ids that need first_flagged_at reset to NULL
 
     result = []
     for p in patients:
@@ -624,6 +633,8 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
         # Calculate time diff for stale check (guard empty vitals — patient just admitted)
         latest_time = vitals_history[-1].chart_time if vitals_history else demo_now
         latest_time = latest_time or demo_now
+        if hasattr(latest_time, 'tzinfo') and latest_time.tzinfo is not None:
+            latest_time = latest_time.replace(tzinfo=None)
         time_diff_secs = (demo_now - latest_time).total_seconds()
         stale_mins = int(time_diff_secs // 60)
 
@@ -804,13 +815,24 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
         # Predictive ML risk model output
         has_critical_flag = any(a.get('severity') == 'CRITICAL' for a in drug_lab_alerts)
 
+        # The escalation model was trained exclusively on CCU/cardiac-ICU MIMIC
+        # stays (ml/00_extract_cohort.py filters to first_careunit LIKE '%CCU%')
+        # -- it has never been validated on general-ward acuity or vitals
+        # patterns. Showing an "AI risk %" to a GW nurse would be applying a
+        # model outside the population it was tested on, silently. Until a
+        # model is actually trained/validated for GW, GW gets an honest
+        # not-applicable state instead of either the real model or the
+        # ml_demo() heuristic (which is just as unvalidated for GW as the
+        # real model is -- swapping one unvalidated number for another isn't
+        # a fix).
         ml_real = None
-        try:
-            import escalation_model
-            ml_real = escalation_model.predict(p, vitals_dict_history)
-        except Exception as e:
-            pass
-            
+        if _p_location != 'GENERAL_WARD':
+            try:
+                import escalation_model
+                ml_real = escalation_model.predict(p, vitals_dict_history)
+            except Exception as e:
+                pass
+
         ml_stats = {}
         if ml_real:
             ml_risk = ml_real["escalationRisk"]
@@ -820,6 +842,13 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
             ml_contributors = ml_real["escalationDrivers"]
             ml_model_type = ml_real["escalationModel"]
             ml_stats = ml_real.get("stats", {})
+        elif _p_location == 'GENERAL_WARD':
+            ml_risk = None
+            ml_tier = None
+            ml_risk_2h = None
+            ml_window = None
+            ml_contributors = []
+            ml_model_type = "not_applicable_gw"
         else:
             ml = ml_demo(news2_score, news_data["factors"], recent_vitals, has_critical_flag)
             ml_risk = ml["risk"]
@@ -867,6 +896,20 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
         ai_currently_dismissed = bool(ai_dismissed_until and ai_dismissed_until > datetime.now())
         early_warning_active = non_vacuous_alert and not ai_currently_dismissed
 
+        # Alert age: distinguish a just-fired alert from one that's been
+        # sitting for hours (2026-08-08 UI research — real EWS alert-fatigue
+        # literature specifically flags "same badge for a new vs. long-
+        # standing alert" as a design failure). Queue a bulk set/clear rather
+        # than writing per-patient here — this loop runs on every cache-miss
+        # poll and the connection pool is small.
+        ai_first_flagged_at = _ack.first_flagged_at if _ack else None
+        if non_vacuous_alert and ai_first_flagged_at is None:
+            _flag_sets.append(p.hadm_id)
+            ai_first_flagged_at = datetime.now()  # reflect it in THIS response, not just the next poll
+        elif not non_vacuous_alert and ai_first_flagged_at is not None:
+            _flag_clears.append(p.hadm_id)
+            ai_first_flagged_at = None
+
         # ── NEWS2 clinical risk tier (per NHS protocol) ──
         # Check if any single parameter scored 3 (Low-Medium risk trigger)
         any_single_param_3 = any(f['score'] >= 3 for f in news_data["factors"])
@@ -896,10 +939,13 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
         # High (≥7): Emergent — continuous monitoring, transfer to higher care
         abnormal_factors = [f['name'] for f in news_data["factors"] if f['score'] > 0]
         factor_str = ", ".join(abnormal_factors) if abnormal_factors else "multiple vitals"
+        # ml_risk is None for GW patients (model not validated there, see
+        # above) -- never interpolate None into nurse-facing text.
+        ml_risk_str = f" ML risk score: {ml_risk}%." if ml_risk is not None else ""
 
         if status == 'critical':  # NEWS2 ≥ 7 → HIGH risk
             explanation = (
-                f"HIGH RISK (NEWS2 ≥7). ML risk score: {ml_risk}%. "
+                f"HIGH RISK (NEWS2 ≥7).{ml_risk_str} "
                 f"Primary contributors: {factor_str}. "
                 "Continuous monitoring of vital signs required."
             )
@@ -914,8 +960,7 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
 
         elif status == 'warning':  # NEWS2 5-6 → MEDIUM risk
             explanation = (
-                f"MEDIUM RISK (NEWS2 5–6). Abnormal: {factor_str}. "
-                f"ML risk score: {ml_risk}%."
+                f"MEDIUM RISK (NEWS2 5–6). Abnormal: {factor_str}.{ml_risk_str}"
             )
             action = (
                 "Urgent review by ward-based doctor or acute team nurse. "
@@ -1005,6 +1050,9 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
             "aiAcknowledgedAt": ai_acknowledged_at,
             "aiDismissedUntil": ai_dismissed_until,
             "aiCurrentlyDismissed": ai_currently_dismissed,
+            "aiFirstFlaggedAt": ai_first_flagged_at,
+            "aiAlertAgeMinutes": (int((datetime.now() - ai_first_flagged_at).total_seconds() // 60)
+                                   if ai_first_flagged_at else None),
             "mlStats": ml_stats,
             "mlExplanation": explanation,
             "recommendedAction": action,
@@ -1032,6 +1080,25 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
     # this number (see plan: "live demo patients prove the mechanism, not
     # the statistics").
     early_warning_count = sum(1 for p in result if p.get("earlyWarningActive"))
+
+    # Bulk set/clear first_flagged_at -- queued during the loop above, written
+    # once here rather than per-patient (this function runs on every cache-
+    # miss poll against a 2+3-connection pool shared with two other services).
+    if _flag_sets or _flag_clears:
+        _now = datetime.now()
+        for hid in _flag_sets:
+            existing = _ack_map.get(hid)
+            if existing:
+                existing.first_flagged_at = _now
+                existing.updated_at = _now
+            else:
+                db.add(AiAlertAck(hadm_id=hid, first_flagged_at=_now, updated_at=_now))
+        for hid in _flag_clears:
+            existing = _ack_map.get(hid)
+            if existing:
+                existing.first_flagged_at = None
+                existing.updated_at = _now
+        db.commit()
 
     _response = {"patients": result, "ward": ward, "earlyWarningCount": early_warning_count}
     if hadm_id is None:
@@ -1170,7 +1237,18 @@ def create_escalation(esc: EscalationCreate, db: Session = Depends(get_db)):
 @app.get("/api/escalations")
 def get_escalations(db: Session = Depends(get_db)):
     escalations = db.query(Escalation).order_by(Escalation.escalated_at.desc()).all()
-    
+
+    # Some older rows were written before ward/bed were captured on the
+    # escalation record itself (they show as literal "null" in the UI).
+    # Bulk-fetch current ward/bed once, not per-row, and fall back to it --
+    # the row's OWN ward/bed still wins when present, since a patient may
+    # have moved wards since the escalation was raised.
+    _missing_ids = [e.hadm_id for e in escalations if not e.ward or not e.bed]
+    _patient_loc = {}
+    if _missing_ids:
+        for p in db.query(Patient).filter(Patient.hadm_id.in_(_missing_ids)).all():
+            _patient_loc[p.hadm_id] = (p.ward, p.bed)
+
     SLA_MINS = 15  # auto re-escalate an unhandled escalation after 15 minutes
     result = []
     for e in escalations:
@@ -1184,12 +1262,13 @@ def get_escalations(db: Session = Depends(get_db)):
             if e.status == 'active' and not e.acknowledged_at:
                 sla_breached = mins_elapsed > SLA_MINS
                 sla_remaining = max(0, SLA_MINS - mins_elapsed)
+        _fallback_ward, _fallback_bed = _patient_loc.get(e.hadm_id, (None, None))
         result.append({
             "id": e.id,
             "patientId": e.hadm_id,
             "patientName": e.patient_name,
-            "ward": e.ward,
-            "bed": e.bed,
+            "ward": e.ward or _fallback_ward,
+            "bed": e.bed or _fallback_bed,
             "news2": e.news2_score,
             "level": e.level,
             "attending": e.attending,

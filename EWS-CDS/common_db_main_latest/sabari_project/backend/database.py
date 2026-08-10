@@ -81,8 +81,12 @@ def init_db():
             "  acknowledged_at TIMESTAMP,"
             "  acknowledged_by VARCHAR,"
             "  dismissed_until TIMESTAMP,"
+            "  first_flagged_at TIMESTAMP,"
             "  updated_at TIMESTAMP"
             ")"
+        ))
+        conn.execute(_t(
+            "ALTER TABLE ews_ai_alert_ack ADD COLUMN IF NOT EXISTS first_flagged_at TIMESTAMP"
         ))
 
 def get_db():
