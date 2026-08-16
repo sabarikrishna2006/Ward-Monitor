@@ -512,6 +512,10 @@ function renderHeader() {
 // whatever the most recently fetched n1 data says; a nurse working outside
 // the dashboard still sees the count without needing to navigate there.
 function renderEwBell() {
+  const wrapEl = document.getElementById('ew-bell-wrap');
+  if (wrapEl) {
+    wrapEl.style.display = APP.role === 'gw_nurse' ? 'none' : '';
+  }
   const bellEl = document.getElementById('ew-bell-btn');
   const badgeEl = document.getElementById('ew-bell-badge');
   if (!bellEl || !badgeEl) return;
@@ -941,8 +945,7 @@ SCREENS.n1 = () => {
           <td data-label="Patient"><b>${p.name}</b><br><span class="pid">${p.patient_code || 'PT-' + p.id}</span></td>
           <td data-label="Diagnosis" class="dx-cell">${p.diagnosis_short || p.primary_diagnosis || '—'}</td>
           <td data-label="Ward">${(p.ward||'').split(' ')[1]||p.ward||'--'}${p.ward_location === 'GENERAL_WARD' ? '<br><span class="loc-tag loc-gw">GW</span>' : '<br><span class="loc-tag loc-ccu">CCU</span>'}</td>
-          <td colspan="8" style="color:var(--muted);font-style:italic;font-size:12px">Awaiting first vitals — none recorded yet.</td>
-          <td data-label="AI Risk">—</td>
+          <td colspan="7" style="color:var(--muted);font-style:italic;font-size:12px">Awaiting first vitals — none recorded yet.</td>
           <td data-label="Status"><span class="bd bd-muted" style="color:var(--muted)">AWAITING</span></td>
           <td data-label="Actions"><button class="btn btn-warn btn-xs" onclick="event.stopPropagation();nav('n_vitals', ${p.id})">Enter Vitals</button></td>
         </tr>`;

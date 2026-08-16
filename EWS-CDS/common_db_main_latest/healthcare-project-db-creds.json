@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "healthcare-project-496207",
+  "private_key_id": "58258d11f379da30d3a120c7efd88e849264b046",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDL9yiTiOTcwZA0\nYEHwwGGXQ2Vqqw17xByK+No/leSkQ+GMKwSXlZBmevXFuVsREYZNO/t2OAcq6Rbd\n8kl+WDTgCBloATHiHSlTJwdg6uSiJZ95ZV/Rk3YzI0E16n2km8cAkrL84GWz0+Gm\nbm7kgFrGk8sYBbL+YyFt3Vb9Sr0jjUCSW68Rm7u4/NgzObvpRo6GLYyYr6cblPjx\nnA30F+6e4Mx0N0OcnRbf5F9Fvu+McRMpnYiSyYb/dNKSN1QG89I071gVATqMUBVK\n0vWwfl9xhYg+g8XvRMhfDZ5Tn2DUYpk0+2dICKfGVg/eLnxI0+TFISkrvU5PVUxb\nEV38ATZLAgMBAAECggEAA2HkZIYVEhId8xmCKx8hd3PsaLZZS1MEA5trcif61LyI\nVs5/437hnJ1QvTaDmfDgpZuwMWPpd+V6TiKXRPeBHy0TNUQsW6aGC+6aU/sAHsRR\n4wgwWtqPFkrfZL7Ku9BYnpMkE7m265DFNGI8EJP4Q3laemLVHo8V5/QlWY0ruVeS\nn6i4MiwEttyyMDvLFRuZWL8tSdgC6aBCZFgJL0OT+yPjL3E5dejDdvFsDrPVt/ea\nDpSIH9Gws+82UueY7WH/RT77Y8IOIKGRuP2/N5jcvc1CWj90RlpWt2u/LB+7enqP\nHpYiRC5W3BRzwG8TcL3y9fmFPTMkarOwU+W/OzZTGQKBgQDmlhV2eg8qAqXHehGX\n5R3i3QTyId2pAObqda5vN71V7CeenbRt23Rw3MUc9HmpiurQOlgnK3MI6uTWv+77\nvSIJbki+P7azbvpCtbOwqhpm3MNTLJiMQBRVqRMfuRFVaOir4lfY0Qgk1rfZHauH\nDYrtMfdVF9BGyDV/5P8X4o80aQKBgQDicfo4gw/9OJSnfSXyP7C9pMmHmEZw4QGk\nBNM5Mv91GlDby+E0VWXggI9L1xO/wGd72cIQpxcUScrx3TnTLpUSxGgHrHXTxW2a\nY6KRrD+4zzlaG1d+FqesdyfgkBEb623KC41hWgEXPB13uu1maZGL4Gy4LIttO8eY\nBcTLtRlukwKBgAGaubuBTem06wJgTw8HgRW7A/XLVod+ghzPhM8xTBf09LGd10uM\nY1sFrjltWgtb9BZO0Z40JzDAsabs3vTRdBMsuUTZnKPS+drM+NsZ0+UzVAiYHtea\n+ok+C+wElaJKgJPxlzri+XOIKu9PzYm7BmRwHJBzAff8HKMvLLc11FlBAoGAJO+2\ngvVN7F4IUXGmeOdOqwBwJv/9rXfmTpzC33ekF7PdMJ0G9QRhA8e0mAhTHloCBz+z\n2geHSjXnNqCBSCM3CcKjvWyyI4L2p9JMuDpCgqC6mCoRkW2cmBMvm/+j6svyMpzD\nyPdnaiTSIa+J/cSGiyxmT3xkmcLAgdmfCiNWLKUCgYEAohwEHzj8/8sy/uvBz61t\n7n/z8ezHtCvegoWMTe4OdUHSci16fT8zQCeJtU160eHQQyQ9hNCYRgDnDM5vzSDx\npKjmurIgZ9RDMBzRuyRdHlm3yDGCmVe57ocf2ml3DLlsx1x3SPEc1uIa0WWbO5lo\n6iiceDOGYR0DCNurjrHbGV4=\n-----END PRIVATE KEY-----\n",
+  "client_email": "foqal-healtcare-db-admin@healthcare-project-496207.iam.gserviceaccount.com",
+  "client_id": "117970294077966690529",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/foqal-healtcare-db-admin%40healthcare-project-496207.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}

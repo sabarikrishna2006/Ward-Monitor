@@ -853,9 +853,9 @@ def get_ward_data(ward: str = "All", location: str = "All", replay: bool = False
             ml = ml_demo(news2_score, news_data["factors"], recent_vitals, has_critical_flag)
             ml_risk = ml["risk"]
             ml_tier = "LOW RISK"
-            if ml_risk >= 90:
+            if ml_risk >= 30:
                 ml_tier = "CRITICAL RISK"
-            elif ml_risk >= 60:
+            elif ml_risk >= 15:
                 ml_tier = "HIGH RISK"
             ml_risk_2h = ml_risk / 2.0
             ml_window = ml["window"]
