@@ -324,7 +324,7 @@ function _bilSignedToast(p) {
 
 async function _bilPoll() {
   try {
-    const base = window.FOQAL_API_BASE || 'http://localhost:6010';
+    const base = window.FOQAL_API_BASE || 'http://localhost:6017';
     const d = await (await fetch(base + '/api/billing/dashboard')).json();
     const rows = (d.pending_actions || []).concat(d.post_discharge || []);
     let changed = false;
@@ -446,7 +446,7 @@ function _applyPatientDetails(d) {
 
 async function _refetchPatientDetails() {
   if (!_CE.hadm_id) return null;
-  const base = window.FOQAL_API_BASE || 'http://localhost:6010';
+  const base = window.FOQAL_API_BASE || 'http://localhost:6017';
   try {
     const r = await fetch(`${base}/api/billing/patient/${_CE.hadm_id}`);
     const d = r.ok ? await r.json() : null;
@@ -460,7 +460,7 @@ async function _refetchPatientDetails() {
 function _ceSelectPatient(hadm_id, phase) {
   _ce4Data = null;   // reset CE4 cache when switching patient
   _ce4Fetching = false;
-  const base = window.FOQAL_API_BASE || 'http://localhost:6010';
+  const base = window.FOQAL_API_BASE || 'http://localhost:6017';
   fetch(`${base}/api/billing/patient/${hadm_id}`)
     .then(r => r.ok ? r.json() : null)
     .then(d => {
@@ -481,7 +481,7 @@ function _ceSelectPatient(hadm_id, phase) {
 }
 
 async function _ceSaveRecord(fields) {
-  const base = window.FOQAL_API_BASE || 'http://localhost:6010';
+  const base = window.FOQAL_API_BASE || 'http://localhost:6017';
   if (!_CE.hadm_id) return;
   try {
     await fetch(`${base}/api/billing/records/${_CE.hadm_id}`, {
@@ -515,7 +515,7 @@ async function _loadBillingDashboard() {
   if (!statsEl || !tableEl) return;
 
   try {
-    const base = window.FOQAL_API_BASE || 'http://localhost:6010';
+    const base = window.FOQAL_API_BASE || 'http://localhost:6017';
     const res  = await fetch(`${base}/api/billing/dashboard`);
     if (!res.ok) throw new Error(res.status);
     const data = await res.json();
@@ -775,7 +775,7 @@ async function _ce1ConfirmSync(hid, val) {
   _CE.syncing     = true;
   showScreen('ce1');
 
-  const base = window.FOQAL_API_BASE || `http://${location.hostname}:6010`;
+  const base = window.FOQAL_API_BASE || `http://${location.hostname}:6017`;
   try {
     const resp = await fetch(`${base}/api/billing/generate-estimate`, {
       method: 'POST', headers: {'Content-Type':'application/json'},
@@ -844,7 +844,7 @@ async function _ce1Save() {
   // fetch). Cost estimate is NOT computed here -- the ML model needs the
   // real fetched clinical data, which doesn't exist until the prefetch-all
   // call below completes. See _fetchMlEstimate().
-  const base = window.FOQAL_API_BASE || `http://${location.hostname}:6010`;
+  const base = window.FOQAL_API_BASE || `http://${location.hostname}:6017`;
   const genBtn = document.querySelector('button[onclick="_ce1Save()"]');
   if (genBtn) { genBtn.disabled = true; genBtn.textContent = 'Generating…'; }
 
@@ -922,7 +922,7 @@ async function _ce1Save() {
 // unavailable (e.g. clinical data hasn't finished syncing yet).
 async function _fetchMlEstimate() {
   if (!_CE.hadm_id) { _CE.mlEstimateData = null; return; }
-  const base = window.FOQAL_API_BASE || `http://${location.hostname}:6010`;
+  const base = window.FOQAL_API_BASE || `http://${location.hostname}:6017`;
   try {
     const resp = await fetch(`${base}/api/billing/ml-estimate/${_CE.hadm_id}`);
     _CE.mlEstimateData = resp.ok ? await resp.json() : null;
@@ -978,7 +978,7 @@ async function _ceViewSignedSummary(hadmId) {
   const body  = document.getElementById('ds-summary-modal-body');
   body.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted)">Loading discharge summary…</div>';
   modal.style.display = 'flex';
-  const base = window.FOQAL_API_BASE || `http://${location.hostname}:6010`;
+  const base = window.FOQAL_API_BASE || `http://${location.hostname}:6017`;
   const name = _bilName(hadmId);
   try {
     const patient = await fetch(`${base}/api/billing/patient/${hadmId}`).then(r => r.ok ? r.json() : null);
@@ -1115,7 +1115,7 @@ function _showBillingToast(html, color) {
 async function _ce4Load() {
   if (!_CE.hadm_id) return;
   _ce4Fetching = true;
-  const base = window.FOQAL_API_BASE || `http://${location.hostname}:6010`;
+  const base = window.FOQAL_API_BASE || `http://${location.hostname}:6017`;
   try {
     const resp = await fetch(`${base}/api/billing/reconciliation/${_CE.hadm_id}`);
     if (!resp.ok) throw new Error(resp.status);
@@ -1140,7 +1140,7 @@ async function _ce4Load() {
 
 async function _ce4Distill() {
   if (!_CE.hadm_id) return;
-  const base = window.FOQAL_API_BASE || `http://${location.hostname}:6010`;
+  const base = window.FOQAL_API_BASE || `http://${location.hostname}:6017`;
   // Show loading state in the three text fields
   const dxEl   = document.getElementById('ce4-final-dx');
   const procEl = document.getElementById('ce4-procedures');
@@ -1827,7 +1827,7 @@ let _liveWaiting = false; // true = no charges yet, polling fast
 
 async function _liveFetchMl() {
   if (!_CE.hadm_id) return;
-  const base = window.FOQAL_API_BASE || 'http://localhost:6010';
+  const base = window.FOQAL_API_BASE || 'http://localhost:6017';
   try {
     const res = await fetch(`${base}/api/billing/ml-estimate/${_CE.hadm_id}`);
     _liveMl = res.ok ? await res.json() : null;
@@ -1931,7 +1931,7 @@ function _liveRenderMl() {
 
 async function _liveFetch() {
   if (!_CE.hadm_id) return;
-  const base = window.FOQAL_API_BASE || 'http://localhost:6010';
+  const base = window.FOQAL_API_BASE || 'http://localhost:6017';
   try {
     const res = await fetch(`${base}/api/billing/live-charges/${_CE.hadm_id}`);
     if (!res.ok) return;

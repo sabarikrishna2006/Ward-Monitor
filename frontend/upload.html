@@ -456,7 +456,7 @@ function activeSlots() {
 
 /* ── API calls ── */
 const H     = `http://${location.hostname}`;
-const _API  = window.FOQAL_API_BASE  || `${H}:6010`;
+const _API  = window.FOQAL_API_BASE  || `${H}:6017`;
 const _DATA = window.FOQAL_DATA_BASE || `${H}:6020`;
 async function apiFetch(url, timeoutMs = 30000) {
   const ctrl = new AbortController();
@@ -2266,7 +2266,7 @@ function renderGenScreen() {
     if (!raw || raw.toLowerCase().includes('empty')) {
       errCode = 'LLM-EMPTY'; errMsg = 'The server returned an empty response. The backend may have crashed.';
     } else if (raw.toLowerCase().includes('failed to fetch') || raw.toLowerCase().includes('networkerror') || raw.toLowerCase().includes('err_connection_refused')) {
-      errCode = 'LLM-NET'; errMsg = 'Could not connect to the backend server. Please ensure the backend is running on port 6010.'; errRecovery = 'immediately after restarting the backend';
+      errCode = 'LLM-NET'; errMsg = 'Could not connect to the backend server. Please ensure the backend is running on port 6017.'; errRecovery = 'immediately after restarting the backend';
     } else if (raw.includes('GEMINI_API_KEY')) {
       errCode = 'LLM-CFG'; errMsg = 'GEMINI_API_KEY is not configured. Add it to backend/.env and restart the backend.'; errRecovery = 'after configuration';
     } else if (raw.includes('Max retries') || raw.includes('429') || raw.toLowerCase().includes('quota')) {

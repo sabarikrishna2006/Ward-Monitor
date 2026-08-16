@@ -82,12 +82,12 @@ sleep 1
 
 
 #Main Server
-echo "[ASHMIT] Starting backend main API (port 6010)..."
+echo "[ASHMIT] Starting backend main API (port 6017)..."
 screen -dmS main bash -c "
     cd '$ASHMIT_DIR'
     source .venv/bin/activate
     while true; do
-        uvicorn backend.app.main:app --host 0.0.0.0 --port 6010
+        uvicorn backend.app.main:app --host 0.0.0.0 --port 6017
         echo '[main] crashed, restarting in 8s...'; sleep 8
     done
 "
@@ -190,7 +190,7 @@ echo "==================================================="
 echo " ✅ All services started!"
 echo ""
 echo " Ashmit's App (main login) : http://72.60.102.196:6001/"
-echo " Ashmit's API              : http://72.60.102.196:6010/docs"
+echo " Ashmit's API              : http://72.60.102.196:6017/docs"
 echo " Ashmit's Data Server      : http://72.60.102.196:6020/docs"
 echo ""
 echo " Sabari's Ward Monitor     : http://72.60.102.196:6040/"

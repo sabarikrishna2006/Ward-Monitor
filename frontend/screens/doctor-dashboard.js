@@ -32,7 +32,7 @@ let _dd = { encounters: null, loading: false, error: null, attempt: 0, errorStat
 // at doctor-queue.html ("Signing Queue"), so the toast needs to live here too.
 async function _ddCheckSlaAlerts() {
   try {
-    const base = window.FOQAL_API_BASE || 'http://localhost:6010';
+    const base = window.FOQAL_API_BASE || 'http://localhost:6017';
     const rows = await fetch(`${base}/api/audit_log?limit=30`).then(r => r.ok ? r.json() : []);
     if (!Array.isArray(rows)) return;
     let seen = {};
@@ -69,7 +69,7 @@ function _ddStartRegenPoll() {
     const processing = (_dd.encounters || []).filter(e => e.status === 'Processing');
     if (!processing.length) { clearInterval(_ddRegenPollTimer); _ddRegenPollTimer = null; return; }
     try {
-      const base = window.FOQAL_API_BASE || 'http://localhost:6010';
+      const base = window.FOQAL_API_BASE || 'http://localhost:6017';
       const fresh = await fetch(`${base}/api/encounters`).then(r => r.ok ? r.json() : null);
       if (!fresh) return;
       const freshList = Array.isArray(fresh) ? fresh : (fresh.encounters || []);
@@ -160,7 +160,7 @@ function _ddLivePoll() {
       if (_dd.slaToasts.length !== prevSlaCount) renderApp();
     } catch (_) {}
     try {
-      const base = window.FOQAL_API_BASE || 'http://localhost:6010';
+      const base = window.FOQAL_API_BASE || 'http://localhost:6017';
       const fresh = await fetch(`${base}/api/encounters`).then(r => r.ok ? r.json() : null);
       let changed = false;
       if (fresh) {

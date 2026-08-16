@@ -1,6 +1,6 @@
 // Change ports HERE ONLY. Every HTML/JS file reads from this one place.
 window.FOQAL_CONFIG = {
-  API_PORT:    6010,   // main FastAPI backend (local dev)
+  API_PORT:    6017,   // main FastAPI backend (local dev)
   DATA_PORT:   6020,   // data server (local dev)
   WARD_PORT:   6030,   // Sabari ward monitor backend
   FE_PORT:     6001,   // Ashmit Vite dev server

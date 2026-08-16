@@ -4,7 +4,7 @@ import sys
 
 data_server = "http://localhost:6020"
 ward_server = "http://localhost:6030"
-ashmit_api = "http://localhost:6010"
+ashmit_api = "http://localhost:6017"
 
 hadm_id = 20000094
 

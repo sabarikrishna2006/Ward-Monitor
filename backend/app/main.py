@@ -6515,7 +6515,7 @@ def list_files(encounter_id: str):
 
 
 
-# ── Data server proxy (port 6010 → internal 6020) ────────────────────────────
+# ── Data server proxy (port 6017 → internal 6020) ────────────────────────────
 # Lets the browser talk to the data server through the main API port when 6020
 # is blocked by a firewall. Used on server deployments; localhost uses 6020 direct.
 _DATA_SERVER = os.environ.get("DATA_SERVER_URL", "http://127.0.0.1:6020")

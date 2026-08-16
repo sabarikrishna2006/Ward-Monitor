@@ -208,7 +208,7 @@ function logout() { sessionStorage.clear(); window.location.href = '/'; }
   setTimeout(() => el.remove(), 6000);
 })();
 
-const API = window.FOQAL_API_BASE || `http://${location.hostname}:6010`;
+const API = window.FOQAL_API_BASE || `http://${location.hostname}:6017`;
 
 /* ── Synthetic data helpers (seeded by hadm_id → deterministic) ── */
 function seeded(hadmId, max) {

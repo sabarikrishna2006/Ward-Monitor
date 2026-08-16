@@ -1,10 +1,10 @@
 // API Client — split backend architecture
-// UI Server  (port 6010): auth, encounters CRUD, generate summary, settings
+// UI Server  (port 6017): auth, encounters CRUD, generate summary, settings
 // Data Server (port 6020): patient data, lazy tabs, MIMIC browse, caching
-// On server: data calls go through /data-proxy/ on port 6010 (6020 may be firewalled)
+// On server: data calls go through /data-proxy/ on port 6017 (6020 may be firewalled)
 
 const _local    = location.hostname === "localhost" || location.hostname === "127.0.0.1";
-const API_BASE  = (window.FOQAL_API_BASE)  || `http://${location.hostname}:6010`;
+const API_BASE  = (window.FOQAL_API_BASE)  || `http://${location.hostname}:6017`;
 const DATA_BASE = _local
   ? ((window.FOQAL_DATA_BASE) || `http://${location.hostname}:6020`)
   : `${API_BASE}/data-proxy`;
