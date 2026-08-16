@@ -970,7 +970,7 @@ def billing_dashboard():
 
     return {
         "stats": {
-            "pending_estimates":       sum(1 for p in admission_patients if p.get("billing_phase") not in ("estimate_shared", "estimate_confirmed", "reconciliation_pending")),
+            "pending_estimates":       sum(1 for p in admission_patients if p.get("billing_phase") == "estimate_shared"),
             "awaiting_reconciliation": len(discharge_patients),
             "bills_settled":           bills_settled_count,
         },
