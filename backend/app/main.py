@@ -23,8 +23,8 @@ from dotenv import load_dotenv
 # Cloud SQL App DB — all app-level tables (users, encounters, summaries, etc.)
 from . import cloud_sql_app_db as gdb
 
-# Data server URL — BigQuery + Cloud SQL data layer (local dev: 6020)
-DATA_SERVER = os.environ.get("DATA_SERVER_URL", "http://127.0.0.1:6020")
+# Data server URL — BigQuery + Cloud SQL data layer (local dev: 6027)
+DATA_SERVER = os.environ.get("DATA_SERVER_URL", "http://127.0.0.1:6027")
 
 load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '.env'), override=True)
 
@@ -3344,7 +3344,7 @@ def build_clinical_context(hadm_id: int, data: Dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-# ── MIMIC data routes — proxied to data server (port 6020) ───────────────────
+# ── MIMIC data routes — proxied to data server (port 6027) ───────────────────
 # These thin wrappers keep the same URL surface so the frontend doesn't change.
 
 # Short timeout for fast endpoints (admissions list, cache stats).
@@ -6515,10 +6515,10 @@ def list_files(encounter_id: str):
 
 
 
-# ── Data server proxy (port 6017 → internal 6020) ────────────────────────────
-# Lets the browser talk to the data server through the main API port when 6020
-# is blocked by a firewall. Used on server deployments; localhost uses 6020 direct.
-_DATA_SERVER = os.environ.get("DATA_SERVER_URL", "http://127.0.0.1:6020")
+# ── Data server proxy (port 6017 → internal 6027) ────────────────────────────
+# Lets the browser talk to the data server through the main API port when 6027
+# is blocked by a firewall. Used on server deployments; localhost uses 6027 direct.
+_DATA_SERVER = os.environ.get("DATA_SERVER_URL", "http://127.0.0.1:6027")
 
 @app.api_route("/data-proxy/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
 async def data_proxy(path: str, request: Request):
@@ -6546,7 +6546,7 @@ async def data_proxy(path: str, request: Request):
         )
     except (httpx.ConnectError, httpx.ConnectTimeout):
         return JSONResponse(
-            {"detail": "Data server unreachable on port 6020"},
+            {"detail": "Data server unreachable on port 6027"},
             status_code=503,
             headers={"Access-Control-Allow-Origin": "*"},
         )

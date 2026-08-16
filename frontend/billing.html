@@ -783,7 +783,7 @@ async function _ce1ConfirmSync(hid, val) {
     });
     const data = resp.ok ? await resp.json() : null;
     if (data?.ward_admitted) {
-      const _dataBase = window.FOQAL_DATA_BASE || `http://${location.hostname}:6020`;
+      const _dataBase = window.FOQAL_DATA_BASE || `http://${location.hostname}:6027`;
       const pf = await fetch(`${_dataBase}/api/patient/${hid}/prefetch-all`, { method: 'POST' });
       const pfData = pf.ok ? await pf.json() : null;
       if (pfData?.status === 'fetched') {
@@ -871,8 +871,8 @@ async function _ce1Save() {
           );
           // Fire single prefetch-all — runs full BQ ETL, writes all tabs to Cloud SQL,
           // then marks data_fetch_status='fetched'. Ward board and upload.html read Cloud SQL after.
-          const _dataBase = window.FOQAL_DATA_BASE || `http://${location.hostname}:6020`;
-          const _wardBase = window.FOQAL_WARD_BASE || `http://${location.hostname}:6030`;
+          const _dataBase = window.FOQAL_DATA_BASE || `http://${location.hostname}:6027`;
+          const _wardBase = window.FOQAL_WARD_BASE || `http://${location.hostname}:6037`;
           fetch(`${_dataBase}/api/patient/${_CE.hadm_id}/prefetch-all`, { method: 'POST' })
             .then(r => r.ok ? r.json() : null)
             .then(d => {

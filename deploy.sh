@@ -94,26 +94,26 @@ screen -dmS main bash -c "
 
 
 #Data Server
-echo "[ASHMIT] Starting data server (port 6020)..."
+echo "[ASHMIT] Starting data server (port 6027)..."
 screen -dmS data bash -c "
     cd '$ASHMIT_DIR'
     source .venv/bin/activate
     while true; do
-        uvicorn backend.app.data_server:app --host 0.0.0.0 --port 6020
+        uvicorn backend.app.data_server:app --host 0.0.0.0 --port 6027
         echo '[data] crashed, restarting in 8s...'; sleep 8
     done
 "
 
 
 #Frontend Screens Ashmit
-echo "[ASHMIT] Starting frontend Vite dev server (port 6001)..."
+echo "[ASHMIT] Starting frontend Vite dev server (port 6008)..."
 screen -dmS frontend bash -c "
     export NVM_DIR=\"\$HOME/.nvm\"
     [ -s \"\$NVM_DIR/nvm.sh\" ] && \. \"\$NVM_DIR/nvm.sh\"
     cd '$ASHMIT_DIR/frontend'
     npm install --silent
     while true; do
-        npm run dev -- --host 0.0.0.0 --port 6001
+        npm run dev -- --host 0.0.0.0 --port 6008
         echo '[frontend] crashed, restarting in 5s...'; sleep 5
     done
 "
@@ -152,12 +152,12 @@ sleep 1
 
 
 
-echo "[SABARI] Starting Ward Monitor backend (port 6030)..."
+echo "[SABARI] Starting Ward Monitor backend (port 6037)..."
 screen -dmS ward-api bash -c "
     cd '$SABARI_DIR/backend'
     source '$SABARI_DIR/.venv/bin/activate'
     while true; do
-        uvicorn main:app --host 0.0.0.0 --port 6030
+        uvicorn main:app --host 0.0.0.0 --port 6037
         echo '[ward-api] crashed, restarting in 5s...'; sleep 5
     done
 "
@@ -168,15 +168,15 @@ screen -dmS ward-api bash -c "
 
 
 
-echo "[SABARI] Starting Ward Monitor frontend (port 6040)..."
+echo "[SABARI] Starting Ward Monitor frontend (port 6047)..."
 screen -dmS ward-frontend bash -c "
     export NVM_DIR=\"\$HOME/.nvm\"
     [ -s \"\$NVM_DIR/nvm.sh\" ] && \. \"\$NVM_DIR/nvm.sh\"
     cd '$SABARI_DIR'
     npm install --silent
     while true; do
-        VITE_PORT=6040 VITE_HOST=0.0.0.0 VITE_API_URL=http://localhost:6030 \
-            npm run dev -- --host 0.0.0.0 --port 6040
+        VITE_PORT=6047 VITE_HOST=0.0.0.0 VITE_API_URL=http://localhost:6037 \
+            npm run dev -- --host 0.0.0.0 --port 6047
         echo '[ward-frontend] crashed, restarting in 5s...'; sleep 5
     done
 "
@@ -189,12 +189,12 @@ echo ""
 echo "==================================================="
 echo " ✅ All services started!"
 echo ""
-echo " Ashmit's App (main login) : http://72.60.102.196:6001/"
+echo " Ashmit's App (main login) : http://72.60.102.196:6008/"
 echo " Ashmit's API              : http://72.60.102.196:6017/docs"
-echo " Ashmit's Data Server      : http://72.60.102.196:6020/docs"
+echo " Ashmit's Data Server      : http://72.60.102.196:6027/docs"
 echo ""
-echo " Sabari's Ward Monitor     : http://72.60.102.196:6040/"
-echo " Sabari's API              : http://72.60.102.196:6030/docs"
+echo " Sabari's Ward Monitor     : http://72.60.102.196:6047/"
+echo " Sabari's API              : http://72.60.102.196:6037/docs"
 echo ""
 echo " Login as ward/charge nurse from Ashmit's page and you"
 echo " will be redirected instantly to Sabari's Ward Monitor."

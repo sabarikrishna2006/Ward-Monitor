@@ -83,15 +83,15 @@ Further plots — per-day calibration, SHAP vs gain feature importance, LOS sub-
             │                        │                        │
      ┌──────▼──────┐          ┌──────▼──────┐          ┌──────▼──────┐
      │  Main API   │          │ Data Server │          │  Ward API   │
-     │   :6017     │          │    :6020    │          │   :6030     │
+     │   :6017     │          │    :6027    │          │   :6037     │
      │             │          │             │          │             │
      │ LLM pipeline│          │ Bulk EHR    │          │ NEWS2 +     │
      │ Cost model  │          │ reads       │          │ escalations │
      └──────┬──────┘          └──────┬──────┘          └──────┬──────┘
             │                        │                        │
      ┌──────▼────────────────────────▼──────┐          ┌──────▼──────┐
-     │      Main Frontend  ·  Vite :6001    │          │ Ward Monitor│
-     │  doctor queue · review · sign-off    │─ login ─▶│  Vite :6040 │
+     │      Main Frontend  ·  Vite :6008    │          │ Ward Monitor│
+     │  doctor queue · review · sign-off    │─ login ─▶│  Vite :6047 │
      │  billing · CMO · admin dashboards    │  routes  │             │
      └──────────────────────────────────────┘          └─────────────┘
 ```
@@ -142,11 +142,11 @@ bash deploy.sh
 
 | Service | Port | URL |
 | :--- | :--- | :--- |
-| Main app (login) | 6001 | `http://localhost:6001/` |
+| Main app (login) | 6008 | `http://localhost:6008/` |
 | Main API docs | 6017 | `http://localhost:6017/docs` |
-| Data server docs | 6020 | `http://localhost:6020/docs` |
-| Ward Monitor API docs | 6030 | `http://localhost:6030/docs` |
-| Ward Monitor app | 6040 | `http://localhost:6040/` |
+| Data server docs | 6027 | `http://localhost:6027/docs` |
+| Ward Monitor API docs | 6037 | `http://localhost:6037/docs` |
+| Ward Monitor app | 6047 | `http://localhost:6047/` |
 
 Ports live in **one place** — `frontend/config.js`. Change them there, not in individual HTML files.
 

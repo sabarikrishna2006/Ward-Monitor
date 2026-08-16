@@ -2,8 +2,8 @@ import httpx
 import time
 import sys
 
-data_server = "http://localhost:6020"
-ward_server = "http://localhost:6030"
+data_server = "http://localhost:6027"
+ward_server = "http://localhost:6037"
 ashmit_api = "http://localhost:6017"
 
 hadm_id = 20000094
