@@ -870,6 +870,8 @@ def billing_dashboard():
             status = "Reconciliation Due"
         elif bp == "amendment_pending":
             status = "Amendment Requested"
+        elif bp in ("estimate_shared", "estimate_confirmed"):
+            status = "Estimate Shared"
         else:
             status = "Estimate Pending"
         return {
