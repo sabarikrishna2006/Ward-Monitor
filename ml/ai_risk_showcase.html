@@ -1,0 +1,653 @@
+<title>AI Deterioration Risk — Offline Case Study Showcase</title>
+<style>
+  :root {
+    --paper: #F5F7F7;
+    --surface: #FFFFFF;
+    --surface-raised: #FBFCFC;
+    --ink: #131C1F;
+    --ink-dim: #5B6B72;
+    --ink-faint: #8A99A0;
+    --hair: #DDE5E7;
+    --accent: #0F6B72;
+    --accent-tint: #E4F1F1;
+    --accent-ink: #0A4E53;
+    --good: #2E7D5B;
+    --good-tint: #E4F3EC;
+    --warn: #B4791E;
+    --warn-tint: #FBF0DE;
+    --critical: #B03A2A;
+    --critical-tint: #FBE7E3;
+    --shadow: 0 1px 2px rgba(19,28,31,0.04), 0 8px 24px rgba(19,28,31,0.06);
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #10171A;
+      --surface: #182226;
+      --surface-raised: #1E2A2E;
+      --ink: #E9EEEF;
+      --ink-dim: #9FB0B5;
+      --ink-faint: #6B7B80;
+      --hair: #2A3639;
+      --accent: #4FB3AC;
+      --accent-tint: rgba(79,179,172,0.12);
+      --accent-ink: #8FD6D0;
+      --good: #5FBE8F;
+      --good-tint: rgba(95,190,143,0.12);
+      --warn: #E0A94E;
+      --warn-tint: rgba(224,169,78,0.12);
+      --critical: #E2695A;
+      --critical-tint: rgba(226,105,90,0.13);
+      --shadow: 0 1px 2px rgba(0,0,0,0.2), 0 8px 24px rgba(0,0,0,0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #10171A; --surface: #182226; --surface-raised: #1E2A2E;
+    --ink: #E9EEEF; --ink-dim: #9FB0B5; --ink-faint: #6B7B80; --hair: #2A3639;
+    --accent: #4FB3AC; --accent-tint: rgba(79,179,172,0.12); --accent-ink: #8FD6D0;
+    --good: #5FBE8F; --good-tint: rgba(95,190,143,0.12);
+    --warn: #E0A94E; --warn-tint: rgba(224,169,78,0.12);
+    --critical: #E2695A; --critical-tint: rgba(226,105,90,0.13);
+    --shadow: 0 1px 2px rgba(0,0,0,0.2), 0 8px 24px rgba(0,0,0,0.35);
+  }
+  :root[data-theme="light"] {
+    --paper: #F5F7F7; --surface: #FFFFFF; --surface-raised: #FBFCFC;
+    --ink: #131C1F; --ink-dim: #5B6B72; --ink-faint: #8A99A0; --hair: #DDE5E7;
+    --accent: #0F6B72; --accent-tint: #E4F1F1; --accent-ink: #0A4E53;
+    --good: #2E7D5B; --good-tint: #E4F3EC;
+    --warn: #B4791E; --warn-tint: #FBF0DE;
+    --critical: #B03A2A; --critical-tint: #FBE7E3;
+    --shadow: 0 1px 2px rgba(19,28,31,0.04), 0 8px 24px rgba(19,28,31,0.06);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 40px 24px 72px;
+  }
+  .serif {
+    font-family: Georgia, "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
+  }
+  .mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---------- header ---------- */
+  header.top { margin-bottom: 36px; }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--hair);
+  }
+  .chip.offline {
+    background: var(--accent-tint);
+    color: var(--accent-ink);
+    border-color: transparent;
+  }
+  .chip.offline .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-tint);
+  }
+  h1.title {
+    font-size: 34px;
+    line-height: 1.2;
+    margin: 16px 0 10px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+  p.dek {
+    font-size: 15.5px;
+    line-height: 1.6;
+    color: var(--ink-dim);
+    max-width: 62ch;
+    margin: 0;
+  }
+  .note-row {
+    margin-top: 18px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    background: var(--surface-raised);
+    border: 1px solid var(--hair);
+    border-radius: 10px;
+    padding: 13px 16px;
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--ink-dim);
+    max-width: 68ch;
+  }
+  .note-row svg { flex: none; margin-top: 2px; color: var(--ink-faint); }
+
+  /* ---------- cards ---------- */
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-bottom: 4px;
+  }
+  @media (max-width: 780px) {
+    .cards { grid-template-columns: 1fr; }
+  }
+  .card {
+    text-align: left;
+    background: var(--surface);
+    border: 1px solid var(--hair);
+    border-radius: 14px;
+    padding: 18px 18px 16px;
+    cursor: pointer;
+    font: inherit;
+    color: inherit;
+    box-shadow: var(--shadow);
+    transition: border-color 0.15s ease, transform 0.1s ease;
+    position: relative;
+    outline: none;
+  }
+  .card:hover { border-color: var(--accent); }
+  .card:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-tint); }
+  .card.active {
+    border-color: var(--accent);
+    background: var(--accent-tint);
+  }
+  .card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .card-name { font-size: 19px; font-weight: 600; }
+  .badge {
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 4px 9px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .badge.good { background: var(--good-tint); color: var(--good); }
+  .badge.warn { background: var(--warn-tint); color: var(--warn); }
+  .badge.critical { background: var(--critical-tint); color: var(--critical); }
+  .card-tag {
+    font-size: 13px;
+    color: var(--ink-dim);
+    line-height: 1.45;
+    margin-top: 6px;
+    min-height: 37px;
+  }
+  .card-stats {
+    display: flex;
+    gap: 20px;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--hair);
+  }
+  .stat .stat-num { font-size: 22px; font-weight: 600; }
+  .stat .stat-label { font-size: 11px; color: var(--ink-faint); margin-top: 2px; }
+
+  /* ---------- detail ---------- */
+  .detail {
+    margin-top: 22px;
+    background: var(--surface);
+    border: 1px solid var(--hair);
+    border-radius: 16px;
+    padding: 26px 28px 28px;
+    box-shadow: var(--shadow);
+  }
+  .detail-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+  }
+  .detail-head h2 { font-size: 24px; font-weight: 600; margin: 0 0 4px; }
+  .detail-head p.tag { margin: 0; color: var(--ink-dim); font-size: 14px; max-width: 52ch; }
+  .detail-facts {
+    display: flex;
+    gap: 26px;
+    flex-wrap: wrap;
+  }
+  .fact .fact-num { font-size: 26px; font-weight: 600; }
+  .fact .fact-sub { font-size: 11.5px; color: var(--ink-faint); margin-top: 2px; }
+
+  .charts-wrap { margin-top: 22px; position: relative; }
+  .chart-block { margin-bottom: 2px; }
+  .chart-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 4px;
+  }
+  .chart-title { font-size: 12.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-dim); }
+  .legend { display: flex; gap: 14px; font-size: 11.5px; color: var(--ink-faint); }
+  .legend .sw { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+  svg.chart { width: 100%; display: block; overflow: visible; }
+  .axis-tick { font-size: 10.5px; fill: var(--ink-faint); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .axis-line { stroke: var(--hair); stroke-width: 1; }
+  .grid-line { stroke: var(--hair); stroke-width: 1; }
+  .crosshair-line { stroke: var(--ink-faint); stroke-width: 1; stroke-dasharray: 2 3; pointer-events: none; opacity: 0; }
+  .marker-line { stroke-width: 1.4; pointer-events: none; }
+  .marker-label { font-size: 10px; font-weight: 700; letter-spacing: 0.02em; pointer-events: none; }
+
+  .tooltip {
+    position: absolute;
+    pointer-events: none;
+    background: var(--ink);
+    color: var(--paper);
+    font-size: 12px;
+    line-height: 1.5;
+    padding: 8px 11px;
+    border-radius: 8px;
+    opacity: 0;
+    transform: translate(-50%, -100%);
+    white-space: nowrap;
+    z-index: 5;
+    box-shadow: var(--shadow);
+  }
+  .tooltip b { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+  /* ---------- factors ---------- */
+  .why { margin-top: 26px; }
+  .why-title { font-size: 12.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-dim); margin-bottom: 3px; }
+  .why-sub { font-size: 13px; color: var(--ink-faint); margin-bottom: 14px; }
+  .factor-row {
+    display: grid;
+    grid-template-columns: 190px 1fr 132px;
+    align-items: center;
+    gap: 14px;
+    padding: 8px 0;
+  }
+  @media (max-width: 620px) {
+    .factor-row { grid-template-columns: 1fr; gap: 4px; padding: 12px 0; }
+    .factor-track { order: 2; }
+    .factor-dir { order: 3; }
+  }
+  .factor-label { font-size: 13.5px; color: var(--ink); }
+  .factor-track {
+    position: relative;
+    height: 18px;
+    background: var(--surface-raised);
+    border-radius: 4px;
+  }
+  .factor-center {
+    position: absolute;
+    left: 50%; top: 0; bottom: 0;
+    width: 1px;
+    background: var(--hair);
+  }
+  .factor-fill {
+    position: absolute;
+    top: 2px; bottom: 2px;
+    border-radius: 3px;
+  }
+  .factor-fill.critical { background: var(--critical); }
+  .factor-fill.good { background: var(--good); }
+  .factor-dir { font-size: 12px; text-align: right; font-weight: 600; }
+  .factor-dir.critical { color: var(--critical); }
+  .factor-dir.good { color: var(--good); }
+
+  footer.foot {
+    margin-top: 30px;
+    padding-top: 18px;
+    border-top: 1px solid var(--hair);
+    font-size: 12px;
+    line-height: 1.7;
+    color: var(--ink-faint);
+    max-width: 78ch;
+  }
+</style>
+
+<div class="page">
+  <header class="top">
+    <span class="chip offline"><span class="dot"></span>Offline validation — historical data only</span>
+    <h1 class="title serif">AI Deterioration Risk — Case Study Showcase</h1>
+    <p class="dek">Three real ICU stays, replayed through the trained early-warning model exactly as it scored them during evaluation. This is a fixed, pre-computed snapshot &mdash; not a live feed, and it is not connected to any hospital system or patient database.</p>
+    <div class="note-row">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+      <div>Every number on this page comes from the same model run and evaluation pipeline used to measure the deterioration model, on de-identified historical intensive-care records (MIMIC-IV). Nothing here is simulated or hand-picked to look good &mdash; only re-formatted for a readable walk-through.</div>
+    </div>
+  </header>
+
+  <section class="cards" id="cards"></section>
+  <section class="detail" id="detail"></section>
+
+  <footer class="foot">
+    <strong>How to read this:</strong> the top chart is the patient's NEWS2 clinical score, the same score nurses already chart hourly at the bedside. The bottom chart is the model's own output &mdash; a calibrated probability that the patient will cross a serious deterioration threshold within the next 12 hours, recomputed fresh every hour from a rolling window of vitals. The two are shown as separate charts, deliberately never combined into one, because they are different units measuring different things: one is an observed clinical score, the other is a model-estimated probability.
+  </footer>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+const DATA = [{"stay_id":34725102,"label":"Patient A","tag":"Deterioration flagged well in advance","event":1,"outcome_h":215.0,"peak_risk":24.1,"peak_risk_h":163.0,"news2_series":[[1.0,5.0],[2.0,3.0],[3.0,4.0],[4.0,5.0],[5.0,4.0],[6.0,2.0],[7.0,4.0],[8.0,2.0],[9.0,2.0],[10.0,2.0],[11.0,5.0],[12.0,7.0],[13.0,6.0],[14.0,3.0],[15.0,2.0],[16.0,3.0],[17.0,3.0],[18.0,3.0],[19.0,3.0],[20.0,2.0],[21.0,5.0],[22.0,3.0],[23.0,3.0],[24.0,2.0],[25.0,4.0],[26.0,4.0],[27.0,3.0],[28.0,2.0],[29.0,2.0],[30.0,4.0],[31.0,2.0],[32.0,2.0],[33.0,2.0],[34.0,6.0],[35.0,3.0],[36.0,5.0],[37.0,4.0],[38.0,4.0],[39.0,6.0],[40.0,2.0],[41.0,2.0],[42.0,5.0],[43.0,3.0],[44.0,2.0],[45.0,2.0],[46.0,2.0],[47.0,2.0],[48.0,3.0],[49.0,2.0],[50.0,2.0],[51.0,2.0],[52.0,3.0],[53.0,6.0],[54.0,3.0],[55.0,3.0],[56.0,2.0],[57.0,4.0],[58.0,2.0],[59.0,5.0],[60.0,4.0],[61.0,5.0],[62.0,3.0],[63.0,6.0],[64.0,6.0],[65.0,4.0],[66.0,5.0],[67.0,4.0],[68.0,2.0],[69.0,2.0],[70.0,2.0],[71.0,4.0],[72.0,4.0],[73.0,5.0],[74.0,6.0],[75.0,5.0],[76.0,2.0],[77.0,3.0],[78.0,4.0],[79.0,2.0],[80.0,3.0],[81.0,4.0],[82.0,2.0],[83.0,4.0],[84.0,4.0],[85.0,6.0],[86.0,3.0],[87.0,4.0],[88.0,5.0],[89.0,5.0],[90.0,5.0],[91.0,5.0],[92.0,4.0],[93.0,4.0],[94.0,2.0],[95.0,4.0],[96.0,2.0],[97.0,2.0],[98.0,2.0],[99.0,2.0],[100.0,2.0],[101.0,2.0],[102.0,2.0],[103.0,2.0],[104.0,2.0],[105.0,3.0],[106.0,5.0],[107.0,4.0],[108.0,4.0],[109.0,6.0],[110.0,3.0],[111.0,4.0],[112.0,5.0],[113.0,2.0],[114.0,2.0],[115.0,3.0],[116.0,4.0],[117.0,3.0],[118.0,2.0],[119.0,3.0],[120.0,2.0],[121.0,2.0],[122.0,2.0],[123.0,2.0],[124.0,3.0],[125.0,3.0],[126.0,2.0],[127.0,2.0],[128.0,2.0],[129.0,2.0],[130.0,2.0],[131.0,2.0],[132.0,2.0],[133.0,2.0],[134.0,2.0],[135.0,2.0],[136.0,3.0],[137.0,3.0],[138.0,3.0],[139.0,3.0],[140.0,3.0],[141.0,5.0],[142.0,3.0],[143.0,7.0],[144.0,5.0],[145.0,5.0],[146.0,6.0],[147.0,7.0],[148.0,4.0],[149.0,5.0],[150.0,2.0],[151.0,3.0],[152.0,3.0],[153.0,3.0],[154.0,3.0],[155.0,7.0],[156.0,6.0],[157.0,4.0],[158.0,6.0],[159.0,6.0],[160.0,4.0],[161.0,2.0],[162.0,7.0],[163.0,6.0],[164.0,4.0],[165.0,3.0],[166.0,4.0],[167.0,5.0],[168.0,8.0],[169.0,6.0],[170.0,4.0],[171.0,5.0],[172.0,3.0],[173.0,5.0],[174.0,6.0],[175.0,7.0],[176.0,6.0],[177.0,8.0],[178.0,6.0],[179.0,5.0],[180.0,4.0],[181.0,5.0],[182.0,3.0],[183.0,3.0],[184.0,3.0],[185.0,3.0],[186.0,3.0],[187.0,3.0],[188.0,5.0],[189.0,6.0],[190.0,7.0],[191.0,4.0],[192.0,3.0],[193.0,3.0],[194.0,4.0],[195.0,4.0],[196.0,3.0],[197.0,2.0],[198.0,4.0],[199.0,2.0],[200.0,2.0],[201.0,2.0],[202.0,4.0],[203.0,2.0],[204.0,3.0],[205.0,4.0],[206.0,4.0],[207.0,4.0],[208.0,4.0],[209.0,5.0],[210.0,4.0],[211.0,4.0],[212.0,5.0],[213.0,6.0],[214.0,6.0],[215.0,7.0],[216.0,14.0],[217.0,14.0],[218.0,14.0]],"risk_series":[[7.0,5.9],[8.0,4.2],[9.0,3.1],[10.0,3.1],[11.0,4.2],[13.0,5.9],[14.0,9.1],[15.0,4.8],[16.0,4.8],[17.0,4.8],[18.0,8.5],[19.0,4.8],[20.0,4.8],[21.0,7.6],[22.0,5.9],[23.0,5.0],[24.0,4.8],[25.0,7.6],[26.0,13.6],[27.0,8.5],[28.0,7.3],[29.0,4.8],[30.0,8.5],[31.0,5.9],[32.0,4.8],[33.0,4.8],[34.0,10.1],[35.0,4.8],[36.0,4.2],[37.0,4.8],[38.0,4.8],[39.0,16.9],[40.0,3.1],[41.0,4.8],[42.0,19.2],[43.0,7.3],[44.0,7.3],[45.0,4.2],[46.0,4.2],[47.0,3.1],[48.0,7.3],[49.0,4.2],[50.0,4.2],[51.0,3.1],[52.0,4.2],[53.0,4.8],[54.0,4.2],[55.0,4.2],[56.0,4.8],[57.0,4.8],[58.0,4.8],[59.0,4.8],[60.0,7.6],[61.0,4.8],[62.0,10.5],[63.0,10.1],[64.0,10.5],[65.0,15.9],[66.0,14.1],[67.0,8.5],[68.0,14.9],[69.0,10.5],[70.0,4.8],[71.0,4.8],[72.0,5.9],[73.0,10.5],[74.0,10.5],[75.0,10.5],[76.0,12.9],[77.0,10.1],[78.0,10.5],[79.0,7.3],[80.0,6.2],[81.0,5.9],[82.0,4.8],[83.0,4.8],[84.0,10.1],[85.0,7.6],[86.0,6.2],[87.0,5.9],[88.0,10.1],[89.0,7.6],[90.0,10.5],[91.0,7.3],[92.0,4.8],[93.0,4.8],[94.0,7.6],[95.0,7.3],[96.0,4.8],[97.0,4.8],[98.0,4.8],[99.0,4.2],[100.0,4.2],[101.0,2.6],[102.0,2.6],[103.0,2.6],[104.0,3.1],[105.0,4.8],[106.0,10.5],[107.0,10.5],[108.0,10.5],[109.0,14.7],[110.0,13.9],[111.0,13.9],[112.0,15.9],[113.0,4.2],[114.0,4.2],[115.0,4.2],[116.0,3.1],[117.0,3.1],[118.0,4.2],[119.0,4.2],[120.0,3.1],[121.0,4.2],[122.0,4.8],[123.0,4.2],[124.0,3.1],[125.0,2.6],[126.0,2.6],[127.0,2.6],[128.0,2.6],[129.0,2.6],[130.0,2.6],[131.0,2.6],[132.0,3.1],[133.0,3.1],[134.0,4.8],[135.0,2.6],[136.0,4.2],[137.0,3.1],[138.0,2.6],[139.0,1.9],[140.0,4.8],[141.0,7.6],[142.0,4.8],[144.0,15.9],[145.0,14.1],[146.0,19.7],[148.0,15.9],[149.0,15.9],[150.0,10.5],[151.0,7.6],[152.0,5.9],[153.0,3.1],[154.0,4.2],[156.0,19.7],[157.0,19.2],[158.0,16.9],[159.0,16.9],[160.0,14.7],[161.0,8.5],[163.0,24.1],[164.0,16.9],[165.0,13.9],[166.0,13.9],[167.0,14.7],[169.0,19.2],[170.0,14.7],[171.0,19.2],[172.0,10.5],[173.0,15.9],[174.0,16.9],[176.0,19.7],[178.0,23.1],[179.0,19.7],[180.0,16.9],[181.0,19.7],[182.0,13.9],[183.0,4.8],[184.0,3.1],[185.0,4.2],[186.0,4.2],[187.0,4.2],[188.0,2.6],[189.0,2.6],[191.0,4.8],[192.0,4.8],[193.0,3.1],[194.0,3.1],[195.0,2.6],[196.0,4.8],[197.0,2.6],[198.0,5.0],[199.0,3.1],[200.0,3.1],[201.0,4.2],[202.0,4.8],[203.0,2.6],[204.0,4.2],[205.0,4.2],[206.0,3.1],[207.0,4.2],[208.0,3.1],[209.0,4.8],[210.0,4.8],[211.0,4.8],[212.0,15.9],[213.0,15.9],[214.0,23.1]],"top_factors":[{"feature":"news2_mean","shap":-0.8734},{"feature":"hours_since_adm","shap":0.3799},{"feature":"fio2_last","shap":-0.2779},{"feature":"news2_at_anchor","shap":-0.1892},{"feature":"heart_rate_last","shap":-0.133}]},{"stay_id":37152986,"label":"Patient B","tag":"Early risk signal caught a transient crisis days before the eventual event","event":1,"outcome_h":247.0,"peak_risk":54.3,"peak_risk_h":88.0,"news2_series":[[47.0,5.0],[48.0,5.0],[49.0,6.0],[50.0,3.0],[51.0,6.0],[52.0,4.0],[53.0,3.0],[54.0,6.0],[55.0,6.0],[56.0,5.0],[57.0,5.0],[58.0,4.0],[59.0,3.0],[60.0,4.0],[61.0,2.0],[62.0,3.0],[63.0,2.0],[64.0,3.0],[65.0,2.0],[66.0,2.0],[67.0,2.0],[68.0,2.0],[69.0,2.0],[70.0,2.0],[71.0,4.0],[72.0,2.0],[73.0,2.0],[74.0,2.0],[75.0,2.0],[76.0,2.0],[77.0,2.0],[78.0,2.0],[79.0,3.0],[80.0,2.0],[81.0,2.0],[82.0,6.0],[83.0,5.0],[84.0,5.0],[85.0,6.0],[86.0,6.0],[87.0,6.0],[88.0,5.0],[89.0,3.0],[90.0,6.0],[91.0,6.0],[92.0,6.0],[93.0,6.0],[94.0,3.0],[95.0,3.0],[96.0,3.0],[97.0,2.0],[98.0,2.0],[99.0,2.0],[100.0,3.0],[101.0,2.0],[102.0,3.0],[103.0,4.0],[104.0,3.0],[105.0,3.0],[106.0,3.0],[107.0,4.0],[108.0,3.0],[109.0,3.0],[110.0,2.0],[111.0,3.0],[112.0,2.0],[113.0,2.0],[114.0,2.0],[115.0,3.0],[116.0,3.0],[117.0,2.0],[118.0,2.0],[119.0,3.0],[120.0,2.0],[121.0,3.0],[122.0,6.0],[123.0,3.0],[124.0,3.0],[125.0,3.0],[126.0,3.0],[127.0,3.0],[128.0,4.0],[129.0,3.0],[130.0,4.0],[131.0,4.0],[132.0,3.0],[133.0,6.0],[134.0,3.0],[135.0,3.0],[136.0,5.0],[137.0,8.0],[138.0,3.0],[139.0,4.0],[140.0,4.0],[141.0,4.0],[142.0,5.0],[143.0,4.0],[144.0,4.0],[145.0,7.0],[146.0,3.0],[147.0,3.0],[148.0,3.0],[149.0,5.0],[150.0,6.0],[151.0,5.0],[152.0,7.0],[153.0,4.0],[154.0,3.0],[155.0,3.0],[156.0,3.0],[157.0,4.0],[158.0,3.0],[159.0,4.0],[160.0,3.0],[161.0,3.0],[162.0,2.0],[163.0,2.0],[164.0,2.0],[165.0,2.0],[166.0,3.0],[167.0,7.0],[168.0,6.0],[169.0,5.0],[170.0,5.0],[171.0,5.0],[172.0,3.0],[173.0,3.0],[174.0,6.0],[175.0,5.0],[176.0,7.0],[177.0,5.0],[178.0,4.0],[179.0,6.0],[180.0,5.0],[181.0,6.0],[182.0,6.0],[183.0,3.0],[184.0,4.0],[185.0,5.0],[186.0,2.0],[187.0,2.0],[188.0,2.0],[189.0,2.0],[190.0,2.0],[191.0,2.0],[192.0,2.0],[193.0,2.0],[194.0,2.0],[195.0,2.0],[196.0,2.0],[197.0,2.0],[198.0,2.0],[199.0,4.0],[200.0,5.0],[201.0,7.0],[202.0,6.0],[203.0,6.0],[204.0,5.0],[205.0,6.0],[206.0,6.0],[207.0,5.0],[208.0,2.0],[209.0,5.0],[210.0,2.0],[211.0,2.0],[212.0,3.0],[213.0,2.0],[214.0,5.0],[215.0,3.0],[216.0,3.0],[217.0,3.0],[218.0,5.0],[219.0,5.0],[220.0,5.0],[221.0,4.0],[222.0,4.0],[223.0,5.0],[224.0,5.0],[225.0,4.0],[226.0,4.0],[227.0,4.0],[228.0,3.0],[229.0,4.0],[230.0,4.0],[231.0,2.0],[232.0,4.0],[233.0,4.0],[234.0,5.0],[235.0,5.0],[236.0,3.0],[237.0,5.0],[238.0,4.0],[239.0,2.0],[240.0,3.0],[241.0,4.0],[242.0,4.0],[243.0,4.0],[244.0,4.0],[245.0,6.0],[246.0,4.0],[247.0,7.0],[248.0,7.0],[249.0,3.0],[250.0,4.0],[251.0,5.0],[252.0,3.0],[253.0,4.0],[254.0,5.0],[255.0,5.0],[256.0,4.0],[257.0,6.0],[258.0,5.0],[259.0,4.0]],"risk_series":[[48.0,24.1],[49.0,33.8],[50.0,24.1],[51.0,32.6],[52.0,24.1],[53.0,24.1],[54.0,24.1],[55.0,24.1],[56.0,37.5],[57.0,29.0],[58.0,24.1],[59.0,24.1],[60.0,23.7],[61.0,13.9],[62.0,23.5],[63.0,14.1],[64.0,23.1],[65.0,13.9],[66.0,12.9],[67.0,10.5],[68.0,10.1],[69.0,10.5],[70.0,15.9],[71.0,15.9],[72.0,13.9],[73.0,13.9],[74.0,14.7],[75.0,10.5],[76.0,14.1],[77.0,13.9],[78.0,12.9],[79.0,12.9],[80.0,10.5],[81.0,10.5],[82.0,19.2],[83.0,23.1],[84.0,19.7],[85.0,23.5],[86.0,37.5],[87.0,45.7],[88.0,54.3],[89.0,23.1],[90.0,54.3],[91.0,54.3],[92.0,54.3],[93.0,45.7],[94.0,23.1],[95.0,19.7],[96.0,23.1],[97.0,14.7],[98.0,14.7],[99.0,13.9],[100.0,13.9],[101.0,14.1],[102.0,15.9],[103.0,13.9],[104.0,10.5],[105.0,13.9],[106.0,12.9],[107.0,7.3],[108.0,7.6],[109.0,7.6],[110.0,7.3],[111.0,8.5],[112.0,7.6],[113.0,6.2],[114.0,7.3],[115.0,7.6],[116.0,9.1],[117.0,7.6],[118.0,7.3],[119.0,23.1],[120.0,10.5],[121.0,10.1],[122.0,16.9],[123.0,10.5],[124.0,13.6],[125.0,13.9],[126.0,13.9],[127.0,12.9],[128.0,10.1],[129.0,8.5],[130.0,7.6],[131.0,9.1],[132.0,9.1],[133.0,12.9],[134.0,10.5],[135.0,10.5],[136.0,9.1],[138.0,15.9],[139.0,12.9],[140.0,23.5],[141.0,23.5],[142.0,23.7],[143.0,23.5],[144.0,23.5],[146.0,23.7],[147.0,23.1],[148.0,16.9],[149.0,19.2],[150.0,24.1],[151.0,24.1],[153.0,23.5],[154.0,23.1],[155.0,23.1],[156.0,23.7],[157.0,23.7],[158.0,19.7],[159.0,13.9],[160.0,14.7],[161.0,14.1],[162.0,10.1],[163.0,10.5],[164.0,10.5],[165.0,10.1],[166.0,10.5],[168.0,15.9],[169.0,19.7],[170.0,23.7],[171.0,37.5],[172.0,24.1],[173.0,19.7],[174.0,23.1],[175.0,23.7],[177.0,24.1],[178.0,23.1],[179.0,29.0],[180.0,24.1],[181.0,24.1],[182.0,23.7],[183.0,14.7],[184.0,15.9],[185.0,23.1],[186.0,10.5],[187.0,7.6],[188.0,4.8],[189.0,4.8],[190.0,8.5],[191.0,4.8],[192.0,4.8],[193.0,4.8],[194.0,4.8],[195.0,4.8],[196.0,4.8],[197.0,2.6],[198.0,3.1],[199.0,4.8],[200.0,9.1],[202.0,15.9],[203.0,23.7],[204.0,33.8],[205.0,37.5],[206.0,37.5],[207.0,33.8],[208.0,13.9],[209.0,15.9],[210.0,13.9],[211.0,9.1],[212.0,9.1],[213.0,6.2],[214.0,9.1],[215.0,4.8],[216.0,4.8],[217.0,4.8],[218.0,7.3],[219.0,7.7],[220.0,7.6],[221.0,7.3],[222.0,13.9],[223.0,15.9],[224.0,15.9],[225.0,13.9],[226.0,10.1],[227.0,19.2],[228.0,19.2],[229.0,14.7],[230.0,13.9],[231.0,10.5],[232.0,13.6],[233.0,10.5],[234.0,12.9],[235.0,12.9],[236.0,10.5],[237.0,13.6],[238.0,10.5],[239.0,10.1],[240.0,14.7],[241.0,10.1],[242.0,14.7],[243.0,10.1],[244.0,9.1],[245.0,19.7],[246.0,10.5]],"top_factors":[{"feature":"news2_mean","shap":-1.0986},{"feature":"temperature_delta_adm","shap":-0.4243},{"feature":"fio2_last","shap":-0.2495},{"feature":"hours_since_adm","shap":0.2335},{"feature":"temperature_last","shap":-0.1955}]},{"stay_id":30373756,"label":"Patient C","tag":"Stable throughout — correctly low risk","event":0,"outcome_h":95.0,"peak_risk":10.1,"peak_risk_h":24.0,"news2_series":[[0.0,0.0],[1.0,0.0],[2.0,2.0],[3.0,3.0],[4.0,2.0],[5.0,2.0],[6.0,2.0],[7.0,2.0],[8.0,2.0],[9.0,2.0],[10.0,2.0],[11.0,2.0],[12.0,2.0],[13.0,2.0],[14.0,2.0],[15.0,2.0],[16.0,4.0],[17.0,2.0],[18.0,4.0],[19.0,2.0],[20.0,2.0],[21.0,2.0],[22.0,2.0],[23.0,2.0],[24.0,6.0],[25.0,3.0],[26.0,2.0],[27.0,3.0],[28.0,2.0],[29.0,2.0],[30.0,2.0],[31.0,2.0],[32.0,2.0],[33.0,4.0],[34.0,6.0],[35.0,2.0],[36.0,2.0],[37.0,2.0],[38.0,2.0],[39.0,2.0],[40.0,2.0],[41.0,2.0],[42.0,4.0],[43.0,2.0],[44.0,2.0],[45.0,2.0],[46.0,2.0],[47.0,2.0],[48.0,2.0],[49.0,2.0],[50.0,6.0],[51.0,3.0],[52.0,3.0],[53.0,2.0],[54.0,2.0],[55.0,2.0],[56.0,2.0],[57.0,4.0],[58.0,2.0],[59.0,2.0],[60.0,4.0],[61.0,2.0],[62.0,2.0],[63.0,5.0],[64.0,3.0],[65.0,3.0],[66.0,2.0],[67.0,0.0],[68.0,0.0],[69.0,0.0],[70.0,2.0],[71.0,1.0],[72.0,1.0],[73.0,3.0],[74.0,4.0],[75.0,3.0],[76.0,2.0],[77.0,3.0],[78.0,2.0],[79.0,1.0],[80.0,1.0],[81.0,1.0],[82.0,2.0],[83.0,1.0],[84.0,6.0],[85.0,1.0],[86.0,3.0],[87.0,0.0],[88.0,5.0],[89.0,2.0],[90.0,3.0],[91.0,3.0],[92.0,0.0],[93.0,0.0],[94.0,0.0],[95.0,0.0]],"risk_series":[[7.0,4.2],[8.0,3.1],[9.0,2.6],[10.0,2.6],[11.0,2.6],[12.0,1.9],[13.0,1.9],[14.0,1.9],[15.0,1.1],[16.0,1.9],[17.0,2.6],[18.0,3.1],[19.0,2.6],[20.0,2.6],[21.0,3.1],[22.0,2.6],[23.0,2.6],[24.0,10.1],[25.0,9.1],[26.0,8.5],[27.0,9.1],[28.0,7.6],[29.0,5.9],[30.0,3.1],[31.0,2.6],[32.0,2.6],[33.0,3.1],[34.0,4.8],[35.0,4.2],[36.0,4.2],[37.0,3.1],[38.0,4.8],[39.0,3.1],[40.0,1.9],[41.0,2.6],[42.0,3.1],[43.0,2.6],[44.0,3.1],[45.0,2.6],[46.0,3.1],[47.0,2.6],[48.0,1.1],[49.0,1.1],[50.0,5.0],[51.0,4.8],[52.0,4.8],[53.0,4.2],[54.0,4.8],[55.0,4.8],[56.0,2.6],[57.0,3.1],[58.0,2.6],[59.0,2.6],[60.0,3.1],[61.0,3.1],[62.0,3.1],[63.0,7.3],[64.0,4.8],[65.0,4.8],[66.0,4.8],[67.0,2.6],[68.0,1.3],[69.0,0.7],[70.0,1.1],[71.0,1.1],[72.0,1.1],[73.0,2.6],[74.0,3.1],[75.0,3.1],[76.0,3.1],[77.0,3.1],[78.0,3.1],[79.0,1.9],[80.0,0.7],[81.0,0.1],[82.0,0.1],[83.0,0.0],[84.0,2.6],[85.0,1.9],[86.0,3.1],[87.0,2.6],[88.0,4.8],[89.0,4.2],[90.0,3.1],[91.0,4.2],[92.0,2.6],[93.0,2.6],[94.0,1.1]],"top_factors":[{"feature":"news2_mean","shap":0.4788},{"feature":"on_oxygen","shap":-0.1837},{"feature":"age","shap":-0.1691},{"feature":"news2_at_anchor","shap":-0.1356},{"feature":"heart_rate_last","shap":0.0751}]}];
+
+const FEATURE_LABELS = {
+  news2_mean: "Average NEWS2 trend (6-hour window)",
+  hours_since_adm: "Time already spent in the unit",
+  fio2_last: "Oxygen support level (FiO₂)",
+  news2_at_anchor: "NEWS2 score right now",
+  heart_rate_last: "Heart rate",
+  temperature_delta_adm: "Temperature change since admission",
+  temperature_last: "Temperature reading",
+  on_oxygen: "On supplemental oxygen",
+  age: "Patient age",
+};
+
+function riskBand(pct) {
+  if (pct >= 40) return "critical";
+  if (pct >= 15) return "warn";
+  return "good";
+}
+function riskLabel(band) {
+  return { critical: "High risk", warn: "Elevated risk", good: "Low risk" }[band];
+}
+function varColor(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+let activeIdx = 0;
+
+function renderCards() {
+  const el = document.getElementById("cards");
+  el.innerHTML = DATA.map((p, i) => {
+    const band = riskBand(p.peak_risk);
+    return `
+      <button class="card ${i === activeIdx ? "active" : ""}" data-idx="${i}">
+        <div class="card-top">
+          <div class="card-name serif">${p.label}</div>
+          <span class="badge ${band}">${riskLabel(band)}</span>
+        </div>
+        <div class="card-tag">${p.tag}</div>
+        <div class="card-stats">
+          <div class="stat">
+            <div class="stat-num mono">${p.peak_risk.toFixed(1)}%</div>
+            <div class="stat-label">Peak predicted risk</div>
+          </div>
+          <div class="stat">
+            <div class="stat-num mono">Day ${Math.round(p.outcome_h / 24)}</div>
+            <div class="stat-label">${p.event ? "Deterioration confirmed" : "Discharged stable"}</div>
+          </div>
+        </div>
+      </button>`;
+  }).join("");
+  el.querySelectorAll(".card").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      activeIdx = Number(btn.dataset.idx);
+      renderCards();
+      renderDetail();
+    });
+  });
+}
+
+function niceHourTicks(min, max, n) {
+  const span = max - min;
+  const step = Math.max(1, Math.round(span / n / 12) * 12);
+  const ticks = [];
+  let t = Math.ceil(min / step) * step;
+  for (; t <= max; t += step) ticks.push(t);
+  if (ticks.length === 0) ticks.push(min);
+  return ticks;
+}
+
+function buildSVGChart({ series, xMin, xMax, yMax, yTicks, height, lineColor, fillColor, bands, showXAxis, unit }) {
+  const W = 1000, padL = 46, padR = 12, padT = 10, padB = showXAxis ? 26 : 10;
+  const plotW = W - padL - padR, plotH = height - padT - padB;
+  const sx = (x) => padL + ((x - xMin) / (xMax - xMin)) * plotW;
+  const sy = (y) => padT + plotH - (Math.max(0, Math.min(y, yMax)) / yMax) * plotH;
+
+  let svg = `<svg class="chart" viewBox="0 0 ${W} ${height}" preserveAspectRatio="none" data-plotl="${padL}" data-plotr="${W - padR}" data-plott="${padT}" data-ploth="${plotH}">`;
+
+  if (bands) {
+    for (const b of bands) {
+      const y1 = sy(b.to), y2 = sy(b.from);
+      svg += `<rect x="${padL}" y="${y1}" width="${plotW}" height="${Math.max(0, y2 - y1)}" fill="${b.color}" />`;
+    }
+  }
+
+  for (const yt of yTicks) {
+    const y = sy(yt);
+    svg += `<line class="grid-line" x1="${padL}" x2="${W - padR}" y1="${y}" y2="${y}" />`;
+    svg += `<text class="axis-tick" x="${padL - 8}" y="${y + 3}" text-anchor="end">${yt}</text>`;
+  }
+  svg += `<line class="axis-line" x1="${padL}" x2="${padL}" y1="${padT}" y2="${padT + plotH}" />`;
+
+  if (showXAxis) {
+    const ticks = niceHourTicks(xMin, xMax, 6);
+    for (const xt of ticks) {
+      const x = sx(xt);
+      svg += `<text class="axis-tick" x="${x}" y="${height - 6}" text-anchor="middle">Day ${Math.round(xt / 24)}</text>`;
+    }
+  }
+
+  const pts = series.map((d) => [sx(d[0]), sy(d[1])]);
+  if (pts.length) {
+    const linePath = pts.map((p, i) => (i === 0 ? "M" : "L") + p[0].toFixed(1) + "," + p[1].toFixed(1)).join(" ");
+    const areaPath = linePath + ` L${pts[pts.length - 1][0].toFixed(1)},${(padT + plotH).toFixed(1)} L${pts[0][0].toFixed(1)},${(padT + plotH).toFixed(1)} Z`;
+    svg += `<path d="${areaPath}" fill="${fillColor}" stroke="none" />`;
+    svg += `<path d="${linePath}" fill="none" stroke="${lineColor}" stroke-width="2" />`;
+  }
+
+  svg += `<line class="crosshair-line" data-cross="1" x1="0" x2="0" y1="${padT}" y2="${padT + plotH}" />`;
+  svg += `</svg>`;
+  return { svg, sx, sy, padL, padR: W - padR, padT, plotH, W };
+}
+
+function nearestPoint(series, hour) {
+  if (!series.length) return null;
+  let best = series[0], bestD = Infinity;
+  for (const d of series) {
+    const dist = Math.abs(d[0] - hour);
+    if (dist < bestD) { bestD = dist; best = d; }
+  }
+  return best;
+}
+
+function renderDetail() {
+  const p = DATA[activeIdx];
+  const el = document.getElementById("detail");
+  const allX = p.news2_series.map((d) => d[0]).concat(p.risk_series.map((d) => d[0]));
+  const xMin = Math.min(...allX), xMax = Math.max(...allX, p.outcome_h, p.peak_risk_h);
+  const band = riskBand(p.peak_risk);
+
+  const maxAbs = Math.max(...p.top_factors.map((f) => Math.abs(f.shap)));
+  const factorsHtml = p.top_factors.map((f) => {
+    const increasesRisk = f.shap < 0;
+    const pct = (Math.abs(f.shap) / maxAbs) * 50;
+    const cls = increasesRisk ? "critical" : "good";
+    const left = increasesRisk ? 50 - pct : 50;
+    return `
+      <div class="factor-row">
+        <div class="factor-label">${FEATURE_LABELS[f.feature] || f.feature}</div>
+        <div class="factor-track">
+          <div class="factor-center"></div>
+          <div class="factor-fill ${cls}" style="left:${left}%; width:${pct}%;"></div>
+        </div>
+        <div class="factor-dir ${cls}">${increasesRisk ? "↑ increases risk" : "↓ lowers risk"}</div>
+      </div>`;
+  }).join("");
+
+  el.innerHTML = `
+    <div class="detail-head">
+      <div>
+        <h2 class="serif">${p.label} <span class="badge ${band}" style="margin-left:8px; vertical-align:middle;">${riskLabel(band)}</span></h2>
+        <p class="tag">${p.tag}</p>
+      </div>
+      <div class="detail-facts">
+        <div class="fact">
+          <div class="fact-num mono" style="color:var(--accent);">${p.peak_risk.toFixed(1)}%</div>
+          <div class="fact-sub">Peak predicted 12h risk &middot; Day ${Math.round(p.peak_risk_h / 24)}</div>
+        </div>
+        <div class="fact">
+          <div class="fact-num mono">Day ${Math.round(p.outcome_h / 24)}</div>
+          <div class="fact-sub">${p.event ? "Deterioration confirmed" : "Discharged, stable"}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="charts-wrap" id="chartsWrap">
+      <div class="chart-block">
+        <div class="chart-title-row">
+          <span class="chart-title">NEWS2 clinical score (bedside observation)</span>
+          <span class="legend">
+            <span><span class="sw" style="background:var(--warn-tint); border:1px solid var(--warn);"></span>Medium (5&ndash;6)</span>
+            <span><span class="sw" style="background:var(--critical-tint); border:1px solid var(--critical);"></span>High (7+)</span>
+          </span>
+        </div>
+        <div id="news2Chart"></div>
+      </div>
+      <div class="chart-block">
+        <div class="chart-title-row">
+          <span class="chart-title">AI predicted risk of deterioration within 12 hours</span>
+          <span class="legend"><span><span class="sw" style="background:var(--accent);"></span>Calibrated risk %</span></span>
+        </div>
+        <div id="riskChart"></div>
+      </div>
+    </div>
+
+    <div class="why">
+      <div class="why-title">Why the model raised this alert</div>
+      <div class="why-sub">At the moment of highest predicted risk (Day ${Math.round(p.peak_risk_h / 24)}), these signals mattered most to the model's prediction:</div>
+      ${factorsHtml}
+    </div>
+  `;
+
+  drawCharts(p, xMin, xMax);
+}
+
+function drawCharts(p, xMin, xMax) {
+  const news2Max = 14;
+  const news2 = buildSVGChart({
+    series: p.news2_series, xMin, xMax, yMax: news2Max,
+    yTicks: [0, 4, 7, 14], height: 150,
+    lineColor: varColor("--ink-dim"), fillColor: "transparent",
+    bands: [
+      { from: 5, to: 7, color: varColor("--warn-tint") },
+      { from: 7, to: news2Max, color: varColor("--critical-tint") },
+    ],
+    showXAxis: false,
+  });
+  const riskMax = 60;
+  const risk = buildSVGChart({
+    series: p.risk_series, xMin, xMax, yMax: riskMax,
+    yTicks: [0, 20, 40, 60], height: 170,
+    lineColor: varColor("--accent"), fillColor: varColor("--accent-tint"),
+    bands: null, showXAxis: true,
+  });
+
+  document.getElementById("news2Chart").innerHTML = news2.svg;
+  document.getElementById("riskChart").innerHTML = risk.svg;
+
+  addMarkers(document.getElementById("news2Chart").querySelector("svg"), news2, p, news2Max, false);
+  addMarkers(document.getElementById("riskChart").querySelector("svg"), risk, p, riskMax, true);
+
+  wireHover(p, xMin, xMax, [
+    { svg: document.getElementById("news2Chart").querySelector("svg"), chart: news2, series: p.news2_series, fmt: (v) => v.toFixed(1), name: "NEWS2" },
+    { svg: document.getElementById("riskChart").querySelector("svg"), chart: risk, series: p.risk_series, fmt: (v) => v.toFixed(1) + "%", name: "AI risk" },
+  ]);
+}
+
+function addMarkers(svgEl, chart, p, yMax, withLabel) {
+  const peakX = chart.sx(p.peak_risk_h);
+  const outX = chart.sx(p.outcome_h);
+  const critical = varColor("--critical");
+  const faint = varColor("--ink-faint");
+  const accentInk = varColor("--accent-ink");
+
+  const peakLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  peakLine.setAttribute("class", "marker-line");
+  peakLine.setAttribute("x1", peakX); peakLine.setAttribute("x2", peakX);
+  peakLine.setAttribute("y1", chart.padT); peakLine.setAttribute("y2", chart.padT + chart.plotH);
+  peakLine.setAttribute("stroke", accentInk);
+  peakLine.setAttribute("stroke-dasharray", "4 3");
+  svgEl.appendChild(peakLine);
+
+  const outLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  outLine.setAttribute("class", "marker-line");
+  outLine.setAttribute("x1", outX); outLine.setAttribute("x2", outX);
+  outLine.setAttribute("y1", chart.padT); outLine.setAttribute("y2", chart.padT + chart.plotH);
+  outLine.setAttribute("stroke", p.event ? critical : faint);
+  svgEl.appendChild(outLine);
+
+  if (withLabel) {
+    const nearRightEdge = (x) => x > chart.W - 90;
+
+    const t1 = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    t1.setAttribute("class", "marker-label");
+    t1.setAttribute("x", nearRightEdge(peakX) ? peakX - 4 : peakX + 4);
+    t1.setAttribute("text-anchor", nearRightEdge(peakX) ? "end" : "start");
+    t1.setAttribute("y", chart.padT + 11);
+    t1.setAttribute("fill", accentInk); t1.textContent = "Peak risk";
+    svgEl.appendChild(t1);
+
+    const t2 = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    t2.setAttribute("class", "marker-label");
+    t2.setAttribute("x", nearRightEdge(outX) ? outX - 4 : outX + 4);
+    t2.setAttribute("text-anchor", nearRightEdge(outX) ? "end" : "start");
+    t2.setAttribute("y", chart.padT + 11);
+    t2.setAttribute("fill", p.event ? critical : faint);
+    t2.textContent = p.event ? "Deterioration" : "Discharged";
+    svgEl.appendChild(t2);
+  }
+}
+
+function wireHover(p, xMin, xMax, panels) {
+  const wrap = document.getElementById("chartsWrap");
+  const tooltip = document.getElementById("tooltip");
+
+  function onMove(e) {
+    const svg0 = panels[0].svg;
+    const rect = svg0.getBoundingClientRect();
+    const relX = e.clientX - rect.left;
+    const frac = relX / rect.width;
+    const padLFrac = panels[0].chart.padL / panels[0].chart.W;
+    const padRFrac = panels[0].chart.padR / panels[0].chart.W;
+    const clamped = Math.max(padLFrac, Math.min(padRFrac, frac));
+    const hour = xMin + ((clamped - padLFrac) / (padRFrac - padLFrac)) * (xMax - xMin);
+
+    let lines = [`<b>Day ${(hour / 24).toFixed(1)}</b>`];
+    for (const panel of panels) {
+      const cross = panel.svg.querySelector('[data-cross="1"]');
+      const xPix = panel.chart.padL + clamped2frac(clamped, panel) * (panel.chart.padR - panel.chart.padL);
+      cross.setAttribute("x1", xPix); cross.setAttribute("x2", xPix);
+      cross.style.opacity = 1;
+      const pt = nearestPoint(panel.series, hour);
+      if (pt) lines.push(`${panel.name}: <b>${panel.fmt(pt[1])}</b>`);
+    }
+    tooltip.innerHTML = lines.join("<br/>");
+    tooltip.style.opacity = 1;
+    tooltip.style.left = (e.clientX + window.scrollX) + "px";
+    tooltip.style.top = (rect.top + window.scrollY - 8) + "px";
+  }
+  function clamped2frac(clamped, panel) {
+    return (clamped - panel.chart.padL / panel.chart.W) / (panel.chart.padR / panel.chart.W - panel.chart.padL / panel.chart.W);
+  }
+  function onLeave() {
+    panels.forEach((panel) => { panel.svg.querySelector('[data-cross="1"]').style.opacity = 0; });
+    tooltip.style.opacity = 0;
+  }
+  wrap.addEventListener("mousemove", onMove);
+  wrap.addEventListener("mouseleave", onLeave);
+}
+
+renderCards();
+renderDetail();
+</script>

@@ -1,0 +1,509 @@
+<title>Foqal EWS — CCU Deterioration Model Briefing</title>
+<style>
+  :root{
+    --bg:#f6f8f9; --surface:#ffffff; --surface-2:#eef2f3; --ink:#15242a;
+    --muted:#5c6c73; --faint:#8a99a0; --hair:#dde5e7;
+    --teal:#2a6f77; --teal-2:#3f8b93; --teal-ink:#215a61;
+    --good:#2e7d57; --warn:#b9822a; --bad:#b0453c;
+    --shadow:0 1px 2px rgba(20,40,45,.06),0 6px 20px rgba(20,40,45,.05);
+    --serif:"Iowan Old Style",Georgia,"Times New Roman",serif;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,"Cascadia Code","SF Mono",Consolas,monospace;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#0e1618; --surface:#15242a; --surface-2:#1b2f36; --ink:#e9eff1;
+      --muted:#9fb0b6; --faint:#6f8189; --hair:#25373e;
+      --teal:#5fb3bc; --teal-2:#4e9aa3; --teal-ink:#8fd0d7;
+      --good:#57b98a; --warn:#d7a24e; --bad:#df6a60;
+      --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.28);
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#f6f8f9;--surface:#ffffff;--surface-2:#eef2f3;--ink:#15242a;--muted:#5c6c73;
+    --faint:#8a99a0;--hair:#dde5e7;--teal:#2a6f77;--teal-2:#3f8b93;--teal-ink:#215a61;
+    --good:#2e7d57;--warn:#b9822a;--bad:#b0453c;--shadow:0 1px 2px rgba(20,40,45,.06),0 6px 20px rgba(20,40,45,.05);
+  }
+  :root[data-theme="dark"]{
+    --bg:#0e1618;--surface:#15242a;--surface-2:#1b2f36;--ink:#e9eff1;--muted:#9fb0b6;
+    --faint:#6f8189;--hair:#25373e;--teal:#5fb3bc;--teal-2:#4e9aa3;--teal-ink:#8fd0d7;
+    --good:#57b98a;--warn:#d7a24e;--bad:#df6a60;--shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.28);
+  }
+
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+    line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:920px;margin:0 auto;padding:44px 24px 100px}
+  section{margin-top:52px}
+  h1,h2,h3{font-family:var(--serif);font-weight:600;line-height:1.2;text-wrap:balance}
+  h1{font-size:clamp(30px,5vw,44px);letter-spacing:-.01em;margin:0 0 6px}
+  h2{font-size:clamp(22px,3.4vw,28px);margin:0 0 4px}
+  h3{font-size:18px;margin:26px 0 8px}
+  p{margin:10px 0}
+  a{color:var(--teal-ink)}
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--teal);font-weight:600}
+  .sec-no{font-family:var(--mono);color:var(--faint);font-size:13px;margin-right:8px}
+  .lead{font-size:19px;color:var(--muted);max-width:64ch}
+  .muted{color:var(--muted)}
+  .mono{font-family:var(--mono)}
+  code{font-family:var(--mono);font-size:.9em;background:var(--surface-2);
+    padding:.1em .4em;border-radius:5px}
+  strong{color:var(--ink)}
+
+  /* header */
+  header{border-bottom:1px solid var(--hair);padding-bottom:26px}
+  .kicker{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+  .chip{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);
+    font-size:12px;padding:4px 10px;border-radius:999px;border:1px solid var(--hair);
+    color:var(--muted);background:var(--surface)}
+  .chip.teal{color:var(--teal-ink);border-color:color-mix(in srgb,var(--teal) 40%,transparent)}
+  .chip.good{color:var(--good);border-color:color-mix(in srgb,var(--good) 40%,transparent)}
+
+  /* cards / grid */
+  .card{background:var(--surface);border:1px solid var(--hair);border-radius:14px;
+    padding:22px;box-shadow:var(--shadow)}
+  .grid{display:grid;gap:16px}
+  .g2{grid-template-columns:repeat(2,1fr)}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  .g4{grid-template-columns:repeat(4,1fr)}
+  @media(max-width:720px){.g2,.g3,.g4{grid-template-columns:1fr}}
+
+  /* stat tiles */
+  .stat{background:var(--surface);border:1px solid var(--hair);border-radius:12px;padding:16px 18px}
+  .stat .n{font-family:var(--serif);font-size:30px;font-weight:600;color:var(--teal-ink);
+    font-variant-numeric:tabular-nums;line-height:1.1}
+  .stat .l{font-size:13px;color:var(--muted);margin-top:4px}
+  .stat .sub{font-size:12px;color:var(--faint);font-family:var(--mono);margin-top:2px}
+
+  /* gate row */
+  .gate{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border:1px solid var(--hair);
+    border-radius:12px;background:var(--surface)}
+  .gate .dot{flex:none;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;
+    background:color-mix(in srgb,var(--good) 18%,transparent);color:var(--good);font-weight:700;font-size:13px}
+  .gate b{display:block;font-size:14px}
+  .gate span{font-size:13px;color:var(--muted)}
+
+  /* tables */
+  .tbl-wrap{overflow-x:auto;border:1px solid var(--hair);border-radius:12px;background:var(--surface)}
+  table{border-collapse:collapse;width:100%;font-size:14px;min-width:520px}
+  th,td{padding:10px 14px;text-align:left;border-bottom:1px solid var(--hair)}
+  thead th{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--muted);font-weight:600;background:var(--surface-2)}
+  tbody tr:last-child td{border-bottom:none}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;font-family:var(--mono)}
+  tr.hi td{background:color-mix(in srgb,var(--teal) 8%,transparent);font-weight:600}
+  .win{color:var(--good);font-weight:700}
+  .lose{color:var(--faint)}
+
+  /* figure */
+  figure{margin:0}
+  .fig{background:#fff;border:1px solid var(--hair);border-radius:12px;padding:14px;box-shadow:var(--shadow)}
+  .fig img{display:block;width:100%;height:auto;border-radius:4px}
+  figcaption{font-size:13px;color:var(--muted);margin-top:10px;padding:0 4px}
+
+  /* callout */
+  .callout{border-left:3px solid var(--teal);background:var(--surface);border-radius:0 12px 12px 0;
+    padding:14px 18px;margin:16px 0}
+  .callout.warn{border-left-color:var(--warn)}
+  .callout .t{font-weight:600;font-size:14px;margin-bottom:2px}
+
+  /* pipeline */
+  .pipe{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+  @media(max-width:720px){.pipe{grid-template-columns:1fr 1fr}}
+  .step{background:var(--surface);border:1px solid var(--hair);border-radius:12px;padding:14px}
+  .step .k{font-family:var(--mono);font-size:12px;color:var(--teal)}
+  .step .h{font-weight:600;font-size:14px;margin:4px 0 2px}
+  .step .d{font-size:12px;color:var(--muted)}
+
+  ul.tight{margin:8px 0;padding-left:20px}
+  ul.tight li{margin:5px 0}
+  .kv{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:14px}
+  .kv .k{color:var(--muted);font-family:var(--mono);font-size:13px}
+  .divider{height:1px;background:var(--hair);border:0;margin:0}
+  .qa summary{cursor:pointer;font-weight:600;padding:12px 0;list-style:none;
+    display:flex;gap:10px;align-items:baseline}
+  .qa summary::-webkit-details-marker{display:none}
+  .qa summary::before{content:"Q";font-family:var(--serif);color:var(--teal);font-weight:700}
+  .qa details{border-bottom:1px solid var(--hair)}
+  .qa details p{padding:0 0 14px 22px;margin:0;color:var(--muted);font-size:14px}
+  .foot{margin-top:70px;padding-top:22px;border-top:1px solid var(--hair);
+    font-size:13px;color:var(--faint);font-family:var(--mono)}
+</style>
+
+<div class="wrap">
+<header>
+  <div class="kicker">
+    <span class="chip teal">Foqal CareOS · Early Warning System</span>
+    <span class="chip">Retrospective proof-of-concept</span>
+    <span class="chip good">✓ gates passed</span>
+  </div>
+  <h1>Predicting patient deterioration before it happens</h1>
+  <p class="lead">A time-to-event (survival) model for the CCU that predicts <em>how long until a
+  patient deteriorates</em> — trained on real MIMIC-IV data, built to cut NEWS2's false alarms,
+  and tuned for dilated-cardiomyopathy patients.</p>
+  <p class="muted mono" style="font-size:13px">Foqal CareOS · Ward Monitor · model walkthrough</p>
+</header>
+
+<!-- ===================== TL;DR ===================== -->
+<section>
+  <div class="eyebrow">Summary</div>
+  <h2>What was built, and how it performs</h2>
+  <div class="grid g4" style="margin-top:18px">
+    <div class="stat"><div class="n">0.75</div><div class="l">C-index, all CCU</div><div class="sub">DCM: 0.80</div></div>
+    <div class="stat"><div class="n">−26%</div><div class="l">false alarms vs NEWS2</div><div class="sub">DCM: −41%</div></div>
+    <div class="stat"><div class="n">0.905</div><div class="l">interval coverage</div><div class="sub">target ≈ 0.90</div></div>
+    <div class="stat"><div class="n">10,775</div><div class="l">real CCU stays</div><div class="sub">735 DCM</div></div>
+  </div>
+  <div class="grid g3" style="margin-top:16px">
+    <div class="gate"><div class="dot">✓</div><div><b>Beats the NEWS2 baseline</b><span>0.75 vs 0.66 C-index, confidence intervals don't overlap</span></div></div>
+    <div class="gate"><div class="dot">✓</div><div><b>Fewer false alarms</b><span>4.2 vs 5.7 alerts per true event at 80% sensitivity</span></div></div>
+    <div class="gate"><div class="dot">✓</div><div><b>Calibrated uncertainty</b><span>90.5% of events fall inside the predicted band</span></div></div>
+  </div>
+</section>
+
+<!-- ===================== WHY ===================== -->
+<section>
+  <div class="eyebrow">Motivation</div>
+  <h2>Why change anything — NEWS2 alone isn't enough for DCM</h2>
+  <div class="grid g2" style="margin-top:14px">
+    <div class="card">
+      <h3 style="margin-top:0">The problem</h3>
+      <p class="muted" style="margin-top:4px">NEWS2 is a fixed rule on current vitals. It was designed for
+      <em>acute</em> deterioration (sepsis-style spikes). But dilated-cardiomyopathy decompensation is often a
+      <strong>slow congestive drift</strong> — weight gain, fluid overload, rising filling pressures — that
+      NEWS2 is structurally blind to. Result: poor accuracy and <strong>too many false alarms</strong>.</p>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">The two changes we made</h3>
+      <ul class="tight muted">
+        <li><strong>Reframe the question.</strong> Not “is the score high now?” but
+        <strong>“how long until this patient deteriorates?”</strong> — a survival / time-to-event model.</li>
+        <li><strong>Add HF-specific signals</strong> on top of NEWS2: weight trend, fluid balance,
+        NT-proBNP, lactate, kidney function, rhythm, comorbidity burden.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== PIPELINE ===================== -->
+<section>
+  <div class="eyebrow">How it fits together</div>
+  <h2>The pipeline — five stages, fully reproducible</h2>
+  <p class="muted">Each stage is a script; data flows left to right and is saved to disk between stages, so any step can be re-run alone.</p>
+  <div class="pipe" style="margin-top:16px">
+    <div class="step"><div class="k">00</div><div class="h">Extract</div><div class="d">MIMIC-IV → local parquet via BigQuery</div></div>
+    <div class="step"><div class="k">01</div><div class="h">Label</div><div class="d">replay NEWS2, build the survival target</div></div>
+    <div class="step"><div class="k">02</div><div class="h">Features</div><div class="d">two-axis matrix, 94 features</div></div>
+    <div class="step"><div class="k">03</div><div class="h">Train</div><div class="d">XGBoost AFT + baselines</div></div>
+    <div class="step"><div class="k">04</div><div class="h">Evaluate</div><div class="d">C-index, alert burden, SHAP</div></div>
+  </div>
+</section>
+
+<!-- ===================== DATA ===================== -->
+<section>
+  <div class="eyebrow"><span class="sec-no">01</span>The data</div>
+  <h2>What data we pulled, and from where</h2>
+  <p>Source: <strong>MIMIC-IV v3.1</strong> — a large, credentialed ICU database (Beth Israel, Boston) hosted on
+  Google <strong>BigQuery</strong> (<code>physionet-data</code>). We queried it once with the lab's PhysioNet-credentialed
+  account and saved a filtered copy locally as parquet. <strong>Total scanned ≈ 50 GB — inside BigQuery's free tier,
+  effectively $0.</strong> Everything after extraction runs offline on local files.</p>
+  <div class="tbl-wrap" style="margin-top:14px">
+    <table>
+      <thead><tr><th>MIMIC table</th><th>What we took</th><th class="num">Rows (full cohort)</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">icustays / patients / admissions</td><td>cohort, demographics, death/discharge times</td><td class="num">10,775 stays</td></tr>
+        <tr><td class="mono">chartevents</td><td>vitals: HR, RR, SpO₂, BP, temp, GCS, O₂, rhythm</td><td class="num">5,417,558</td></tr>
+        <tr><td class="mono">labevents</td><td>NT-proBNP, troponin, lactate, Na, creatinine, Hb, K, INR, platelets</td><td class="num">971,401</td></tr>
+        <tr><td class="mono">inputevents</td><td>vasopressor/inotrope infusions (escalation)</td><td class="num">73,259</td></tr>
+        <tr><td class="mono">procedureevents</td><td>ventilation + dialysis (escalation)</td><td class="num">4,020</td></tr>
+        <tr><td class="mono">outputevents</td><td>urine output (fluid status)</td><td class="num">365,993</td></tr>
+        <tr><td class="mono">diagnoses_icd</td><td>ICD codes → Charlson comorbidity index</td><td class="num">197,891</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ===================== COHORT ===================== -->
+<section>
+  <div class="eyebrow"><span class="sec-no">02</span>The cohort</div>
+  <h2>Who the model is for — CCU patients (with a DCM focus)</h2>
+  <div class="grid g2" style="margin-top:14px">
+    <div class="card">
+      <h3 style="margin-top:0">CCU only — and why</h3>
+      <p class="muted" style="margin-top:4px">We trained on the <strong>Coronary Care Unit</strong> — the medical
+      cardiology ICU — the CCU setting this model targets. MIMIC only charts vitals <em>inside</em> the ICU, so a ward
+      model isn't yet possible from this data. We <strong>excluded CVICU</strong> (cardiac <em>surgery</em> ICU) —
+      its escalations are post-operative, not medical heart-failure deterioration.</p>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">General vs DCM — we do both</h3>
+      <p class="muted" style="margin-top:4px">The model is trained on <strong>all CCU cardiology patients</strong>
+      for statistical power, but <strong>up-weights DCM patients 3×</strong>, carries a DCM indicator feature, and
+      is <strong>evaluated separately on a held-out DCM subgroup</strong>. So it's a general CCU model that is
+      explicitly tuned and checked for DCM.</p>
+    </div>
+  </div>
+  <div class="grid g4" style="margin-top:16px">
+    <div class="stat"><div class="n">10,775</div><div class="l">CCU stays</div></div>
+    <div class="stat"><div class="n">735</div><div class="l">DCM patients</div><div class="sub">6.8%</div></div>
+    <div class="stat"><div class="n">18+</div><div class="l">adults only</div></div>
+    <div class="stat"><div class="n">CCU</div><div class="l">Coronary Care Unit</div><div class="sub">CVICU excluded</div></div>
+  </div>
+</section>
+
+<!-- ===================== EVENT / RULES ===================== -->
+<section>
+  <div class="eyebrow"><span class="sec-no">03</span>The rules — what counts as "deterioration"</div>
+  <h2>The event we predict is more than NEWS2</h2>
+  <p>The survival target is the <strong>time until the first deterioration event</strong>, defined as the
+  <strong>earliest</strong> of two things — plus death handled carefully:</p>
+  <div class="grid g2" style="margin-top:14px">
+    <div class="card">
+      <h3 style="margin-top:0">① Treatment escalation <span class="chip teal" style="vertical-align:middle">objective</span></h3>
+      <p class="muted" style="margin-top:4px">The clinician <em>acted</em>: started a
+      <strong>vasopressor / inotrope</strong>, put the patient on a <strong>ventilator</strong>, or started
+      <strong>dialysis</strong>. This is independent of the vitals we feed in — so it's a real outcome, not circular.</p>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">② Sustained NEWS2 ≥ 7</h3>
+      <p class="muted" style="margin-top:4px">The high-risk NEWS2 band, held over <strong>2 consecutive hours</strong>.
+      NEWS2 ≥ 7 is itself a clinical action threshold; the 2-hour rule filters out one-off charting blips.</p>
+    </div>
+  </div>
+  <div class="callout warn" style="margin-top:16px">
+    <div class="t">Death is a competing risk — not folded in</div>
+    <p style="margin:4px 0 0">A patient who dies <em>without</em> a preceding deterioration is <strong>censored</strong>,
+    not counted as an event. Reason: a slow, preventable death is <em>preceded</em> by escalation or NEWS2 ≥ 7 (so we
+    still catch it early), while a sudden unpredictable death has no vital-sign warning and shouldn't be forced onto a
+    vitals model.</p>
+  </div>
+  <div class="callout">
+    <div class="t">Why not just "NEWS2 crossed a line"?</div>
+    <p style="margin:4px 0 0">Because predicting NEWS2 <em>from</em> NEWS2 would be <strong>circular</strong> and would
+    inherit NEWS2's blind spot for DCM. Anchoring the event mostly on <strong>treatment escalation</strong> makes it a
+    genuine outcome. Soft NEWS2 rises (4→5, 5→6) are kept as <strong>features</strong>, never as the event itself.</p>
+  </div>
+  <p class="muted" style="margin-top:14px">On the real cohort: <strong>6,844</strong> stays reach a deterioration event
+  (4,167 by escalation, 5,424 by sustained NEWS2 ≥ 7), and <strong>1,471</strong> in-hospital deaths are handled as competing risks.</p>
+</section>
+
+<!-- ===================== DATASET CONSTRUCTION ===================== -->
+<section>
+  <div class="eyebrow"><span class="sec-no">03b</span>Turning stays into training examples</div>
+  <h2>The sliding-window setup</h2>
+  <div class="grid g2">
+    <div>
+      <ul class="tight">
+        <li>Irregular ICU charting is snapped to a <strong>regular hourly grid</strong> per patient.</li>
+        <li>At <strong>every hour <span class="mono">t</span></strong> we make one training example (an "anchor").</li>
+        <li>Features come from the <strong>6-hour look-back window</strong> <span class="mono">[t−6h, t]</span>.</li>
+        <li>The label is <strong>time until the next deterioration</strong>, capped at a <strong>24-hour horizon</strong>.</li>
+        <li>If no event happens (discharge / death / horizon) the example is <strong>censored</strong> — the survival model still uses it.</li>
+        <li>We skip anchors already at NEWS2 ≥ 7 (already critical) or with &lt; 2 readings.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="kv">
+        <span class="k">anchors</span><span><strong>149,779</strong> examples</span>
+        <span class="k">from</span><span>5,439 CCU stays</span>
+        <span class="k">event rate</span><span>13.5%</span>
+        <span class="k">look-back</span><span>6 hours</span>
+        <span class="k">horizon</span><span>24 hours</span>
+        <span class="k">stride</span><span>1 hour</span>
+      </div>
+      <p class="muted" style="font-size:13px;margin-top:12px">Because many anchors come from the same patient, we report
+      <strong>confidence intervals bootstrapped by patient</strong> — not by row — so we don't overstate precision.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== FEATURES ===================== -->
+<section>
+  <div class="eyebrow"><span class="sec-no">04</span>Feature engineering</div>
+  <h2>Two clinical axes — 94 features</h2>
+  <p>Every feature is computed <strong>only from data at or before <span class="mono">t</span></strong> (a leakage guard
+  asserts this). We deliberately built <strong>two axes</strong>: the acute vital-sign axis NEWS2 already knows, and a
+  heart-failure "congestion &amp; substrate" axis it doesn't.</p>
+  <div class="grid g2" style="margin-top:14px">
+    <div class="card">
+      <div class="eyebrow" style="color:var(--teal)">Axis 1 · Acute (what NEWS2 sees)</div>
+      <ul class="tight muted" style="margin-top:8px">
+        <li>Per vital (HR, RR, SpO₂, SBP, DBP, temp): <span class="mono">last, mean, std, min, max, rate, Δ-from-admission</span></li>
+        <li>NEWS2 dynamics: current value, mean, max, <strong>rate of change</strong>, hours-in-band</li>
+        <li>Oxygen / FiO₂ / consciousness flags</li>
+      </ul>
+    </div>
+    <div class="card" style="border-color:color-mix(in srgb,var(--warn) 35%,var(--hair))">
+      <div class="eyebrow" style="color:var(--warn)">Axis 2 · Congestion &amp; substrate (the DCM layer)</div>
+      <ul class="tight muted" style="margin-top:8px">
+        <li><strong>Weight trend</strong> Δ24h / Δ72h + ESC (≥2 kg/3 d) &amp; HFSA (≥0.9 kg/1 d) alert flags</li>
+        <li><strong>Urine-output rate</strong> (fluid status)</li>
+        <li>Labs: <strong>NT-proBNP</strong>, troponin, lactate, sodium, <strong>eGFR</strong>, Hb, K, INR, platelets — with missingness flags</li>
+        <li>Cardiac <strong>rhythm</strong> (atrial fibrillation / VT-VF)</li>
+        <li>Age, sex, <strong>Charlson comorbidity index</strong></li>
+      </ul>
+    </div>
+  </div>
+  <div class="callout" style="margin-top:16px">
+    <div class="t">Why rate-of-change matters</div>
+    <p style="margin:4px 0 0">A heart rate rising <strong>80 → 110 over 4 hours</strong> is more dangerous than a
+    patient stable at 110 — even though NEWS2 scores them the same. Our <span class="mono">*_rate</span> features capture
+    exactly that trajectory.</p>
+  </div>
+  <p class="muted" style="font-size:13px;margin-top:12px">Data reality check: NT-proBNP (the key HF marker) is present for
+  ~95% of examples; sparser labs carry an explicit "missing" flag because <em>missingness is itself informative</em>.
+  Features MIMIC lacks — HRV, cardiac-MRI strain/scar, bio-impedance, structured NYHA class — are documented as
+  <strong>future additions</strong> for when such data becomes available.</p>
+</section>
+
+<!-- ===================== MODEL ===================== -->
+<section>
+  <div class="eyebrow"><span class="sec-no">05</span>The model</div>
+  <h2>XGBoost AFT — a survival model that handles censoring</h2>
+  <div class="grid g2" style="margin-top:14px">
+    <div class="card">
+      <h3 style="margin-top:0">What "AFT" means, simply</h3>
+      <p class="muted" style="margin-top:4px"><strong>AFT = Accelerated Failure Time.</strong> Ordinary regression
+      can't learn from a patient who was simply discharged without deteriorating — you don't know <em>when</em> they
+      would have. AFT can: it accepts <strong>“the event happened at hour T”</strong> for events and
+      <strong>“the event hadn't happened by hour T”</strong> for censored patients, and learns from <em>both</em>.
+      It fits a probability distribution over time-to-event, so it naturally gives a <strong>median</strong> and an
+      <strong>uncertainty band</strong>.</p>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">Choices we made</h3>
+      <ul class="tight muted" style="margin-top:6px">
+        <li>Gradient-boosted trees (<span class="mono">survival:aft</span>), <strong>logistic</strong> distribution (chosen by validation score)</li>
+        <li>Handles missing values natively; captures non-linear interactions</li>
+        <li><strong>Conformal calibration</strong> for the 5–95% band — because the raw model band was over-confident</li>
+        <li>Death as a <strong>competing risk</strong>; DCM rows up-weighted 3×</li>
+      </ul>
+    </div>
+  </div>
+  <h3>What it competes against (our honesty checks)</h3>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Model</th><th>Role</th></tr></thead>
+      <tbody>
+        <tr class="hi"><td><strong>XGBoost AFT — full features</strong></td><td>our primary model</td></tr>
+        <tr><td>XGBoost AFT — NEWS2 features only</td><td>ablation: does the congestion axis actually add value?</td></tr>
+        <tr><td>Cox proportional hazards</td><td>classic linear survival baseline</td></tr>
+        <tr><td>NEWS2-slope heuristic</td><td><strong>the must-beat bar</strong> — if we can't beat this, we built nothing</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ===================== TRAINING SETUP ===================== -->
+<section>
+  <div class="eyebrow"><span class="sec-no">05b</span>Training setup</div>
+  <h2>Train / calibrate / test split</h2>
+  <p>Split <strong>by patient</strong> (never letting one patient's hours appear in two splits) into
+  <strong>70% train / 15% calibrate / 15% test</strong>. The calibration slice is what tunes the uncertainty band;
+  the test slice is untouched until the final scoring.</p>
+  <div class="grid g3" style="margin-top:14px">
+    <div class="stat"><div class="n">104,373</div><div class="l">train anchors</div><div class="sub">3,499 patients</div></div>
+    <div class="stat"><div class="n">22,709</div><div class="l">calibrate</div><div class="sub">751 patients</div></div>
+    <div class="stat"><div class="n">22,697</div><div class="l">test</div><div class="sub">751 patients · 3,072 events</div></div>
+  </div>
+</section>
+
+<!-- ===================== RESULTS ===================== -->
+<section>
+  <div class="eyebrow"><span class="sec-no">06</span>Results</div>
+  <h2>Results on held-out patients</h2>
+
+  <h3>Discrimination — can it rank who deteriorates sooner?</h3>
+  <figure class="fig"><img alt="C-index comparison chart" src="__CHART_CINDEX__">
+    <figcaption>Harrell C-index (0.5 = coin-flip, 1.0 = perfect ordering). Our AFT model beats the NEWS2-slope
+    baseline on all patients and does <strong>best on DCM (0.80)</strong>. Bars are 95% confidence intervals bootstrapped by patient.</figcaption>
+  </figure>
+
+  <div class="tbl-wrap" style="margin-top:20px">
+    <table>
+      <thead><tr><th>Model</th><th class="num">C-index (all)</th><th class="num">C-index (DCM)</th><th class="num">Alerts / event</th></tr></thead>
+      <tbody>
+        <tr class="hi"><td>AFT — full (ours)</td><td class="num">0.752</td><td class="num">0.804</td><td class="num">4.17</td></tr>
+        <tr><td>AFT — NEWS2 only</td><td class="num">0.751</td><td class="num">0.785</td><td class="num">4.33</td></tr>
+        <tr><td>Cox PH</td><td class="num">0.711</td><td class="num">0.799</td><td class="num">4.87</td></tr>
+        <tr><td>NEWS2-slope (baseline)</td><td class="num lose">0.657</td><td class="num lose">0.691</td><td class="num lose">5.67</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Reducing false alarms</h3>
+  <figure class="fig"><img alt="Alert burden chart" src="__CHART_ALERT__">
+    <figcaption>At a fixed <strong>80% sensitivity</strong> (catching 80% of real deteriorations), how many alerts fire
+    per true event. Lower is better. Our model needs <strong>4.2 vs the baseline's 5.7</strong> on all patients, and
+    <strong>3.6 vs 6.1</strong> on DCM — a 26–41% cut in false alarms.</figcaption>
+  </figure>
+
+  <h3>Is the uncertainty band trustworthy?</h3>
+  <div class="grid g2" style="align-items:start">
+    <figure class="fig"><img alt="Coverage chart" src="__CHART_COVERAGE__">
+      <figcaption>Of real events, how many fall inside the predicted 5–95% band. Our <strong>conformal</strong> band hits
+      0.905 (target 0.90); the raw model band (0.73) was over-confident — which is exactly why we calibrate it.</figcaption>
+    </figure>
+    <figure class="fig"><img alt="Risk separation chart" src="__CHART_RISK__">
+      <figcaption>The model's risk score clearly separates patients who go on to deteriorate (teal) from those who
+      don't (grey) — visual evidence the ranking is real.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ===================== SHAP ===================== -->
+<section>
+  <div class="eyebrow"><span class="sec-no">07</span>Interpretability</div>
+  <h2>What the model actually uses</h2>
+  <figure class="fig"><img alt="SHAP importance chart" src="__CHART_SHAP__">
+    <figcaption>Average feature impact (SHAP). NEWS2 dynamics lead — but <strong>four congestion/substrate features
+    (eGFR, 24h urine rate, AF rhythm, Charlson index) rank in the top 12</strong>, confirming the DCM axis earns its place.</figcaption>
+  </figure>
+  <div class="callout" style="margin-top:16px">
+    <div class="t">Where the extra features help</div>
+    <p style="margin:4px 0 0">On the <em>general</em> CCU population, the congestion features barely move the needle
+    (full ≈ NEWS2-only). Their value is <strong>concentrated in DCM</strong>, where they lift C-index 0.785 → 0.804 and
+    cut alerts 4.0 → 3.6. That's the clinically-honest finding: HF-specific features matter for the HF phenotype.</p>
+  </div>
+</section>
+
+<!-- ===================== LIMITATIONS ===================== -->
+<section>
+  <div class="eyebrow"><span class="sec-no">08</span>Limitations</div>
+  <h2>Scope and limitations</h2>
+  <div class="grid g2">
+    <div class="card"><h3 style="margin-top:0">It's an ICU proof-of-concept</h3><p class="muted" style="margin-top:4px">
+      Trained on US ICU data (MIMIC-IV, 2008–2019), not the general ward. Needs
+      <strong>prospective external validation and recalibration</strong> before clinical use.</p></div>
+    <div class="card"><h3 style="margin-top:0">DCM numbers are uncertain</h3><p class="muted" style="margin-top:4px">
+      Only 161 DCM test events — the 0.80 C-index has a wide interval (0.68–0.90). Real, but preliminary.</p></div>
+    <div class="card"><h3 style="margin-top:0">It's a risk ranking, not a countdown</h3><p class="muted" style="margin-top:4px">
+      Because most patients never deteriorate, the raw "expected time" is optimistic. We surface the calibrated band and a
+      <strong>risk rank</strong>, not a literal "6 hours."</p></div>
+    <div class="card"><h3 style="margin-top:0">Some inputs are proxies</h3><p class="muted" style="margin-top:4px">
+      Consciousness is derived from GCS; rhythm is sparsely charted; NYHA class isn't in MIMIC at all — it will be captured
+      via a labeling workflow in deployment for future fine-tuning.</p></div>
+  </div>
+</section>
+
+<!-- ===================== WHERE IT LIVES ===================== -->
+<section>
+  <div class="eyebrow"><span class="sec-no">09</span>Reproducibility</div>
+  <h2>Where everything lives</h2>
+  <p>All code is in <code>common_db_main_latest/ml/</code>; results are saved to <code>ml/data/</code>. Nothing is
+  terminal-only — every number in this briefing is stored on disk.</p>
+  <div class="kv" style="margin-top:12px">
+    <span class="k">00–04_*.py</span><span>the five pipeline stages (run in order)</span>
+    <span class="k">news2.py</span><span>NEWS2 scorer (faithful copy of the live system)</span>
+    <span class="k">charlson.py</span><span>comorbidity index (Quan 2005)</span>
+    <span class="k">data/metrics.json</span><span>every evaluation number</span>
+    <span class="k">data/models/</span><span>trained models + calibration</span>
+    <span class="k">data/charts/</span><span>the plots in this briefing (PNG)</span>
+    <span class="k">ews_quantile_regression_plan.md</span><span>the full written formulation</span>
+  </div>
+</section>
+
+<p class="foot">Foqal CareOS · EWS survival model · retrospective CCU proof-of-concept on MIMIC-IV v3.1 ·
+generated from <span class="mono">ml/data/metrics.json</span></p>
+</div>
